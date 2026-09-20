@@ -38,6 +38,7 @@
 
     { "source": "/credits", "destination": "/credits.html" },
     { "source": "/chat", "destination": "/chat.html" },
+    { "source":"/changelog","destination":"/changelog.html"},
     { "source": "/guide", "destination": "/guide.html" },
     { "source": "/log", "destination": "/log.html" },
     { "source": "/login", "destination": "/login.html" },
