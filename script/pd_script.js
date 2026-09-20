@@ -28,6 +28,47 @@ function loadTimer() {
   const v = parseInt(localStorage.getItem(TIMER_KEY) ?? '0', 10);
   timerSeconds = (!isNaN(v) && v >= 0) ? v : 0;
 }
+// ============ 用戶答案本地緩存 ============
+const ANSWER_STORE_KEY = 'pd_user_answers';
+
+function loadAllUserAnswers() {
+  try {
+    return JSON.parse(localStorage.getItem(ANSWER_STORE_KEY) || '{}');
+  } catch { return {}; }
+}
+
+function saveUserAnswer(pid, ans) {
+  if (!pid || ans === undefined || ans === null) return;
+  const s = String(ans).trim();
+  if (!s) return;
+  try {
+    const all = loadAllUserAnswers();
+    all[pid] = s;
+    localStorage.setItem(ANSWER_STORE_KEY, JSON.stringify(all));
+  } catch (e) { /* quota / private mode */ }
+}
+
+function getUserAnswer(pid) {
+  return loadAllUserAnswers()[pid] || '';
+}
+// ⭐ 簡單 debounce
+function debounce(fn, wait) {
+  let t = null;
+  return function (...args) {
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(this, args), wait);
+  };
+}
+
+// ⭐ 輸入過程即時保存（debounce 500ms）
+const saveAnswerDebounced = debounce((pid, ans) => {
+  saveUserAnswer(pid, ans);
+}, 500);
+
+// ⭐ 立刻保存（blur / 提交 / 頁面隱藏時用）
+function saveAnswerNow(pid, ans) {
+  saveUserAnswer(pid, ans);
+}
 
 // ============ 工具 ============
 const escapeHtml = s => (s ?? '').toString().replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
@@ -1040,7 +1081,24 @@ async function initPage() {
         if (!res.success) revert();
       } catch (e) { revert(); }
     });
+    const savedAnswer = getUserAnswer(problemId);
+    if (savedAnswer) {
+      const ansInputEl = document.getElementById('answerInput');
+      const exprInputEl = document.getElementById('exprInput');
 
+      if (ansInputEl && !ansInputEl.value) {
+        ansInputEl.value = savedAnswer;
+        ansInputEl.title = '上次提交的答案';
+        ansInputEl.style.background = 'rgba(74,144,217,.08)';
+        ansInputEl.addEventListener('input', () => {
+          ansInputEl.style.background = '';
+          ansInputEl.title = '';
+        }, { once: true });
+      }
+      if (exprInputEl && !exprInputEl.value) {
+        exprInputEl.value = savedAnswer;
+      }
+    }
     bindSubmitEvent();
     bindStaticEvents();
     await setupNavigation(problem);
@@ -1204,7 +1262,28 @@ function bindStaticEvents() {
     }
   }
   exprInput.addEventListener('input', updateExprPreview);
+    // ⭐ 用戶輸入時即時保存答案
+  const answerInputEl = document.getElementById('answerInput');
+  const exprInputEl = document.getElementById('exprInput');
 
+  if (answerInputEl) {
+    answerInputEl.addEventListener('input', () => {
+      saveAnswerDebounced(problemId, answerInputEl.value);
+    });
+    // 失焦時立刻保存
+    answerInputEl.addEventListener('blur', () => {
+      saveAnswerNow(problemId, answerInputEl.value);
+    });
+  }
+
+  if (exprInputEl) {
+    exprInputEl.addEventListener('input', () => {
+      saveAnswerDebounced(problemId, exprInputEl.value);
+    });
+    exprInputEl.addEventListener('blur', () => {
+      saveAnswerNow(problemId, exprInputEl.value);
+    });
+  }
   document.getElementById('timerToggleBtn').addEventListener('click', toggleTimer);
 }
 
@@ -1258,11 +1337,14 @@ function bindSubmitEvent() {
         checkBtn.textContent = 'Submit';
         cooldown = false;
       } else {
-        checkBtn.textContent = `Wait ${remaining.toFixed(1)}s`;
+        checkBtn.textContent = `${remaining.toFixed(1)}`;
       }
     }, 100);
 
     try {
+      if (type !== 'image') {
+        saveAnswerNow(problemId, answer);
+      }
       const result = await apiCall('/api/submit', 'POST', { problemId, answer, type, image: image || '' });
       spinner.style.display = 'none';
       if (!result.success) return;
@@ -1419,4 +1501,21 @@ window.addEventListener('pagehide', () => {
     window.__pdfResizeObserver = null;
   }
   cooldown = false;
+});
+// ⭐ 頁面隱藏/卸載時，強制把當前輸入保存
+window.addEventListener('pagehide', () => {
+  const ansEl = document.getElementById('answerInput');
+  const expEl = document.getElementById('exprInput');
+  if (ansEl && ansEl.value) saveAnswerNow(problemId, ansEl.value);
+  if (expEl && expEl.value) saveAnswerNow(problemId, expEl.value);
+});
+
+// 切到後台（手機）時也保存
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    const ansEl = document.getElementById('answerInput');
+    const expEl = document.getElementById('exprInput');
+    if (ansEl && ansEl.value) saveAnswerNow(problemId, ansEl.value);
+    if (expEl && expEl.value) saveAnswerNow(problemId, expEl.value);
+  }
 });

@@ -71,6 +71,7 @@
         } else {
           if (typeof logout === 'function') logout();
           localStorage.removeItem('sidebarOpen');
+          localStorage.removeItem('pd_user_answers');
           window.location.href = '/';
         }
       });

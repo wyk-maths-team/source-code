@@ -4,7 +4,7 @@ import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { sanitizeHTML } from '../lib/sanitize.js';
 import { ObjectId } from 'mongodb';
-
+//説明：所有的題目相關的操作都在這裏。
 // ============== 輔助函數 ==============
 function isAdminUser(user) {
   return !!user && (user.role === 'admin' || user.role === 'root');

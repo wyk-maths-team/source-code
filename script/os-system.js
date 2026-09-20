@@ -847,14 +847,14 @@
         focusedId: state.focusedId,
         windows,
       };
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
     } catch (e) {
       console.warn('saveSession failed:', e);
     }
   }
 
   function clearSession() {
-    try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
+    try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
   }
 
   function applyRestoreState(win, item) {
@@ -867,7 +867,7 @@
   async function restoreSession() {
     let session;
     try {
-      const raw = sessionStorage.getItem(SESSION_KEY);
+      const raw = localStorage.getItem(SESSION_KEY);
       if (!raw) return false;
       session = JSON.parse(raw);
       if (!session || session.version !== 1 || !Array.isArray(session.windows)) return false;
@@ -875,6 +875,14 @@
       console.warn('restoreSession parse failed:', e);
       return false;
     }
+
+    // ⭐ 超過 7 天的舊 session 自動丟棄
+    if (session.savedAt && Date.now() - session.savedAt > 7 * 24 * 60 * 60 * 1000) {
+      console.log('[OS] Session expired (>7 days), discarding');
+      clearSession();
+      return false;
+    }
+
     if (!session.windows.length) return false;
 
     _restoringSession = true;
@@ -938,6 +946,7 @@
     }
     return true;
   }
+
   /* ═══════════ 7. OS API ═══════════ */
   const OS = {
     openApp(app) {
@@ -1511,7 +1520,7 @@
       // 2. 登出（清 token）
       if (typeof logout === 'function') logout();
       else localStorage.removeItem('auth_token');
-
+          localStorage.removeItem('pd_user_answers');
       // 3. 留在 OS：重新載入 /os → 鎖屏邏輯會回到時鐘頁
       location.reload();
     });
@@ -1719,7 +1728,7 @@
             }
           }
           state.hideStatusBar = true;
-          try { localStorage.setItem(HIDE_STATUSBAAR_KEY, 'true'); } catch (_) {}
+          try { localStorage.setItem(HIDE_STATUSBAR_KEY, 'true'); } catch (_) {}
         } else {
           // 關：退出全屏
           const fn = document.exitFullscreen || document.webkitExitFullscreen;
