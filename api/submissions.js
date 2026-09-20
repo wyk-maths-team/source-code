@@ -3,6 +3,7 @@ import { connectToDatabase } from './db.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { ObjectId } from 'mongodb';
+import vm from 'vm';
 
 // =============== 快取 ===============
 let _publicIdsCache = { ids: null, expireAt: 0 };
@@ -16,7 +17,31 @@ async function getPublicProblemIds(db) {
   _publicIdsCache.expireAt = now + 300_000;
   return _publicIdsCache.ids;
 }
-
+// ⭐ 執行題目的自訂 logic
+function executeCustomLogic(logicStr, ans, userAnswer) {
+  try {
+    const result = vm.runInNewContext(
+      `(${logicStr})(${JSON.stringify(ans)}, ${JSON.stringify(userAnswer)})`
+    );
+    if (typeof result === 'number') {
+      return {
+        score: Math.min(100, Math.max(0, result)),
+        comment: '',
+        systemError: false,
+      };
+    }
+    if (result && typeof result === 'object' && typeof result.score === 'number') {
+      return {
+        score: Math.min(100, Math.max(0, result.score)),
+        comment: result.comment || '',
+        systemError: false,
+      };
+    }
+    return { score: 0, comment: 'Invalid logic return value', systemError: true };
+  } catch (err) {
+    return { score: 0, comment: 'Logic error: ' + err.message, systemError: true };
+  }
+}
 // =============== 共用 ===============
 function isAdminUser(user) {
   return !!user && (user.role === 'admin' || user.role === 'root');
@@ -232,7 +257,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, message: 'Submission deleted' });
     }
 
-    // PUT：rejudge
+        // PUT：rejudge
     if (req.method === 'PUT') {
       const { submissionId } = req.body || {};
       if (!submissionId) return res.status(400).json({ success: false, message: 'Missing submission ID' });
@@ -244,25 +269,81 @@ export default async function handler(req, res) {
       const problem = await db.collection('problems').findOne({ id: sub.problemId });
       if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
 
-      let correct = false, systemError = false;
-      const ansStr = String(problem.ans).trim();
-      const userAns = String(sub.answer).trim();
-      const isValid = s => Number.isFinite(Number(s));
-      if (!isValid(ansStr)) systemError = true;
-      else if (!isValid(userAns)) systemError = true;
-      else correct = Math.abs(Number(userAns) - Number(ansStr)) < 1e-6;
+      // ⭐ 圖片提交不能 rejudge（要人工批改）
+      if (sub.type === 'image') {
+        return res.status(400).json({ success: false, message: 'Cannot rejudge image submissions (manual marking)' });
+      }
 
-      await db.collection('submissions').updateOne({ _id: oid }, { $set: { correct, systemError } });
+      let correct = false;
+      let systemError = false;
+      let score = 0;
+      let comment = '';
 
-      const username = sub.username, problemId = sub.problemId;
+      const ansStr = String(problem.ans ?? '');
+      const userAns = String(sub.answer ?? '');
+      const hasLogic = typeof problem.logic === 'string' && problem.logic.trim() !== '';
+
+      if (hasLogic) {
+        // ⭐ 有 logic → 用 logic 判定
+        const r = executeCustomLogic(problem.logic, problem.ans, sub.answer);
+        score = r.score;
+        comment = r.comment;
+        systemError = r.systemError;
+        correct = !systemError && score === 100;
+      } else {
+        // 無數值比對（原邏輯）
+        const isValid = s => s !== '' && Number.isFinite(Number(s));
+        if (!isValid(ansStr.trim())) systemError = true;
+        else if (!isValid(userAns.trim())) systemError = true;
+        else {
+          const ansNum = Number(ansStr);
+          const userNum = Number(userAns);
+          correct = Math.abs(userNum - ansNum) < 1e-6;
+          score = correct ? 100 : 0;
+        }
+      }
+
+      // ⭐ 更新 submission：marked、score、comment、correct、systemError 一起寫
+      await db.collection('submissions').updateOne(
+        { _id: oid },
+        {
+          $set: {
+            correct,
+            systemError,
+            marked: true,
+            score,
+            comment,
+            markedAt: new Date()
+          }
+        }
+      );
+
+      // ⭐ 更新 userstats（用點號路徑原子寫，避免並發覆蓋）
+      const username = sub.username;
+      const problemId = sub.problemId;
       const statsCol = db.collection('userstats');
-      const stats = await statsCol.findOne({ username });
-      let states = stats ? stats.states : {};
-      if (correct && states[problemId] !== 'passed') states[problemId] = 'passed';
-      else if (!correct && states[problemId] !== 'passed') states[problemId] = 'failed';
-      await statsCol.updateOne({ username }, { $set: { states } }, { upsert: true });
 
-      return res.status(200).json({ success: true, correct, systemError, message: 'Rejudged' });
+      const stats = await statsCol.findOne({ username }, { projection: { states: 1 } });
+      const currentState = stats?.states?.[problemId];
+
+      // 只有「未 passed」才更新（避免降級已 AC 的狀態）
+      if (currentState !== 'passed') {
+        const newState = correct ? 'passed' : 'failed';
+        await statsCol.updateOne(
+          { username },
+          { $set: { [`states.${problemId}`]: newState } },
+          { upsert: true }
+        );
+      }
+
+      return res.status(200).json({
+        success: true,
+        correct,
+        systemError,
+        score,
+        comment,
+        message: 'Rejudged'
+      });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });

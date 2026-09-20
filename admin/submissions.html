@@ -242,7 +242,12 @@
       try {
         const result = await apiCall('/api/submissions?admin=1', 'PUT', { submissionId: id });
         if (result.success) {
-          showMessage(`Rejudged: ${result.correct ? 'Accepted' : 'Wrong Answer'}`, 'success');
+          let msg;
+          if (result.systemError) msg = 'System Error';
+          else if (result.score === 100) msg = 'Accepted';
+          else if (result.score === 0) msg = 'Wrong Answer';
+          else msg = `Partial Score (${result.score}%)`;
+          showMessage(`Rejudged: ${msg}`, 'success');
           const data = await loadSubmissions(currentPage);
           renderData(data);
         } else {
