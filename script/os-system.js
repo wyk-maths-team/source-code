@@ -9,6 +9,17 @@
   let isRoot  = false;
   let displayName = 'Guest';
   let APPS = [];
+    /* ⭐ 設備檢測 */
+  const UA = navigator.userAgent;
+  const IS_IPAD = /iPad/.test(UA) ||
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const IS_IPHONE = /iPhone|iPod/.test(UA);
+  const IS_ANDROID = /Android/.test(UA);
+  const IS_TOUCH = navigator.maxTouchPoints > 0;
+  // Fullscreen API 在 iPad 和 Android 可用，iPhone 不可用
+  const CAN_FULLSCREEN = (IS_IPAD || IS_ANDROID) && IS_TOUCH;
+
+  const HIDE_STATUSBAR_KEY = 'osHideDeviceStatusBar';
 
   /* ═══════════ 1. 常量 ═══════════ */
   const CDN_BASE = 'https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/';
@@ -164,6 +175,10 @@
     detailRules: (() => {
       try { return JSON.parse(localStorage.getItem('osDetailRules') || '{}'); }
       catch { return {}; }
+    })(),
+          hideStatusBar: (() => {
+      try { return localStorage.getItem(HIDE_STATUSBAR_KEY) === 'true'; }
+      catch { return false; }
     })(),
   };
 
@@ -607,6 +622,8 @@
     minimize() {
       this.minimized = true;
       this.el.classList.add('minimized');
+      this.el.classList.remove('focused');
+      if (state.focusedId === this.id) state.focusedId = null;
       OS.renderTaskbar();
       OS.scheduleSaveSession();
     }
@@ -614,6 +631,7 @@
       this.minimized = false;
       this.el.classList.remove('minimized');
       this.focus();
+      OS.renderTaskbar();          // ⭐ 強制重繪任務欄
       OS.scheduleSaveSession();
     }
     toggleMaximize() {
@@ -1073,8 +1091,64 @@
     scheduleSaveSession,
     restoreSession,
     clearSession,
-    openSettings() {
+        // ⭐ 請求全屏
+    async requestFullscreen() {
+      if (!CAN_FULLSCREEN) return false;
+      const el = document.documentElement;
+      const fn = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+      if (!fn) return false;
+      try {
+        await fn.call(el);
+        return true;
+      } catch (e) {
+        console.warn('Fullscreen request failed:', e);
+        return false;
+      }
+    },
+
+    // ⭐ 退出全屏
+    async exitFullscreen() {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) return true;
+      const fn = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+      if (!fn) return false;
+      try {
+        await fn.call(document);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    },
+
+    // ⭐ 應用 hideStatusBar 設定
+    async applyHideStatusBar(enabled, { silent = false } = {}) {
+      state.hideStatusBar = !!enabled;
+      try { localStorage.setItem(HIDE_STATUSBAR_KEY, enabled ? 'true' : 'false'); }
+      catch (e) {}
+
+      const toggle = $('#os-hide-statusbar-toggle');
+      if (toggle) toggle.checked = !!enabled;
+
+      if (!CAN_FULLSCREEN) {
+        if (!silent) flashToast('此設備不支援隱藏狀態欄');
+        return;
+      }
+
+      if (enabled) {
+        const ok = await this.requestFullscreen();
+        if (!ok && !silent) {
+          flashToast('全屏請求被拒。請確認手勢或權限。');
+          // 失敗了就把 toggle 恢復
+          state.hideStatusBar = false;
+          try { localStorage.setItem(HIDE_STATUSBAR_KEY, 'false'); } catch (e) {}
+          if (toggle) toggle.checked = false;
+        }
+      } else {
+        await this.exitFullscreen();
+      }
+    },
+        openSettings() {
       renderDetailRulesSettings();
+      initStatusBarToggle();
       $('#os-settings-modal').classList.add('show');
     },
     openTaskView() {
@@ -1158,7 +1232,7 @@
           const now = Date.now();
 
           // ⭐ 500ms 內第二次點擊 → 視作雙擊，直接打開
-          if (now - lastClickTime < 500) {
+          if (now - lastClickTime < 300) {
             lastClickTime = 0;
             OS.launchIcon(id);
             return;
@@ -1603,7 +1677,35 @@
     if (url) { pv.src = url; pv.classList.add('show'); }
     else { pv.src = ''; pv.classList.remove('show'); }
   }
+    /* ⭐ 初始化 Hide Status Bar toggle */
+  let _statusBarToggleBound = false;
+  function initStatusBarToggle() {
+    const row = $('#os-statusbar-row');
+    if (!row) return;
+
+    // 只在支援的設備顯示
+    if (!CAN_FULLSCREEN) {
+      row.style.display = 'none';
+      return;
+    }
+    row.style.display = '';
+
+    const toggle = $('#os-hide-statusbar-toggle');
+    if (!toggle) return;
+
+    // 反映當前狀態
+    toggle.checked = !!state.hideStatusBar;
+
+    // 綁定一次
+    if (!_statusBarToggleBound) {
+      _statusBarToggleBound = true;
+      toggle.addEventListener('change', async (e) => {
+        await OS.applyHideStatusBar(e.target.checked);
+      });
+    }
+  }
     /* ═══════════ 12.5 詳情規則開關 ═══════════ */
+
   function renderDetailRulesSettings() {
     const container = $('#os-detail-rules-list');
     if (!container) return;
@@ -1777,6 +1879,13 @@
           tray.title = 'Re-enter Fullscreen';
         }
       }
+      if (state.hideStatusBar && wasFullscreen && !state.fullscreen) {
+        flashToast('Click ⛶ to restore fullscreen');
+      }
+      // ⭐ 如果使用者沒開 Hide Status Bar 但進入了全屏 → 同步 toggle
+      if (!state.hideStatusBar && !wasFullscreen && state.fullscreen) {
+        // 不強制寫 localStorage，只在本次會話同步
+      }
     };
     document.addEventListener('fullscreenchange', onFsChange);
     document.addEventListener('webkitfullscreenchange', onFsChange);
@@ -1943,11 +2052,20 @@
     OS.loadDesktop();
 
     // ⭐ 嘗試從會話恢復；若無 → 開預設 App
-    OS.restoreSession().then(restored => {
-      if (!restored) {
-        OS.openApp(APPS[0]);
-      }
-    });
+    OS.restoreSession();
+        // ⭐ 若設定了 Hide Status Bar，等第一次手勢再自動進全屏
+    if (state.hideStatusBar && CAN_FULLSCREEN) {
+      const onceFullscreen = async () => {
+        document.removeEventListener('pointerdown', onceFullscreen, true);
+        document.removeEventListener('touchstart', onceFullscreen, true);
+        // 只在使用者尚未處於全屏時才請求
+        if (!document.fullscreenElement) {
+          await OS.applyHideStatusBar(true, { silent: true });
+        }
+      };
+      document.addEventListener('pointerdown', onceFullscreen, true);
+      document.addEventListener('touchstart', onceFullscreen, true);
+    }
   }
 
   // ⭐ 每次載入都先顯示鎖屏；解鎖後才啟動 OS
