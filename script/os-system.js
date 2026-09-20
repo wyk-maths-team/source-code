@@ -1232,7 +1232,7 @@
           const now = Date.now();
 
           // ⭐ 500ms 內第二次點擊 → 視作雙擊，直接打開
-          if (now - lastClickTime < 300) {
+          if (now - lastClickTime < 400) {
             lastClickTime = 0;
             OS.launchIcon(id);
             return;
@@ -1699,8 +1699,34 @@
     // 綁定一次
     if (!_statusBarToggleBound) {
       _statusBarToggleBound = true;
-      toggle.addEventListener('change', async (e) => {
-        await OS.applyHideStatusBar(e.target.checked);
+            toggle.addEventListener('change', (e) => {
+        // ⭐ 直接在事件回调里同步触發全屏，避免手勢過期
+        if (e.target.checked) {
+          // 開：立即請求全屏（同步部分）
+          const el = document.documentElement;
+          const fn = el.requestFullscreen || el.webkitRequestFullscreen;
+          if (fn) {
+            const promise = fn.call(el);
+            if (promise && promise.catch) {
+              promise.catch(err => {
+                console.warn('Fullscreen failed:', err);
+                flashToast('全屏被拒：' + err.message);
+                // 失敗就把 toggle 復原
+                e.target.checked = false;
+                state.hideStatusBar = false;
+                try { localStorage.setItem(HIDE_STATUSBAR_KEY, 'false'); } catch (_) {}
+              });
+            }
+          }
+          state.hideStatusBar = true;
+          try { localStorage.setItem(HIDE_STATUSBAAR_KEY, 'true'); } catch (_) {}
+        } else {
+          // 關：退出全屏
+          const fn = document.exitFullscreen || document.webkitExitFullscreen;
+          if (fn) fn.call(document);
+          state.hideStatusBar = false;
+          try { localStorage.setItem(HIDE_STATUSBAR_KEY, 'false'); } catch (_) {}
+        }
       });
     }
   }
