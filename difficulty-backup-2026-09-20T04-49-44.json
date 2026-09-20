@@ -1,0 +1,2018 @@
+[
+  {
+    "id": "IP0201",
+    "difficulty": 4.24
+  },
+  {
+    "id": "IP0202",
+    "difficulty": 4.96
+  },
+  {
+    "id": "IP0203",
+    "difficulty": 6.3
+  },
+  {
+    "id": "IP0204",
+    "difficulty": 6.5
+  },
+  {
+    "id": "IP0205",
+    "difficulty": 6.5
+  },
+  {
+    "id": "IP0206",
+    "difficulty": 6.8
+  },
+  {
+    "id": "IP0207",
+    "difficulty": 7.12
+  },
+  {
+    "id": "IP0208",
+    "difficulty": 6.9
+  },
+  {
+    "id": "IP0209",
+    "difficulty": 6.52
+  },
+  {
+    "id": "IP0210",
+    "difficulty": 4.3
+  },
+  {
+    "id": "IP0211",
+    "difficulty": 4.7
+  },
+  {
+    "id": "IP0212",
+    "difficulty": 7.13
+  },
+  {
+    "id": "IP0213",
+    "difficulty": 6.52
+  },
+  {
+    "id": "IP0214",
+    "difficulty": 5.6
+  },
+  {
+    "id": "IP0215",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0216",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0217",
+    "difficulty": 5.24
+  },
+  {
+    "id": "IP0218",
+    "difficulty": 5.28
+  },
+  {
+    "id": "IP0219",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0220",
+    "difficulty": 5.72
+  },
+  {
+    "id": "IP0301",
+    "difficulty": 5.8
+  },
+  {
+    "id": "IP0302",
+    "difficulty": 5.3
+  },
+  {
+    "id": "IP0303",
+    "difficulty": 4.85
+  },
+  {
+    "id": "IP0304",
+    "difficulty": 6.26
+  },
+  {
+    "id": "IP0305",
+    "difficulty": 4.13
+  },
+  {
+    "id": "IP0306",
+    "difficulty": 4.65
+  },
+  {
+    "id": "IP0307",
+    "difficulty": 5.16
+  },
+  {
+    "id": "IP0308",
+    "difficulty": 4.74
+  },
+  {
+    "id": "IP0309",
+    "difficulty": 3.89
+  },
+  {
+    "id": "IP0310",
+    "difficulty": 5.11
+  },
+  {
+    "id": "IP0311",
+    "difficulty": 5.62
+  },
+  {
+    "id": "IP0312",
+    "difficulty": 5.63
+  },
+  {
+    "id": "IP0313",
+    "difficulty": 6.8
+  },
+  {
+    "id": "IP0314",
+    "difficulty": 5.46
+  },
+  {
+    "id": "IP0315",
+    "difficulty": 6.68
+  },
+  {
+    "id": "IP0316",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0317",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0318",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0319",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0320",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0401",
+    "difficulty": 5.4
+  },
+  {
+    "id": "IP0402",
+    "difficulty": 4.55
+  },
+  {
+    "id": "IP0403",
+    "difficulty": 5.72
+  },
+  {
+    "id": "IP0404",
+    "difficulty": 4.2
+  },
+  {
+    "id": "IP0405",
+    "difficulty": 6.9
+  },
+  {
+    "id": "IP0406",
+    "difficulty": 6.14
+  },
+  {
+    "id": "IP0407",
+    "difficulty": 5.43
+  },
+  {
+    "id": "IP0408",
+    "difficulty": 4.82
+  },
+  {
+    "id": "IP0409",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0410",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0411",
+    "difficulty": 5.75
+  },
+  {
+    "id": "IP0412",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0413",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0414",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0415",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0416",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0417",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0418",
+    "difficulty": 5.76
+  },
+  {
+    "id": "IP0419",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0420",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0501",
+    "difficulty": 5
+  },
+  {
+    "id": "IP0502",
+    "difficulty": 4.84
+  },
+  {
+    "id": "IP0503",
+    "difficulty": 5.27
+  },
+  {
+    "id": "IP0504",
+    "difficulty": 4.7
+  },
+  {
+    "id": "IP0505",
+    "difficulty": 5.89
+  },
+  {
+    "id": "IP0506",
+    "difficulty": 5.28
+  },
+  {
+    "id": "IP0507",
+    "difficulty": 5.08
+  },
+  {
+    "id": "IP0508",
+    "difficulty": 4.38
+  },
+  {
+    "id": "IP0509",
+    "difficulty": 6.29
+  },
+  {
+    "id": "IP0510",
+    "difficulty": 5.15
+  },
+  {
+    "id": "IP0511",
+    "difficulty": 4.42
+  },
+  {
+    "id": "IP0512",
+    "difficulty": 5.37
+  },
+  {
+    "id": "IP0513",
+    "difficulty": 6.98
+  },
+  {
+    "id": "IP0514",
+    "difficulty": 6.88
+  },
+  {
+    "id": "IP0515",
+    "difficulty": 6.2
+  },
+  {
+    "id": "IP0516",
+    "difficulty": 5.44
+  },
+  {
+    "id": "IP0517",
+    "difficulty": 5.34
+  },
+  {
+    "id": "IP0518",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0519",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0520",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0601",
+    "difficulty": 3.900351703841195
+  },
+  {
+    "id": "IP0602",
+    "difficulty": 5.632972520492443
+  },
+  {
+    "id": "IP0603",
+    "difficulty": 3.9826576284352075
+  },
+  {
+    "id": "IP0604",
+    "difficulty": 5.15
+  },
+  {
+    "id": "IP0605",
+    "difficulty": 4.56
+  },
+  {
+    "id": "IP0606",
+    "difficulty": 3.89
+  },
+  {
+    "id": "IP0608",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0609",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0610",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0611",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0612",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0613",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0614",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0615",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0616",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0617",
+    "difficulty": 5.97
+  },
+  {
+    "id": "IP0618",
+    "difficulty": 5.33
+  },
+  {
+    "id": "IP0619",
+    "difficulty": 5.9
+  },
+  {
+    "id": "IP0620",
+    "difficulty": 6.11
+  },
+  {
+    "id": "IP0701",
+    "difficulty": 3.32
+  },
+  {
+    "id": "IP0702",
+    "difficulty": 3.27
+  },
+  {
+    "id": "IP0703",
+    "difficulty": 4
+  },
+  {
+    "id": "IP0704",
+    "difficulty": 4.12
+  },
+  {
+    "id": "IP0705",
+    "difficulty": 4.95
+  },
+  {
+    "id": "IP0706",
+    "difficulty": 5.43
+  },
+  {
+    "id": "IP0707",
+    "difficulty": 4.16
+  },
+  {
+    "id": "IP0708",
+    "difficulty": 6.17
+  },
+  {
+    "id": "IP0709",
+    "difficulty": 5.12
+  },
+  {
+    "id": "IP0710",
+    "difficulty": 5.95
+  },
+  {
+    "id": "IP0711",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0712",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0713",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0714",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0715",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0716",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0717",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0718",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0719",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0720",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0721",
+    "difficulty": 5.5
+  },
+  {
+    "id": "IP0722",
+    "difficulty": 5.51
+  },
+  {
+    "id": "IP0723",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0724",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0725",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0801",
+    "difficulty": 4.02
+  },
+  {
+    "id": "IP0802",
+    "difficulty": 5.11
+  },
+  {
+    "id": "IP0803",
+    "difficulty": 4.95
+  },
+  {
+    "id": "IP0804",
+    "difficulty": 4.22
+  },
+  {
+    "id": "IP0805",
+    "difficulty": 5.79
+  },
+  {
+    "id": "IP0806",
+    "difficulty": 5.23
+  },
+  {
+    "id": "IP0807",
+    "difficulty": 4.81
+  },
+  {
+    "id": "IP0808",
+    "difficulty": 4.62
+  },
+  {
+    "id": "IP0809",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0810",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0811",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0812",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0813",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0814",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0815",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0816",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0817",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0818",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0819",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0820",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0901",
+    "difficulty": 4.811399950992873
+  },
+  {
+    "id": "IP0902",
+    "difficulty": 5.73
+  },
+  {
+    "id": "IP0903",
+    "difficulty": 4.3463687900540595
+  },
+  {
+    "id": "IP0904",
+    "difficulty": 4.21
+  },
+  {
+    "id": "IP0905",
+    "difficulty": 5.858427349420668
+  },
+  {
+    "id": "IP0906",
+    "difficulty": 5.25
+  },
+  {
+    "id": "IP0907",
+    "difficulty": 4.54
+  },
+  {
+    "id": "IP0908",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0909",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0910",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0911",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0912",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0913",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0914",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0915",
+    "difficulty": 6.4
+  },
+  {
+    "id": "IP0916",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0917",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0918",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0919",
+    "difficulty": 8
+  },
+  {
+    "id": "IP0920",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1001",
+    "difficulty": 4.58
+  },
+  {
+    "id": "IP1002",
+    "difficulty": 5.11
+  },
+  {
+    "id": "IP1003",
+    "difficulty": 5.86
+  },
+  {
+    "id": "IP1004",
+    "difficulty": 3.55
+  },
+  {
+    "id": "IP1005",
+    "difficulty": 4.51
+  },
+  {
+    "id": "IP1006",
+    "difficulty": 4.15
+  },
+  {
+    "id": "IP1007",
+    "difficulty": 6.02
+  },
+  {
+    "id": "IP1008",
+    "difficulty": 4.45
+  },
+  {
+    "id": "IP1009",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1010",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1011",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1012",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1013",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1014",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1015",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1016",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1017",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1018",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1019",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1020",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1101",
+    "difficulty": 4.07
+  },
+  {
+    "id": "IP1102",
+    "difficulty": 4.08
+  },
+  {
+    "id": "IP1103",
+    "difficulty": 6.12
+  },
+  {
+    "id": "IP1104",
+    "difficulty": 5.73
+  },
+  {
+    "id": "IP1105",
+    "difficulty": 5.59
+  },
+  {
+    "id": "IP1106",
+    "difficulty": 5.073269585261578
+  },
+  {
+    "id": "IP1107",
+    "difficulty": 4.62
+  },
+  {
+    "id": "IP1108",
+    "difficulty": 6.03
+  },
+  {
+    "id": "IP1109",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1110",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1111",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1112",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1113",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1114",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1115",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1116",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1117",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1118",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1119",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1120",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1201",
+    "difficulty": 6.08
+  },
+  {
+    "id": "IP1202",
+    "difficulty": 4.75
+  },
+  {
+    "id": "IP1203",
+    "difficulty": 4.68
+  },
+  {
+    "id": "IP1204",
+    "difficulty": 4.12
+  },
+  {
+    "id": "IP1205",
+    "difficulty": 4.54
+  },
+  {
+    "id": "IP1206",
+    "difficulty": 5.52
+  },
+  {
+    "id": "IP1207",
+    "difficulty": 5.79
+  },
+  {
+    "id": "IP1208",
+    "difficulty": 4.11
+  },
+  {
+    "id": "IP1209",
+    "difficulty": 4.72
+  },
+  {
+    "id": "IP1210",
+    "difficulty": 6.06
+  },
+  {
+    "id": "IP1211",
+    "difficulty": 6.13
+  },
+  {
+    "id": "IP1212",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1213",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1214",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1215",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1216",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1217",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1218",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1219",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1220",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1301",
+    "difficulty": 4.12
+  },
+  {
+    "id": "IP1302",
+    "difficulty": 5.05
+  },
+  {
+    "id": "IP1303",
+    "difficulty": 5.48
+  },
+  {
+    "id": "IP1304",
+    "difficulty": 5.6
+  },
+  {
+    "id": "IP1305",
+    "difficulty": 5.06
+  },
+  {
+    "id": "IP1306",
+    "difficulty": 5.53
+  },
+  {
+    "id": "IP1307",
+    "difficulty": 3.7
+  },
+  {
+    "id": "IP1308",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1309",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1310",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1311",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1312",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1313",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1314",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1315",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1316",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1317",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1318",
+    "difficulty": 6.09
+  },
+  {
+    "id": "IP1319",
+    "difficulty": 7.2
+  },
+  {
+    "id": "IP1320",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1401",
+    "difficulty": 3.9
+  },
+  {
+    "id": "IP1402",
+    "difficulty": 5.9
+  },
+  {
+    "id": "IP1403",
+    "difficulty": 6.79
+  },
+  {
+    "id": "IP1404",
+    "difficulty": 6.04
+  },
+  {
+    "id": "IP1405",
+    "difficulty": 6.03
+  },
+  {
+    "id": "IP1406",
+    "difficulty": 4.59
+  },
+  {
+    "id": "IP1407",
+    "difficulty": 5.24
+  },
+  {
+    "id": "IP1408",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1409",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1410",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1411",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1412",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1413",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1414",
+    "difficulty": 5.23
+  },
+  {
+    "id": "IP1415",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1416",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1417",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1418",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1419",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1420",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1501",
+    "difficulty": 3.87
+  },
+  {
+    "id": "IP1502",
+    "difficulty": 5.13
+  },
+  {
+    "id": "IP1503",
+    "difficulty": 7.17
+  },
+  {
+    "id": "IP1504",
+    "difficulty": 5.28
+  },
+  {
+    "id": "IP1505",
+    "difficulty": 6.36
+  },
+  {
+    "id": "IP1506",
+    "difficulty": 6.62
+  },
+  {
+    "id": "IP1507",
+    "difficulty": 6.31
+  },
+  {
+    "id": "IP1508",
+    "difficulty": 5.45
+  },
+  {
+    "id": "IP1509",
+    "difficulty": 5.75
+  },
+  {
+    "id": "IP1510",
+    "difficulty": 5.81
+  },
+  {
+    "id": "IP1511",
+    "difficulty": 5.62
+  },
+  {
+    "id": "IP1512",
+    "difficulty": 5.22
+  },
+  {
+    "id": "IP1513",
+    "difficulty": 7.25
+  },
+  {
+    "id": "IP1514",
+    "difficulty": 6.97
+  },
+  {
+    "id": "IP1515",
+    "difficulty": 6.05
+  },
+  {
+    "id": "IP1516",
+    "difficulty": 6.54
+  },
+  {
+    "id": "IP1517",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1518",
+    "difficulty": 6.74
+  },
+  {
+    "id": "IP1519",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1520",
+    "difficulty": 6.72
+  },
+  {
+    "id": "IP1601",
+    "difficulty": 3.4
+  },
+  {
+    "id": "IP1602",
+    "difficulty": 3.19
+  },
+  {
+    "id": "IP1603",
+    "difficulty": 4.79
+  },
+  {
+    "id": "IP1604",
+    "difficulty": 4.44
+  },
+  {
+    "id": "IP1605",
+    "difficulty": 5.06
+  },
+  {
+    "id": "IP1606",
+    "difficulty": 5.57
+  },
+  {
+    "id": "IP1607",
+    "difficulty": 5.48
+  },
+  {
+    "id": "IP1608",
+    "difficulty": 6.15
+  },
+  {
+    "id": "IP1609",
+    "difficulty": 5.16
+  },
+  {
+    "id": "IP1610",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1611",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1612",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1613",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1614",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1615",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1616",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1617",
+    "difficulty": 6.27
+  },
+  {
+    "id": "IP1618",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1619",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1620",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1701",
+    "difficulty": 5.25
+  },
+  {
+    "id": "IP1702",
+    "difficulty": 3.97
+  },
+  {
+    "id": "IP1703",
+    "difficulty": 4.87
+  },
+  {
+    "id": "IP1704",
+    "difficulty": 6.1
+  },
+  {
+    "id": "IP1705",
+    "difficulty": 5.82
+  },
+  {
+    "id": "IP1706",
+    "difficulty": 6.29
+  },
+  {
+    "id": "IP1707",
+    "difficulty": 6.11
+  },
+  {
+    "id": "IP1708",
+    "difficulty": 5.07
+  },
+  {
+    "id": "IP1709",
+    "difficulty": 5.97
+  },
+  {
+    "id": "IP1710",
+    "difficulty": 6.35
+  },
+  {
+    "id": "IP1711",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1712",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1713",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1714",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1715",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1716",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1717",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1718",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1719",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1720",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1801",
+    "difficulty": 5.57
+  },
+  {
+    "id": "IP1802",
+    "difficulty": 5.68
+  },
+  {
+    "id": "IP1803",
+    "difficulty": 6.11
+  },
+  {
+    "id": "IP1804",
+    "difficulty": 5.34
+  },
+  {
+    "id": "IP1805",
+    "difficulty": 5.05
+  },
+  {
+    "id": "IP1806",
+    "difficulty": 6.07
+  },
+  {
+    "id": "IP1807",
+    "difficulty": 5.58
+  },
+  {
+    "id": "IP1808",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1809",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1810",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1811",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1812",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1813",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1814",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1815",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1816",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1817",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1818",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1819",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1820",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1901",
+    "difficulty": 5.423873655820881
+  },
+  {
+    "id": "IP1902",
+    "difficulty": 5.450006686962579
+  },
+  {
+    "id": "IP1903",
+    "difficulty": 5.36
+  },
+  {
+    "id": "IP1904",
+    "difficulty": 4.84
+  },
+  {
+    "id": "IP1905",
+    "difficulty": 5.59
+  },
+  {
+    "id": "IP1906",
+    "difficulty": 4.834948975850638
+  },
+  {
+    "id": "IP1907",
+    "difficulty": 5.956153955785044
+  },
+  {
+    "id": "IP1908",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1909",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1910",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1911",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1912",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1913",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1914",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1915",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1916",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1917",
+    "difficulty": 6.42
+  },
+  {
+    "id": "IP1918",
+    "difficulty": 6.97
+  },
+  {
+    "id": "IP1919",
+    "difficulty": 8
+  },
+  {
+    "id": "IP1920",
+    "difficulty": 6.61
+  },
+  {
+    "id": "IP2001",
+    "difficulty": 2.97
+  },
+  {
+    "id": "IP2002",
+    "difficulty": 3.53
+  },
+  {
+    "id": "IP2003",
+    "difficulty": 4.28
+  },
+  {
+    "id": "IP2004",
+    "difficulty": 4.66
+  },
+  {
+    "id": "IP2005",
+    "difficulty": 4.76
+  },
+  {
+    "id": "IP2006",
+    "difficulty": 5.41
+  },
+  {
+    "id": "IP2007",
+    "difficulty": 4.74
+  },
+  {
+    "id": "IP2008",
+    "difficulty": 3.81
+  },
+  {
+    "id": "IP2009",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2010",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2011",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2012",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2013",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2014",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2015",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2016",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2017",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2018",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2019",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2020",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2101",
+    "difficulty": 4.6297237215880145
+  },
+  {
+    "id": "IP2102",
+    "difficulty": 4.852267934098592
+  },
+  {
+    "id": "IP2103",
+    "difficulty": 4.7245163144783815
+  },
+  {
+    "id": "IP2104",
+    "difficulty": 4.678197577879573
+  },
+  {
+    "id": "IP2105",
+    "difficulty": 3.3962352805052447
+  },
+  {
+    "id": "IP2106",
+    "difficulty": 6.3
+  },
+  {
+    "id": "IP2107",
+    "difficulty": 5.1913580753514745
+  },
+  {
+    "id": "IP2108",
+    "difficulty": 5.31
+  },
+  {
+    "id": "IP2109",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2110",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2111",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2112",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2113",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2114",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2115",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2116",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2117",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2118",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2119",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2120",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2201",
+    "difficulty": 3.81
+  },
+  {
+    "id": "IP2202",
+    "difficulty": 4.97
+  },
+  {
+    "id": "IP2203",
+    "difficulty": 2.7
+  },
+  {
+    "id": "IP2204",
+    "difficulty": 6.19
+  },
+  {
+    "id": "IP2205",
+    "difficulty": 5.5
+  },
+  {
+    "id": "IP2206",
+    "difficulty": 5.64
+  },
+  {
+    "id": "IP2207",
+    "difficulty": 3.07
+  },
+  {
+    "id": "IP2208",
+    "difficulty": 5.86
+  },
+  {
+    "id": "IP2209",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2210",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2211",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2212",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2213",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2214",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2215",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2216",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2217",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2218",
+    "difficulty": 6.3
+  },
+  {
+    "id": "IP2219",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2220",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2301",
+    "difficulty": 4.2
+  },
+  {
+    "id": "IP2302",
+    "difficulty": 3.93
+  },
+  {
+    "id": "IP2303",
+    "difficulty": 4.97
+  },
+  {
+    "id": "IP2304",
+    "difficulty": 5.07
+  },
+  {
+    "id": "IP2305",
+    "difficulty": 5.2
+  },
+  {
+    "id": "IP2306",
+    "difficulty": 4.64
+  },
+  {
+    "id": "IP2307",
+    "difficulty": 6.53
+  },
+  {
+    "id": "IP2308",
+    "difficulty": 5.68
+  },
+  {
+    "id": "IP2309",
+    "difficulty": 6.63
+  },
+  {
+    "id": "IP2310",
+    "difficulty": 4.66
+  },
+  {
+    "id": "IP2311",
+    "difficulty": 6.35
+  },
+  {
+    "id": "IP2312",
+    "difficulty": 5.02
+  },
+  {
+    "id": "IP2313",
+    "difficulty": 6.55
+  },
+  {
+    "id": "IP2314",
+    "difficulty": 6.3
+  },
+  {
+    "id": "IP2315",
+    "difficulty": 6.57
+  },
+  {
+    "id": "IP2316",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2317",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2318",
+    "difficulty": 6.83
+  },
+  {
+    "id": "IP2319",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2320",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2401",
+    "difficulty": 3.07
+  },
+  {
+    "id": "IP2402",
+    "difficulty": 5.16
+  },
+  {
+    "id": "IP2403",
+    "difficulty": 3.37
+  },
+  {
+    "id": "IP2404",
+    "difficulty": 5.03
+  },
+  {
+    "id": "IP2405",
+    "difficulty": 6.48
+  },
+  {
+    "id": "IP2406",
+    "difficulty": 4.93
+  },
+  {
+    "id": "IP2407",
+    "difficulty": 5.24
+  },
+  {
+    "id": "IP2408",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2409",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2410",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2411",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2412",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2413",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2414",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2415",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2416",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2417",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2418",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2419",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2420",
+    "difficulty": 6.58
+  },
+  {
+    "id": "IP2501",
+    "difficulty": 3.13
+  },
+  {
+    "id": "IP2502",
+    "difficulty": 3.89
+  },
+  {
+    "id": "IP2503",
+    "difficulty": 5.84
+  },
+  {
+    "id": "IP2504",
+    "difficulty": 6.36
+  },
+  {
+    "id": "IP2505",
+    "difficulty": 6.19
+  },
+  {
+    "id": "IP2506",
+    "difficulty": 5.14
+  },
+  {
+    "id": "IP2507",
+    "difficulty": 5.13
+  },
+  {
+    "id": "IP2508",
+    "difficulty": 4.99
+  },
+  {
+    "id": "IP2509",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2510",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2511",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2512",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2513",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2514",
+    "difficulty": 7.04
+  },
+  {
+    "id": "IP2515",
+    "difficulty": 6.43
+  },
+  {
+    "id": "IP2516",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2517",
+    "difficulty": 7.11
+  },
+  {
+    "id": "IP2518",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2519",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2520",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2601",
+    "difficulty": 4.11
+  },
+  {
+    "id": "IP2602",
+    "difficulty": 4.72
+  },
+  {
+    "id": "IP2603",
+    "difficulty": 5.14
+  },
+  {
+    "id": "IP2604",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2605",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2606",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2607",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2608",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2609",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2610",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2611",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2612",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2613",
+    "difficulty": 6.14
+  },
+  {
+    "id": "IP2614",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2615",
+    "difficulty": 6.64
+  },
+  {
+    "id": "IP2616",
+    "difficulty": 5.71
+  },
+  {
+    "id": "IP2617",
+    "difficulty": 6.25
+  },
+  {
+    "id": "IP2618",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2619",
+    "difficulty": 8
+  },
+  {
+    "id": "IP2620",
+    "difficulty": 8
+  }
+]
