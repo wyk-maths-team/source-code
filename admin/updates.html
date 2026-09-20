@@ -1,0 +1,495 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manage Updates - WYK Maths Team</title>
+  <link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" as="style">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <style>
+    .admin-container { background: var(--card-bg); border-radius: 4px; padding: 1.5rem; }
+    .form-section { margin-bottom: 2rem; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-weight: 600; margin-bottom: 0.3rem; }
+    .form-group input, .form-group textarea, .form-group select {
+      width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px;
+    }
+
+    /* ---- 代码编辑器样式 (来自 editproblem.html) ---- */
+    .code-editor-wrapper {
+      position: relative; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden;
+      background: #1e1e1e; font-family: 'Fira Code', 'Cascadia Code', 'Consolas', 'Monaco', monospace;
+    }
+    .code-editor-toolbar {
+      display: flex; gap: 0.3rem; padding: 0.4rem 0.6rem; background: #2d2d2d; border-bottom: 1px solid #3e3e3e; flex-wrap: wrap;
+    }
+    .code-editor-toolbar button {
+      background: #3e3e3e; border: 1px solid #555; color: #ccc; font-family: inherit; font-size: 0.8rem;
+      padding: 0.2rem 0.5rem; border-radius: 3px; cursor: pointer; white-space: nowrap;
+    }
+    .code-editor-toolbar button:hover { background: #505050; color: #fff; }
+    .editor-area {
+      position: relative; min-height: 150px;
+    }
+    .editor-area pre {
+      margin: 0; padding: 0.6rem 0.6rem 0.6rem 3rem; background: transparent; color: #d4d4d4;
+      font-family: inherit; font-size: 0.9rem; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word;
+      overflow: auto; pointer-events: none; min-height: 150px; border: none; outline: none;
+    }
+    .editor-area textarea {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%; padding: 0.6rem 0.6rem 0.6rem 3rem;
+      background: transparent; color: transparent; caret-color: #fff; border: none; outline: none;
+      font-family: inherit; font-size: 0.9rem; line-height: 1.6; resize: vertical; tab-size: 2;
+      white-space: pre-wrap; word-wrap: break-word; overflow: auto;
+    }
+    .editor-area textarea::selection { background: rgba(100, 150, 255, 0.4); }
+    .line-numbers {
+      position: absolute; left: 0; top: 0; bottom: 0; width: 2.5rem; background: #2d2d2d; color: #858585;
+      font-family: inherit; font-size: 0.9rem; line-height: 1.6; padding: 0.6rem 0.3rem; text-align: right;
+      user-select: none; pointer-events: none; overflow: hidden; white-space: pre; z-index: 2;
+    }
+    .hl-tag { color: #569cd6; } .hl-attr { color: #9cdcfe; } .hl-value { color: #ce9178; }
+    .hl-latex { color: #d7ba7d; } .hl-brace { color: #ffd700; } .hl-text { color: #d4d4d4; }
+
+    .btn { padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-warning { background: #ffc107; color: #000; }
+    .btn-secondary { background: #6c757d; color: #fff; }
+    .updates-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    .updates-table th, .updates-table td { padding: 0.5rem; border-bottom: 1px solid var(--border-color); }
+    .message { margin: 1rem 0; font-size: 0.9rem; }
+  </style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="admin-container">
+        <h2>Manage Updates</h2>
+
+        <!-- ========== 编辑表单 ========== -->
+        <div class="form-section" id="editFormSection" style="display:none;">
+          <h3>Edit Update</h3>
+          <form id="editUpdateForm">
+            <input type="hidden" id="editId" />
+            <div class="form-group">
+              <label>Badge Style:
+                <select id="editBadge" required>
+                  <option value="info">Info</option>
+                  <option value="new">New</option>
+                  <option value="warning">Warning</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-group">
+              <label>Badge Text: <input type="text" id="editBadgeText" required /></label>
+            </div>
+            <div class="form-group">
+              <label>Title (optional): <input type="text" id="editTitle" /></label>
+            </div>
+            <div class="form-group">
+              <label>Content (HTML / LaTeX):</label>
+              <div class="code-editor-wrapper" id="editContentWrapper">
+                <div class="code-editor-toolbar" id="editContentToolbar">
+                  <button type="button" data-insert="$...$">$...$</button>
+                  <button type="button" data-insert="$$...$$">$$...$$</button>
+                  <button type="button" data-insert="\\begin{}...\\end{}">\\begin{}...\\end{}</button>
+                  <button type="button" data-insert="\\frac{}{}">\\frac{}{}</button>
+                  <button type="button" data-insert="\\sqrt{}">\\sqrt{}</button>
+                  <button type="button" data-insert="\\sum_{}^{}">\\sum_{}^{}</button>
+                  <button type="button" data-insert="\\int_{}^{}">\\int_{}^{}</button>
+                  <button type="button" data-insert="\\text{}">\\text{}</button>
+                  <button type="button" data-insert="<...>">&lt;...&gt;</button>
+                  <button type="button" data-insert="<... />">&lt;... /&gt;</button>
+                </div>
+                <div class="editor-area">
+                  <div class="line-numbers" id="editContentLineNumbers"></div>
+                  <pre id="editContentHighlight"></pre>
+                  <textarea id="editContent" rows="4" required></textarea>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>
+                <input type="checkbox" id="editLocked"> Locked (only root can delete/edit)
+              </label>
+            </div>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <button type="button" class="btn btn-secondary" id="cancelEditBtn">Cancel</button>
+          </form>
+        </div>
+
+        <!-- ========== 新增表单 ========== -->
+        <div class="form-section">
+          <h3>Add New Update</h3>
+          <form id="addUpdateForm">
+            <div class="form-group">
+              <label>Badge Style:
+                <select id="newBadge" required>
+                  <option value="info">Info</option>
+                  <option value="new">New</option>
+                  <option value="warning">Warning</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-group">
+              <label>Badge Text: <input type="text" id="newBadgeText" required /></label>
+            </div>
+            <div class="form-group">
+              <label>Title (optional): <input type="text" id="newTitle" /></label>
+            </div>
+            <div class="form-group">
+              <label>Content (HTML / LaTeX):</label>
+              <div class="code-editor-wrapper" id="newContentWrapper">
+                <div class="editor-area">
+                  <div class="line-numbers" id="newContentLineNumbers"></div>
+                  <pre id="newContentHighlight"></pre>
+                  <textarea id="newContent" rows="4" required></textarea>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>
+                <input type="checkbox" id="newLocked"> Locked (only root can delete/edit)
+              </label>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Update</button>
+          </form>
+        </div>
+
+        <h3>Existing Updates</h3>
+        <table class="updates-table">
+          <thead><tr><th>Badge</th><th>Time</th><th>Title</th><th>Content</th><th>Locked</th><th>Actions</th></tr></thead>
+          <tbody id="updatesList"></tbody>
+        </table>
+        <div id="message" class="message"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+    // ===== 权限检查 =====
+    if (!isLoggedIn()) {
+      window.location.href = '/index.html';
+    }
+    const user = getCurrentUser();
+    if (!user || (user.role !== 'admin' && user.role !== 'root')) {
+      window.location.href = '/index.html';
+    }
+    const isRoot = user.role === 'root';
+
+    // ===== 编辑器核心函数 (从 editproblem.html 移植) =====
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[m]);
+    }
+
+    function highlightHTML(code) {
+      let escaped = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const latexBlocks = [];
+      escaped = escaped.replace(/(\$+)([\s\S]*?)\1/g, (match, delim, content) => {
+        latexBlocks.push(match);
+        return `%%LATEX${latexBlocks.length-1}%%`;
+      });
+      escaped = escaped.replace(/(&lt;\/?)([\w-]+)([\s\S]*?)(\/?&gt;)/g, (match, open, tagName, attrs, close) => {
+        let result = `<span class="hl-tag">${open}</span><span class="hl-tag">${tagName}</span>`;
+        if (attrs) {
+          attrs = attrs.replace(/([\w-]+)(=)(\"[^\"]*\"|'[^']*'|\S+)?/g, (m, attr, eq, val) => {
+            let html = `<span class="hl-attr">${attr}</span>`;
+            if (eq) html += eq;
+            if (val) html += `<span class="hl-value">${val}</span>`;
+            return html;
+          });
+        }
+        result += attrs + `<span class="hl-tag">${close}</span>`;
+        return result;
+      });
+      escaped = escaped.replace(/([{}])/g, '<span class="hl-brace">$1</span>');
+      escaped = escaped.replace(/%%LATEX(\d+)%%/g, (m, idx) => {
+        const latex = latexBlocks[parseInt(idx)];
+        return `<span class="hl-latex">${latex}</span>`;
+      });
+      return escaped;
+    }
+
+    function updateHighlight(textarea, pre) {
+      pre.innerHTML = highlightHTML(textarea.value) + '\n';
+    }
+
+    function updateLineNumbers(textarea, lineNumbersDiv) {
+      const lines = textarea.value.split('\n').length;
+      let nums = '';
+      for (let i = 1; i <= lines; i++) nums += i + '\n';
+      lineNumbersDiv.textContent = nums;
+    }
+
+    function insertTextAtCursor(textarea, text) {
+      textarea.focus();
+      document.execCommand('insertText', false, text);
+    }
+
+    function wrapSelectionWithExec(textarea, before, after) {
+      const start = textarea.selectionStart, end = textarea.selectionEnd;
+      const selected = textarea.value.substring(start, end);
+      insertTextAtCursor(textarea, before + selected + after);
+      textarea.selectionStart = start + before.length;
+      textarea.selectionEnd = start + before.length + selected.length;
+    }
+
+    const pairs = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'" };
+    const selfClosing = new Set(['br','hr','img','input','meta','link','area','base','col','embed','source','track','wbr']);
+
+    function initCodeEditor(textarea, lineNumbersDiv, highlightPre, toolbar) {
+      if (!textarea) return;
+      updateLineNumbers(textarea, lineNumbersDiv);
+      updateHighlight(textarea, highlightPre);
+      textarea.addEventListener('input', () => {
+        updateLineNumbers(textarea, lineNumbersDiv);
+        updateHighlight(textarea, highlightPre);
+      });
+      textarea.addEventListener('scroll', () => {
+        lineNumbersDiv.scrollTop = textarea.scrollTop;
+        highlightPre.scrollTop = textarea.scrollTop;
+      });
+      textarea.addEventListener('keydown', function(e) {
+        const key = e.key, start = this.selectionStart, end = this.selectionEnd;
+        if (pairs.hasOwnProperty(key)) {
+          e.preventDefault();
+          if (start !== end) wrapSelectionWithExec(this, key, pairs[key]);
+          else { insertTextAtCursor(this, key + pairs[key]); this.selectionStart = this.selectionEnd = start + 1; }
+          return;
+        }
+        if (key === 'Backspace' && start === end && start > 0) {
+          const leftChar = this.value[start-1], rightChar = this.value[start];
+          if (pairs[leftChar] === rightChar) {
+            e.preventDefault();
+            this.setSelectionRange(start-1, start+1);
+            insertTextAtCursor(this, '');
+          }
+          return;
+        }
+        if (key === '>' && start === end) {
+          const beforeCursor = this.value.substring(0, start);
+          const ltIndex = beforeCursor.lastIndexOf('<');
+          if (ltIndex !== -1) {
+            const afterLt = beforeCursor.substring(ltIndex+1);
+            const match = afterLt.match(/^([a-zA-Z][a-zA-Z0-9]*)$/);
+            if (match && !selfClosing.has(match[1].toLowerCase())) {
+              e.preventDefault();
+              insertTextAtCursor(this, `></${match[1]}>`);
+              this.selectionStart = this.selectionEnd = start + 1;
+            }
+          }
+        }
+      });
+      if (toolbar) {
+        toolbar.addEventListener('click', function(e) {
+          const btn = e.target.closest('button');
+          if (!btn) return;
+          const template = btn.getAttribute('data-insert');
+          if (template) {
+            e.preventDefault();
+            let text = template;
+            let cursorOffset = text.indexOf('...');
+            if (cursorOffset === -1) cursorOffset = text.indexOf('{}');
+            if (cursorOffset === -1) cursorOffset = text.length;
+            text = text.replace('...', '').replace('{}', '');
+            insertTextAtCursor(textarea, text);
+            if (template.includes('{}')) {
+              const idx = text.indexOf('{}');
+              if (idx !== -1) textarea.selectionStart = textarea.selectionEnd = textarea.selectionEnd - (text.length - idx - 1);
+            } else if (template.includes('...')) {
+              textarea.selectionStart = textarea.selectionEnd = textarea.selectionEnd - (text.length - cursorOffset);
+            }
+          }
+        });
+      }
+    }
+
+    // ===== 初始化两个编辑器 =====
+    function initEditors() {
+      // 新建编辑器
+      const newTextarea = document.getElementById('newContent');
+      const newLineNumbers = document.getElementById('newContentLineNumbers');
+      const newHighlight = document.getElementById('newContentHighlight');
+      const newToolbar = document.getElementById('newContentToolbar');
+      if (newTextarea) {
+        initCodeEditor(newTextarea, newLineNumbers, newHighlight, newToolbar);
+        // 初始空内容时更新行号和高亮
+        updateLineNumbers(newTextarea, newLineNumbers);
+        updateHighlight(newTextarea, newHighlight);
+      }
+
+      // 编辑编辑器
+      const editTextarea = document.getElementById('editContent');
+      const editLineNumbers = document.getElementById('editContentLineNumbers');
+      const editHighlight = document.getElementById('editContentHighlight');
+      const editToolbar = document.getElementById('editContentToolbar');
+      if (editTextarea) {
+        initCodeEditor(editTextarea, editLineNumbers, editHighlight, editToolbar);
+        updateLineNumbers(editTextarea, editLineNumbers);
+        updateHighlight(editTextarea, editHighlight);
+      }
+    }
+
+    // ===== 原有的 updates 管理逻辑 =====
+    function getCurrentTimeString() {
+      const d = new Date();
+      return d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0') + ' ' +
+        String(d.getHours()).padStart(2, '0') + ':' +
+        String(d.getMinutes()).padStart(2, '0');
+    }
+
+        async function loadUpdates() {
+      try {
+        const data = await apiCall('/api/updates?action=adminList');
+        if (data.success) {
+          const tbody = document.getElementById('updatesList');
+          tbody.innerHTML = data.updates.map(u => `
+            <tr>
+              <td><span class="update-badge ${u.badge}">${escapeHtml(u.badgeText)}</span></td>
+              <td>${escapeHtml(u.time)}</td>
+              <td>${escapeHtml(u.title || '')}</td>
+              <td>${escapeHtml(u.content).substring(0, 80)}...</td>
+              <td>${u.locked ? '🔒 Yes' : 'No'}</td>
+              <td>
+                <button class="btn btn-warning" onclick="editUpdate('${u._id}')">Edit</button>
+                ${ (isRoot || !u.locked) ? `<button class="btn btn-danger" onclick="deleteUpdate('${u._id}', ${u.locked})">Delete</button>` : '' }
+              </td>
+            </tr>
+          `).join('');
+        }
+      } catch (err) { console.error(err); }
+    }
+    window.editUpdate = async function(id) {
+      try {
+                const data = await apiCall(`/api/updates?action=adminList&id=${id}`);
+        if (data.success) {
+          const u = data.update;
+          document.getElementById('editId').value = u._id;
+          document.getElementById('editBadge').value = u.badge;
+          document.getElementById('editBadgeText').value = u.badgeText;
+          document.getElementById('editTitle').value = u.title || '';
+          // 将内容填入编辑器文本域，并触发更新
+          const editTextarea = document.getElementById('editContent');
+          editTextarea.value = u.content;
+          // 手动更新高亮和行号
+          const editLineNumbers = document.getElementById('editContentLineNumbers');
+          const editHighlight = document.getElementById('editContentHighlight');
+          updateLineNumbers(editTextarea, editLineNumbers);
+          updateHighlight(editTextarea, editHighlight);
+          document.getElementById('editLocked').checked = u.locked;
+          document.getElementById('editFormSection').style.display = 'block';
+          window.scrollTo(0, 0);
+        }
+      } catch (err) { showMessage('Failed to load update', 'error'); }
+    };
+
+    document.getElementById('cancelEditBtn').addEventListener('click', () => {
+      document.getElementById('editFormSection').style.display = 'none';
+    });
+
+    document.getElementById('editUpdateForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('editId').value;
+      const badge = document.getElementById('editBadge').value;
+      const badgeText = document.getElementById('editBadgeText').value.trim();
+      const title = document.getElementById('editTitle').value.trim();
+      const content = document.getElementById('editContent').value.trim();
+      const locked = document.getElementById('editLocked').checked;
+
+      try {
+        const result = await apiCall('/api/updates?action=adminUpdate', 'PUT', {
+        id, badge, badgeText, title, content, locked
+      });
+        showMessage(result.message, result.success ? 'success' : 'error');
+        if (result.success) {
+          document.getElementById('editFormSection').style.display = 'none';
+          loadUpdates();
+        }
+      } catch (err) { showMessage('Error updating', 'error'); }
+    });
+
+    window.deleteUpdate = async function(id, locked) {
+      if (locked && !isRoot) {
+        showMessage('Only root can delete locked updates', 'error');
+        return;
+      }
+      if (!confirm('Delete this update?')) return;
+      try {
+        const result = await apiCall('/api/updates?action=adminDelete', 'DELETE', { id });
+        showMessage(result.message, result.success ? 'success' : 'error');
+        if (result.success) loadUpdates();
+      } catch (err) { showMessage('Error', 'error'); }
+    };
+
+    document.getElementById('addUpdateForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const badge = document.getElementById('newBadge').value;
+      const badgeText = document.getElementById('newBadgeText').value.trim();
+      const title = document.getElementById('newTitle').value.trim();
+      const content = document.getElementById('newContent').value.trim();
+      const locked = document.getElementById('newLocked').checked;
+      const time = getCurrentTimeString();
+
+      try {
+        const result = await apiCall('/api/updates?action=adminCreate', 'POST', {
+        badge, badgeText, time, title, content, locked
+      });
+        showMessage(result.message, result.success ? 'success' : 'error');
+        if (result.success) {
+          document.getElementById('addUpdateForm').reset();
+          // 清空编辑器内容并重置高亮
+          const newTextarea = document.getElementById('newContent');
+          newTextarea.value = '';
+          const newLineNumbers = document.getElementById('newContentLineNumbers');
+          const newHighlight = document.getElementById('newContentHighlight');
+          updateLineNumbers(newTextarea, newLineNumbers);
+          updateHighlight(newTextarea, newHighlight);
+          loadUpdates();
+        }
+      } catch (err) { showMessage('Error', 'error'); }
+    });
+
+    function showMessage(msg, type) {
+      const el = document.getElementById('message');
+      el.textContent = msg;
+      el.style.color = type === 'error' ? 'var(--danger)' : '#2e7d32';
+      setTimeout(() => el.textContent = '', 5000);
+    }
+
+    // ===== 页面加载初始化 =====
+    // 等待 DOM 完全加载后初始化编辑器
+    document.addEventListener('DOMContentLoaded', () => {
+      initEditors();
+      loadUpdates();
+    });
+
+    // 如果 DOM 已加载，则直接初始化
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        initEditors();
+        loadUpdates();
+      });
+    } else {
+      initEditors();
+      loadUpdates();
+    }
+  </script>
+</body>
+</html>

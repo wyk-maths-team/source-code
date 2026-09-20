@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Submission Detail - WYK Maths Team</title>
+  <link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" as="style">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+  <style>
+    :root{--card-bg:#fff;--border-color:#dee2e6;--text-primary:#212529;--text-secondary:#6c757d;--accent:#337ab7;--accent-hover:#23527c;--success-bg:#d4edda;--success-text:#155724;--danger-bg:#f8d7da;--danger-text:#721c24;--warning-bg:#fff3cd;--warning-text:#856404;--pending-bg:#eee;--pending-text:#666;--comment-bg:#f9f9f9}
+    [data-theme="dark"]{--card-bg:#1e1e1e;--border-color:#444;--text-primary:#e0e0e0;--text-secondary:#aaa;--comment-bg:#2a2a2a}
+    [data-theme="dark"] .badge{background:#3a3a3a;color:#ccc;border-color:#555}
+    [data-theme="dark"] .badge.status-accepted{background:#1b4d2e;color:#8fdf8f;border-color:#2e6b3e}
+    [data-theme="dark"] .badge.status-wrong{background:#4d1b1b;color:#df8f8f;border-color:#6b2e2e}
+    [data-theme="dark"] .badge.status-partial{background:#4d3e1b;color:#dfc88f;border-color:#6b562e}
+    [data-theme="dark"] .badge.status-system{background:#2d2d2d;color:#bbb;border-color:#444}
+    [data-theme="dark"] .badge.status-pending{background:#2d2d2d;color:#999;border-color:#444}
+    [data-theme="dark"] .comment-box{background:#2a2a2a;border-left-color:var(--accent)}
+    [data-theme="dark"] .no-comment{color:#777}
+    .main-content{font-size:1rem}
+    .detail-container{width:100%;padding:1.5rem;background:var(--card-bg);border-radius:0;box-sizing:border-box}
+    .submission-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:1rem}
+    .submission-header h2{margin:0;font-size:1.5rem;color:var(--text-primary)}
+    .badge-group{display:flex;gap:.5rem;flex-wrap:wrap}
+    .badge{display:inline-block;padding:.3rem .8rem;border-radius:4px;font-size:.85rem;font-weight:600;background:#f0f0f0;color:#333;border:1px solid #ddd}
+    .badge.status-accepted{background:var(--success-bg);color:var(--success-text);border-color:#c3e6cb}
+    .badge.status-wrong{background:var(--danger-bg);color:var(--danger-text);border-color:#f5c6cb}
+    .badge.status-partial{background:var(--warning-bg);color:var(--warning-text);border-color:#ffeeba}
+    .badge.status-system{background:#e2e3e5;color:#383d41;border-color:#d6d8db}
+    .badge.status-pending{background:var(--pending-bg);color:var(--pending-text);border-color:#d6d8db}
+    .meta-row{display:flex;flex-wrap:wrap;gap:1.2rem;margin:1rem 0;font-size:.9rem;color:var(--text-secondary)}
+    .meta-item strong{color:var(--text-primary)}
+    .answer-image{max-width:100%;border:1px solid var(--border-color);border-radius:4px;margin:1rem 0;display:block}
+    .comment-box{background:var(--comment-bg);border-left:3px solid var(--accent);padding:.8rem 1rem;margin:1rem 0;border-radius:4px}
+    .comment-box h3{margin:0 0 .5rem 0;font-size:1rem;color:var(--text-primary)}
+    .comment-box p{color:var(--text-secondary)}
+    .no-comment{color:#999;font-style:italic}
+    .attempts-info{margin:.5rem 0;font-size:.9rem;color:var(--text-secondary)}
+    .answer-text{margin:1rem 0;font-size:1rem;color:var(--text-primary)}
+    .back-link{display:inline-block;margin-top:1rem;color:var(--accent);text-decoration:none}
+    .back-link:hover{text-decoration:underline}
+    .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(0,0,0,.15);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin:0 4px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* === 動態亂碼佔位符 === */
+    .hidden-scramble {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-secondary);
+      font-family: 'Fira Code', 'Cascadia Code', 'Consolas', 'Monaco', monospace;
+      font-size: 0.95rem;
+      letter-spacing: 2px;
+      user-select: none;
+      opacity: 0.85;
+    }
+    .hidden-scramble .scramble-text {
+      opacity: 0.7;
+      font-weight: 600;
+      display: inline-block;
+      min-width: 12ch;
+      /* 每個字元等寬，避免刷新時抖動 */
+      font-variant-numeric: tabular-nums;
+      white-space: pre;
+    }
+    .hidden-scramble i {
+      font-size: 0.85em;
+      opacity: 0.75;
+    }
+    .hidden-scramble i.fa-lock {
+      animation: lockPulse 2s ease-in-out infinite;
+    }
+    .hidden-scramble i.fa-eye-slash {
+      animation: eyeBlink 3s ease-in-out infinite;
+    }
+    @keyframes lockPulse {
+      0%, 100% { opacity: 0.5; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.08); }
+    }
+    @keyframes eyeBlink {
+      0%, 90%, 100% { opacity: 0.75; }
+      95% { opacity: 0.2; }
+    }
+    [data-theme="dark"] .hidden-scramble { color: #999; }
+    [data-theme="dark"] .hidden-scramble .scramble-text { opacity: 0.55; }
+  </style>
+
+  <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WYK Maths">
+  <meta name="mobile-web-app-capable" content="yes">
+
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent"></main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+  <script>
+    if (!isLoggedIn()) window.location.href = '/index.html';
+    (function () {
+      const s = localStorage.getItem('fontSize') || '16';
+      document.documentElement.style.fontSize = s + 'px';
+    })();
+
+    const parts = window.location.pathname.split('/');
+    const subid = parts[parts.length - 2];
+    const container = document.getElementById('mainContent');
+
+    // ============ 工具 ============
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+    }
+
+    function computeStatus(sub) {
+      if (sub.marked && sub.score !== undefined) {
+        if (sub.score === 100) return { text: 'Accepted', cls: 'status-accepted' };
+        if (sub.score === 0) return { text: 'Wrong Answer', cls: 'status-wrong' };
+        return { text: `Partial Score (${sub.score}%)`, cls: 'status-partial' };
+      }
+      if (sub.type === 'image' && !sub.marked) {
+        return { text: 'Pending', cls: 'status-pending' };
+      }
+      if (sub.systemError) {
+        return { text: 'System Error', cls: 'status-system' };
+      }
+      if (typeof sub.correct === 'boolean') {
+        return sub.correct
+          ? { text: 'Accepted', cls: 'status-accepted' }
+          : { text: 'Wrong Answer', cls: 'status-wrong' };
+      }
+      return { text: 'Pending', cls: 'status-pending' };
+    }
+
+    // ============ 動態亂碼 ============
+    // 12 個字元的寬度，每 80ms 刷新一次
+    const SCRAMBLE_LENGTH = 32;
+    const SCRAMBLE_CHARS =
+      '░▒▓';//█▚▞▙▟
+
+    let scrambleTimer = null;
+
+    function randomScramble() {
+      let s = '';
+      for (let i = 0; i < SCRAMBLE_LENGTH; i++) {
+        s += SCRAMBLE_CHARS.charAt(Math.floor(Math.random() * SCRAMBLE_CHARS.length));
+      }
+      return s;
+    }
+
+    function startScramble() {
+      const els = document.querySelectorAll('.scramble-text');
+      if (!els.length) return;
+      if (scrambleTimer) clearInterval(scrambleTimer);
+      // 先立刻刷新一次，避免 80ms 空白
+      els.forEach(el => { el.textContent = randomScramble(); });
+      scrambleTimer = setInterval(() => {
+        // 若頁面上已經沒有亂碼元素（例如切走了），自動停掉
+        const nodes = document.querySelectorAll('.scramble-text');
+        if (!nodes.length) {
+          clearInterval(scrambleTimer);
+          scrambleTimer = null;
+          return;
+        }
+        nodes.forEach(el => { el.textContent = randomScramble(); });
+      }, 20);
+    }
+
+    function hiddenScrambleHtml(label) {
+      return `<span class="hidden-scramble" title="${escapeHtml(label)}">` +
+             `<i class="fas fa-lock"></i> ` +
+             `<span class="scramble-text">${randomScramble()}</span> ` +
+             `<i class="fas fa-eye-slash"></i>` +
+             `</span>`;
+    }
+
+    // ============ 渲染 ============
+    function renderDetail(sub, problemName, attempts) {
+      const status = computeStatus(sub);
+
+      const submitTime = new Date(sub.timestamp);
+      const submitTimeStr = submitTime.toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong' });
+      const judgeTime = sub.markedAt ? new Date(sub.markedAt) : submitTime;
+      const diffSec = Math.floor((judgeTime - submitTime) / 1000);
+      const timeStr = diffSec < 60
+        ? `${diffSec} seconds`
+        : `${Math.floor(diffSec / 60)} min ${diffSec % 60} sec`;
+
+      let answerHtml;
+      if (sub.type === 'image' && sub.image) {
+        answerHtml = `<img src="${escapeHtml(sub.image)}" class="answer-image" alt="Submission image">`;
+      } else if (sub.answerHidden) {
+        answerHtml = `<div class="answer-text">${hiddenScrambleHtml('Answer hidden')}</div>`;
+      } else {
+        answerHtml = `<div class="answer-text"><strong>Answer:</strong> ${escapeHtml(String(sub.answer || 'No answer recorded'))}</div>`;
+      }
+
+      let commentHtml;
+      if (sub.commentHidden) {
+        commentHtml = hiddenScrambleHtml('Comment hidden');
+      } else if (sub.comment) {
+        commentHtml = escapeHtml(sub.comment);
+      } else {
+        commentHtml = '<span class="no-comment">No comment yet.</span>';
+      }
+
+      return `<div class="detail-container" id="detailRoot">
+        <div class="submission-header">
+          <h2>Submission #${escapeHtml(sub.subid)}</h2>
+          <div class="badge-group"><span class="badge ${status.cls}">${escapeHtml(status.text)}</span></div>
+        </div>
+        <div class="meta-row">
+          <div class="meta-item"><strong>User:</strong> <a href="/users/${encodeURIComponent(sub.username)}">${escapeHtml(sub.username)}</a></div>
+          <div class="meta-item"><strong>Problem:</strong> <a href="/problems/${encodeURIComponent(sub.problemId)}">${escapeHtml(sub.problemId)} - ${escapeHtml(problemName)}</a></div>
+          <div class="meta-item"><strong>Submitted:</strong> ${escapeHtml(submitTimeStr)}</div>
+          <div class="meta-item"><strong>Judging time:</strong> ${escapeHtml(timeStr)}</div>
+        </div>
+        <div class="attempts-info"><strong>Total attempts on this problem:</strong> ${attempts}</div>
+        <div id="answerPlaceholder">${answerHtml}</div>
+        <div class="comment-box"><h3>Teacher's Comment</h3><p id="commentText">${commentHtml}</p></div>
+        <a href="javascript:history.back()" class="back-link">← Back to submissions</a>
+      </div>`;
+    }
+
+    // ============ 載入 ============
+    async function loadDetail() {
+      container.innerHTML = '<div class="detail-container" style="text-align:center;padding:2rem;"><span class="spinner"></span> Loading...</div>';
+      try {
+        const data = await apiCall(`/api/submissions?action=detail&subid=${encodeURIComponent(subid)}`);
+        if (!data.success) throw new Error(data.message || 'Failed to load');
+
+        container.innerHTML = renderDetail(data.submission, data.problemName, data.attempts);
+
+        // 啟動動態亂碼（只在有亂碼元素時才啟定時器）
+        startScramble();
+
+        if (typeof renderMathInElement !== 'undefined') {
+          renderMathInElement(container, {
+            delimiters: [
+              { left: '\\[', right: '\\]', display: true },
+              { left: '\\(', right: '\\)', display: false }
+            ],
+            throwOnError: false
+          });
+        }
+      } catch (err) {
+        console.error(err);
+        container.innerHTML = '<div class="detail-container error-msg">Submission not found or access denied.</div>';
+      }
+    }
+
+    // 離開頁面時清掉定時器，避免殘留
+    window.addEventListener('beforeunload', () => {
+      if (scrambleTimer) clearInterval(scrambleTimer);
+    });
+
+    loadDetail();
+  </script>
+</body>
+</html>

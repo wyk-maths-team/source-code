@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>Contest - WYK Maths Team</title><link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" as="style">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <style>
+    .contest-detail { background: var(--card-bg); border-radius: 4px; padding: 1.5rem; max-width: 900px; margin: 0 auto; }
+    .contest-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; }
+    .contest-name { font-size: 1.5rem; font-weight: 700; }
+    .contest-status { padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
+    .status-upcoming { background: #fff3cd; color: #856404; }
+    .status-ongoing { background: #d4edda; color: #155724; }
+    .status-ended { background: #e2e3e5; color: #383d41; }
+    .info-bar { display: flex; gap: 2rem; margin-bottom: 1.5rem; color: var(--text-secondary); }
+    .btn { padding: 0.4rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; margin-right: 0.5rem; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: #6c757d; color: #fff; }
+    .btn-success { background: #2e7d32; color: #fff; }
+    .btn-warning { background: #ffc107; color: #000; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .problem-table { width: 100%; border-collapse: collapse; margin: 1rem 0; border: 1px solid var(--border-color); }
+    .problem-table th, .problem-table td { padding: 0.6rem 0.5rem; border-bottom: 1px solid var(--border-color); text-align: left; }
+    .problem-table th { background: #f0f2f5; font-weight: 700; border-bottom: 2px solid var(--border-color); }
+    .problem-row { cursor: pointer; transition: background 0.2s; }
+    .problem-row:hover { background: rgba(0,0,0,0.03); }
+    .problem-row.accepted { background: #d4edda; }
+    .problem-row.partial { background: #fff3cd; }
+    .problem-row.failed { background: #f8d7da; }
+    .problem-row.finished-before { background: #a8d5a8; border-left: 4px solid #1b5e20; }
+    .problem-row.finished-before:hover { background: #98ca98; }
+    [data-theme="dark"] .problem-row.finished-before { background: #0d3b1a; border-left-color: #4caf50; }
+    [data-theme="dark"] .problem-row.finished-before:hover { background: #114a22; }
+    .problem-row.finished-before td:first-child { color: #1b5e20; font-weight: 700; }
+    [data-theme="dark"] .problem-row.finished-before td:first-child { color: #8fdf8f; }
+    .participant-list { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.5rem 0 1rem 0; }
+    .participant-tag { background: #f0f0f0; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.85rem; }
+    .loading-msg { text-align: center; padding: 2rem; color: var(--text-secondary); }
+  </style>
+
+  <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WYK Maths">
+  <meta name="mobile-web-app-capable" content="yes">
+
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="loading-msg">Loading contest...</div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+    if (!isLoggedIn()) window.location.href = '/index.html';
+
+    const pathMatch = window.location.pathname.match(/^\/contest\/(\d+)$/);
+    if (!pathMatch) {
+      document.getElementById('mainContent').innerHTML = '<div class="error-msg">Invalid contest ID.</div>';
+      throw new Error('No ID');
+    }
+    const contestId = parseInt(pathMatch[1], 10);
+    document.title = `Contest #${contestId} - WYK Maths Team`;
+
+    const mainContainer = document.getElementById('mainContent');
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+    }
+
+    // 單一 API：一次拿 contest + userScores + userContestStates + globalStates（+stats）
+    async function loadPage() {
+      try {
+        const data = await apiCall(`/api/contests?action=page&id=${contestId}`);
+        if (data.success && data.contest) return data.contest;
+      } catch (err) { console.error(err); }
+      return null;
+    }
+
+    function renderContest(contest) {
+      if (!contest) {
+        mainContainer.innerHTML = '<div class="error-msg">Contest not found.</div>';
+        return;
+      }
+
+      const status = contest.status;
+      const isParticipant = contest.isParticipant;
+      const userStates = contest.userContestStates || {};
+      const userScores = contest.userScores || {};
+      const globalStates = contest.globalStates || {};
+
+      let statusClass = '';
+      if (status === 'upcoming') statusClass = 'status-upcoming';
+      else if (status === 'ongoing') statusClass = 'status-ongoing';
+      else statusClass = 'status-ended';
+
+      const startDate = new Date(contest.startTime).toLocaleString();
+      const durationHours = Math.floor(contest.duration / 60);
+      const durationMinutes = contest.duration % 60;
+      const durationStr = `${durationHours > 0 ? durationHours + 'h ' : ''}${durationMinutes}m`;
+
+      let html = `
+        <div class="contest-detail">
+          <div class="contest-header">
+            <span class="contest-name">${escapeHtml(contest.name)}</span>
+            <span class="contest-status ${statusClass}">${status.charAt(0).toUpperCase() + status.slice(1)}</span>
+          </div>
+          <div class="info-bar">
+            <span>Start: ${startDate}</span>
+            <span>Duration: ${durationStr}</span>
+            <span>Participants: ${contest.participantCount}</span>
+            ${status !== 'upcoming' ? `<a href="/contest/${contestId}/results" class="btn btn-primary">${status === 'ended' ? 'Final Results' : 'Live Results'}</a>` : ''}
+          </div>`;
+
+      // 動作按鈕
+      let actionHtml = '';
+      if (status === 'upcoming') {
+        actionHtml = `
+          <div class="action-bar" style="margin-bottom:1rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
+            ${isParticipant
+              ? '<button id="quitBtn" class="btn btn-danger">Quit Contest</button>'
+              : '<button id="joinBtn" class="btn btn-success">Join Contest</button>'}
+          </div>`;
+      } else if (status === 'ongoing' && !isParticipant) {
+        actionHtml = `
+          <div class="action-bar" style="margin-bottom:1rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
+            <button id="joinBtn" class="btn btn-success">Join Contest (in progress)</button>
+          </div>`;
+      }
+      html += actionHtml;
+
+      // 參賽者列表
+      if (contest.participants && contest.participants.length > 0) {
+        html += `<div class="participant-list">`;
+        contest.participants.forEach(p => {
+          html += `<span class="participant-tag">${escapeHtml(p)}</span>`;
+        });
+        html += '</div>';
+      } else {
+        html += '<p>No participants yet.</p>';
+      }
+
+      // 題目列表
+      if ((status === 'ongoing' || status === 'ended') && isParticipant && contest.problems && contest.problems.length > 0) {
+        html += `<h4>Problems</h4>
+        <table class="problem-table">
+          <thead><tr><th>ID</th><th>Name</th><th>Type</th><th>Status / Score</th></tr></thead><tbody>`;
+
+        contest.problems.forEach(prob => {
+          const state = userStates[prob.id] || 'not_started';
+          const score = userScores[prob.id] ?? null;
+          const hasContestRecord = userScores[prob.id] !== undefined;
+          const globalPassed = globalStates[prob.id] === 'passed';
+
+          let rowClass = 'problem-row';
+          let statusDisplay = '—';
+
+          if (!hasContestRecord && globalPassed) {
+            rowClass = 'problem-row finished-before';
+            statusDisplay = 'Finished before';
+          } else if (state === 'passed') {
+            rowClass = 'problem-row accepted';
+            statusDisplay = 'AC (100)';
+          } else if (state === 'partial') {
+            rowClass = 'problem-row partial';
+            statusDisplay = `Partial (${score})`;
+          } else if (state === 'failed') {
+            rowClass = 'problem-row failed';
+            statusDisplay = score !== null ? `WA (${score})` : 'WA (0)';
+          }
+
+          html += `<tr class="${rowClass}" onclick="window.location.href='/problems/${encodeURIComponent(prob.id)}'">
+            <td>${escapeHtml(prob.id)}</td>
+            <td>${escapeHtml(prob.name)}</td>
+            <td>${prob.evalType === 'image_model' ? 'Photo' : 'Numeric'}</td>
+            <td>${statusDisplay}</td>
+          </tr>`;
+        });
+        html += '</tbody></table>';
+      } else if (!isParticipant && status === 'ended') {
+        html += '<p>You are not a participant of this contest.</p>';
+      }
+
+      html += `<p style="margin-top:1.5rem;"><a href="/contest">← Back to Contest List</a></p></div>`;
+      mainContainer.innerHTML = html;
+
+      const joinBtn = document.getElementById('joinBtn');
+      if (joinBtn) joinBtn.addEventListener('click', () => joinContest(joinBtn));
+      const quitBtn = document.getElementById('quitBtn');
+      if (quitBtn) quitBtn.addEventListener('click', () => quitContest(quitBtn));
+    }
+
+    async function reload() {
+      const fresh = await loadPage();
+      renderContest(fresh);
+    }
+
+    async function joinContest(btn) {
+      if (btn) { btn.disabled = true; btn.textContent = 'Joining...'; }
+      try {
+        const res = await apiCall('/api/contests?action=join', 'POST', { contestId });
+        if (res.success) {
+          await reload();
+        } else {
+          alert(res.message || 'Failed to join contest');
+          if (btn) { btn.disabled = false; btn.textContent = 'Join Contest'; }
+        }
+      } catch (err) {
+        alert('Network error: ' + err.message);
+        if (btn) { btn.disabled = false; btn.textContent = 'Join Contest'; }
+      }
+    }
+
+    async function quitContest(btn) {
+      if (!confirm('Confirm quit?')) return;
+      if (btn) { btn.disabled = true; btn.textContent = 'Quitting...'; }
+      try {
+        const res = await apiCall('/api/contests?action=quit', 'POST', { contestId });
+        if (res.success) {
+          await reload();
+        } else {
+          alert(res.message || 'Failed to quit contest');
+          if (btn) { btn.disabled = false; btn.textContent = 'Quit Contest'; }
+        }
+      } catch (err) {
+        alert('Network error: ' + err.message);
+        if (btn) { btn.disabled = false; btn.textContent = 'Quit Contest'; }
+      }
+    }
+
+    (async function init() {
+      const contest = await loadPage();
+      renderContest(contest);
+    })();
+  </script>
+</body>
+</html>

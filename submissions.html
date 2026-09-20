@@ -1,0 +1,723 @@
+﻿﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+(function(){
+  try {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                    || window.navigator.standalone === true
+                    || window.matchMedia('(display-mode: fullscreen)').matches
+                    || window.matchMedia('(display-mode: minimal-ui)').matches;
+    if (!isStandalone) return;
+    if (location.pathname.indexOf('/os') === 0) return;
+    if (location.pathname.indexOf('/admin') === 0) return;
+    if (!sessionStorage.getItem('pwaEnteredOS')) {
+      sessionStorage.setItem('pwaEnteredOS', '1');
+      location.replace('/os' + location.search + location.hash);
+    }
+  } catch(e){}
+})();
+</script>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Submissions - WYK Maths Team</title>
+  <link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" as="style">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/submissions.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+  <style>
+    .submissions-table thead th {
+      vertical-align: top;
+      text-align: left;
+    }
+    .submissions-table thead th.col-datetime,
+    .submissions-table thead th.col-answer {
+      vertical-align: middle;
+    }
+
+    .adv-filter-form {
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-weight: normal;
+      font-size: 0.8rem;
+    }
+    .adv-filter-form input,
+    .adv-filter-form select {
+      padding: 6px 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 3px;
+      font-size: 0.85rem;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      width: 100%;
+      box-sizing: border-box;
+      min-height: 32px;
+    }
+    .adv-filter-buttons {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .adv-filter-buttons button {
+      padding: 4px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 3px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      white-space: nowrap;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      transition: opacity 0.15s;
+      line-height: 1.2;
+    }
+    .adv-filter-buttons button:hover { opacity: 0.85; }
+    .adv-filter-buttons .btn-apply {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .adv-filter-buttons .btn-self {
+      background: #f0ad4e;
+      color: #fff;
+      border-color: #f0ad4e;
+    }
+    .btn-remove {
+      background: #dc3545;
+      color: #fff;
+      border: 1px solid #dc3545;
+      border-radius: 3px;
+      padding: 3px 7px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-remove:hover { opacity: 0.85; }
+
+    .filter-current {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: normal;
+      font-size: 0.85rem;
+      padding: 4px 0;
+      margin-top: 4px;
+    }
+    .filter-current b {
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .header-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .header-actions h2 {
+      margin: 0;
+      font-size: 1.4rem;
+      color: var(--text-primary);
+    }
+    .header-actions .btn {
+      padding: 0.4rem 1rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      text-decoration: none;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    #refreshSubmissionsBtn {
+      width: 38px;
+      height: 38px;
+      padding: 0 !important;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      font-size: 1.1rem;
+      line-height: 1;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      vertical-align: middle;
+    }
+    #refreshSubmissionsBtn:hover:not(:disabled) {
+      background: var(--accent-hover);
+      transform: scale(1.05);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+    #refreshSubmissionsBtn:active:not(:disabled) {
+      transform: scale(0.92);
+    }
+    #refreshSubmissionsBtn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    .pagination-nav { min-height: 44px; }
+    /* Date/Time 列居中 */
+.submissions-table th.col-datetime,
+.submissions-table td.col-datetime {
+  text-align: center;
+}
+
+/* 过滤头部信息卡 */
+.filter-header {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.filter-header h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.filter-header h2 a {
+  color: inherit;
+  text-decoration: none;
+}
+.filter-header h2 a:hover {
+  color: var(--accent);
+}
+.filter-header .profile-40 {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border-color);
+}
+.filter-header .filter-meta {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+.filter-header .meta-btn {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 4px 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.filter-header .meta-btn.info {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  text-decoration: none;
+}
+.filter-header .meta-btn.info:hover {
+  opacity: 0.9;
+}
+.filter-header .meta-btn.purple {
+  background: #7d5bb0;
+  color: #fff;
+  border-color: #7d5bb0;
+  text-decoration: none;
+}
+  </style>
+
+  <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WYK Maths">
+  <meta name="mobile-web-app-capable" content="yes">
+
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent"></main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+    (function() {
+      if (!isLoggedIn()) window.location.href = '/index.html';
+
+      const mainContainer = document.getElementById('mainContent');
+      const currentUser = getCurrentUser() || {};
+      const currentUsername = currentUser.username || '';
+
+      // ---- 从 URL 推断初始过滤条件 ----
+      function getInitialFilters() {
+        const params = new URLSearchParams(window.location.search);
+        const path = window.location.pathname;
+        let user = params.get('user') || '';
+        let problem = params.get('problem') || '';
+        let result = params.get('result') || '';
+
+        const userMatch = path.match(/^\/submissions\/user\/(.+)$/);
+        const problemMatch = path.match(/^\/submissions\/problem\/(.+)$/);
+        if (userMatch) user = decodeURIComponent(userMatch[1]);
+        if (problemMatch) problem = decodeURIComponent(problemMatch[1]);
+
+        return { user, problem, result, page: Math.max(1, parseInt(params.get('page')) || 1) };
+      }
+
+      const state = getInitialFilters();
+      let lastQuerySnapshot = null;
+
+      // ---- 工具函数 ----
+      function escapeHtml(str) {
+        return String(str).replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[m]);
+      }
+      function statusClass(statusText) {
+        if (statusText === 'Accepted') return 'status-accepted';
+        if (statusText === 'Wrong Answer') return 'status-wrong';
+        if (statusText.startsWith('Partial Score')) return 'status-partial';
+        if (statusText === 'Pending') return 'status-pending';
+        if (statusText === 'System Error') return 'status-system';
+        return 'status-system';
+      }
+      function makeSnapshot() {
+        return JSON.stringify({
+          user: state.user,
+          problem: state.problem,
+          result: state.result,
+          page: state.page
+        });
+      }
+      // HKOI 同款时间格式：YYYY-MM-DD HH:MM:SS（Asia/Hong_Kong, UTC+8）
+      function formatTime(ts) {
+        const d = new Date(ts);
+        const pad = n => String(n).padStart(2, '0');
+        const localTime = d.getTime() + 8 * 3600000;
+        const localDate = new Date(localTime);
+        return `${localDate.getUTCFullYear()}-${pad(localDate.getUTCMonth() + 1)}-${pad(localDate.getUTCDate())} ` +
+               `${pad(localDate.getUTCHours())}:${pad(localDate.getUTCMinutes())}:${pad(localDate.getUTCSeconds())}`;
+      }
+
+      const RESULT_LABELS = {
+        accepted: 'Accepted',
+        wrong: 'Wrong Answer',
+        partial: 'Partial Score',
+        pending: 'Pending',
+        system: 'System Error'
+      };
+
+      // ---- 过滤器单元格渲染（有值显示文字，无值显示输入框） ----
+      function renderUserFilterCell() {
+        if (state.user) {
+          return `
+            <div class="filter-current">
+              User: <b>${escapeHtml(state.user)}</b>
+              <button type="button" class="btn-remove" data-clear="user" title="Clear">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>`;
+        }
+        return `
+          <form class="adv-filter-form" id="formUser" autocomplete="off">
+            <input type="text" id="filterUser" placeholder="Username" value="">
+            <div class="adv-filter-buttons">
+              <button type="submit" class="btn-apply">Apply</button>
+              <button type="button" class="btn-self" id="selfBtn">Self</button>
+            </div>
+          </form>`;
+      }
+
+      function renderProblemFilterCell() {
+        if (state.problem) {
+          return `
+            <div class="filter-current">
+              Problem: <b>${escapeHtml(state.problem)}</b>
+              <button type="button" class="btn-remove" data-clear="problem" title="Clear">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>`;
+        }
+        return `
+          <form class="adv-filter-form" id="formProblem" autocomplete="off">
+            <input type="text" id="filterProblem" placeholder="Problem ID" value="">
+            <div class="adv-filter-buttons">
+              <button type="submit" class="btn-apply">Apply</button>
+            </div>
+          </form>`;
+      }
+
+      function renderResultFilterCell() {
+        if (state.result) {
+          return `
+            <div class="filter-current">
+              Result: <b>${escapeHtml(RESULT_LABELS[state.result] || state.result)}</b>
+              <button type="button" class="btn-remove" data-clear="result" title="Clear">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>`;
+        }
+        return `
+          <form class="adv-filter-form" id="formResult" autocomplete="off">
+            <select id="filterResult">
+              <option value="">All</option>
+              <option value="accepted">Accepted</option>
+              <option value="wrong">Wrong Answer</option>
+              <option value="partial">Partial Score</option>
+              <option value="pending">Pending</option>
+              <option value="system">System Error</option>
+            </select>
+            <div class="adv-filter-buttons">
+              <button type="submit" class="btn-apply">Apply</button>
+            </div>
+          </form>`;
+      }
+      
+
+// ---- 渲染过滤头部 HTML（資料由 /api/submissions 的 header 欄位帶入）----
+function buildFilterHeader(header) {
+  let html = '';
+  const info = header || {};
+
+  if (state.problem) {
+    const p = info.problem || {};
+    const name = p.name || state.problem;
+    const difficulty = p.difficulty ?? 0;
+    const difficultyStr = difficulty === 0 ? '∞' : difficulty.toFixed(2);
+
+    html += `
+      <div class="filter-header">
+        <h2>
+          <a href="/problems/${encodeURIComponent(state.problem)}">${escapeHtml(name)}</a>
+        </h2>
+        <div class="filter-meta">
+          <span class="meta-btn">${escapeHtml(state.problem)}</span>
+          <span class="meta-btn">Difficulty: ${difficultyStr}</span>
+          <a href="/problems/${encodeURIComponent(state.problem)}" class="meta-btn info">View Problem</a>
+        </div>
+      </div>
+    `;
+  }
+
+  if (state.user) {
+    const u = info.user || {};
+    const displayName = u.displayName || state.user;
+    const pfp = u.pfp || '';
+    const avatarHtml = pfp ? `<img src="${escapeHtml(pfp)}" class="profile-40" alt="avatar">` : '';
+
+    html += `
+      <div class="filter-header">
+        <h2>
+          <a href="/users/${encodeURIComponent(state.user)}">
+            ${avatarHtml}
+            ${escapeHtml(displayName)}
+          </a>
+        </h2>
+        <div class="filter-meta">
+          <span class="meta-btn">Username: ${escapeHtml(state.user)}</span>
+          <a href="/submissions/user/${encodeURIComponent(state.user)}" class="meta-btn info">Submissions</a>
+          <a href="/users/${encodeURIComponent(state.user)}" class="meta-btn purple">Profile</a>
+        </div>
+      </div>
+    `;
+  }
+
+  return html;
+}
+      // ---- 渲染布局 ----
+      function renderLayout(headerHtml = '') {
+  mainContainer.innerHTML = `
+    <div class="submissions-wrapper">
+      <div class="header-actions">
+        <h2>Submissions</h2>
+        <div style="display:flex;gap:0.5rem;align-items:center;">
+          <button id="refreshSubmissionsBtn" title="Refresh"><i class="fas fa-sync-alt"></i></button>
+          <button class="btn" id="resetFiltersBtn">Reset Filters</button>
+        </div>
+      </div>
+
+      ${headerHtml}
+
+      <div class="pagination-nav" id="paginationTop"></div>
+
+      <div class="table-responsive">
+        <table class="submissions-table">
+          <thead>
+            <tr>
+              <th class="col-datetime">Date / Time</th>
+              <th class="col-user left-align">
+                User
+                ${renderUserFilterCell()}
+              </th>
+              <th class="col-problem left-align">
+                Problem
+                ${renderProblemFilterCell()}
+              </th>
+              <th class="col-answer">Answer</th>
+              <th class="col-status">
+                Result
+                ${renderResultFilterCell()}
+              </th>
+            </tr>
+          </thead>
+          <tbody id="submissionsBody">
+            <tr><td colspan="5" class="loading-msg">Loading submissions…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination-nav" id="paginationBottom"></div>
+    </div>
+  `;
+  bindFilterEvents();
+}
+      function bindFilterEvents() {
+        const formUser = document.getElementById('formUser');
+        if (formUser) {
+          formUser.addEventListener('submit', e => {
+            e.preventDefault();
+            state.user = document.getElementById('filterUser').value.trim();
+            state.page = 1;
+            applyFilters();
+          });
+        }
+        const formProblem = document.getElementById('formProblem');
+        if (formProblem) {
+          formProblem.addEventListener('submit', e => {
+            e.preventDefault();
+            state.problem = document.getElementById('filterProblem').value.trim();
+            state.page = 1;
+            applyFilters();
+          });
+        }
+        const formResult = document.getElementById('formResult');
+        if (formResult) {
+          formResult.addEventListener('submit', e => {
+            e.preventDefault();
+            state.result = document.getElementById('filterResult').value;
+            state.page = 1;
+            applyFilters();
+          });
+          document.getElementById('filterResult').addEventListener('change', () => {
+            state.result = document.getElementById('filterResult').value;
+            state.page = 1;
+            applyFilters();
+          });
+        }
+
+        const selfBtn = document.getElementById('selfBtn');
+        if (selfBtn) {
+          selfBtn.addEventListener('click', () => {
+            state.user = currentUsername;
+            state.page = 1;
+            applyFilters();
+          });
+        }
+
+        document.querySelectorAll('.btn-remove[data-clear]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const field = btn.dataset.clear;
+            if (field === 'user') state.user = '';
+            else if (field === 'problem') state.problem = '';
+            else if (field === 'result') state.result = '';
+            state.page = 1;
+            applyFilters();
+          });
+        });
+
+        const refreshBtn = document.getElementById('refreshSubmissionsBtn');
+        refreshBtn.addEventListener('click', async () => {
+          if (refreshBtn.disabled) return;
+          refreshBtn.disabled = true;
+          refreshBtn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i>';
+          try {
+            lastQuerySnapshot = null;   // 强制重新查询
+            updateURL();
+            await loadSubmissions();
+          } finally {
+            refreshBtn.disabled = false;
+            refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+          }
+        });
+
+        document.getElementById('resetFiltersBtn').addEventListener('click', resetFilters);
+      }
+
+      // ---- 数据认证：快照相同则不查询 ----
+      function applyFilters() {
+  updateURL();
+  const snap = makeSnapshot();
+  if (snap === lastQuerySnapshot) return;
+  // 条件变了才重绘过滤栏（因为过滤栏本身显示状态会变）
+  renderLayout();
+  loadSubmissions();
+}
+
+      function resetFilters() {
+        state.user = '';
+        state.problem = '';
+        state.result = '';
+        state.page = 1;
+        applyFilters();  // 内部有快照校验，无变化时不查询
+      }
+
+      // ---- URL 同步 ----
+        function updateURL() {
+        const params = new URLSearchParams();
+        let path = '/submissions';
+
+        // 只过滤 user → /submissions/user/xxx
+        if (state.user && !state.problem && !state.result) {
+          path = `/submissions/user/${encodeURIComponent(state.user)}`;
+        }
+        // 只过滤 problem → /submissions/problem/xxx
+        else if (state.problem && !state.user && !state.result) {
+          path = `/submissions/problem/${encodeURIComponent(state.problem)}`;
+        }
+        // 其他情况保留 query string
+        else {
+          if (state.user) params.set('user', state.user);
+          if (state.problem) params.set('problem', state.problem);
+          if (state.result) params.set('result', state.result);
+        }
+
+        if (state.page > 1) params.set('page', state.page);
+
+        const qs = params.toString();
+        window.history.replaceState({}, '', qs ? `${path}?${qs}` : path);
+      }
+      // ---- 加载数据（單次 API，header 內嵌） ----
+      async function loadSubmissions() {
+  const tbody = document.getElementById('submissionsBody');
+  tbody.innerHTML = '<tr><td colspan="5" class="loading-msg">Loading…</td></tr>';
+
+  const params = new URLSearchParams({ all: '1', page: state.page, limit: 50, includeHeader: '1' });
+  if (state.user) params.set('user', state.user);
+  if (state.problem) params.set('problem', state.problem);
+  if (state.result) params.set('result', state.result);
+
+  try {
+    const data = await apiCall(`/api/submissions?${params.toString()}`);
+    if (!data.success) throw new Error(data.message || 'Failed');
+
+    // 更新 filter-header 區塊
+    const headerHtml = buildFilterHeader(data.header);
+    const wrapper = document.querySelector('.submissions-wrapper');
+    wrapper.querySelectorAll('.filter-header').forEach(el => el.remove());
+    if (headerHtml) {
+      const headerActions = wrapper.querySelector('.header-actions');
+      headerActions.insertAdjacentHTML('afterend', headerHtml);
+    }
+
+    renderTable(data.submissions);
+    renderPagination(data.page, data.totalPages, data.total);
+    lastQuerySnapshot = makeSnapshot();
+  } catch (err) {
+    console.error(err);
+    tbody.innerHTML = '<tr><td colspan="5" class="error-msg">Failed to load submissions.</td></tr>';
+  }
+}
+      // ---- 渲染表格 ----
+      function renderTable(submissions) {
+        const tbody = document.getElementById('submissionsBody');
+        if (!submissions || submissions.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="loading-msg">No submissions found.</td></tr>';
+          return;
+        }
+        let html = '';
+        submissions.forEach(s => {
+          const time = formatTime(s.timestamp);
+          const statusText = s.status || 'Pending';
+          const cls = statusClass(statusText);
+          const subId = s.subid || '-';
+          const problemDisplay = `${escapeHtml(s.problemId)} - ${escapeHtml(s.problemName || '')}`;
+          const isMine = currentUsername && s.username === currentUsername;
+            const answerHtml = s.type === 'image'
+  ? '<i>Image</i>'
+  : s.answerHidden
+    ? '<span class="answer-hidden" style="color:var(--text-secondary);font-style:italic;">Hidden</span>'
+    : escapeHtml(String(s.answer || '-'));
+          html += `<tr${isMine ? ' class="mine"' : ''}>
+            <td class="col-datetime"><a href="/submissions/${encodeURIComponent(subId)}/detail">${time}</a></td>
+            <td class="col-user left-align">
+              <a href="/users/${encodeURIComponent(s.username)}">${escapeHtml(s.username)} - ${escapeHtml(s.displayName || s.username)}</a>
+            </td>
+            <td class="col-problem left-align">
+              <a href="/problems/${encodeURIComponent(s.problemId)}">${problemDisplay}</a>
+            </td>
+            <td class="col-answer">${answerHtml}</td>
+            <td class="col-status"><span class="status-badge ${cls}">${escapeHtml(statusText)}</span></td>
+          </tr>`;
+        });
+        tbody.innerHTML = html;
+      }
+
+      // ---- 渲染分页 ----
+      function renderPagination(page, totalPages, total) {
+        const render = (container) => {
+          if (!container) return;
+          if (totalPages <= 1) {
+            container.innerHTML = `<span class="page-info">${total} submission${total !== 1 ? 's' : ''}</span>`;
+            return;
+          }
+          let html = '<ul class="pagination-list">';
+          html += `<li class="page-item ${page <= 1 ? 'disabled' : ''}">
+            <span class="page-link arrow" ${page > 1 ? `onclick="goToPage(${page - 1})"` : ''}>‹</span>
+          </li>`;
+          for (let p = 1; p <= totalPages; p++) {
+            html += `<li class="page-item ${p === page ? 'active' : ''}">
+              <span class="page-link" ${p !== page ? `onclick="goToPage(${p})"` : ''}>${p}</span>
+            </li>`;
+          }
+          html += `<li class="page-item ${page >= totalPages ? 'disabled' : ''}">
+            <span class="page-link arrow" ${page < totalPages ? `onclick="goToPage(${page + 1})"` : ''}>›</span>
+          </li>`;
+          html += `</ul><span class="page-info" style="margin-left:0.5rem;font-size:0.8rem;">${total} submissions</span>`;
+          container.innerHTML = html;
+        };
+        render(document.getElementById('paginationTop'));
+        render(document.getElementById('paginationBottom'));
+      }
+
+      window.goToPage = function(newPage) {
+        if (newPage === state.page) return;
+        state.page = newPage;
+        updateURL();
+        loadSubmissions();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
+      // ---- 启动 ----
+      renderLayout();
+      loadSubmissions();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,202 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+(function(){
+  try {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                    || window.navigator.standalone === true
+                    || window.matchMedia('(display-mode: fullscreen)').matches
+                    || window.matchMedia('(display-mode: minimal-ui)').matches;
+    if (!isStandalone) return;
+    if (location.pathname.indexOf('/os') === 0) return;
+    if (location.pathname.indexOf('/admin') === 0) return;
+    if (!sessionStorage.getItem('pwaEnteredOS')) {
+      sessionStorage.setItem('pwaEnteredOS', '1');
+      location.replace('/os' + location.search + location.hash);
+    }
+  } catch(e){}
+})();
+</script>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>WYK Maths Team - Problems</title>
+  <link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
+  <script>
+  // 尽早应用 hideDifficulty，避免闪烁
+  (function() {
+    if (localStorage.getItem('hideDifficulty') === 'true') {
+      // body 可能还没解析出来，用 DOMContentLoaded
+      if (document.body) {
+        document.body.classList.add('hide-difficulty');
+      } else {
+        document.addEventListener('DOMContentLoaded', () => {
+          document.body.classList.add('hide-difficulty');
+        });
+      }
+    }
+    // 跨标签页同步：在 settings 页改了，另一个标签页打开 problems 时
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'hideDifficulty') {
+        document.body.classList.toggle('hide-difficulty', e.newValue === 'true');
+      }
+    });
+  })();
+</script>
+  <style>
+    /* 所有样式保持不变（原样保留） */
+    .table-responsive { overflow-x: auto; }
+    .table-responsive table { min-width: 700px; }
+    .skeleton-row td { position: relative; }
+    .skeleton-line {
+      display: inline-block;
+      height: 14px;
+      background: linear-gradient(90deg, #eee 25%, #f5f5f5 50%, #eee 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+      width: 80%;
+    }
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    [data-theme="dark"] .skeleton-line {
+      background: linear-gradient(90deg, #333 25%, #444 50%, #333 75%);
+      background-size: 200% 100%;
+    }
+    .updates-panel.refreshing .problems-table {
+      animation: refreshFlash .4s ease;
+    }
+    @keyframes refreshFlash {
+      0% { border-color: var(--accent); box-shadow: 0 0 8px var(--accent); }
+      100% { border-color: var(--border-color); box-shadow: none; }
+    }
+    .problems-table { width:100%; border-collapse:collapse; margin-top:1rem; background:var(--card-bg); border-radius:4px; overflow:hidden; box-shadow:var(--shadow-sm); table-layout:fixed }
+    .problems-table th,.problems-table td { padding:.2rem .5rem; text-align:left; border-bottom:1px solid var(--border-color); vertical-align:middle }
+    .problems-table th { background:#e9ecef; font-weight:700; padding-top:.3rem; padding-bottom:.3rem }
+    .col-fav { width:36px }.col-id { width:10ch; font-family:monospace; font-weight:700 }.col-name { width:auto }.col-tags { width:auto }.col-level { width:70px; text-align:right }.col-solves { width:70px; text-align:right }
+    .show-tags .col-name { width:45% }.show-tags .col-tags { width:45% }
+    .problems-table:not(.show-tags) .col-tags { width:0!important; min-width:0; padding:0!important; border:0; overflow:hidden }
+    .problems-table:not(.show-tags) .col-tags * { display:none }
+    .problem-row { cursor:pointer; transition:transform .25s cubic-bezier(.2,0,0,1),box-shadow .25s ease; position:relative; z-index:0; border-left:6px solid transparent }
+    .problem-row:hover { transform:translateY(-2px) scale(1.002); box-shadow:0 8px 30px rgba(0,0,0,.08),0 2px 8px rgba(0,0,0,.04); z-index:1 }
+    .problem-row:active { transform:scale(.995); transition-duration:.05s }
+    .problem-row.state-not_started { border-left-color:#b3d4ff }
+    .problem-row.state-passed { border-left-color:#4caf50 }
+    .problem-row.state-failed { border-left-color:#e74c3c }
+    #appContainer .problems-table .problem-row.state-passed td:not(.difficulty-cell) { background-color:#e6ffed!important }
+    #appContainer .problems-table .problem-row.state-failed td:not(.difficulty-cell) { background-color:#ffeaea!important }
+    :root[data-theme="dark"] #appContainer .problems-table .problem-row.state-passed td:not(.difficulty-cell) { background-color:#1a3a2a!important }
+    :root[data-theme="dark"] #appContainer .problems-table .problem-row.state-failed td:not(.difficulty-cell) { background-color:#3a1a1a!important }
+    #appContainer .problems-table .problem-row:hover td:not(.difficulty-cell) { background-color:#f0f0f0!important }
+    #appContainer .problems-table .problem-row.state-passed:hover td:not(.difficulty-cell) { background-color:#b9f6ca!important }
+    #appContainer .problems-table .problem-row.state-failed:hover td:not(.difficulty-cell) { background-color:#ffb3b3!important }
+    :root[data-theme="dark"] #appContainer .problems-table .problem-row:hover td:not(.difficulty-cell) { background-color:#2a2a2a!important }
+    :root[data-theme="dark"] #appContainer .problems-table .problem-row.state-passed:hover td:not(.difficulty-cell) { background-color:#2a4a3a!important }
+    :root[data-theme="dark"] #appContainer .problems-table .problem-row.state-failed:hover td:not(.difficulty-cell) { background-color:#4a2a2a!important }
+    .problem-name { font-weight:600 }
+    .tags-container { display:flex; gap:.4rem; flex-wrap:nowrap; overflow:hidden; min-height:1.5em; align-items:center; padding:0 }
+    .tag { background:#f0f0f0; padding:.1rem .5rem; border-radius:12px; font-size:.7rem; white-space:nowrap }
+    .filter-bar { background:var(--card-bg); border-radius:4px; padding:.5rem 1rem; margin-bottom:1rem; border:1px solid var(--border-color); display:flex; flex-wrap:wrap; gap:.5rem; overflow-x:auto }
+    .filter-tag-btn { background:#f0f2f5; border:1px solid var(--border-color); border-radius:20px; padding:.2rem .7rem; font-size:.75rem; cursor:pointer; white-space:nowrap }
+    .filter-tag-btn.active { background:var(--accent); color:#fff; border-color:var(--accent) }
+    .sortable { cursor:pointer; user-select:none }
+    .sortable:hover { color:var(--accent) }
+    .pagination { display:flex; justify-content:center; align-items:center; gap:.5rem; margin:1rem 0; flex-wrap:wrap }
+    .pagination a,.pagination span { padding:.3rem .7rem; border:1px solid var(--border-color); border-radius:4px; background:var(--card-bg); color:var(--text-primary); text-decoration:none; font-size:.9rem; cursor:pointer }
+    .pagination a:hover { background:var(--accent); color:#fff; border-color:var(--accent) }
+    .pagination .active { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600 }
+    .pagination .disabled { opacity:.5; pointer-events:none; cursor:default }
+    .fa-star { color:#f1c40f }.fa-star.far { color:#aaa }
+    .fa-green { color:#2e7d32 }.fa-red { color:#c62828 }
+    #randomUnsolvedBtn,a[href="/problems/bookmarked"] { font-weight:600; border-radius:20px; padding:.4rem 1.2rem; transition:all .2s ease; box-shadow:0 2px 4px rgba(0,0,0,.05) }
+    #randomUnsolvedBtn:hover,a[href="/problems/bookmarked"]:hover { transform:translateY(-1px); box-shadow:0 4px 12px rgba(0,0,0,.12) }
+    .rainbow-bg { background:linear-gradient(90deg,#ff0000,#ff8800,#ffff00,#00ff00,#0088ff,#8800ff,#ff0088,#ff0000); background-size:300% 100%; animation:rainbowFlow 4s linear infinite; color:#ffffff!important; border-radius:4px; padding:0 6px }
+    @keyframes rainbowFlow { 0%{background-position:0 0} 100%{background-position:300% 0} }
+    .star-shine { position:relative; color:#000000!important; border-radius:4px; padding:0 6px; overflow:hidden; z-index:0 }
+    .star-shine::before { content:''; position:absolute; top:-100%; left:-100%; width:300%; height:300%; background:conic-gradient(from 0deg,#ffb3ba,#ffdfba,#ffffba,#baffc9,#bae1ff,#e8baff,#ffb3ba,#ffb3ba,#ffdfba,#ffffba,#baffc9,#bae1ff,#e8baff,#ffb3ba); animation:starRotate 4s linear infinite; z-index:-1 }
+    @keyframes starRotate { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+    .chaos { background:#000; background-image:repeating-linear-gradient(45deg,#000 0,#000 8px,#4a0088 8px,#4a0088 10px),repeating-linear-gradient(-30deg,#000 0,#000 12px,#6a00cc 12px,#6a00cc 14px),repeating-linear-gradient(70deg,#000 0,#000 15px,#8a2be2 15px,#8a2be2 17px); background-blend-mode:screen; animation:chaosMove .2s linear infinite; color:#fff!important; border-radius:4px; padding:0 6px; text-shadow:0 0 4px #8a2be2 }
+    @keyframes chaosMove { 0%{background-position:0 0,5px 10px,-10px -5px} 100%{background-position:20px 20px,30px 5px,10px -15px} }
+    #paginationTopContainer, #paginationContainer { min-height: 40px; }
+    /* ===== 刷新按钮样式 ===== */
+#refreshProblemsBtn {
+  width: 38px;
+  height: 38px;
+  padding: 0 !important;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+
+#refreshProblemsBtn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+#refreshProblemsBtn:active {
+  transform: scale(0.92);
+}
+
+#refreshProblemsBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* 暗色主题下保持可读性 */
+[data-theme="dark"] #refreshProblemsBtn {
+  color: #fff;
+}
+/* 隐藏难度列 */
+body.hide-difficulty .col-level,
+body.hide-difficulty .difficulty-cell {
+  display: none !important;
+}
+  </style>
+
+  <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WYK Maths">
+  <meta name="mobile-web-app-capable" content="yes">
+
+</head>
+<body class="index-body">
+<div id="appContainer">
+  <header class="topbar" id="topbarContainer"></header>
+  <aside class="sidebar" id="sidebarContainer"></aside>
+  <main class="main-content" id="mainContent"></main>
+  <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/problems-1.js"></script>
+
+</body>
+</html>

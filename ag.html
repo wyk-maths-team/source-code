@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+(function(){
+  try {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                    || window.navigator.standalone === true
+                    || window.matchMedia('(display-mode: fullscreen)').matches
+                    || window.matchMedia('(display-mode: minimal-ui)').matches;
+    if (!isStandalone) return;
+    if (location.pathname.indexOf('/os') === 0) return;
+    if (location.pathname.indexOf('/admin') === 0) return;
+    if (!sessionStorage.getItem('pwaEnteredOS')) {
+      sessionStorage.setItem('pwaEnteredOS', '1');
+      location.replace('/os' + location.search + location.hash);
+    }
+  } catch(e){}
+})();
+</script>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>User Guide - WYK Maths Team</title>
+  <link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" as="style">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <style>
+    .guide-container {
+      background: var(--card-bg);
+      border-radius: 4px;
+      padding: 2rem;
+      max-width: 800px;
+      margin: 2rem auto;
+      line-height: 1.8;
+    }
+    .guide-container h1 {
+      margin-bottom: 1.5rem;
+      border-bottom: 2px solid var(--accent);
+      padding-bottom: 0.5rem;
+    }
+    .guide-container h2 {
+      margin: 1.5rem 0 0.8rem;
+      color: var(--accent);
+    }
+    .guide-container p, .guide-container li {
+      color: var(--text-secondary);
+    }
+    .guide-container ul {
+      padding-left: 1.5rem;
+    }
+    .guide-container li {
+      margin-bottom: 0.5rem;
+    }
+  </style>
+  <!-- ⭐ PWA（必須靜態寫入 <head>，不能靠 JS 動態注入） -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WYK Maths">
+  <meta name="mobile-web-app-capable" content="yes">
+
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="guide-container">
+        <h1>定數指導</h1>
+        <p>首先：定下分界綫：4級以下是【理論】DSE可解。</p>
+        <p>以下是正式定級。</p>
+        <ol>
+          <li>是個普通人幾秒能做完</li>
+          <li>普通人拿起筆和紙大約1分鐘做完</li>
+          <li>普通人盡力可完成</li>
+          <li>普通課内考試能考到最難的思考</li>
+          <li>可瞪眼法完成</li>
+          <li>使用草稿紙，無需經過複雜的思考即可完成【或】題目極其複雜，需要很麻煩的枚舉</li>
+          <li>兩種情況：需要重要的【注意到】或奇怪的定理，平均解題時間為10+分鐘</li>
+          <li>20+分鐘</li>
+          <li>30+分鐘</li>
+          <li>1h+</li>
+        </ol>
+        <p>疑難雜症：</p>
+        <p>如果一道題目存在一個投機取巧的方法，并且不是很難發現，則降一級，否則降半級。</p>
+        <p>題目的計算公式部分正比於你解答的時間，也部分正比於解答的長度和思維難度。</p>
+        <p>定數過程如下：1. 確定定級範圍，1-10<br>2. 把你消耗的時間log一下乘以一個係數，使得這個數字位於0-1之間。（對應級別的時間）<br>3. 判定思維難度/解答長度，太簡單就降一點，難就升一點，但不能超過之前的上下限。<br>4. 特殊情況：如果題目存在投機取巧的方法，根據容易注意到的程度決定是否降級。</p>
+
+        <p style="margin-top:2rem; text-align:center;">
+          <a href="/">← Back to Home</a>
+        </p>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+</body>
+</html>

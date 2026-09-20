@@ -1,0 +1,394 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+(function(){
+  try {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                    || window.navigator.standalone === true
+                    || window.matchMedia('(display-mode: fullscreen)').matches
+                    || window.matchMedia('(display-mode: minimal-ui)').matches;
+    if (!isStandalone) return;
+    if (location.pathname.indexOf('/os') === 0) return;
+    if (location.pathname.indexOf('/admin') === 0) return;
+    if (!sessionStorage.getItem('pwaEnteredOS')) {
+      sessionStorage.setItem('pwaEnteredOS', '1');
+      location.replace('/os' + location.search + location.hash);
+    }
+  } catch(e){}
+})();
+</script>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Leaderboard - WYK Maths Team</title>
+  <link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" as="style">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <style>
+    :root {
+      --card-bg: #fff;
+      --border-color: #dee2e6;
+      --text-primary: #212529;
+      --text-secondary: #6c757d;
+      --accent: #337ab7;
+      --danger: #dc3545;
+      --hover-bg: #e9ecef;
+      --table-hover-bg: #f0f7ff;
+    }
+    [data-theme="dark"] {
+      --card-bg: #1e1e1e;
+      --border-color: #444;
+      --text-primary: #e0e0e0;
+      --text-secondary: #aaa;
+      --hover-bg: #2c2c2c;
+      --table-hover-bg: #2a2a2a;
+    }
+
+    .leaderboard-container {
+      background: var(--card-bg);
+      border-radius: 4px;
+      padding: 1.2rem;
+      box-shadow: var(--shadow-sm);
+    }
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      margin-bottom: 0.75rem;
+    }
+    .page-header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      color: var(--text-primary);
+    }
+    .btn-group {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .btn {
+      padding: 0.4rem 1rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      cursor: pointer;
+      font-size: 0.9rem;
+      text-decoration: none;
+      transition: background 0.2s;
+      display: inline-block;
+    }
+    .btn:hover {
+      background: var(--hover-bg);
+    }
+    .btn.disabled {
+      opacity: 0.6;
+      pointer-events: none;
+      cursor: default;
+    }
+    .btn-info {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .btn-info:hover {
+      background: #286090;
+    }
+
+    .submissions-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+    }
+    .submissions-table th,
+    .submissions-table td {
+      padding: 0.75rem 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .submissions-table th {
+      background: #e9ecef;
+      font-weight: 700;
+      color: #333;
+    }
+    .submissions-table tbody tr:hover {
+      background: var(--table-hover-bg);
+    }
+    .submissions-table tr.mine {
+      background: #fffde7 !important;
+      font-weight: 500;
+    }
+    .submissions-table tr.mine td {
+      border-bottom-color: #ffe082;
+    }
+    [data-theme="dark"] .submissions-table th {
+      background: #333;
+      color: #ddd;
+    }
+    [data-theme="dark"] .submissions-table td {
+      border-bottom-color: var(--border-color);
+    }
+    [data-theme="dark"] .submissions-table tr.mine {
+      background: #3e3a20 !important;
+    }
+    [data-theme="dark"] .submissions-table tr.mine td {
+      border-bottom-color: #5c5518;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(0,0,0,0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    [data-theme="dark"] .spinner {
+      border-color: rgba(255,255,255,0.2);
+    }
+
+    .text-center { text-align: center; }
+    .text-danger { color: var(--danger); }
+    [data-theme="dark"] .text-danger { color: #ff8888; }
+        /* ===== Hover tooltip ===== */
+    #userTooltip {
+      position: fixed;
+      top: 0; left: 0;
+      z-index: 10000;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      box-shadow: 0 8px 28px rgba(0,0,0,.18);
+      padding: 10px 14px;
+      display: none;
+      align-items: center;
+      gap: 12px;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity .12s ease, transform .12s ease;
+      max-width: 340px;
+    }
+    #userTooltip.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    #userTooltip .tip-avatar {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 2px solid var(--border-color);
+      background: var(--hover-bg);
+    }
+    #userTooltip .tip-avatar.placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      color: var(--text-secondary);
+    }
+    #userTooltip .tip-info {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    #userTooltip .tip-display {
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #userTooltip .tip-username {
+      font-family: 'Consolas', monospace;
+      font-size: 0.82rem;
+      color: var(--accent);
+    }
+    #userTooltip .tip-realname {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+  </style>
+
+  <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WYK Maths">
+  <meta name="mobile-web-app-capable" content="yes">
+
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent"></main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+    if (!isLoggedIn()) window.location.href = '/index.html';
+
+    const mainContainer = document.getElementById('mainContent');
+    const currentUsername = getCurrentUser()?.username || '';
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+    }
+
+    function renderSkeleton() {
+      mainContainer.innerHTML = `
+        <div class="leaderboard-container">
+          <div class="page-header">
+            <h1>Leaderboard</h1>
+            <div class="btn-group">
+              <button class="btn btn-info disabled" disabled>Leaderboard</button>
+              <a href="/charts" class="btn">Chart</a>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="submissions-table">
+              <thead>
+                <tr>
+                  <th style="width:10%" class="text-center">Rank</th>
+                  <th style="width:75%">User</th>
+                  <th style="width:15%" class="text-center">Tasks Solved</th>
+                </tr>
+              </thead>
+              <tbody id="leaderboardBody">
+                <tr>
+                  <td colspan="3" class="text-center">
+                    <span class="spinner"></span> Loading leaderboard…
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    
+    const tooltip = document.createElement('div');
+    tooltip.id = 'userTooltip';
+    document.body.appendChild(tooltip);
+
+    let tooltipTargetEl = null;
+    let leaderboardUserMap = {};
+
+    function showTooltip(user) {
+      const avatar = user.pfp
+        ? `<img class="tip-avatar" src="${escapeHtml(user.pfp)}" alt="">`
+        : `<div class="tip-avatar placeholder">👤</div>`;
+      tooltip.innerHTML = `
+        ${avatar}
+        <div class="tip-info">
+          <div class="tip-display">${escapeHtml(user.displayName || user.username)}</div>
+          <div class="tip-username">@${escapeHtml(user.username)}</div>
+          ${user.realName ? `<div class="tip-realname">${escapeHtml(user.realName)}</div>` : ''}
+        </div>
+      `;
+      tooltip.style.display = 'flex';
+      void tooltip.offsetWidth;   // 觸發 reflow 讓 transition 生效
+      tooltip.classList.add('visible');
+    }
+
+    function hideTooltip() {
+      tooltipTargetEl = null;
+      tooltip.classList.remove('visible');
+      setTimeout(() => {
+        if (!tooltipTargetEl) tooltip.style.display = 'none';
+      }, 120);
+    }
+
+    function moveTooltip(e) {
+      if (!tooltipTargetEl) return;
+      const pad = 14;
+      const w = tooltip.offsetWidth;
+      const h = tooltip.offsetHeight;
+      let x = e.clientX + pad;
+      let y = e.clientY + pad;
+      if (x + w > window.innerWidth - 8) x = e.clientX - w - pad;
+      if (y + h > window.innerHeight - 8) y = e.clientY - h - pad;
+      tooltip.style.left = Math.max(8, x) + 'px';
+      tooltip.style.top  = Math.max(8, y) + 'px';
+    }
+
+    async function loadLeaderboard() {
+      const tbody = document.getElementById('leaderboardBody');
+      if (!tbody) return;
+      try {
+        const data = await apiCall('/api/users?action=leaderboard');
+        if (!data.success || !data.leaderboard || data.leaderboard.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="3" class="text-center">No solves yet.</td></tr>';
+          return;
+        }
+        leaderboardUserMap = {};
+        let html = '';
+        data.leaderboard.forEach(entry => {
+          if (entry.solves === 0) return;
+          leaderboardUserMap[entry.username] = entry;
+          const isMe = (currentUsername && entry.username === currentUsername);
+          const avatarUrl = entry.pfp || '';
+          const avatarHtml = avatarUrl
+            ? `<img src="${avatarUrl}" style="width:24px;height:24px;border-radius:50%;vertical-align:middle;margin-right:8px;">`
+            : '';
+          html += `
+            <tr${isMe ? ' class="mine"' : ''}>
+              <td class="text-center">${entry.rank}</td>
+              <td>
+                <a href="/users/${encodeURIComponent(entry.username)}"
+                   class="user-link"
+                   data-username="${escapeHtml(entry.username)}"
+                   style="display:flex;align-items:center;gap:6px;">
+                  ${avatarHtml}
+                  <span>${escapeHtml(entry.username)} - ${escapeHtml(entry.displayName || entry.username)}</span>
+                </a>
+              </td>
+              <td class="text-center">${entry.solves}</td>
+            </tr>`;
+        });
+        tbody.innerHTML = html;
+
+        // 綁定 tooltip（只綁一次，因為 tbody 內容剛換）
+        tbody.querySelectorAll('.user-link').forEach(link => {
+          link.addEventListener('mouseenter', (e) => {
+            const u = leaderboardUserMap[link.dataset.username];
+            if (!u) return;
+            tooltipTargetEl = link;
+            showTooltip(u);
+            moveTooltip(e);
+          });
+          link.addEventListener('mousemove', moveTooltip);
+          link.addEventListener('mouseleave', hideTooltip);
+        });
+      } catch (err) {
+        console.error(err);
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger">Failed to load leaderboard.</td></tr>';
+      }
+    }
+    renderSkeleton();
+    loadLeaderboard();
+  </script>
+</body>
+</html>

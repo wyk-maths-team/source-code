@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+(function(){
+  try {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                    || window.navigator.standalone === true
+                    || window.matchMedia('(display-mode: fullscreen)').matches
+                    || window.matchMedia('(display-mode: minimal-ui)').matches;
+    if (!isStandalone) return;
+    if (location.pathname.indexOf('/os') === 0) return;
+    if (location.pathname.indexOf('/admin') === 0) return;
+    if (!sessionStorage.getItem('pwaEnteredOS')) {
+      sessionStorage.setItem('pwaEnteredOS', '1');
+      location.replace('/os' + location.search + location.hash);
+    }
+  } catch(e){}
+})();
+</script>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>Contest Results - WYK Maths Team</title><link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" as="style">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <style>
+    .results-container {
+      background: var(--card-bg);
+      border-radius: 4px;
+      padding: 1.5rem;
+      max-width: 1100px;
+      margin: 0 auto;
+      overflow-x: auto;
+    }
+    .leaderboard-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      border: 1px solid var(--border-color);
+      font-size: 0.9rem;
+    }
+    .leaderboard-table th, .leaderboard-table td {
+      padding: 0.6rem 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+      text-align: center;
+    }
+    .leaderboard-table th {
+      background: #f0f2f5;
+      font-weight: 700;
+    }
+    .leaderboard-table td:first-child, .leaderboard-table td:nth-child(2) {
+      text-align: left;
+    }
+    .score-100 { background: #d4edda; color: #155724; font-weight: 700; }
+    .score-0 { background: #f8d7da; color: #721c24; }
+    .score-partial { background: #fff3cd; color: #856404; }
+    .score-empty { color: #999; }
+    .loading-msg {
+      text-align: center;
+      padding: 2rem;
+    }
+  </style>
+  <!-- ⭐ PWA（必須靜態寫入 <head>，不能靠 JS 動態注入） -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WYK Maths">
+  <meta name="mobile-web-app-capable" content="yes">
+
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="loading-msg">Loading results...</div>
+    </main>
+    <!-- <button class="sidebar-toggle" id="sidebarToggle">☰</button> -->
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+    if (!isLoggedIn()) window.location.href = '/index.html';
+
+    const pathMatch = window.location.pathname.match(/^\/contest\/(\d+)\/results$/);
+    if (!pathMatch) {
+      document.getElementById('mainContent').innerHTML = '<div class="error-msg">Invalid URL.</div>';
+      throw new Error('No ID');
+    }
+    const contestId = parseInt(pathMatch[1], 10);
+    document.title = `Results for Contest #${contestId} - WYK Maths Team`;
+
+    const mainContainer = document.getElementById('mainContent');
+
+    async function loadResults() {
+      try {
+        const data = await apiCall(`/api/contests?action=results&id=${contestId}`);
+        if (data.success) return data.stats;
+      } catch (err) { console.error(err); }
+      return null;
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+    }
+
+    function getScoreClass(score) {
+      if (score === undefined || score === null || score === '') return 'score-empty';
+      if (score === 100) return 'score-100';
+      if (score === 0) return 'score-0';
+      return 'score-partial';
+    }
+
+    function formatScore(score) {
+      if (score === undefined || score === null || score === '') return '—';
+      return score;
+    }
+
+    function renderResults(stats) {
+      if (!stats || !stats.participants || stats.participants.length === 0) {
+        mainContainer.innerHTML = '<div class="results-container"><h2>Results</h2><p>No results yet.</p></div>';
+        return;
+      }
+
+      const problemIds = stats.problems || [];
+      const participants = stats.participants;
+
+      let html = `<div class="results-container">
+        <h2>Contest Results</h2>
+        <table class="leaderboard-table">
+          <thead><tr>
+            <th>Rank</th>
+            <th>Username</th>`;
+
+      // 题目列
+      problemIds.forEach(pid => {
+        html += `<th>${escapeHtml(pid)}</th>`;
+      });
+
+      html += `<th>Total Score</th><th>Last Submission</th></tr></thead><tbody>`;
+
+      participants.forEach((p, idx) => {
+        const rank = idx + 1;
+        const lastTime = p.lastTime ? new Date(p.lastTime).toLocaleString() : '—';
+        const problems = p.problems || {};
+
+        html += `<tr>
+          <td>${rank}</td>
+          <td><a href="/users/${encodeURIComponent(p.username)}">${escapeHtml(p.username)}</a></td>`;
+
+        problemIds.forEach(pid => {
+          const score = problems[pid];
+          const cls = getScoreClass(score);
+          html += `<td class="${cls}">${formatScore(score)}</td>`;
+        });
+
+        html += `<td><strong>${p.total}</strong></td><td>${lastTime}</td></tr>`;
+      });
+
+      html += '</tbody></table><p><a href="/contest/' + contestId + '">← Back to Contest</a></p></div>';
+      mainContainer.innerHTML = html;
+    }
+
+    (async function init() {
+      const stats = await loadResults();
+      renderResults(stats);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mark Submissions - WYK Maths Team</title><link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" as="style">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <style>
+    .sub-row { display: flex; align-items: center; padding: 0.5rem; border-bottom: 1px solid var(--border-color); }
+    .sub-row.highlight { background: #ffffcc; }
+    .sub-id { font-family: monospace; margin-right: 1rem; }
+    .btn { padding: 0.3rem 0.8rem; }
+  </style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">Loading...</main>
+    <!-- <button class="sidebar-toggle" id="sidebarToggle">☰</button> -->
+  </div>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+  <script>
+    if (!isLoggedIn() || (getCurrentUser()?.role !== 'admin' && getCurrentUser()?.role !== 'root')) {
+      window.location.href = '/index.html';
+    }
+    async function load() {
+      const data = await apiCall('/api/admin?action=markerList');
+      if (!data.success) return;
+      const mc = document.getElementById('mainContent');
+      mc.innerHTML = `<h2>Image Submissions to Mark</h2>`;
+      if (data.submissions.length === 0) mc.innerHTML += '<p>All caught up!</p>';
+      else {
+        let html = '';
+        data.submissions.forEach(s => {
+          html += `<div class="sub-row highlight">
+            <span class="sub-id">${s.subid}</span>
+            <span>${s.username} — ${s.problemId}</span>
+            <span style="margin-left: auto;">${new Date(s.timestamp).toLocaleString()}</span>
+            <a href="/admin/marker/${s.subid}" class="btn btn-primary">Mark</a>
+          </div>`;
+        });
+        mc.innerHTML += html;
+      }
+    }
+    load();
+  </script>
+</body>
+</html>

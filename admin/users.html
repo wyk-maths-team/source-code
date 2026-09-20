@@ -1,0 +1,198 @@
+﻿<!-- File: C:\moj\admin\users.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manage Users - WYK Maths Team</title><link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" as="style">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <style>
+    .admin-container { background: var(--card-bg); border-radius: 4px; padding: 1.5rem; }
+    .form-section { margin-bottom: 2rem; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-weight: 600; margin-bottom: 0.3rem; }
+    .form-group input[type="text"],
+    .form-group input[type="password"] {
+      width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px;
+    }
+    .toggle-switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .3s; border-radius: 50%; }
+    input:checked + .slider { background-color: var(--accent); }
+    input:checked + .slider:before { transform: translateX(26px); }
+    .btn { padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-warning { background: #ffc107; color: #000; }
+    .users-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    .users-table th, .users-table td { padding: 0.5rem; border-bottom: 1px solid var(--border-color); }
+    .message { margin: 1rem 0; font-size: 0.9rem; }
+  </style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="admin-container">
+        <h2>Manage Users</h2>
+        <div class="form-section">
+          <h3>Add New User</h3>
+            <form id="addUserForm">
+            <div class="form-group">
+              <label>Username: <input type="text" id="newUsername" required autocomplete="off" /></label>
+            </div>
+            <div class="form-group">
+              <label>Password: <input type="password" id="newPassword" required autocomplete="new-password" /></label>
+            </div>
+            <div class="form-group">
+              <label>Display Name: <input type="text" id="newDisplayName" /></label>
+            </div>
+            <div class="form-group">
+              <label>Real Name: <input type="text" id="newRealName" maxlength="60" /></label>
+            </div>
+            <div class="form-group" id="roleSelectorGroup">
+              <label>Role:
+                <select id="newRole">
+                  <option value="student">Student</option>
+                  <option value="admin" id="adminOption">Admin</option>
+                </select>
+              </label>
+            </div>
+            <button type="submit" class="btn btn-primary">Add User</button>
+          </form>
+        </div>
+        <h3>Existing Users</h3>
+        <table class="users-table">
+          <thead><tr><th>Display Name</th><th>Username</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="usersList"></tbody>
+        </table>
+        <div id="message" class="message"></div>
+      </div>
+    </main>
+    <!-- <button class="sidebar-toggle" id="sidebarToggle">☰</button> -->
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+    // 权限检查
+    if (!isLoggedIn()) window.location.href = '/index.html';
+    const editorUser = getCurrentUser();
+    if (!editorUser || (editorUser.role !== 'admin' && editorUser.role !== 'root')) {
+      window.location.href = '/index.html';
+    }
+
+    // 根据当前用户显示可创建的角色
+    if (editorUser.role !== 'root') {
+      document.getElementById('adminOption').style.display = 'none';
+    }
+
+    async function loadUsers() {
+      try {
+        const data = await apiCall(`/api/users?action=adminList`);
+        if (data.success) {
+          const tbody = document.getElementById('usersList');
+          // 排序：root → admin → student，同角色按 username
+          const order = { root: 0, admin: 1, student: 2 };
+          const sorted = [...data.users].sort((a, b) => {
+            const oa = order[a.role] ?? 99;
+            const ob = order[b.role] ?? 99;
+            if (oa !== ob) return oa - ob;
+            return String(a.username).localeCompare(String(b.username));
+          });
+          tbody.innerHTML = sorted.map(u => {
+            const isRoot = u.role === 'root';
+            const canEdit = editorUser.role === 'root' ? !isRoot : (u.role === 'student');
+            const canDelete = editorUser.role === 'root' ? !isRoot : (u.role === 'student');
+            const canBan = editorUser.role === 'root' ? !isRoot : (u.role === 'student');
+
+            return `
+              <tr>
+                <td>${escapeHtml(u.displayName)}</td>
+                <td>${escapeHtml(u.username)}</td>
+                <td>${u.role}</td>
+                <td>${u.banned ? '🔴 Banned' : '🟢 Normal'}</td>
+                <td>
+                  ${canEdit ? `<button class="btn btn-warning" onclick="window.location.href='/admin/users/${encodeURIComponent(u.username)}'">Edit</button>` : ''}
+                  ${canBan ? `<button class="btn ${u.banned ? 'btn-primary' : 'btn-danger'}" onclick="toggleBan('${escapeHtml(u.username)}', ${u.banned})">${u.banned ? 'Unban' : 'Ban'}</button>` : ''}
+                  ${canDelete ? `<button class="btn btn-danger" onclick="deleteUser('${escapeHtml(u.username)}')">Delete</button>` : ''}
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+      } catch (err) { console.error(err); }
+    }
+    async function toggleBan(username, currentlyBanned) {
+      const action = currentlyBanned ? 'unban' : 'ban';
+      if (!confirm(`Are you sure you want to ${action} user "${username}"?`)) return;
+      try {
+        const result = await apiCall(`/api/users?action=adminUpdate&username=${encodeURIComponent(username)}`, 'PUT', {
+          banned: !currentlyBanned
+        });
+        showMessage(result.message, result.success ? 'success' : 'error');
+        if (result.success) loadUsers();
+      } catch (err) { showMessage('Error', 'error'); }
+    }
+
+    async function deleteUser(username) {
+      if (!confirm(`Delete user "${username}"? This cannot be undone.`)) return;
+      try {
+        const result = await apiCall(`/api/users?action=adminDelete&username=${encodeURIComponent(username)}`, 'DELETE');
+        showMessage(result.message, result.success ? 'success' : 'error');
+        if (result.success) loadUsers();
+      } catch (err) { showMessage('Error', 'error'); }
+    }
+
+    document.getElementById('addUserForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('newUsername').value.trim();
+      const password = document.getElementById('newPassword').value;
+      const displayName = document.getElementById('newDisplayName').value.trim();
+      const realName = document.getElementById('newRealName').value.trim();
+      const role = document.getElementById('newRole').value;
+
+      if (!username || !password) {
+        showMessage('Username and password are required.', 'error');
+        return;
+      }
+
+      try {
+        const body = { username, password, displayName, realName };
+        if (editorUser.role === 'root') body.role = role;
+
+        const result = await apiCall('/api/users?action=adminCreate', 'POST', body);
+        showMessage(result.message, result.success ? 'success' : 'error');
+        if (result.success) {
+          document.getElementById('addUserForm').reset();
+          loadUsers();
+        }
+      } catch (err) { showMessage('Error', 'error'); }
+    });
+    function showMessage(msg, type) {
+      const el = document.getElementById('message');
+      el.textContent = msg;
+      el.style.color = type === 'error' ? 'var(--danger)' : '#2e7d32';
+      setTimeout(() => el.textContent = '', 5000);
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]);
+    }
+
+    loadUsers();
+  </script>
+</body>
+</html>

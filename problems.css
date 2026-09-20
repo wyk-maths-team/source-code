@@ -1,0 +1,74 @@
+.problems-table{width:100%;border-collapse:collapse;margin-top:1rem;background:var(--card-bg);border-radius:4px;overflow:hidden;box-shadow:var(--shadow-sm);table-layout:fixed}
+    .problems-table th,.problems-table td{padding:.2rem .5rem;text-align:left;border-bottom:1px solid var(--border-color);vertical-align:middle}
+    .problems-table th{background:#e9ecef;font-weight:700;padding-top:.3rem;padding-bottom:.3rem}
+
+    /* ===== 列宽 ===== */
+    .col-fav{width:36px}
+    .col-id{width:10ch;font-family:monospace}
+    .col-name{width:auto}
+    .col-tags{width:auto}
+    .col-level{width:70px;text-align:right}
+    .col-solves{width:70px;text-align:right}
+    /* 翻页刷新闪烁特效 */
+    .updates-panel.refreshing .problems-table {
+      animation: refreshFlash 0.4s ease;
+    }
+    @keyframes refreshFlash {
+      0% { border-color: var(--accent); box-shadow: 0 0 8px var(--accent); }
+      100% { border-color: var(--border-color); box-shadow: none; }
+    }
+    /* ===== 显示 / 隐藏标签列 ===== */
+    .show-tags .col-name{width:45%}
+    .show-tags .col-tags{width:45%}
+    .problems-table:not(.show-tags) .col-tags{width:0!important;min-width:0;padding:0!important;border:0;overflow:hidden}
+    .problems-table:not(.show-tags) .col-tags *{display:none}
+
+    /* ===== 行动画 ===== */
+    .problem-row{cursor:pointer;transition:background .15s}
+
+    /* ===== 状态颜色（不作用于难度列） ===== */
+    .problem-row.state-not_started{border-left:2px solid #b3d4ff}
+    .problem-row.state-passed td:not(.difficulty-cell){background-color:#e6ffed}
+    .problem-row.state-passed{border-left:2px solid #4caf50}
+    .problem-row.state-failed td:not(.difficulty-cell){background-color:#ffeaea}
+    .problem-row.state-failed{border-left:2px solid #e74c3c}
+    .problem-row:hover td:not(.difficulty-cell){background-color:#f0f0f0!important}
+    .problem-row.state-passed:hover td:not(.difficulty-cell){background-color:#b9f6ca!important}
+    .problem-row.state-failed:hover td:not(.difficulty-cell){background-color:#ffb3b3!important}
+
+    :root[data-theme="dark"] .problem-row.state-passed td:not(.difficulty-cell){background-color:#1a3a2a!important}
+    :root[data-theme="dark"] .problem-row.state-failed td:not(.difficulty-cell){background-color:#3a1a1a!important}
+    :root[data-theme="dark"] .problem-row:hover td:not(.difficulty-cell){background-color:#2a2a2a!important}
+    :root[data-theme="dark"] .problem-row.state-passed:hover td:not(.difficulty-cell){background-color:#2a4a3a!important}
+    :root[data-theme="dark"] .problem-row.state-failed:hover td:not(.difficulty-cell){background-color:#4a2a2a!important}
+
+    /* ===== 其他组件 ===== */
+    .problem-name{font-weight:600}
+    .tags-container{display:flex;gap:.4rem;flex-wrap:nowrap;overflow:hidden;min-height:1.5em;align-items:center;padding:0}
+    .tag{background:#f0f0f0;padding:.1rem .5rem;border-radius:12px;font-size:.7rem;white-space:nowrap}
+    .filter-bar{background:var(--card-bg);border-radius:4px;padding:.5rem 1rem;margin-bottom:1rem;border:1px solid var(--border-color);display:flex;flex-wrap:wrap;gap:.5rem;overflow-x:auto}
+    .filter-tag-btn{background:#f0f2f5;border:1px solid var(--border-color);border-radius:20px;padding:.2rem .7rem;font-size:.75rem;cursor:pointer;white-space:nowrap}
+    .filter-tag-btn.active{background:var(--accent);color:white;border-color:var(--accent)}
+    .sortable{cursor:pointer;user-select:none}
+    .sortable:hover{color:var(--accent)}
+
+    .pagination{display:flex;justify-content:center;align-items:center;gap:.5rem;margin:1rem 0;flex-wrap:wrap}
+    .pagination a,.pagination span{padding:.3rem .7rem;border:1px solid var(--border-color);border-radius:4px;background:var(--card-bg);color:var(--text-primary);text-decoration:none;font-size:.9rem;cursor:pointer}
+    .pagination a:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .pagination .active{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
+    .pagination .disabled{opacity:.5;pointer-events:none;cursor:default}
+
+    /* ===== 收藏星星 & 图标 ===== */
+    .fa-star{color:#f1c40f}
+    .fa-star.far{color:#aaa}
+    .fa-green{color:#2e7d32}
+    .fa-red{color:#c62828}
+
+    /* ===== 顶部按钮 ===== */
+    #randomUnsolvedBtn,a[href="/problems/bookmarked"]{
+      font-weight:600;border-radius:20px;padding:.4rem 1.2rem;
+      transition:all .2s ease;box-shadow:0 2px 4px rgba(0,0,0,.05);
+    }
+    #randomUnsolvedBtn:hover,a[href="/problems/bookmarked"]:hover{
+      transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.12);
+    }

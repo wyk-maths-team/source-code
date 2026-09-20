@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+(function(){
+  try {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                    || window.navigator.standalone === true
+                    || window.matchMedia('(display-mode: fullscreen)').matches
+                    || window.matchMedia('(display-mode: minimal-ui)').matches;
+    if (!isStandalone) return;
+    if (location.pathname.indexOf('/os') === 0) return;
+    if (location.pathname.indexOf('/admin') === 0) return;
+    if (!sessionStorage.getItem('pwaEnteredOS')) {
+      sessionStorage.setItem('pwaEnteredOS', '1');
+      location.replace('/os' + location.search + location.hash);
+    }
+  } catch(e){}
+})();
+</script>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>Credits - WYK Maths Team</title>
+  <link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" as="style">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <style>
+    .credits-container {
+      background: var(--card-bg);
+      border-radius: 4px;
+      padding: 2rem;
+      max-width: 700px;
+      margin: 2rem auto;
+    }
+    .credits-container h1 {
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+    .credits-container p {
+      line-height: 1.8;
+      color: var(--text-secondary);
+    }
+
+    .credits-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 2rem;
+    }
+    .credits-table th,
+    .credits-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: top;
+    }
+    .credits-table thead th {
+      text-align: left;
+      font-weight: 700;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      border-bottom: 2px solid var(--border-color);
+    }
+    .credits-table th.role-col {
+      width: 35%;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+    .credits-table tbody tr:hover {
+      background: rgba(0, 0, 0, 0.03);
+    }
+    [data-theme="dark"] .credits-table tbody tr:hover {
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .credits-table a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .credits-table a:hover {
+      text-decoration: underline;
+    }
+    .credits-table .empty-row td {
+      color: var(--text-secondary);
+      font-style: italic;
+      opacity: 0.5;
+    }
+
+    .back-link-row {
+      text-align: center;
+      margin-top: 1rem;
+    }
+  </style>
+
+  <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WYK Maths">
+  <meta name="mobile-web-app-capable" content="yes">
+
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="credits-container">
+        <h1>Acknowledgements</h1>
+        <table class="credits-table">
+          <thead>
+            <tr>
+              <th class="role-col">Role</th>
+              <th>Contribution</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Developer</td>
+              <td>WYK Chris Li</td>
+            </tr>
+            <tr>
+              <td>Assistant</td>
+              <td>Deepseek-Web</td>
+            </tr>
+            <tr>
+              <td>Tech Support</td>
+              <td><a href="/users/s23f31" title="s23f31">Harrybob</a> (s23f31)</td>
+            </tr>
+            <!-- ===== 空模板行：直接复制下面的 <tr> 粘贴并填写 ===== -->
+            <tr class="empty-row">
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+            </tr>
+            <tr class="empty-row">
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+            </tr>
+            <tr class="empty-row">
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+            </tr>
+            <!-- ===== 空模板行结束 ===== -->
+            <tr>
+              <td>Time consumed</td>
+              <td>140 hours</td>
+            </tr>
+            <tr>
+              <td>Fee</td>
+              <td>$0</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="back-link-row">
+          <a href="/">← Back to Home</a>
+        </p>
+      </div>
+    </main>
+    <!-- <button class="sidebar-toggle" id="sidebarToggle">☰</button> -->
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+</body>
+</html>

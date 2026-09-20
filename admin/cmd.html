@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Command Center - WYK Maths Team</title>
+  <link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" as="style">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <style>
+    .cmd-container {
+      background: var(--card-bg);
+      border-radius: 4px;
+      padding: 1.5rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .cmd-tabs {
+      display: flex;
+      gap: 0.5rem;
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .cmd-tab {
+      padding: 0.5rem 1.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px 4px 0 0;
+      background: var(--card-bg);
+      cursor: pointer;
+      font-weight: 500;
+      color: var(--text-secondary);
+      transition: all 0.15s;
+    }
+    .cmd-tab.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .cmd-panel {
+      display: none;
+      margin-top: 1rem;
+    }
+    .cmd-panel.active {
+      display: block;
+    }
+    .help-toggle {
+      background: none;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 0.2rem 0.8rem;
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+    .help-box {
+      background: var(--bg-light);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 1rem;
+      margin: 0.5rem 0 1rem 0;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      display: none;
+    }
+    /* 让帮助框中的代码也使用等宽字体 */
+    .help-box code,
+    .help-box pre {
+      font-family: 'Fira Code', 'Cascadia Code', 'Consolas', 'Monaco', monospace;
+      font-size: 0.85rem;
+    }
+    .help-box pre {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 0.6rem;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+    .cmd-input-area {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .cmd-input {
+      width: 100%;
+      min-height: 80px;
+      font-family: 'Fira Code', 'Cascadia Code', 'Consolas', 'Monaco', monospace;
+      font-size: 0.9rem;
+      padding: 0.6rem;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      resize: vertical;
+      tab-size: 2;
+    }
+    .cmd-output {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 0.8rem;
+      border-radius: 4px;
+      font-family: 'Fira Code', 'Cascadia Code', 'Consolas', 'Monaco', monospace;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      max-height: 400px;
+      overflow: auto;
+      margin-top: 0.5rem;
+    }
+    .btn-exec {
+      align-self: flex-start;
+      padding: 0.4rem 1.5rem;
+    }
+    .status-msg {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    .error-msg {
+      color: var(--danger);
+    }
+  </style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="cmd-container">
+        <h2>Admin Command Center</h2>
+        <div class="cmd-tabs">
+          <div class="cmd-tab active" data-mode="server">Server Terminal</div>
+          <div class="cmd-tab" data-mode="db">MongoDB Terminal</div>
+        </div>
+
+        <!-- ======== 服务器终端 ======== -->
+        <div class="cmd-panel active" id="panel-server">
+          <button class="help-toggle" data-target="help-server">📘 Toggle Help</button>
+          <div class="help-box" id="help-server">
+            <h4>Server Terminal Guide</h4>
+            <p>Execute arbitrary JavaScript code in the Node.js environment (Vercel serverless).<br>
+            You have access to the full Node.js runtime with the following globals:</p>
+            <ul>
+              <li><code>require</code> – load any Node module (e.g., <code>require('fs')</code>, <code>require('os')</code>)</li>
+              <li><code>console</code> – output will be captured and displayed</li>
+              <li><code>process</code> – access environment variables, cwd, etc.</li>
+              <li><code>Buffer</code>, <code>setTimeout</code>, <code>Promise</code>, etc.</li>
+              <li><code>db</code> – the MongoDB database connection (same as in MongoDB mode, but you can also use it here)</li>
+            </ul>
+            <p><strong>Examples:</strong></p>
+            <pre>
+// View environment variables
+Object.keys(process.env).filter(k => k.includes('MONGODB')).forEach(k => console.log(k, process.env[k]));
+
+// List all collections
+(await db.listCollections().toArray()).map(c => c.name);
+
+// Use async/await
+const fs = require('fs');
+const files = await fs.promises.readdir('/tmp');
+console.log(files);</pre>
+            <p><strong>Note:</strong> The code runs in a sandbox; <code>require</code> is allowed, but file system writes may be limited in serverless environment.<br>
+            The result of the last expression is printed (if not <code>undefined</code>).<br>
+            For security, only <code>root</code> users can access this terminal.</p>
+          </div>
+
+          <div class="cmd-input-area">
+            <textarea class="cmd-input" id="serverInput" placeholder="Enter JavaScript code... (e.g. console.log('Hello'); 1+2)"></textarea>
+            <button class="btn btn-primary btn-exec" id="serverExecBtn">▶ Execute</button>
+            <div class="cmd-output" id="serverOutput">Ready.</div>
+          </div>
+        </div>
+
+        <!-- ======== MongoDB 终端 ======== -->
+        <div class="cmd-panel" id="panel-db">
+          <button class="help-toggle" data-target="help-db">📘 Toggle Help</button>
+          <div class="help-box" id="help-db">
+            <h4>MongoDB Terminal Guide</h4>
+            <p>Execute JavaScript code against the MongoDB database.<br>
+            The code runs in a Node.js context with the following injected objects:</p>
+            <ul>
+              <li><code>db</code> – the MongoDB database instance (connected)</li>
+              <li><code>ObjectId</code> – the MongoDB ObjectId constructor</li>
+              <li><code>console</code> – output capture</li>
+              <li><code>ISODate</code> – alias for <code>Date</code> (but you can use <code>new Date()</code>)</li>
+            </ul>
+            <p><strong>Important:</strong> All operations are asynchronous. Use <code>await</code> or <code>.then()</code>.</p>
+            <p><strong>Common queries:</strong></p>
+            <pre>
+// Find all documents in a collection
+await db.collection('users').find({}).toArray();
+
+// Find with filter and projection
+await db.collection('problems').find({ public: true }, { projection: { ans: 0 } }).toArray();
+
+// Aggregation pipeline
+await db.collection('submissions').aggregate([
+  { $match: { correct: true } },
+  { $group: { _id: '$problemId', count: { $sum: 1 } } }
+]).toArray();
+
+// Update documents
+await db.collection('users').updateOne(
+  { username: 'admin' },
+  { $set: { banned: false } }
+);
+
+// Use ObjectId
+const { ObjectId } = require('mongodb'); // already injected
+await db.collection('discussions').findOne({ _id: new ObjectId('...') });</pre>
+            <p><strong>Note:</strong> Write operations (insert, update, delete) are allowed but use with caution.<br>
+            The result of the last expression is printed (if not <code>undefined</code>).<br>
+            Only <code>root</code> users can access this terminal.</p>
+          </div>
+
+          <div class="cmd-input-area">
+            <textarea class="cmd-input" id="dbInput" placeholder="Enter MongoDB code... (e.g. await db.collection('users').find({}).toArray())"></textarea>
+            <button class="btn btn-primary btn-exec" id="dbExecBtn">▶ Execute</button>
+            <div class="cmd-output" id="dbOutput">Ready.</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+  <script>
+    // ===== 权限检查 =====
+    if (!isLoggedIn() || getCurrentUser()?.role !== 'root') {
+      window.location.href = '/index.html';
+    }
+
+    // ===== Tab 切换 =====
+    const tabs = document.querySelectorAll('.cmd-tab');
+    const panels = {
+      server: document.getElementById('panel-server'),
+      db: document.getElementById('panel-db')
+    };
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const mode = tab.dataset.mode;
+        Object.keys(panels).forEach(key => {
+          panels[key].classList.toggle('active', key === mode);
+        });
+      });
+    });
+
+    // ===== 帮助折叠 =====
+    document.querySelectorAll('.help-toggle').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = document.getElementById(btn.dataset.target);
+        if (target) target.style.display = target.style.display === 'block' ? 'none' : 'block';
+      });
+    });
+
+    // ===== 执行逻辑 =====
+    const serverInput = document.getElementById('serverInput');
+    const serverOutput = document.getElementById('serverOutput');
+    const serverExecBtn = document.getElementById('serverExecBtn');
+    const dbInput = document.getElementById('dbInput');
+    const dbOutput = document.getElementById('dbOutput');
+    const dbExecBtn = document.getElementById('dbExecBtn');
+
+    async function executeCommand(mode, code) {
+      const outputEl = mode === 'server' ? serverOutput : dbOutput;
+      outputEl.textContent = 'Executing...';
+      try {
+        const result = await apiCall('/api/admin?action=cmd', 'POST', { mode, code });
+        if (result.success) {
+          let out = result.output || '';
+          if (result.result !== undefined && result.result !== null) {
+            out += '\n' + JSON.stringify(result.result, null, 2);
+          }
+          outputEl.textContent = out || 'Done (no output)';
+        } else {
+          outputEl.textContent = 'Error: ' + (result.message || 'Unknown error');
+        }
+      } catch (err) {
+        outputEl.textContent = 'Network error: ' + err.message;
+      }
+    }
+
+    serverExecBtn.addEventListener('click', () => {
+      const code = serverInput.value.trim();
+      if (!code) return;
+      executeCommand('server', code);
+    });
+    dbExecBtn.addEventListener('click', () => {
+      const code = dbInput.value.trim();
+      if (!code) return;
+      executeCommand('db', code);
+    });
+
+    // Ctrl+Enter 快捷键
+    serverInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        serverExecBtn.click();
+      }
+    });
+    dbInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        dbExecBtn.click();
+      }
+    });
+  </script>
+</body>
+</html>

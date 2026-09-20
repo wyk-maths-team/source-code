@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>New Contest - WYK Maths Team</title><link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" as="style">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <style>
+    .form-container {
+      background: var(--card-bg);
+      border-radius: 4px;
+      padding: 2rem;
+      max-width: 700px;
+      margin: 2rem auto;
+    }
+    .form-group {
+      margin-bottom: 1.2rem;
+    }
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+    }
+    .form-group input, .form-group textarea, .form-group select {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-family: inherit;
+    }
+    .btn {
+      padding: 0.5rem 1.5rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-right: 0.5rem;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: #6c757d; color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .message {
+      margin-top: 1rem;
+      font-size: 0.9rem;
+    }
+    .problem-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 0.5rem;
+    }
+    .problem-table th, .problem-table td {
+      padding: 0.3rem;
+      border: 1px solid var(--border-color);
+    }
+    .problem-table th {
+      background: #f0f0f0;
+    }
+    .problem-table select {
+      width: 100%;
+      padding: 0.3rem;
+    }
+    .add-problem-btn {
+      margin-top: 0.5rem;
+    }
+        /* ⭐ 題目列表 textarea */
+    .problem-list-input {
+      width: 100%;
+      min-height: 200px;
+      padding: 0.7rem 0.9rem;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 0.9rem;
+      line-height: 1.7;
+      resize: vertical;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      outline: none;
+      tab-size: 2;
+    }
+    .problem-list-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(74,144,217,.15);
+    }
+    .problem-list-hint {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 6px;
+      line-height: 1.6;
+    }
+    .problem-list-hint code {
+      background: rgba(74,144,217,.12);
+      color: var(--accent);
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 0.85em;
+    }
+    /* ⭐ 解析預覽 */
+    .problem-list-preview {
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: rgba(74,144,217,.06);
+      border: 1px solid rgba(74,144,217,.25);
+      border-radius: 5px;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+    .problem-list-preview .pv-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 1px 0;
+    }
+    .problem-list-preview .pv-id {
+      font-family: 'Consolas', monospace;
+      color: var(--accent);
+      font-weight: 600;
+      min-width: 60px;
+    }
+    .problem-list-preview .pv-type {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 8px;
+    }
+    .problem-list-preview .pv-type.numeric {
+      background: rgba(74,144,217,.18);
+      color: #4a90d9;
+    }
+    .problem-list-preview .pv-type.image {
+      background: rgba(230,126,34,.18);
+      color: #e67e22;
+    }
+    .problem-list-preview .pv-empty {
+      color: var(--text-secondary);
+      font-style: italic;
+    }
+  </style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="form-container">
+        <h2>Create New Contest</h2>
+        <form id="newContestForm">
+          <div class="form-group">
+            <label for="contestName">Name *</label>
+            <input type="text" id="contestName" required>
+          </div>
+
+          <div class="form-group">
+            <label for="startTime">Start Time *</label>
+            <input type="datetime-local" id="startTime" required>
+          </div>
+
+          <div class="form-group">
+            <label for="duration">Duration (minutes, max 2016000) *</label>
+            <input type="number" id="duration" min="1" max="2016000" required value="180">
+          </div>
+
+          <div class="form-group">
+            <label for="problemListInput">Problems</label>
+            <textarea
+              class="problem-list-input"
+              id="problemListInput"
+              rows="10"
+              placeholder="每行一道題，格式：&#10;A001&#10;A002&#10;A003;&#10;A004&#10;&#10;行末加分號 ; 表示 Photo（圖片評分），否則為 Numeric（數值評分）"
+              spellcheck="false"></textarea>
+            <div class="problem-list-hint">
+              每行一道題：<code>A001</code> → Numeric，<code>A001;</code> → Photo。
+              空行和 <code># 開頭</code> 的行會被忽略。
+            </div>
+            <div class="problem-list-preview" id="problemListPreview" style="display:none"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="participants">Participants (comma separated usernames)</label>
+            <textarea id="participants" rows="3" placeholder="alice, bob, charlie"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="isPublic" checked> Public (visible to students)
+            </label>
+          </div>
+
+          <div class="form-group">
+            <button type="submit" class="btn btn-primary">Create Contest</button>
+            <a href="/admin/contest" class="btn btn-secondary">Cancel</a>
+          </div>
+        </form>
+        <div id="message" class="message"></div>
+      </div>
+    </main>
+    <!-- <button class="sidebar-toggle" id="sidebarToggle">☰</button> -->
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+    if (!isLoggedIn() || (getCurrentUser()?.role !== 'admin' && getCurrentUser()?.role !== 'root')) {
+      window.location.href = '/index.html';
+    }
+
+    /* ⭐ 題目列表解析 */
+    const problemListInput = document.getElementById('problemListInput');
+    const problemListPreview = document.getElementById('problemListPreview');
+
+    /**
+     * 解析 textarea → problems 陣列
+     * 規則：
+     *   每行一道題
+     *   去除首尾空白後為空 → 略過
+     *   以 # 開頭 → 註解，略過
+     *   行末有 ; （允許分號前後有空白）→ image_model
+     *   否則 → numeric
+     */
+    function parseProblemList(text) {
+      const out = [];
+      const lines = String(text || '').split(/\r?\n/);
+      for (const rawLine of lines) {
+        let line = rawLine.trim();
+        if (!line) continue;
+        if (line.startsWith('#')) continue;
+
+        let evalType = 'numeric';
+        // 檢查行末是否有分號（允許 ; 前有空白，; 後無其他字）
+        if (/;\s*$/.test(line)) {
+          evalType = 'image_model';
+          line = line.replace(/;\s*$/, '').trim();
+        }
+        if (!line) continue;
+
+        out.push({ problemId: line, evalType });
+      }
+      return out;
+    }
+
+    /* ⭐ 即時預覽 */
+    function updateProblemListPreview() {
+      const problems = parseProblemList(problemListInput.value);
+      if (!problems.length) {
+        problemListPreview.style.display = 'none';
+        return;
+      }
+      problemListPreview.style.display = 'block';
+      problemListPreview.innerHTML = problems.map((p, i) => `
+        <div class="pv-row">
+          <span style="color:#8b9bc0;font-size:.72rem;min-width:22px;">#${i + 1}</span>
+          <span class="pv-id">${escapeHtml(p.problemId)}</span>
+          <span class="pv-type ${p.evalType === 'image_model' ? 'image' : 'numeric'}">
+            ${p.evalType === 'image_model' ? 'Photo' : 'Numeric'}
+          </span>
+        </div>
+      `).join('');
+    }
+
+    problemListInput.addEventListener('input', updateProblemListPreview);
+
+    document.getElementById('newContestForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById('contestName').value.trim();
+      const startTime = document.getElementById('startTime').value;
+      const duration = parseInt(document.getElementById('duration').value, 10);
+      const participantsInput = document.getElementById('participants').value.trim();
+      const isPublic = document.getElementById('isPublic').checked;
+
+      if (!name || !startTime || !duration) {
+        document.getElementById('message').textContent = 'Please fill in all required fields.';
+        return;
+      }
+
+      // ⭐ 先解析 problems，再做檢查
+      const problems = parseProblemList(problemListInput.value);
+      if (!problems.length) {
+        document.getElementById('message').textContent = 'Please add at least one problem.';
+        document.getElementById('message').style.color = 'var(--danger)';
+        return;
+      }
+
+      const participants = participantsInput.split(',').map(u => u.trim()).filter(u => u);
+
+      const body = {
+        name,
+        startTime: new Date(startTime).toISOString(),
+        duration,
+        problems,
+        participants,
+        public: isPublic
+      };
+
+      try {
+        const result = await apiCall('/api/contests?action=adminCreate', 'POST', body);
+        if (result.success) {
+          document.getElementById('message').style.color = '#2e7d32';
+          document.getElementById('message').textContent = `Contest created with ID: ${result.id}. Redirecting...`;
+          setTimeout(() => { window.location.href = '/admin/contest'; }, 1500);
+        } else {
+          document.getElementById('message').style.color = 'var(--danger)';
+          document.getElementById('message').textContent = result.message || 'Error';
+        }
+      } catch (err) {
+        document.getElementById('message').style.color = 'var(--danger)';
+        document.getElementById('message').textContent = 'Network error';
+      }
+    });
+
+  </script>
+</body>
+</html>

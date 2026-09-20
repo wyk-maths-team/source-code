@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+(function(){
+  try {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                    || window.navigator.standalone === true
+                    || window.matchMedia('(display-mode: fullscreen)').matches
+                    || window.matchMedia('(display-mode: minimal-ui)').matches;
+    if (!isStandalone) return;
+    if (location.pathname.indexOf('/os') === 0) return;
+    if (location.pathname.indexOf('/admin') === 0) return;
+    if (!sessionStorage.getItem('pwaEnteredOS')) {
+      sessionStorage.setItem('pwaEnteredOS', '1');
+      location.replace('/os' + location.search + location.hash);
+    }
+  } catch(e){}
+})();
+</script>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Contests - WYK Maths Team</title><link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" as="style">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <style>
+    .contests-container {
+      background: var(--card-bg);
+      border-radius: 4px;
+      padding: 1.2rem;
+      box-shadow: var(--shadow-sm);
+    }
+    .contests-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+      border: 1px solid var(--border-color);
+    }
+    .contests-table th, .contests-table td {
+      padding: 0.6rem 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+      text-align: left;
+    }
+    .contests-table th {
+      background: #e9ecef;
+      font-weight: 700;
+      border-bottom: 2px solid var(--border-color);
+    }
+    .contest-row {
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .contest-row:hover {
+      background: rgba(0,0,0,0.03);
+    }
+    .pagination {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    .pagination a {
+      padding: 0.3rem 0.7rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      text-decoration: none;
+    }
+    .pagination .active {
+      background: var(--accent);
+      color: #fff;
+    }
+    .loading-msg {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-secondary);
+    }
+    :root[data-theme="dark"] .contests-table th {
+      background: #21262d;
+      color: #c9d1d9;
+    }
+  </style>
+
+  <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WYK Maths">
+  <meta name="mobile-web-app-capable" content="yes">
+
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="loading-msg">Loading contests...</div>
+    </main>
+    <!-- <button class="sidebar-toggle" id="sidebarToggle">☰</button> -->
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+    if (!isLoggedIn()) window.location.href = '/index.html';
+
+    const mainContainer = document.getElementById('mainContent');
+    let currentPage = 1;
+    const limit = 20;
+    let totalPages = 1;
+
+    async function loadContests(page = 1) {
+      try {
+        const data = await apiCall(`/api/contests?action=list&page=${page}&limit=${limit}`);
+        if (data.success) {
+          totalPages = data.totalPages;
+          currentPage = data.page;
+          return data.contests;
+        }
+      } catch (err) {
+        console.error(err);
+      }
+      return [];
+    }
+
+    function renderContests(contests) {
+      let html = `<div class="contests-container"><h2>Contests</h2>`;
+      if (!contests.length) {
+        html += '<p>No contests available.</p>';
+      } else {
+        html += `<table class="contests-table">
+          <thead><tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Participants</th>
+          </tr></thead><tbody>`;
+
+        contests.forEach(c => {
+          // 优先使用后端返回的 contestantCount，若无则根据 participants 数组长度计算
+          const count = c.contestantCount !== undefined ? c.contestantCount : (Array.isArray(c.participants) ? c.participants.length : 0);
+          html += `<tr class="contest-row" onclick="window.location.href='/contest/${c.id}'">
+            <td>${c.id}</td>
+            <td>${escapeHtml(c.name)}</td>
+            <td>${count}</td>
+          </tr>`;
+        });
+        html += '</tbody></table>';
+
+        let paginationHtml = '<div class="pagination">';
+        for (let i = 1; i <= totalPages; i++) {
+          paginationHtml += `<a class="${i === currentPage ? 'active' : ''}" href="javascript:void(0)" onclick="gotoPage(${i})">${i}</a>`;
+        }
+        paginationHtml += '</div>';
+        html += paginationHtml;
+      }
+      html += '</div>';
+      mainContainer.innerHTML = html;
+    }
+
+    async function gotoPage(page) {
+      const contests = await loadContests(page);
+      renderContests(contests);
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+    }
+
+    (async function init() {
+      const contests = await loadContests(1);
+      renderContests(contests);
+    })();
+  </script>
+</body>
+</html>

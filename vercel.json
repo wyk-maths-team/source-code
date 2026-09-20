@@ -1,0 +1,73 @@
+{
+  "rewrites": [
+    { "source": "/api/auth/microsoft", "destination": "/api/auth?action=microsoft" },
+    { "source": "/api/auth/callback", "destination": "/api/auth?action=callback" },
+    { "source": "/api/auth/complete-setup", "destination": "/api/auth?action=complete-setup" },
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/auth/setup", "destination": "/setup.html" },
+    { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/admin/create", "destination": "/admin/createlist.html" },
+    { "source": "/admin/create/problem", "destination": "/admin/newproblem.html" },
+    { "source": "/admin/create/contest", "destination": "/admin/newcontest.html" },
+    { "source": "/admin/create/update", "destination": "/admin/newupdate.html" },
+    { "source": "/admin/create/user", "destination": "/admin/newuser.html" },
+
+    { "source": "/admin/problems", "destination": "/admin/problems.html" },
+    { "source": "/admin/contests", "destination": "/admin/contest.html" },
+    { "source": "/admin/updates", "destination": "/admin/updates.html" },
+    { "source": "/admin/users", "destination": "/admin/users.html" },
+    { "source": "/admin/submissions", "destination": "/admin/submissions.html" },
+    { "source": "/admin/reports", "destination": "/admin/reports.html" },
+    { "source": "/admin/log", "destination": "/admin/log.html" },
+    { "source": "/admin/sql", "destination": "/admin/terminal.html" },
+    { "source": "/admin/cmd", "destination": "/admin/cmd.html" },
+
+    { "source": "/admin/problems/:id", "destination": "/admin/editproblem.html" },
+    { "source": "/admin/contests/:id", "destination": "/admin/editcontest.html" },
+    { "source": "/admin/updates/:id", "destination": "/admin/editupdate.html" },
+    { "source": "/admin/users/:username", "destination": "/admin/edituser.html" },
+
+    { "source": "/admin/marker/:subid", "destination": "/admin/marksubmissions.html" },
+    { "source": "/admin/marker", "destination": "/admin/marker.html" },
+
+    { "source": "/charts", "destination": "/charts.html" },
+
+    { "source": "/contest/:id/results", "destination": "/contestresults.html" },
+    { "source": "/contest/:id", "destination": "/contest/[id].html" },
+    { "source": "/contest", "destination": "/contest.html" },
+
+    { "source": "/credits", "destination": "/credits.html" },
+    { "source": "/chat", "destination": "/chat.html" },
+    { "source": "/guide", "destination": "/guide.html" },
+    { "source": "/log", "destination": "/log.html" },
+    { "source": "/login", "destination": "/login.html" },
+
+    { "source": "/problems/bookmarked", "destination": "/problems/bookmark.html" },
+    { "source": "/problems/:id", "destination": "/problems/[id].html" },
+    { "source": "/problems", "destination": "/problems.html" },
+
+    { "source": "/resources/:id", "destination": "/resources.html" },
+    { "source": "/resources", "destination": "/resources_v2.html" },
+
+    { "source": "/submissions/user/:username", "destination": "/submissions.html" },
+    { "source": "/submissions/problem/:id", "destination": "/submissions.html" },
+    { "source": "/submissions/:id/detail", "destination": "/submissions/detail.html" },
+    { "source": "/submissions", "destination": "/submissions.html" },
+
+    { "source": "/users/edit", "destination": "/editpassword.html" },
+    { "source": "/users/:username", "destination": "/user.html" },
+    { "source": "/leaderboard", "destination": "/ranklist.html" },
+    { "source": "/settings", "destination": "/settings.html" },
+    { "source": "/settings/extra", "destination": "/extra.html" },
+    { "source": "/status", "destination": "/status.html" },
+
+    { "source": "/za984hp9guoq2p948thqp93284ut-q9p83u4gtr9i3wh4p9roqgh3wp9o4irhg9aowuirhqg9pouiw34h-r9pgtq3wp94uorih9owuh40q824uyq-0285gunq02359g85hrb0n9e4ugh03uwgaiog9aerh0g9uawhe09ruih09waeuirqg9uowergoew4rhqg9iu3wgr90quiawe4hgqu9i0erguaew4hgr90awuhr08gqer9geruigh09eiourgh9eaoiur", "destination": "/eeeee.html" },
+    { "source": "/eeeee.html", "destination": "/404.html" },
+    { "source": "/circuit", "destination": "/z.html" },
+    { "source": "/os", "destination": "/os.html" },
+    { "source": "/ac", "destination": "/zz.html" },
+    { "source": "/fac", "destination": "/zzz.html" },
+
+    { "source": "/(.*)", "destination": "/404.html" }
+  ]
+}

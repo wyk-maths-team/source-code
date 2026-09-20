@@ -1,0 +1,802 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+(function(){
+  try {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                    || window.navigator.standalone === true
+                    || window.matchMedia('(display-mode: fullscreen)').matches
+                    || window.matchMedia('(display-mode: minimal-ui)').matches;
+    if (!isStandalone) return;
+    if (location.pathname.indexOf('/os') === 0) return;
+    if (location.pathname.indexOf('/admin') === 0) return;
+    if (!sessionStorage.getItem('pwaEnteredOS')) {
+      sessionStorage.setItem('pwaEnteredOS', '1');
+      location.replace('/os' + location.search + location.hash);
+    }
+  } catch(e){}
+})();
+</script>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Solve Progress - WYK Maths Team</title>
+  <link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" as="style">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+
+  <!-- amCharts 5 -->
+  <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+  <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
+  <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+
+  <style>
+    :root {
+      --card-bg: #fff;
+      --border-color: #dee2e6;
+      --text-primary: #212529;
+      --text-secondary: #6c757d;
+      --accent: #337ab7;
+      --danger: #dc3545;
+      --hover-bg: #e9ecef;
+    }
+    [data-theme="dark"] {
+      --card-bg: #1e1e1e;
+      --border-color: #444;
+      --text-primary: #e0e0e0;
+      --text-secondary: #aaa;
+      --hover-bg: #2c2c2c;
+    }
+
+    .chart-page-container {
+      background: var(--card-bg);
+      border-radius: 4px;
+      padding: 1.2rem;
+      box-shadow: var(--shadow-sm);
+    }
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      margin-bottom: 0.75rem;
+    }
+    .page-header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      color: var(--text-primary);
+    }
+    .btn-group {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .btn {
+      padding: 0.4rem 1rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      cursor: pointer;
+      font-size: 0.9rem;
+      text-decoration: none;
+      transition: background 0.2s;
+      display: inline-block;
+    }
+    .btn:hover { background: var(--hover-bg); }
+    .btn.disabled { opacity: 0.6; pointer-events: none; cursor: default; }
+    .btn-info { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn-info:hover { background: #286090; }
+
+    .chart-row {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .chart-main {
+      flex: 1 1 65%;
+      min-width: 320px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 0.8rem;
+      position: relative; /* 給 cursor tooltip 用 */
+    }
+    #solveChart {
+      width: 100%;
+      height: 560px;
+    }
+
+    /* 全局 cursor tooltip */
+    #cursorTooltip {
+      position: absolute;
+      pointer-events: none;
+      display: none;
+      background: rgba(25, 25, 30, 0.94);
+      color: #f0f0f0;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-family: inherit;
+      max-height: 380px;
+      overflow-y: auto;
+      min-width: 180px;
+      max-width: 320px;
+      z-index: 10;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+      border: 1px solid rgba(255,255,255,0.1);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    /* 鎖定時的視覺提示：邊框變亮、陰影加深 */
+    #cursorTooltip.pinned {
+      border-color: rgba(255,255,255,0.45);
+      box-shadow: 0 8px 26px rgba(0,0,0,0.55);
+    }
+    #cursorTooltip .tt-header {
+      font-weight: 700;
+      margin-bottom: 6px;
+      padding-bottom: 5px;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+      color: #fff;
+      font-size: 0.85rem;
+    }
+    #cursorTooltip .tt-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      padding: 1px 0;
+      white-space: nowrap;
+    }
+    #cursorTooltip .tt-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #cursorTooltip .tt-value {
+      font-weight: 700;
+      color: #fff;
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+    }
+
+    .chart-options {
+      flex: 1 1 28%;
+      min-width: 260px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 0.9rem 1rem;
+    }
+    .chart-options h3 {
+      margin: 0.8rem 0 0.4rem 0;
+      font-size: 1rem;
+      color: var(--text-primary);
+    }
+    .chart-options h3:first-child { margin-top: 0; }
+    .opt-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+      cursor: pointer;
+    }
+    .opt-row input[type="checkbox"] { cursor: pointer; }
+    .opt-row input[type="checkbox"]:disabled { cursor: not-allowed; }
+
+    .range-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      font-size: 0.85rem;
+    }
+    .range-row label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-primary);
+    }
+    .range-row input[type="date"] {
+      flex: 1;
+      padding: 0.25rem 0.4rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      font-size: 0.85rem;
+    }
+    .range-buttons {
+      display: flex;
+      gap: 0.4rem;
+      margin-top: 0.3rem;
+    }
+    .range-buttons .btn {
+      flex: 1;
+      padding: 0.3rem 0.5rem;
+      font-size: 0.8rem;
+      text-align: center;
+    }
+
+    .chart-legend-list {
+      margin-top: 0.4rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .chart-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.3rem 0.4rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: background 0.15s;
+      user-select: none;
+    }
+    .chart-legend-item:hover { background: var(--hover-bg); }
+    .chart-legend-item input[type="checkbox"] { flex-shrink: 0; cursor: pointer; margin: 0; }
+    .chart-legend-swatch {
+      display: inline-block;
+      width: 20px;
+      height: 3px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .chart-legend-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chart-legend-count { color: var(--text-secondary); font-size: 0.8rem; flex-shrink: 0; }
+    .legend-toolbar {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-top: 0.2rem;
+      font-size: 0.8rem;
+    }
+    .legend-toolbar a { color: var(--accent); cursor: pointer; text-decoration: none; }
+    .legend-toolbar a:hover { text-decoration: underline; }
+
+    .loading-msg {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-secondary);
+    }
+    @media (max-width: 768px) {
+      .chart-main, .chart-options { flex: 1 1 100%; }
+      #solveChart { height: 400px; }
+      #cursorTooltip { max-height: 260px; max-width: 240px; font-size: 0.75rem; }
+    }
+  </style>
+  <!-- ⭐ PWA（必須靜態寫入 <head>，不能靠 JS 動態注入） -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WYK Maths">
+  <meta name="mobile-web-app-capable" content="yes">
+
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="loading-msg">Loading chart...</div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+    if (!isLoggedIn()) window.location.href = '/index.html';
+
+    const mainContainer = document.getElementById('mainContent');
+
+    const CHART_COLORS = [
+      '#ae85c9', '#aab9f7', '#b6d2ff', '#c9e6f2', '#c9f0e1',
+      '#e8d685', '#e0ad63', '#d48652', '#d27362', '#495fba',
+      '#7a629b', '#8881cc', '#4a90d9', '#e74c3c', '#2ecc71',
+      '#f39c12', '#9b59b6', '#1abc9c', '#e67e22', '#3498db'
+    ];
+
+    let chartRoot = null;
+    let chartDataCache = null;
+    const seriesMap = {};       // username -> am5 LineSeries
+
+    // 供自訂 tooltip 使用
+    let activeUsersCache = [];  // 過濾後的 user 陣列
+    let seriesDataCache = {};   // username -> [{ date: ms, value: n }]
+
+    // 鼠標相對 chart-main 的位置
+    let mouseX = 0, mouseY = 0;
+    // 目前 hover 到的日期
+    let currentDateMs = null;
+
+    // Pin 狀態（按下後鎖定，列表保持顯示）
+    const tooltipState = {
+      pinned: false,
+      dateMs: null
+    };
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+    }
+
+    function colorForUser(username) {
+      let hash = 0;
+      for (let i = 0; i < username.length; i++) {
+        hash = ((hash << 5) - hash) + username.charCodeAt(i);
+        hash |= 0;
+      }
+      return CHART_COLORS[Math.abs(hash) % CHART_COLORS.length];
+    }
+
+    // 名字格式：realname-username；沒有 realname 就只用 username
+    function displayNameFor(user) {
+      if (user.realName && user.realName.trim()) {
+        return user.realName + '-' + user.username;
+      }
+      return user.username;
+    }
+
+    // 只保留有解題的人（最後一天累計 > 0）
+    function getActiveUsers(data) {
+      return data.users.filter(u => (u.daily[u.daily.length - 1] || 0) > 0);
+    }
+
+    async function loadChartData() {
+      try {
+        const data = await apiCall('/api/charts');
+        if (!data.success) throw new Error('Failed');
+        return data.data;
+      } catch (err) {
+        console.error(err);
+        return null;
+      }
+    }
+
+    function renderSkeleton(userCount) {
+      mainContainer.innerHTML = `
+        <div class="chart-page-container">
+          <div class="page-header">
+            <h1>Solve Progress</h1>
+            <div class="btn-group">
+              <a href="/ranklist" class="btn">Leaderboard</a>
+              <button class="btn btn-info disabled" disabled>Chart</button>
+            </div>
+          </div>
+          <div class="chart-row">
+            <div class="chart-main" id="chartMain">
+              <div id="solveChart"></div>
+              <div id="cursorTooltip"></div>
+            </div>
+            <div class="chart-options">
+              <h3>Chart Options</h3>
+              <label class="opt-row">
+                <input type="checkbox" id="optLog"> Logarithmic Y Axis
+              </label>
+              <label class="opt-row">
+                <input type="checkbox" id="optRealName" checked disabled>
+                Show Real Name
+              </label>
+
+              <h3>Time Range</h3>
+              <div class="range-row">
+                <label>Start: <input type="date" id="rangeStart"></label>
+                <label>End: <input type="date" id="rangeEnd"></label>
+                <div class="range-buttons">
+                  <button class="btn" id="applyRangeBtn">Apply</button>
+                  <button class="btn" id="resetRangeBtn">Reset</button>
+                </div>
+              </div>
+
+              <h3>Users (${userCount})</h3>
+              <div class="legend-toolbar">
+                <a id="selectAllBtn">All</a>
+                <span style="color:var(--text-secondary);">·</span>
+                <a id="selectNoneBtn">None</a>
+              </div>
+              <div class="chart-legend-list" id="chartLegend"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderLegend(data) {
+      const legendEl = document.getElementById('chartLegend');
+      const activeUsers = getActiveUsers(data);
+
+      legendEl.innerHTML = activeUsers.map(u => {
+        const color = colorForUser(u.username);
+        const count = u.daily[u.daily.length - 1] || 0;
+        return `
+          <label class="chart-legend-item">
+            <input type="checkbox" checked data-username="${escapeHtml(u.username)}">
+            <span class="chart-legend-swatch" style="background:${color};"></span>
+            <span class="chart-legend-name">${escapeHtml(displayNameFor(u))}</span>
+            <span class="chart-legend-count">${count}</span>
+          </label>`;
+      }).join('');
+
+      legendEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const s = seriesMap[cb.dataset.username];
+          if (!s) return;
+          if (cb.checked) s.show();
+          else s.hide();
+        });
+      });
+
+      document.getElementById('selectAllBtn').addEventListener('click', () => {
+        legendEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
+        Object.values(seriesMap).forEach(s => s.show());
+      });
+      document.getElementById('selectNoneBtn').addEventListener('click', () => {
+        legendEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+        Object.values(seriesMap).forEach(s => s.hide());
+      });
+    }
+
+    function disposeChart() {
+      if (chartRoot) {
+        chartRoot.dispose();
+        chartRoot = null;
+      }
+      Object.keys(seriesMap).forEach(k => delete seriesMap[k]);
+    }
+
+    // ===== 自訂 tooltip =====
+
+    function hideTooltip() {
+      const el = document.getElementById('cursorTooltip');
+      if (el) el.style.display = 'none';
+    }
+
+    function positionTooltip() {
+      const el = document.getElementById('cursorTooltip');
+      const wrap = document.getElementById('chartMain');
+      if (!el || !wrap) return;
+      // pinned 狀態下不跟隨滑鼠，保持原地
+      if (tooltipState.pinned) return;
+
+      const wrapRect = wrap.getBoundingClientRect();
+      const w = el.offsetWidth;
+      const h = el.offsetHeight;
+      let left = mouseX + 18;
+      let top = mouseY + 12;
+      if (left + w > wrapRect.width - 4) left = mouseX - w - 18;
+      if (top + h > wrapRect.height - 4) top = wrapRect.height - h - 4;
+      if (left < 4) left = 4;
+      if (top < 4) top = 4;
+      el.style.left = left + 'px';
+      el.style.top = top + 'px';
+    }
+
+    /**
+     * 給定一個日期（ms），找出每個 active user 在該日期的 solves，
+     * 過濾掉 0，按 solves 降序排列後渲染成列表。
+     */
+    function showTooltipForDate(dateMs) {
+      const el = document.getElementById('cursorTooltip');
+      if (!el) return;
+
+      const rows = [];
+      activeUsersCache.forEach(u => {
+        const sdata = seriesDataCache[u.username];
+        if (!sdata || !sdata.length) return;
+
+        // seriesDataCache 已按日期升序，二分查找最接近的
+        let lo = 0, hi = sdata.length - 1;
+        while (hi - lo > 1) {
+          const mid = (lo + hi) >> 1;
+          if (sdata[mid].date < dateMs) lo = mid;
+          else hi = mid;
+        }
+        const a = sdata[lo], b = sdata[hi];
+        const best = Math.abs(a.date - dateMs) <= Math.abs(b.date - dateMs) ? a : b;
+        if (best.value > 0) {
+          rows.push({
+            name: displayNameFor(u),
+            value: best.value
+          });
+        }
+      });
+
+      if (!rows.length) {
+        hideTooltip();
+        return;
+      }
+
+      // 更多的排前面（降序）
+      rows.sort((a, b) => b.value - a.value);
+
+      const dateStr = new Date(dateMs).toISOString().slice(0, 10);
+      el.innerHTML =
+        `<div class="tt-header">${escapeHtml(dateStr)}</div>` +
+        rows.map(r =>
+          `<div class="tt-row">` +
+            `<span class="tt-name">${escapeHtml(r.name)}</span>` +
+            `<span class="tt-value">${r.value}</span>` +
+          `</div>`
+        ).join('');
+
+      el.style.display = 'block';
+      positionTooltip();
+    }
+
+    function pinTooltip() {
+      if (currentDateMs == null) return;
+      tooltipState.pinned = true;
+      tooltipState.dateMs = currentDateMs;
+      showTooltipForDate(currentDateMs);
+      const el = document.getElementById('cursorTooltip');
+      if (el) el.classList.add('pinned');
+    }
+
+    function unpinTooltip() {
+      tooltipState.pinned = false;
+      tooltipState.dateMs = null;
+      const el = document.getElementById('cursorTooltip');
+      if (el) el.classList.remove('pinned');
+      hideTooltip();
+    }
+
+    function attachCursorTracking(cursor, xAxis) {
+      const wrap = document.getElementById('chartMain');
+      if (!wrap) return;
+
+      // 記錄鼠標位置（相對 chartMain），用於 tooltip 定位
+      wrap.addEventListener('mousemove', (e) => {
+        const rect = wrap.getBoundingClientRect();
+        mouseX = e.clientX - rect.left;
+        mouseY = e.clientY - rect.top;
+        // 非 pinned 時跟隨滑鼠
+        if (!tooltipState.pinned) positionTooltip();
+      });
+
+      wrap.addEventListener('mouseleave', () => {
+        // pinned 時保持顯示
+        if (tooltipState.pinned) return;
+        hideTooltip();
+      });
+
+      // 點擊 chart 內部：pin / unpin
+      wrap.addEventListener('click', (e) => {
+        if (tooltipState.pinned) {
+          unpinTooltip();
+        } else {
+          pinTooltip();
+        }
+        e.stopPropagation();
+      });
+
+      // 點擊 chart 外部：若已 pin，取消 pin
+      document.addEventListener('click', (e) => {
+        if (!tooltipState.pinned) return;
+        if (wrap.contains(e.target)) return;
+        unpinTooltip();
+      });
+
+      // Cursor 移動事件：更新 tooltip 內容
+      cursor.events.on('cursormoved', () => {
+        let x = null;
+        try { x = cursor.getPrivate('positionX'); } catch (e) { /* ignore */ }
+        if (x == null) {
+          if (!tooltipState.pinned) hideTooltip();
+          return;
+        }
+
+        let dateObj = null;
+        try {
+          if (typeof xAxis.positionToDate === 'function') {
+            dateObj = xAxis.positionToDate(x);
+          }
+        } catch (e) { /* ignore */ }
+
+        if (!dateObj) {
+          try {
+            const startMs = xAxis.getPrivate('start') || xAxis.get('start');
+            const endMs = xAxis.getPrivate('end') || xAxis.get('end');
+            if (startMs && endMs) {
+              dateObj = new Date(startMs + (endMs - startMs) * x);
+            }
+          } catch (e) { /* ignore */ }
+        }
+        if (!dateObj) {
+          if (!tooltipState.pinned) hideTooltip();
+          return;
+        }
+
+        const ms = dateObj instanceof Date ? dateObj.getTime() : Number(dateObj);
+        if (isNaN(ms)) {
+          if (!tooltipState.pinned) hideTooltip();
+          return;
+        }
+
+        currentDateMs = ms;
+        if (tooltipState.pinned) return; // 已鎖定，不隨 hover 變動
+        showTooltipForDate(ms);
+      });
+
+      cursor.events.on('cursorhidden', () => {
+        if (tooltipState.pinned) return;
+        hideTooltip();
+      });
+    }
+
+    function buildChart(data) {
+      const { dates } = data;
+      const activeUsers = getActiveUsers(data);
+
+      if (!activeUsers.length || !dates.length) {
+        document.getElementById('solveChart').innerHTML =
+          '<div style="text-align:center;padding:2rem;color:var(--text-secondary);">No data yet.</div>';
+        return;
+      }
+
+      // 準備每個用戶的 series data 與快取
+      seriesDataCache = {};
+      activeUsers.forEach(u => {
+        seriesDataCache[u.username] = dates.map((d, i) => ({
+          date: new Date(d + 'T00:00:00Z').getTime(),
+          value: u.daily[i]
+        }));
+      });
+      activeUsersCache = activeUsers;
+
+      // 重建時清掉 pin 狀態，避免殘留舊資料
+      unpinTooltip();
+      currentDateMs = null;
+
+      disposeChart();
+
+      const root = am5.Root.new('solveChart');
+      chartRoot = root;
+      root.setThemes([am5themes_Animated.new(root)]);
+
+      const chart = root.container.children.push(am5xy.XYChart.new(root, {
+        panX: true,
+        panY: false,
+        wheelX: 'panX',
+        wheelY: 'zoomX',
+        layout: root.verticalLayout
+      }));
+
+      // Cursor：不顯示內建 tooltip
+      const cursor = chart.set('cursor', am5xy.XYCursor.new(root, {
+        behavior: 'none'
+      }));
+      cursor.lineY.set('visible', false);
+
+      // 底部 Scrollbar（可拖動時間軸）
+      chart.set('scrollbarX', am5.Scrollbar.new(root, {
+        orientation: 'horizontal'
+      }));
+
+      // X 軸
+      const xAxis = chart.xAxes.push(am5xy.DateAxis.new(root, {
+        baseInterval: { timeUnit: 'day', count: 1 },
+        renderer: am5xy.AxisRendererX.new(root, { minGridDistance: 60 }),
+        // tooltip: am5.Tooltip.new(root, {})
+      }));
+
+      // Y 軸（可選對數）
+      const isLog = document.getElementById('optLog').checked;
+      const yAxis = chart.yAxes.push(am5xy.ValueAxis.new(root, {
+        renderer: am5xy.AxisRendererY.new(root, {}),
+        logarithmic: isLog,
+        min: isLog ? 0.5 : 0,
+        extraMax: 0.05
+      }));
+
+      // 建立所有 series（停用內建 tooltip）
+      activeUsers.forEach(u => {
+        const color = am5.color(colorForUser(u.username));
+        const series = chart.series.push(am5xy.LineSeries.new(root, {
+          name: displayNameFor(u),
+          xAxis: xAxis,
+          yAxis: yAxis,
+          valueYField: 'value',
+          valueXField: 'date',
+          stroke: color,
+          fill: color,
+          tooltip: am5.Tooltip.new(root, { labelText: '' })
+        }));
+        series.strokes.template.setAll({
+          strokeWidth: 2,
+          strokeOpacity: 0.9
+        });
+        series.fills.template.setAll({ visible: false });
+
+        // 完全關閉原生 tooltip
+        series.set('tooltip', undefined);
+        series.set('tooltipText', '');
+        series.set('showTooltipOn', 'none');
+
+        series.data.setAll(seriesDataCache[u.username]);
+        seriesMap[u.username] = series;
+        series.appear(600);
+      });
+
+      // 掛上自訂 tooltip 監聽
+      attachCursorTracking(cursor, xAxis);
+
+      // 時間範圍控制
+      setupRangeControls(xAxis, dates);
+
+      chart.appear(600, 80);
+    }
+
+    function setupRangeControls(xAxis, dates) {
+      const startInput = document.getElementById('rangeStart');
+      const endInput = document.getElementById('rangeEnd');
+      const applyBtn = document.getElementById('applyRangeBtn');
+      const resetBtn = document.getElementById('resetRangeBtn');
+
+      startInput.value = dates[0];
+      endInput.value = dates[dates.length - 1];
+
+      function applyZoom(startStr, endStr) {
+        const start = new Date(startStr + 'T00:00:00Z');
+        const end = new Date(endStr + 'T23:59:59Z');
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) return;
+        if (start > end) {
+          alert('Start date must be before end date.');
+          return;
+        }
+        try {
+          xAxis.zoomToDates(start, end, true);
+        } catch (e) {
+          console.warn('zoomToDates failed', e);
+        }
+      }
+
+      applyBtn.addEventListener('click', () => applyZoom(startInput.value, endInput.value));
+      resetBtn.addEventListener('click', () => {
+        startInput.value = dates[0];
+        endInput.value = dates[dates.length - 1];
+        applyZoom(dates[0], dates[dates.length - 1]);
+      });
+    }
+
+    (async function init() {
+      const data = await loadChartData();
+      if (!data) {
+        mainContainer.innerHTML = '<div class="error-msg">Failed to load chart data.</div>';
+        return;
+      }
+      if (!data.users || !data.users.length) {
+        mainContainer.innerHTML = '<div class="error-msg">No data yet.</div>';
+        return;
+      }
+      chartDataCache = data;
+
+      const activeCount = getActiveUsers(data).length;
+      if (activeCount === 0) {
+        mainContainer.innerHTML = '<div class="error-msg">No solves yet.</div>';
+        return;
+      }
+
+      renderSkeleton(activeCount);
+      renderLegend(data);
+      buildChart(data);
+
+      document.getElementById('optLog').addEventListener('change', () => {
+        buildChart(chartDataCache);
+      });
+    })();
+  </script>
+</body>
+</html>

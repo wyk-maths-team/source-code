@@ -1,0 +1,2898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+(function(){
+  try {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                    || window.navigator.standalone === true
+                    || window.matchMedia('(display-mode: fullscreen)').matches
+                    || window.matchMedia('(display-mode: minimal-ui)').matches;
+    if (!isStandalone) return;
+    if (location.pathname.indexOf('/os') === 0) return;
+    if (location.pathname.indexOf('/admin') === 0) return;
+    if (!sessionStorage.getItem('pwaEnteredOS')) {
+      sessionStorage.setItem('pwaEnteredOS', '1');
+      location.replace('/os' + location.search + location.hash);
+    }
+  } catch(e){}
+})();
+</script>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Circuit Grid · AC/Transient</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #0b0f14; color: #cbd5e1;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-user-select: none; user-select: none;
+  }
+  canvas#cv { display: block; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+
+  #toolbar {
+    position: fixed; top: 10px; left: 10px; z-index: 20;
+    display: flex; gap: 5px; flex-wrap: wrap; max-width: calc(100vw - 20px);
+    padding: 6px; border-radius: 12px;
+    background: rgba(15,21,28,.82); backdrop-filter: blur(8px);
+    border: 1px solid #1e2732;
+  }
+  #toolbar button {
+    font: inherit; font-size: 12px; line-height: 1;
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #131a22; color: #8b98a8;
+    border: 1px solid #222c38; border-radius: 8px;
+    padding: 7px 10px; cursor: pointer;
+    transition: background .12s, color .12s, border-color .12s;
+  }
+  #toolbar button:hover { background: #1a2330; color: #d3dce6; }
+  #toolbar button.active {
+    background: #14273d; color: #e8f1ff; border-color: #3b82f6;
+    box-shadow: 0 0 0 1px #3b82f6, 0 0 14px rgba(59,130,246,.35);
+  }
+  #toolbar button.rotate-btn { font-size: 15px; padding: 5px 10px; color: #93c5fd; }
+  #toolbar button.rotate-btn:hover { color: #e8f1ff; }
+  #toolbar button i {
+    width: 10px; height: 10px; border-radius: 3px; display: inline-block;
+    border: 1px solid rgba(255,255,255,.18);
+  }
+  #toolbar .sep { width: 1px; align-self: stretch; background: #222c38; margin: 2px 3px; }
+
+  #hint {
+    position: fixed; bottom: 10px; left: 12px; z-index: 20;
+    font-size: 11px; color: #4d5b6b; letter-spacing: .3px;
+  }
+  #hint b { color: #7c8b9c; font-weight: 600; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 46px; transform: translate(-50%, 10px);
+    background: rgba(17,24,32,.95); border: 1px solid #2a3644; color: #dbe6f2;
+    padding: 9px 16px; border-radius: 10px; font-size: 13px; z-index: 40;
+    opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+    max-width: calc(100vw - 40px);
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  #overlay {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(4,7,10,.65); backdrop-filter: blur(3px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #overlay.hidden { display: none; }
+  .dialog {
+    background: #111821; border: 1px solid #26323f; border-radius: 14px;
+    padding: 18px; min-width: 300px; max-width: 92vw;
+    box-shadow: 0 24px 60px rgba(0,0,0,.6);
+    max-height: 88vh; overflow: auto;
+  }
+  .dialog h3 { margin: 0 0 14px; font-size: 14px; font-weight: 600; color: #e2ecf7; }
+  .dialog .field {
+    display: flex; flex-direction: column; gap: 5px; margin-bottom: 11px;
+    font-size: 11px; color: #7b8b9d;
+  }
+  .dialog .field input, .dialog .field select {
+    font: inherit; font-size: 13px; color: #e2ecf7;
+    background: #0a1017; border: 1px solid #26323f; border-radius: 8px;
+    padding: 8px 10px; outline: none; width: 100%;
+  }
+  .dialog .field input:focus, .dialog .field select:focus { border-color: #3b82f6; }
+  .dialog .btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+  .dialog .btns button {
+    font: inherit; font-size: 12px; padding: 8px 16px; border-radius: 8px;
+    background: #1a2330; color: #b7c4d2; border: 1px solid #26323f; cursor: pointer;
+  }
+  .dialog .btns button.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .dialog .btns button:hover { filter: brightness(1.15); }
+  .dialog .sub { font-size: 10px; color: #56657a; margin: -6px 0 10px; line-height: 1.5; }
+
+  #scope {
+    position: fixed; right: 12px; bottom: 12px; z-index: 25;
+    width: 380px; max-width: calc(100vw - 24px);
+    background: rgba(8,12,17,.94); backdrop-filter: blur(8px);
+    border: 1px solid #1e2732; border-radius: 12px;
+    padding: 8px; box-shadow: 0 10px 40px rgba(0,0,0,.5);
+    transition: transform .18s, opacity .18s;
+  }
+  #scope.collapsed .scope-body { display: none; }
+  #scope .scope-head {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; color: #8b98a8; padding: 2px 4px 6px;
+  }
+  #scope .scope-head b { color: #cbd5e1; font-weight: 600; }
+  #scope .scope-head .mode {
+    margin-left: auto; display: flex; gap: 4px;
+  }
+  #scope .scope-head button {
+    font: inherit; font-size: 11px; background: #131a22; color: #8b98a8;
+    border: 1px solid #222c38; border-radius: 6px; padding: 3px 8px;
+    cursor: pointer;
+  }
+  #scope .scope-head button.active { color: #e8f1ff; border-color: #3b82f6; background: #14273d; }
+  #scope .scope-head button:hover { color: #d3dce6; }
+  #scope canvas { display: block; width: 100%; height: 150px; border-radius: 6px; }
+  #scope .legend {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    font-size: 10px; color: #7b8b9d; padding: 6px 4px 0;
+  }
+  #scope .legend span { display: inline-flex; align-items: center; gap: 4px; }
+  #scope .legend i {
+    width: 10px; height: 3px; border-radius: 2px; display: inline-block;
+  }
+</style>
+  <!-- ⭐ PWA（必須靜態寫入 <head>，不能靠 JS 動態注入） -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WYK Maths">
+  <meta name="mobile-web-app-capable" content="yes">
+
+</head>
+<body>
+
+<canvas id="cv"></canvas>
+<div id="toolbar"></div>
+
+<div id="hint">
+  <b>Drag</b> pan &nbsp;·&nbsp; <b>L-Click</b> place / use / inspect &nbsp;·&nbsp; <b>R-Click</b> configure &nbsp;·&nbsp;
+  <b>R/T</b> rotate &nbsp;·&nbsp; <b>Del</b> remove hovered &nbsp;·&nbsp;
+  <b>Alt+L-Click</b> probe
+</div>
+
+<div id="scope" class="collapsed">
+  <div class="scope-head">
+    <b>Scope</b>
+    <span id="scopeStats">—</span>
+    <div class="mode">
+      <button data-mode="dc">DC</button>
+      <button data-mode="transient" class="active">Transient</button>
+      <button id="scopeToggle">▴</button>
+    </div>
+  </div>
+  <div class="scope-body">
+    <canvas id="scopeCv"></canvas>
+    <div class="legend" id="legend"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="overlay" class="hidden"></div>
+
+<script>
+/* ============================================================
+   Circuit Grid  ·  DC + AC + Transient (physics-ish)
+   ============================================================ */
+
+const CELL   = 44;
+const LS_KEY = 'circuit-grid-v2';
+
+const DIRV = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] };
+const OPP  = { up:'down', down:'up', left:'right', right:'left' };
+const DIRS = ['up','down','left','right'];
+const DIR_LABELS = ['Up','Down','Left','Right'];
+
+const WIRE_COLORS = { wire1:'#ffd60a', wire2:'#34d399', wire3:'#60a5fa' };
+const LINK_OPTIONS = ['auto','on','off'];
+const LINK_LABELS  = ['Auto (redstone-like)','Force ON','Force OFF'];
+
+const POLARIZED_TYPES = new Set(['power', 'acpower', 'diode', 'led', 'transistor']);
+const isPolarizedType = t => POLARIZED_TYPES.has(t);
+
+const ROTATE_CW  = { up:'right', right:'down', down:'left', left:'up' };
+const ROTATE_CCW = { up:'left',  left:'down',  down:'right', right:'up' };
+
+const isWire = c => c && (c.type === 'wire1' || c.type === 'wire2' || c.type === 'wire3');
+const isTwoTerm = c => c && ['lamp','resistor','capacitor','inductor','coil','diode','led','switch','power','acpower'].includes(c.type);
+
+const CONFIGURABLE_TYPES = new Set([
+  'power','acpower','switch','lamp','resistor','capacitor','inductor',
+  'coil','diode','led','transistor','transformer','wire1','wire2','wire3'
+]);
+
+/* ---------------- state ---------------- */
+
+const state = {
+  cells: {},
+  cam:   { x: 0, y: 0 },
+  tool:  'power',
+  mode:  'dc',
+  probes: new Set(),
+};
+
+const toolCells = {};
+
+let simResult = {
+  redWires: new Set(),
+  results:  new Map(),
+  volt:     new Map(),
+  dsu:      null,
+  diodeOn:  new Set(),
+  ledOn:    new Set(),
+  waveforms: null,
+  wireWaveforms: null,     // { wireKey: [v0, v1, ...] }
+};
+
+let hoverCell = null;
+let scopeCollapsed = true;
+
+/* ---------------- persistence ---------------- */
+
+function save() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      cells: state.cells,
+      cam:   state.cam,
+      tool:  state.tool,
+      toolCells,
+      probes: [...state.probes],
+      mode:  state.mode,
+    }));
+  } catch (e) {}
+}
+
+function load() {
+  let raw = null;
+  try { raw = localStorage.getItem(LS_KEY); } catch (e) {}
+  if (!raw) return false;
+  try {
+    const d = JSON.parse(raw);
+    if (!d || typeof d !== 'object') return false;
+    if (d.cells && typeof d.cells === 'object') state.cells = d.cells;
+    if (d.cam && isFinite(d.cam.x) && isFinite(d.cam.y)) state.cam = d.cam;
+    if (d.tool) state.tool = d.tool;
+    if (d.toolCells && typeof d.toolCells === 'object') {
+      for (const t in d.toolCells) toolCells[t] = d.toolCells[t];
+    }
+    if (Array.isArray(d.probes)) state.probes = new Set(d.probes);
+    if (d.mode) state.mode = d.mode;
+    return true;
+  } catch (e) { return false; }
+}
+
+/* ---------------- defaults ---------------- */
+
+function ensureDefaults(cell) {
+  if (!cell) return;
+
+  if (cell.type === 'power') {
+    if (!cell.pins || typeof cell.pins !== 'object') cell.pins = { pos:'up', neg:'down' };
+    if (!DIRS.includes(cell.pins.pos)) cell.pins.pos = 'up';
+    if (!DIRS.includes(cell.pins.neg)) cell.pins.neg = 'down';
+    if (typeof cell.v !== 'number' || !isFinite(cell.v)) cell.v = 5;
+    cell.v = Math.min(100, Math.max(1e-9, cell.v));
+    if (typeof cell.on !== 'boolean') cell.on = true;
+  }
+
+  if (cell.type === 'acpower') {
+    if (!cell.pins || typeof cell.pins !== 'object') cell.pins = { pos:'up', neg:'down' };
+    if (!DIRS.includes(cell.pins.pos)) cell.pins.pos = 'up';
+    if (!DIRS.includes(cell.pins.neg)) cell.pins.neg = 'down';
+    if (typeof cell.amp !== 'number' || !isFinite(cell.amp)) cell.amp = 5;
+    if (typeof cell.freq !== 'number' || !isFinite(cell.freq) || cell.freq <= 0) cell.freq = 50;
+    if (typeof cell.phase !== 'number' || !isFinite(cell.phase)) cell.phase = 0;
+    if (typeof cell.offset !== 'number' || !isFinite(cell.offset)) cell.offset = 0;
+    if (typeof cell.on !== 'boolean') cell.on = true;
+  }
+
+  if (isWire(cell)) {
+    if (!cell.links || typeof cell.links !== 'object') cell.links = {};
+    for (const d of DIRS) {
+      if (!LINK_OPTIONS.includes(cell.links[d])) cell.links[d] = 'auto';
+    }
+  }
+
+  if (cell.type === 'switch') {
+    if (!cell.pins || typeof cell.pins !== 'object') cell.pins = { a:'left', b:'right' };
+    if (!DIRS.includes(cell.pins.a)) cell.pins.a = 'left';
+    if (!DIRS.includes(cell.pins.b)) cell.pins.b = 'right';
+    if (typeof cell.on !== 'boolean') cell.on = true;
+  }
+
+  if (['lamp','resistor'].includes(cell.type)) {
+    if (!cell.pins || typeof cell.pins !== 'object') cell.pins = { a:'left', b:'right' };
+    if (!DIRS.includes(cell.pins.a)) cell.pins.a = 'left';
+    if (!DIRS.includes(cell.pins.b)) cell.pins.b = 'right';
+    if (typeof cell.r !== 'number' || !isFinite(cell.r) || cell.r <= 0) cell.r = 10;
+  }
+
+  if (cell.type === 'capacitor') {
+    if (!cell.pins || typeof cell.pins !== 'object') cell.pins = { a:'left', b:'right' };
+    if (!DIRS.includes(cell.pins.a)) cell.pins.a = 'left';
+    if (!DIRS.includes(cell.pins.b)) cell.pins.b = 'right';
+    if (typeof cell.c !== 'number' || !isFinite(cell.c) || cell.c <= 0) cell.c = 1e-6;
+    if (typeof cell.esr !== 'number' || !isFinite(cell.esr) || cell.esr < 0) cell.esr = 0;
+  }
+
+  if (cell.type === 'inductor') {
+    if (!cell.pins || typeof cell.pins !== 'object') cell.pins = { a:'left', b:'right' };
+    if (!DIRS.includes(cell.pins.a)) cell.pins.a = 'left';
+    if (!DIRS.includes(cell.pins.b)) cell.pins.b = 'right';
+    if (typeof cell.l !== 'number' || !isFinite(cell.l) || cell.l <= 0) cell.l = 1e-3;
+  }
+
+  if (cell.type === 'coil') {
+    if (!cell.pins || typeof cell.pins !== 'object') cell.pins = { a:'left', b:'right' };
+    if (!DIRS.includes(cell.pins.a)) cell.pins.a = 'left';
+    if (!DIRS.includes(cell.pins.b)) cell.pins.b = 'right';
+    if (typeof cell.r !== 'number' || !isFinite(cell.r) || cell.r <= 0) cell.r = 10;
+    if (typeof cell.l !== 'number' || !isFinite(cell.l) || cell.l <= 0) cell.l = 1e-3;
+  }
+
+  if (cell.type === 'diode' || cell.type === 'led') {
+    if (!cell.pins || typeof cell.pins !== 'object') cell.pins = { a:'left', b:'right' };
+    if (!DIRS.includes(cell.pins.a)) cell.pins.a = 'left';
+    if (!DIRS.includes(cell.pins.b)) cell.pins.b = 'right';
+  }
+  if (cell.type === 'led') {
+    if (typeof cell.r !== 'number' || !isFinite(cell.r) || cell.r <= 0) cell.r = 50;
+    if (typeof cell.vf !== 'number' || !isFinite(cell.vf)) cell.vf = 1.8;
+  }
+  if (cell.type === 'diode') {
+    if (typeof cell.vf !== 'number' || !isFinite(cell.vf)) cell.vf = 0.7;
+  }
+
+  if (cell.type === 'transistor') {
+    if (!cell.pins || typeof cell.pins !== 'object') cell.pins = { c:'up', b:'left', e:'down' };
+    for (const k of ['c','b','e']) {
+      if (!DIRS.includes(cell.pins[k])) {
+        cell.pins[k] = k === 'c' ? 'up' : k === 'b' ? 'left' : 'down';
+      }
+    }
+  }
+
+  if (cell.type === 'transformer') {
+    if (!cell.pins || typeof cell.pins !== 'object') {
+      cell.pins = { p1:'left', p2:'up', s1:'right', s2:'down' };
+    }
+    for (const k of ['p1','p2','s1','s2']) {
+      if (!DIRS.includes(cell.pins[k])) {
+        cell.pins[k] = k === 'p1' ? 'left' : k === 'p2' ? 'up'
+                     : k === 's1' ? 'right' : 'down';
+      }
+    }
+    if (typeof cell.L1 !== 'number' || !isFinite(cell.L1) || cell.L1 <= 0) cell.L1 = 1e-3;
+    if (typeof cell.L2 !== 'number' || !isFinite(cell.L2) || cell.L2 <= 0) cell.L2 = 1e-3;
+    if (typeof cell.R1 !== 'number' || !isFinite(cell.R1) || cell.R1 < 0) cell.R1 = 1;
+    if (typeof cell.R2 !== 'number' || !isFinite(cell.R2) || cell.R2 < 0) cell.R2 = 1;
+    if (typeof cell.k  !== 'number' || !isFinite(cell.k))  cell.k  = 0.95;
+    cell.k = Math.min(0.999, Math.max(0, cell.k));
+  }
+}
+
+function makeCell(type) {
+  switch (type) {
+    case 'power':      return { type:'power', v:5, on:true, pins:{ pos:'up', neg:'down' } };
+    case 'acpower':    return { type:'acpower', amp:5, freq:50, phase:0, offset:0, on:true,
+                                pins:{ pos:'up', neg:'down' } };
+    case 'wire1':
+    case 'wire2':
+    case 'wire3':      return { type, links:{ up:'auto', down:'auto', left:'auto', right:'auto' } };
+    case 'switch':     return { type:'switch', on:true, pins:{ a:'left', b:'right' } };
+    case 'lamp':       return { type:'lamp', r:10, pins:{ a:'left', b:'right' } };
+    case 'resistor':   return { type:'resistor', r:10, pins:{ a:'left', b:'right' } };
+    case 'capacitor':  return { type:'capacitor', c:1e-6, esr:0, pins:{ a:'left', b:'right' } };
+    case 'inductor':   return { type:'inductor', l:1e-3, pins:{ a:'left', b:'right' } };
+    case 'coil':       return { type:'coil', r:10, l:1e-3, pins:{ a:'left', b:'right' } };
+    case 'diode':      return { type:'diode', vf:0.7, pins:{ a:'left', b:'right' } };
+    case 'led':        return { type:'led', r:50, vf:1.8, pins:{ a:'left', b:'right' } };
+    case 'transformer':return {
+      type:'transformer',
+      L1:1e-3, L2:1e-3, R1:1, R2:1, k:0.95,
+      pins:{ p1:'left', p2:'up', s1:'right', s2:'down' }
+    };
+    case 'transistor': return { type:'transistor', pins:{ c:'up', b:'left', e:'down' } };
+    case 'ground':     return { type:'ground' };
+  }
+  return null;
+}
+
+/* ============================================================
+   Terminal bookkeeping
+   ============================================================ */
+
+function terminalNames(cell) {
+  switch (cell.type) {
+    case 'wire1': case 'wire2': case 'wire3': return ['t'];
+    case 'power': case 'acpower':              return ['+', '-'];
+    case 'switch': case 'lamp': case 'resistor':
+    case 'capacitor': case 'inductor': case 'coil':
+    case 'diode': case 'led':                  return ['a', 'b'];
+    case 'transformer':                        return ['p1', 'p2', 's1', 's2'];
+    case 'transistor':                         return ['c', 'b', 'e'];
+    case 'ground':                             return ['g'];
+  }
+  return [];
+}
+
+function terminalForDir(cell, dir) {
+  switch (cell.type) {
+    case 'wire1': case 'wire2': case 'wire3': return 't';
+    case 'power': case 'acpower': {
+      const p = cell.pins || {};
+      if (dir === p.pos) return '+';
+      if (dir === p.neg) return '-';
+      return null;
+    }
+    case 'switch': case 'lamp': case 'resistor':
+    case 'capacitor': case 'inductor': case 'coil':
+    case 'diode': case 'led': {
+      const p = cell.pins || {};
+      if (dir === p.a) return 'a';
+      if (dir === p.b) return 'b';
+      return null;
+    }
+    case 'transformer': {
+      const p = cell.pins || {};
+      if (dir === p.p1) return 'p1';
+      if (dir === p.p2) return 'p2';
+      if (dir === p.s1) return 's1';
+      if (dir === p.s2) return 's2';
+      return null;
+    }
+    case 'transistor': {
+      const p = cell.pins || {};
+      if (dir === p.c) return 'c';
+      if (dir === p.b) return 'b';
+      if (dir === p.e) return 'e';
+      return null;
+    }
+    case 'ground': return 'g';
+  }
+  return null;
+}
+
+/* ============================================================
+   Connectivity / DSU
+   ============================================================ */
+
+function connectionAllowed(a, b, dir) {
+  const ta = terminalForDir(a, dir);
+  const tb = terminalForDir(b, OPP[dir]);
+  if (!ta || !tb) return false;
+
+  const aWire = isWire(a), bWire = isWire(b);
+  const aLink = (aWire && a.links && a.links[dir]) || 'auto';
+  const bLink = (bWire && b.links && b.links[OPP[dir]]) || 'auto';
+
+  if (aLink === 'off' || bLink === 'off') return false;
+  if (aLink === 'on'  || bLink === 'on')  return true;
+
+  if (aWire && bWire) return a.type === b.type;
+  return true;
+}
+
+class DSU {
+  constructor() { this.p = new Map(); }
+  find(x) {
+    if (!this.p.has(x)) { this.p.set(x, x); return x; }
+    let r = x;
+    while (this.p.get(r) !== r) r = this.p.get(r);
+    while (this.p.get(x) !== r) { const n = this.p.get(x); this.p.set(x, r); x = n; }
+    return r;
+  }
+  union(a, b) { a = this.find(a); b = this.find(b); if (a !== b) this.p.set(a, b); }
+}
+
+function buildNodeMap() {
+  const dsu = new DSU();
+  const cells = state.cells;
+  const keys = Object.keys(cells);
+
+  for (const k of keys) {
+    for (const t of terminalNames(cells[k])) dsu.find(k + '#' + t);
+  }
+
+  for (const k of keys) {
+    const c = cells[k];
+    if (c.type === 'switch' && c.on) dsu.union(k + '#a', k + '#b');
+  }
+
+  for (const k of keys) {
+    const [x, y] = k.split(',').map(Number);
+    const c = cells[k];
+    for (const d of ['right', 'down']) {
+      const [dx, dy] = DIRV[d];
+      const nk = (x + dx) + ',' + (y + dy);
+      const nc = cells[nk];
+      if (!nc) continue;
+      if (!connectionAllowed(c, nc, d)) continue;
+      const t1 = terminalForDir(c, d);
+      const t2 = terminalForDir(nc, OPP[d]);
+      if (t1 && t2) dsu.union(k + '#' + t1, nk + '#' + t2);
+    }
+  }
+
+  const rootSet = new Set();
+  const portRoot = new Map();
+  for (const k of keys) {
+    for (const t of terminalNames(cells[k])) {
+      const r = dsu.find(k + '#' + t);
+      rootSet.add(r);
+      portRoot.set(k + '#' + t, r);
+    }
+  }
+
+  const roots = [...rootSet];
+  let groundRoot = null;
+  for (const k of keys) {
+    if (cells[k].type === 'ground') { groundRoot = portRoot.get(k + '#g'); break; }
+  }
+  if (groundRoot && roots.includes(groundRoot)) {
+    const i = roots.indexOf(groundRoot);
+    [roots[0], roots[i]] = [roots[i], roots[0]];
+  }
+
+  const nodeIdx = new Map();
+  roots.forEach((r, i) => nodeIdx.set(r, i));
+
+  return { dsu, portRoot, nodeIdx, nodeCount: roots.length, groundRoot };
+}
+
+/* ============================================================
+   Helpers
+   ============================================================ */
+
+function gauss(A, n) {
+  for (let col = 0; col < n; col++) {
+    let piv = -1, best = 1e-14;
+    for (let r = col; r < n; r++) {
+      const v = Math.abs(A[r][col]);
+      if (v > best) { best = v; piv = r; }
+    }
+    if (piv === -1) continue;
+    if (piv !== col) { const t = A[piv]; A[piv] = A[col]; A[col] = t; }
+    const p = A[col][col];
+    for (let c = col; c <= n; c++) A[col][c] /= p;
+    for (let r = 0; r < n; r++) {
+      if (r === col) continue;
+      const f = A[r][col];
+      if (Math.abs(f) < 1e-20) continue;
+      for (let c = col; c <= n; c++) A[r][c] -= f * A[col][c];
+    }
+  }
+  const x = new Float64Array(n);
+  for (let i = 0; i < n; i++) x[i] = A[i][n];
+  return x;
+}
+
+function setsEqual(a, b) {
+  if (a.size !== b.size) return false;
+  for (const v of a) if (!b.has(v)) return false;
+  return true;
+}
+
+/* ============================================================
+   DC steady-state solver
+   ============================================================ */
+
+function simulateDC() {
+  const cells = state.cells;
+  const keys = Object.keys(cells);
+
+  const diodeKeys = keys.filter(k => cells[k].type === 'diode');
+  const ledKeys   = keys.filter(k => cells[k].type === 'led');
+
+  let diodeOn = new Set(diodeKeys);
+  let ledOn   = new Set(ledKeys);
+  let final = null;
+
+  for (let iter = 0; iter < 20; iter++) {
+    const res = dcSolveOnce(diodeOn, ledOn);
+    const newDiodeOn = new Set();
+    const newLedOn = new Set();
+
+    for (const k of diodeKeys) {
+      const a = res.portVolt.get(k + '#a') || 0;
+      const b = res.portVolt.get(k + '#b') || 0;
+      if (a > b + (cells[k].vf || 0) - 1e-6) newDiodeOn.add(k);
+    }
+    for (const k of ledKeys) {
+      const a = res.portVolt.get(k + '#a') || 0;
+      const b = res.portVolt.get(k + '#b') || 0;
+      if (a > b + (cells[k].vf || 0) - 1e-6) newLedOn.add(k);
+    }
+
+    final = res;
+    if (setsEqual(newDiodeOn, diodeOn) && setsEqual(newLedOn, ledOn)) break;
+    diodeOn = newDiodeOn;
+    ledOn = newLedOn;
+  }
+
+  simResult.redWires = final.redWires;
+  simResult.results = final.results;
+  simResult.volt = final.portVolt;
+  simResult.dsu = final.dsu;
+  simResult.nodeIdx = final.nodeIdx;
+  simResult.portRoot = final.portRoot;
+  simResult.diodeOn = diodeOn;
+  simResult.ledOn = ledOn;
+  simResult.waveforms = null;
+  simResult.wireWaveforms = null;
+
+  return final;
+}
+
+function dcSolveOnce(diodeOn, ledOn) {
+  const cells = state.cells;
+  const keys = Object.keys(cells);
+  const { dsu, portRoot, nodeIdx, nodeCount, groundRoot } = buildNodeMap();
+  const port = (k, t) => k + '#' + t;
+
+  for (const k of keys) {
+    const c = cells[k];
+    if (c.type === 'switch' && c.on) dsu.union(port(k, 'a'), port(k, 'b'));
+  }
+
+  const vsources = [];
+  for (const k of keys) {
+    const c = cells[k];
+    if (c.type !== 'power' || !c.on) continue;
+    const p = dsu.find(port(k, '+'));
+    const n = dsu.find(port(k, '-'));
+    vsources.push({ key: k, p, n, v: c.v, shorted: p === n });
+  }
+
+  const resistors = [];
+  for (const k of keys) {
+    const c = cells[k];
+    let r = null;
+    if (c.type === 'lamp' || c.type === 'resistor' || c.type === 'coil') r = c.r;
+    else if (c.type === 'led' && ledOn.has(k)) r = c.r;
+    if (r === null || !isFinite(r) || r <= 0) continue;
+    const a = dsu.find(port(k, 'a'));
+    const b = dsu.find(port(k, 'b'));
+    resistors.push({ key: k, a, b, r: Math.max(1e-9, r) });
+  }
+
+  const redWires = new Set();
+  const shortRoots = new Set();
+  for (const s of vsources) if (s.shorted) shortRoots.add(s.p);
+  if (shortRoots.size) {
+    for (const k of keys) {
+      if (!isWire(cells[k])) continue;
+      if (shortRoots.has(dsu.find(port(k, 't')))) redWires.add(k);
+    }
+  }
+
+  const activeV = vsources.filter(s => !s.shorted);
+  const nodeSet = new Set();
+  for (const r of resistors) { nodeSet.add(r.a); nodeSet.add(r.b); }
+  for (const s of activeV)   { nodeSet.add(s.p); nodeSet.add(s.n); }
+
+  let nodes = [...nodeSet];
+  if (groundRoot !== null && nodeSet.has(groundRoot)) {
+    nodes = [groundRoot, ...nodes.filter(n => n !== groundRoot)];
+  }
+  const localIdx = new Map(nodes.map((n, i) => [n, i]));
+  const N = nodes.length;
+  const m = activeV.length;
+  const size = Math.max(0, N - 1) + m;
+  const results = new Map();
+  const portVolt = new Map();
+
+  if (N > 0 && size > 0) {
+    const A = [];
+    for (let i = 0; i < size; i++) A.push(new Float64Array(size + 1));
+
+    const rowOf = node => {
+      const i = localIdx.get(node);
+      if (i === undefined || i === 0) return -1;
+      return i - 1;
+    };
+
+    for (const r of resistors) {
+      const g = 1 / r.r;
+      const a = rowOf(r.a), b = rowOf(r.b);
+      if (a >= 0) A[a][a] += g;
+      if (b >= 0) A[b][b] += g;
+      if (a >= 0 && b >= 0) { A[a][b] -= g; A[b][a] -= g; }
+    }
+
+    activeV.forEach((s, k) => {
+      const p = rowOf(s.p), n = rowOf(s.n);
+      const rr = (N - 1) + k;
+      if (p >= 0) { A[p][rr] += 1; A[rr][p] += 1; }
+      if (n >= 0) { A[n][rr] -= 1; A[rr][n] -= 1; }
+      A[rr][size] = s.v;
+    });
+
+    for (let i = 0; i < N - 1; i++) A[i][i] += 1e-9;
+
+    const x = gauss(A, size);
+    const nodeVolt = new Map();
+    nodes.forEach((node, i) => nodeVolt.set(node, i === 0 ? 0 : (x[i - 1] || 0)));
+
+    for (const k of keys) {
+      for (const t of terminalNames(cells[k])) {
+        const r = portRoot.get(port(k, t));
+        portVolt.set(port(k, t), nodeVolt.get(r) || 0);
+      }
+    }
+
+    for (const r of resistors) {
+      const va = nodeVolt.get(r.a) || 0;
+      const vb = nodeVolt.get(r.b) || 0;
+      const dv = va - vb;
+      const polarized = isPolarizedType(cells[r.key].type);
+      results.set(r.key, {
+        v: polarized ? dv : Math.abs(dv),
+        i: polarized ? dv / r.r : Math.abs(dv / r.r),
+        p: (dv * dv) / r.r
+      });
+    }
+  } else {
+    for (const k of keys) {
+      for (const t of terminalNames(cells[k])) portVolt.set(port(k, t), 0);
+    }
+  }
+
+  return { redWires, results, portVolt, dsu, nodeIdx, portRoot };
+}
+
+/* ============================================================
+   Transient solver
+   ============================================================ */
+
+const TRANSIENT = {
+  dt: 2e-5,
+  duration: 0.2,
+};
+
+function simulateTransient() {
+  const cells = state.cells;
+  const keys = Object.keys(cells);
+  const { portRoot, nodeIdx, nodeCount, groundRoot } = buildNodeMap();
+  const port = (k, t) => k + '#' + t;
+
+  const hist = {
+    capV: new Map(),
+    indI: new Map(),
+    coilI: new Map(),
+    xfmr: new Map(),
+    diodeOn: new Map(),
+    ledOn: new Map(),
+  };
+  for (const k of keys) {
+    const c = cells[k];
+    if (c.type === 'capacitor') hist.capV.set(k, 0);
+    if (c.type === 'inductor') hist.indI.set(k, 0);
+    if (c.type === 'coil') hist.coilI.set(k, 0);
+    if (c.type === 'transformer') hist.xfmr.set(k, { i1: 0, i2: 0 });
+    if (c.type === 'diode') hist.diodeOn.set(k, false);
+    if (c.type === 'led') hist.ledOn.set(k, false);
+  }
+
+  const { dt, duration } = TRANSIENT;
+  const steps = Math.max(1, Math.ceil(duration / dt));
+
+  const traces = new Map();
+  const probeList = [];
+  for (const pkey of state.probes) {
+    const c = cells[pkey];
+    if (!c) continue;
+    probeList.push({ key: pkey, cell: c });
+    traces.set(pkey + '#v', { name: probeLabel(c, pkey) + ' · V', color: probeColor(pkey, 0), samples: [] });
+    if (isTwoTerm(c) && c.type !== 'switch' && c.type !== 'ground') {
+      traces.set(pkey + '#i', { name: probeLabel(c, pkey) + ' · I', color: probeColor(pkey, 1), samples: [] });
+    }
+  }
+  const tAxis = [];
+
+  // Per-wire waveforms (for left-click inspection)
+  const wireWaveforms = {};
+  for (const k of keys) if (isWire(cells[k])) wireWaveforms[k] = [];
+
+  const innerIter = 8;
+
+  for (let step = 0; step < steps; step++) {
+    const t = step * dt;
+
+    for (let it = 0; it < innerIter; it++) {
+      const dsu = new DSU();
+      for (const k of keys) {
+        for (const tn of terminalNames(cells[k])) dsu.find(k + '#' + tn);
+      }
+      for (const k of keys) {
+        const c = cells[k];
+        if (c.type === 'switch' && c.on) dsu.union(port(k, 'a'), port(k, 'b'));
+      }
+      for (const k of keys) {
+        const [x, y] = k.split(',').map(Number);
+        const c = cells[k];
+        for (const d of ['right', 'down']) {
+          const [dx, dy] = DIRV[d];
+          const nk = (x + dx) + ',' + (y + dy);
+          const nc = cells[nk];
+          if (!nc) continue;
+          if (!connectionAllowed(c, nc, d)) continue;
+          const t1 = terminalForDir(c, d);
+          const t2 = terminalForDir(nc, OPP[d]);
+          if (t1 && t2) dsu.union(k + '#' + t1, nk + '#' + t2);
+        }
+      }
+
+      const nodeRoots = new Set();
+      const rootPorts = new Map();
+      for (const k of keys) {
+        for (const tn of terminalNames(cells[k])) {
+          const r = dsu.find(k + '#' + tn);
+          nodeRoots.add(r);
+          if (!rootPorts.has(r)) rootPorts.set(r, []);
+          rootPorts.get(r).push(port(k, tn));
+        }
+      }
+      const nodeList = [...nodeRoots];
+      let groundR = null;
+      for (const k of keys) {
+        if (cells[k].type === 'ground') { groundR = dsu.find(port(k, 'g')); break; }
+      }
+      if (groundR && nodeList.includes(groundR)) {
+        const i = nodeList.indexOf(groundR);
+        [nodeList[0], nodeList[i]] = [nodeList[i], nodeList[0]];
+      }
+      const localIdx = new Map();
+      nodeList.forEach((r, i) => localIdx.set(r, i));
+      const N = nodeList.length;
+
+      const vsrcList = [];
+      for (const k of keys) {
+        const c = cells[k];
+        if ((c.type === 'power' || c.type === 'acpower') && c.on) {
+          const p = localIdx.get(dsu.find(port(k, '+')));
+          const nn = localIdx.get(dsu.find(port(k, '-')));
+          const V = c.type === 'power' ? c.v
+                                       : c.offset + c.amp * Math.sin(2*Math.PI*c.freq*t + c.phase*Math.PI/180);
+          vsrcList.push({ k, p, n: nn, v: V });
+        }
+      }
+      const size = Math.max(0, N - 1) + vsrcList.length;
+      if (size <= 0) break;
+
+      const A = [];
+      for (let i = 0; i < size; i++) A.push(new Float64Array(size + 1));
+
+      const rowOf = node => {
+        const i = localIdx.get(node);
+        if (i === undefined || i === 0) return -1;
+        return i - 1;
+      };
+
+      for (const k of keys) {
+        const c = cells[k];
+        let g = 0, jHist = 0;
+        if (c.type === 'lamp' || c.type === 'resistor') {
+          g = 1 / Math.max(1e-9, c.r);
+        } else if (c.type === 'coil') {
+          const gL = c.l / dt;
+          g = 1 / Math.max(1e-12, c.r + gL);
+          jHist = g * gL * (hist.coilI.get(k) || 0);
+        } else if (c.type === 'inductor') {
+          g = dt / Math.max(1e-15, c.l);
+          jHist = hist.indI.get(k) || 0;
+        } else if (c.type === 'capacitor') {
+          const gc = c.c / dt;
+          g = 1 / (1/Math.max(1e-12, gc) + (c.esr || 0));
+          jHist = g * (hist.capV.get(k) || 0);
+        } else if (c.type === 'diode') {
+          const on = hist.diodeOn.get(k);
+          g = on ? 1e4 : 1e-9;
+          if (on) jHist = -g * (c.vf || 0);
+        } else if (c.type === 'led') {
+          const on = hist.ledOn.get(k);
+          if (on) {
+            g = 1 / Math.max(1e-9, c.r);
+            jHist = -g * (c.vf || 0);
+          } else g = 1e-9;
+        }
+        if (g === 0) continue;
+
+        const tn = terminalNames(c);
+        let na = -1, nb = -1;
+        if (tn.includes('a')) { na = localIdx.get(dsu.find(port(k, 'a'))); nb = localIdx.get(dsu.find(port(k, 'b'))); }
+        else if (tn.includes('+')) { na = localIdx.get(dsu.find(port(k, '+'))); nb = localIdx.get(dsu.find(port(k, '-'))); }
+
+        if (na === undefined || nb === undefined) continue;
+        const ra = rowOf(na), rb = rowOf(nb);
+        if (ra >= 0) A[ra][ra] += g;
+        if (rb >= 0) A[rb][rb] += g;
+        if (ra >= 0 && rb >= 0) { A[ra][rb] -= g; A[rb][ra] -= g; }
+        if (ra >= 0) A[ra][size] -= jHist;
+        if (rb >= 0) A[rb][size] += jHist;
+      }
+
+      for (const k of keys) {
+        const c = cells[k];
+        if (c.type !== 'transformer') continue;
+        const M = c.k * Math.sqrt(c.L1 * c.L2);
+        const h = hist.xfmr.get(k) || { i1: 0, i2: 0 };
+        const Z11 = c.R1 + c.L1 / dt;
+        const Z12 = M / dt;
+        const Z22 = c.R2 + c.L2 / dt;
+        const det = Z11 * Z22 - Z12 * Z12;
+        if (Math.abs(det) < 1e-24) continue;
+        const Y11 = Z22 / det, Y12 = -Z12 / det, Y22 = Z11 / det;
+        const a1 = c.L1 / dt * h.i1 + M / dt * h.i2;
+        const a2 = M / dt * h.i1 + c.L2 / dt * h.i2;
+        const ih1 = Y11 * a1 + Y12 * a2;
+        const ih2 = Y12 * a1 + Y22 * a2;
+
+        const rp1 = rowOf(localIdx.get(dsu.find(port(k, 'p1'))));
+        const rp2 = rowOf(localIdx.get(dsu.find(port(k, 'p2'))));
+        const rs1 = rowOf(localIdx.get(dsu.find(port(k, 's1'))));
+        const rs2 = rowOf(localIdx.get(dsu.find(port(k, 's2'))));
+
+        stampCoupled(A, [[rp1, +1], [rp2, -1]], [[rs1, +1], [rs2, -1]],
+                     Y11, Y12, Y22, size, ih1, ih2);
+      }
+
+      vsrcList.forEach((vs, ki) => {
+        const p = rowOf(vs.p), n = rowOf(vs.n);
+        const rr = (N - 1) + ki;
+        if (p >= 0) { A[p][rr] += 1; A[rr][p] += 1; }
+        if (n >= 0) { A[n][rr] -= 1; A[rr][n] -= 1; }
+        A[rr][size] = vs.v;
+      });
+
+      for (let i = 0; i < N - 1; i++) A[i][i] += 1e-12;
+
+      const x = gauss(A, size);
+      const nodeVolt = new Map();
+      nodeList.forEach((r, i) => nodeVolt.set(r, i === 0 ? 0 : (x[i - 1] || 0)));
+
+      let changed = false;
+      for (const k of keys) {
+        const c = cells[k];
+        if (c.type !== 'diode' && c.type !== 'led') continue;
+        const va = nodeVolt.get(dsu.find(port(k, 'a'))) || 0;
+        const vb = nodeVolt.get(dsu.find(port(k, 'b'))) || 0;
+        const shouldOn = va - vb > (c.vf || 0) - 1e-3;
+        const wasOn = c.type === 'diode' ? hist.diodeOn.get(k) : hist.ledOn.get(k);
+        if (shouldOn !== wasOn) {
+          if (c.type === 'diode') hist.diodeOn.set(k, shouldOn);
+          else hist.ledOn.set(k, shouldOn);
+          changed = true;
+        }
+      }
+      if (!changed && it > 0) break;
+    }
+
+    const finalVolt = transientStep(t, dt, hist);
+
+    // update dynamics
+    for (const k of keys) {
+      const c = cells[k];
+      if (c.type === 'capacitor') {
+        const va = finalVolt.get(port(k, 'a')) || 0;
+        const vb = finalVolt.get(port(k, 'b')) || 0;
+        hist.capV.set(k, va - vb);
+      } else if (c.type === 'inductor') {
+        const va = finalVolt.get(port(k, 'a')) || 0;
+        const vb = finalVolt.get(port(k, 'b')) || 0;
+        const g = dt / Math.max(1e-15, c.l);
+        hist.indI.set(k, (hist.indI.get(k) || 0) + g * (va - vb));
+      } else if (c.type === 'coil') {
+        const va = finalVolt.get(port(k, 'a')) || 0;
+        const vb = finalVolt.get(port(k, 'b')) || 0;
+        const gL = c.l / dt;
+        const iNew = (va - vb + gL * (hist.coilI.get(k) || 0)) / (c.r + gL);
+        hist.coilI.set(k, iNew);
+      } else if (c.type === 'transformer') {
+        const vp = (finalVolt.get(port(k, 'p1')) || 0) - (finalVolt.get(port(k, 'p2')) || 0);
+        const vs = (finalVolt.get(port(k, 's1')) || 0) - (finalVolt.get(port(k, 's2')) || 0);
+        const M = c.k * Math.sqrt(c.L1 * c.L2);
+        const h = hist.xfmr.get(k);
+        const Z11 = c.R1 + c.L1 / dt;
+        const Z12 = M / dt;
+        const Z22 = c.R2 + c.L2 / dt;
+        const det = Z11 * Z22 - Z12 * Z12;
+        const a1 = c.L1 / dt * h.i1 + M / dt * h.i2;
+        const a2 = M / dt * h.i1 + c.L2 / dt * h.i2;
+        const i1 = (Z22 * (vp + a1) - Z12 * (vs + a2)) / det;
+        const i2 = (Z11 * (vs + a2) - Z12 * (vp + a1)) / det;
+        hist.xfmr.set(k, { i1, i2 });
+      }
+    }
+
+    // record traces
+    tAxis.push(t);
+    for (const p of probeList) {
+      const c = p.cell;
+      const vT = traces.get(p.key + '#v');
+      let v = 0;
+      const tn = terminalNames(c);
+      if (tn.includes('a')) v = (finalVolt.get(port(p.key, 'a')) || 0) - (finalVolt.get(port(p.key, 'b')) || 0);
+      else if (tn.includes('+')) v = (finalVolt.get(port(p.key, '+')) || 0) - (finalVolt.get(port(p.key, '-')) || 0);
+      else if (tn.includes('t')) v = finalVolt.get(port(p.key, 't')) || 0;
+      vT.samples.push(v);
+
+      const iT = traces.get(p.key + '#i');
+      if (iT) {
+        let i = 0;
+        if (c.type === 'capacitor') {
+          const va = finalVolt.get(port(p.key, 'a')) || 0;
+          const vb = finalVolt.get(port(p.key, 'b')) || 0;
+          const g = 1 / (1/(c.c/dt) + (c.esr || 0));
+          i = g * ((va - vb) - (hist.capV.get(p.key) || 0));
+        } else if (c.type === 'inductor') {
+          i = hist.indI.get(p.key) || 0;
+        } else if (c.type === 'coil') {
+          i = hist.coilI.get(p.key) || 0;
+        } else if (c.type === 'transformer') {
+          const h = hist.xfmr.get(p.key);
+          i = h ? h.i1 : 0;
+        } else if (c.r) {
+          const va = finalVolt.get(port(p.key, 'a')) || 0;
+          const vb = finalVolt.get(port(p.key, 'b')) || 0;
+          i = (va - vb) / Math.max(1e-9, c.r);
+        } else if (c.type === 'led' && hist.ledOn.get(p.key)) {
+          const va = finalVolt.get(port(p.key, 'a')) || 0;
+          const vb = finalVolt.get(port(p.key, 'b')) || 0;
+          i = (va - vb) / Math.max(1e-9, c.r);
+        }
+        iT.samples.push(i);
+      }
+    }
+
+    // record every wire node voltage
+    for (const k of keys) {
+      if (isWire(cells[k])) {
+        wireWaveforms[k].push(finalVolt.get(port(k, 't')) || 0);
+      }
+    }
+  }
+
+  simResult.waveforms = { t: tAxis, traces };
+  simResult.wireWaveforms = wireWaveforms;
+  // DC results stay stale but we clear them so drawWire doesn't show old shorts
+  simResult.redWires = new Set();
+  simResult.results = new Map();
+  return simResult.waveforms;
+}
+
+function stampCoupled(A, rowA, rowB, Y11, Y12, Y22, rhsCol, ih1, ih2) {
+  for (const [ri, si] of rowA) {
+    if (ri < 0) continue;
+    for (const [rj, sj] of rowA) if (rj >= 0) A[ri][rj] += si * sj * Y11;
+    for (const [rj, sj] of rowB) if (rj >= 0) A[ri][rj] += si * sj * Y12;
+    A[ri][rhsCol] -= si * ih1;
+  }
+  for (const [ri, si] of rowB) {
+    if (ri < 0) continue;
+    for (const [rj, sj] of rowA) if (rj >= 0) A[ri][rj] += si * sj * Y12;
+    for (const [rj, sj] of rowB) if (rj >= 0) A[ri][rj] += si * sj * Y22;
+    A[ri][rhsCol] -= si * ih2;
+  }
+}
+
+function transientStep(t, dt, hist) {
+  const cells = state.cells;
+  const keys = Object.keys(cells);
+  const port = (k, t) => k + '#' + t;
+
+  const dsu = new DSU();
+  for (const k of keys) {
+    for (const tn of terminalNames(cells[k])) dsu.find(k + '#' + tn);
+  }
+  for (const k of keys) {
+    const c = cells[k];
+    if (c.type === 'switch' && c.on) dsu.union(port(k, 'a'), port(k, 'b'));
+  }
+  for (const k of keys) {
+    const [x, y] = k.split(',').map(Number);
+    const c = cells[k];
+    for (const d of ['right', 'down']) {
+      const [dx, dy] = DIRV[d];
+      const nk = (x + dx) + ',' + (y + dy);
+      const nc = cells[nk];
+      if (!nc) continue;
+      if (!connectionAllowed(c, nc, d)) continue;
+      const t1 = terminalForDir(c, d);
+      const t2 = terminalForDir(nc, OPP[d]);
+      if (t1 && t2) dsu.union(k + '#' + t1, nk + '#' + t2);
+    }
+  }
+
+  const nodeRoots = new Set();
+  for (const k of keys) {
+    for (const tn of terminalNames(cells[k])) nodeRoots.add(dsu.find(k + '#' + tn));
+  }
+  const nodeList = [...nodeRoots];
+  let groundR = null;
+  for (const k of keys) {
+    if (cells[k].type === 'ground') { groundR = dsu.find(port(k, 'g')); break; }
+  }
+  if (groundR && nodeList.includes(groundR)) {
+    const i = nodeList.indexOf(groundR);
+    [nodeList[0], nodeList[i]] = [nodeList[i], nodeList[0]];
+  }
+  const localIdx = new Map();
+  nodeList.forEach((r, i) => localIdx.set(r, i));
+  const N = nodeList.length;
+
+  const vsrcList = [];
+  for (const k of keys) {
+    const c = cells[k];
+    if ((c.type === 'power' || c.type === 'acpower') && c.on) {
+      const p = localIdx.get(dsu.find(port(k, '+')));
+      const nn = localIdx.get(dsu.find(port(k, '-')));
+      const V = c.type === 'power' ? c.v
+        : c.offset + c.amp * Math.sin(2*Math.PI*c.freq*t + c.phase*Math.PI/180);
+      vsrcList.push({ k, p, n: nn, v: V });
+    }
+  }
+  const size = Math.max(0, N - 1) + vsrcList.length;
+  if (size <= 0) {
+    const out = new Map();
+    for (const k of keys) for (const tn of terminalNames(cells[k])) out.set(port(k, tn), 0);
+    return out;
+  }
+
+  const A = [];
+  for (let i = 0; i < size; i++) A.push(new Float64Array(size + 1));
+
+  const rowOf = node => {
+    const i = localIdx.get(node);
+    if (i === undefined || i === 0) return -1;
+    return i - 1;
+  };
+
+  for (const k of keys) {
+    const c = cells[k];
+    const tn = terminalNames(c);
+    let g = 0, jHist = 0;
+    let na = -1, nb = -1;
+
+    if (c.type === 'lamp' || c.type === 'resistor') {
+      g = 1 / Math.max(1e-9, c.r);
+      na = localIdx.get(dsu.find(port(k, 'a')));
+      nb = localIdx.get(dsu.find(port(k, 'b')));
+    } else if (c.type === 'coil') {
+      const gL = c.l / dt;
+      g = 1 / Math.max(1e-12, c.r + gL);
+      jHist = g * gL * (hist.coilI.get(k) || 0);
+      na = localIdx.get(dsu.find(port(k, 'a')));
+      nb = localIdx.get(dsu.find(port(k, 'b')));
+    } else if (c.type === 'inductor') {
+      g = dt / Math.max(1e-15, c.l);
+      jHist = hist.indI.get(k) || 0;
+      na = localIdx.get(dsu.find(port(k, 'a')));
+      nb = localIdx.get(dsu.find(port(k, 'b')));
+    } else if (c.type === 'capacitor') {
+      const gc = c.c / dt;
+      g = 1 / (1/Math.max(1e-12, gc) + (c.esr || 0));
+      jHist = g * (hist.capV.get(k) || 0);
+      na = localIdx.get(dsu.find(port(k, 'a')));
+      nb = localIdx.get(dsu.find(port(k, 'b')));
+    } else if (c.type === 'diode') {
+      const on = hist.diodeOn.get(k);
+      g = on ? 1e4 : 1e-9;
+      na = localIdx.get(dsu.find(port(k, 'a')));
+      nb = localIdx.get(dsu.find(port(k, 'b')));
+      if (on) jHist = -g * (c.vf || 0);
+    } else if (c.type === 'led') {
+      const on = hist.ledOn.get(k);
+      if (on) {
+        g = 1 / Math.max(1e-9, c.r);
+        jHist = -g * (c.vf || 0);
+      } else g = 1e-9;
+      na = localIdx.get(dsu.find(port(k, 'a')));
+      nb = localIdx.get(dsu.find(port(k, 'b')));
+    }
+
+    if (g !== 0 && na !== undefined && nb !== undefined && na >= 0 && nb >= 0) {
+      const ra = rowOf(na), rb = rowOf(nb);
+      if (ra >= 0) A[ra][ra] += g;
+      if (rb >= 0) A[rb][rb] += g;
+      if (ra >= 0 && rb >= 0) { A[ra][rb] -= g; A[rb][ra] -= g; }
+      if (ra >= 0) A[ra][size] -= jHist;
+      if (rb >= 0) A[rb][size] += jHist;
+    }
+  }
+
+  for (const k of keys) {
+    const c = cells[k];
+    if (c.type !== 'transformer') continue;
+    const M = c.k * Math.sqrt(c.L1 * c.L2);
+    const h = hist.xfmr.get(k) || { i1: 0, i2: 0 };
+    const Z11 = c.R1 + c.L1 / dt;
+    const Z12 = M / dt;
+    const Z22 = c.R2 + c.L2 / dt;
+    const det = Z11 * Z22 - Z12 * Z12;
+    if (Math.abs(det) < 1e-24) continue;
+    const Y11 = Z22 / det, Y12 = -Z12 / det, Y22 = Z11 / det;
+    const a1 = c.L1 / dt * h.i1 + M / dt * h.i2;
+    const a2 = M / dt * h.i1 + c.L2 / dt * h.i2;
+    const ih1 = Y11 * a1 + Y12 * a2;
+    const ih2 = Y12 * a1 + Y22 * a2;
+
+    const rp1 = rowOf(localIdx.get(dsu.find(port(k, 'p1'))));
+    const rp2 = rowOf(localIdx.get(dsu.find(port(k, 'p2'))));
+    const rs1 = rowOf(localIdx.get(dsu.find(port(k, 's1'))));
+    const rs2 = rowOf(localIdx.get(dsu.find(port(k, 's2'))));
+
+    stampCoupled(A, [[rp1, +1], [rp2, -1]], [[rs1, +1], [rs2, -1]],
+                 Y11, Y12, Y22, size, ih1, ih2);
+  }
+
+  vsrcList.forEach((vs, ki) => {
+    const p = rowOf(vs.p), n = rowOf(vs.n);
+    const rr = (N - 1) + ki;
+    if (p >= 0) { A[p][rr] += 1; A[rr][p] += 1; }
+    if (n >= 0) { A[n][rr] -= 1; A[rr][n] -= 1; }
+    A[rr][size] = vs.v;
+  });
+
+  for (let i = 0; i < N - 1; i++) A[i][i] += 1e-12;
+
+  const x = gauss(A, size);
+  const out = new Map();
+  for (const k of keys) {
+    for (const tn of terminalNames(cells[k])) {
+      const r = dsu.find(port(k, tn));
+      const idx = nodeList.indexOf(r);
+      out.set(port(k, tn), idx === 0 ? 0 : (x[idx - 1] || 0));
+    }
+  }
+  return out;
+}
+
+/* ============================================================
+   Main simulation driver
+   ============================================================ */
+
+function simulate() {
+  if (state.mode === 'dc') {
+    simulateDC();
+  } else {
+    let fmax = 60;
+    for (const k in state.cells) {
+      const c = state.cells[k];
+      if (c.type === 'acpower' && c.on && c.freq > fmax) fmax = c.freq;
+    }
+    TRANSIENT.dt = 1 / (fmax * 80);
+    TRANSIENT.duration = 8 / fmax;
+    simulateTransient();
+  }
+}
+
+/* ============================================================
+   Wire statistics (for left-click inspection)
+   ============================================================ */
+
+function getWireDCStats(wireKey) {
+  const cell = state.cells[wireKey];
+  if (!cell || !isWire(cell)) return null;
+  const [x, y] = wireKey.split(',').map(Number);
+
+  const volt = simResult.volt?.get(wireKey + '#t') ?? 0;
+
+  // Sum of currents flowing through all directly attached components.
+  let totalI = 0;
+  const details = [];
+  for (const d of DIRS) {
+    const [dx, dy] = DIRV[d];
+    const nk = (x + dx) + ',' + (y + dy);
+    const nc = state.cells[nk];
+    if (!nc) continue;
+    if (isWire(nc) && nc.type === cell.type) continue;   // same net, skip
+    if (!connectionAllowed(cell, nc, d)) continue;
+    const res = simResult.results?.get(nk);
+    if (res && isFinite(res.i)) {
+      totalI += Math.abs(res.i);
+      details.push({ type: nc.type, i: Math.abs(res.i) });
+    }
+  }
+  return { mode: 'dc', volt, current: totalI, details };
+}
+
+function getWireACStats(wireKey) {
+  const wf = simResult.wireWaveforms?.[wireKey];
+  if (!wf || wf.length < 4) {
+    return { mode: 'ac', rms: 0, vpp: 0, freq: 0, minV: 0, maxV: 0, samples: wf ? wf.length : 0 };
+  }
+
+  let sumSq = 0, minV = Infinity, maxV = -Infinity, mean = 0;
+  for (const v of wf) {
+    sumSq += v * v;
+    if (v < minV) minV = v;
+    if (v > maxV) maxV = v;
+    mean += v;
+  }
+  mean /= wf.length;
+  const rms = Math.sqrt(sumSq / wf.length);
+  const vpp = maxV - minV;
+
+  // Estimate frequency from zero crossings of (v - mean)
+  let crossings = 0;
+  for (let i = 1; i < wf.length; i++) {
+    const a = wf[i - 1] - mean;
+    const b = wf[i] - mean;
+    if ((a < 0 && b >= 0) || (a >= 0 && b < 0)) crossings++;
+  }
+  const dur = (wf.length - 1) * TRANSIENT.dt;
+  const freq = dur > 0 ? crossings / (2 * dur) : 0;
+
+  return { mode: 'ac', rms, vpp, freq, minV, maxV, mean, samples: wf.length };
+}
+
+function showWireInfo(wireKey) {
+  const cell = state.cells[wireKey];
+  if (!cell) return;
+
+  if (state.mode === 'dc') {
+    const s = getWireDCStats(wireKey);
+    if (!s) { showToast('Wire · no data'); return; }
+    const vStr = fmtEng(s.volt, 'V');
+    const iStr = s.details.length ? fmtEng(s.current, 'A') : '—';
+    const parts = [`V = ${vStr}`, `I ≈ ${iStr}`];
+    if (s.details.length) {
+      const brk = s.details.map(d => `${toolLabel(d.type)}:${fmtEng(d.i, 'A')}`).slice(0, 3).join('  ');
+      parts.push(`[${brk}${s.details.length > 3 ? ' …' : ''}]`);
+    }
+    showToast(`Wire · ${parts.join(' · ')}`);
+  } else {
+    const s = getWireACStats(wireKey);
+    if (!s.samples) { showToast('Wire · no signal'); return; }
+    const parts = [
+      `Vrms = ${fmtEng(s.rms, 'V')}`,
+      `Vpp = ${fmtEng(s.vpp, 'V')}`,
+    ];
+    if (s.freq > 0.01) parts.push(`f ≈ ${fmtEng(s.freq, 'Hz')}`);
+    parts.push(`Vmax = ${fmtEng(s.maxV, 'V')}`);
+    showToast(`Wire · ${parts.join(' · ')}`);
+  }
+}
+
+/* ============================================================
+   Probes
+   ============================================================ */
+
+const PROBE_COLORS = ['#60a5fa', '#f472b6', '#34d399', '#fbbf24', '#a78bfa', '#f87171', '#22d3ee', '#fb923c'];
+function probeColor(key, idx) {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return PROBE_COLORS[(h + idx) % PROBE_COLORS.length];
+}
+function probeLabel(cell, key) {
+  const [x, y] = key.split(',');
+  return `${toolLabel(cell.type)}(${x},${y})`;
+}
+
+function toggleProbe(cx, cy) {
+  const key = cx + ',' + cy;
+  if (!state.cells[key]) return;
+  if (state.probes.has(key)) state.probes.delete(key);
+  else state.probes.add(key);
+  save();
+  update();
+  refreshScope();
+}
+
+/* ============================================================
+   Canvas / rendering
+   ============================================================ */
+
+const cv  = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let dpr = window.devicePixelRatio || 1;
+
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  cv.width  = Math.max(1, Math.floor(cv.clientWidth * dpr));
+  cv.height = Math.max(1, Math.floor(cv.clientHeight * dpr));
+  render();
+  resizeScope();
+}
+
+function screenToCell(sx, sy) {
+  return {
+    x: Math.floor((sx - state.cam.x) / CELL),
+    y: Math.floor((sy - state.cam.y) / CELL)
+  };
+}
+
+let rafPending = false;
+function render() {
+  if (rafPending) return;
+  rafPending = true;
+  requestAnimationFrame(() => { rafPending = false; draw(); });
+}
+
+function roundRect(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.arcTo(x + w, y,     x + w, y + h, r);
+  c.arcTo(x + w, y + h, x,     y + h, r);
+  c.arcTo(x,     y + h, x,     y,     r);
+  c.arcTo(x,     y,     x + w, y,     r);
+  c.closePath();
+}
+
+function draw() {
+  const w = cv.clientWidth, h = cv.clientHeight;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+
+  const camX = state.cam.x, camY = state.cam.y;
+
+  ctx.fillStyle = '#0b0f14';
+  ctx.fillRect(0, 0, w, h);
+
+  const gx0 = Math.floor(-camX / CELL) - 1;
+  const gx1 = Math.ceil((w - camX) / CELL) + 1;
+  const gy0 = Math.floor(-camY / CELL) - 1;
+  const gy1 = Math.ceil((h - camY) / CELL) + 1;
+
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#141b24';
+  ctx.beginPath();
+  for (let x = gx0; x <= gx1; x++) {
+    const px = Math.round(x * CELL + camX) + 0.5;
+    ctx.moveTo(px, 0); ctx.lineTo(px, h);
+  }
+  for (let y = gy0; y <= gy1; y++) {
+    const py = Math.round(y * CELL + camY) + 0.5;
+    ctx.moveTo(0, py); ctx.lineTo(w, py);
+  }
+  ctx.stroke();
+
+  ctx.strokeStyle = '#1c2635';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  const ox = Math.round(camX) + 0.5, oy = Math.round(camY) + 0.5;
+  ctx.moveTo(ox, 0); ctx.lineTo(ox, h);
+  ctx.moveTo(0, oy); ctx.lineTo(w, oy);
+  ctx.stroke();
+
+  for (let y = gy0; y <= gy1; y++) {
+    for (let x = gx0; x <= gx1; x++) {
+      const c = state.cells[x + ',' + y];
+      if (c) drawCell(x, y, c);
+    }
+  }
+
+  if (hoverCell) {
+    const hk = hoverCell.x + ',' + hoverCell.y;
+    if (!state.cells[hk] && state.tool !== 'delete' && state.tool !== 'rightclick') {
+      const tpl = getToolCell(state.tool);
+      if (tpl) {
+        ctx.save();
+        ctx.globalAlpha = 0.4;
+        try { drawCell(hoverCell.x, hoverCell.y, tpl); } catch (e) {}
+        ctx.restore();
+      }
+    }
+  }
+
+  if (hoverCell) {
+    const key = hoverCell.x + ',' + hoverCell.y;
+    const px = hoverCell.x * CELL + camX;
+    const py = hoverCell.y * CELL + camY;
+    ctx.strokeStyle = state.cells[key] ? 'rgba(59,130,246,.75)' : 'rgba(59,130,246,.3)';
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, px + 1.5, py + 1.5, CELL - 3, CELL - 3, 7);
+    ctx.stroke();
+
+    if (state.probes.has(key)) {
+      ctx.strokeStyle = '#f472b6';
+      ctx.lineWidth = 2;
+      roundRect(ctx, px + 3, py + 3, CELL - 6, CELL - 6, 5);
+      ctx.stroke();
+    }
+  }
+
+  for (const pkey of state.probes) {
+    const [x, y] = pkey.split(',').map(Number);
+    if (!state.cells[pkey]) continue;
+    if (hoverCell && hoverCell.x === x && hoverCell.y === y) continue;
+    const px = x * CELL + camX;
+    const py = y * CELL + camY;
+    ctx.strokeStyle = 'rgba(244,114,182,.6)';
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, px + 3, py + 3, CELL - 6, CELL - 6, 5);
+    ctx.stroke();
+  }
+}
+
+function drawCell(cx, cy, cell) {
+  switch (cell.type) {
+    case 'wire1': case 'wire2': case 'wire3': drawWire(cx, cy, cell); break;
+    case 'power':      drawPower(cx, cy, cell, false); break;
+    case 'acpower':    drawPower(cx, cy, cell, true); break;
+    case 'switch':     drawSwitch(cx, cy, cell); break;
+    case 'lamp':       drawLamp(cx, cy, cell); break;
+    case 'resistor':   drawResistor(cx, cy, cell); break;
+    case 'capacitor':  drawCapacitor(cx, cy, cell); break;
+    case 'inductor':   drawInductor(cx, cy, cell); break;
+    case 'coil':       drawCoil(cx, cy, cell); break;
+    case 'diode':      drawDiode(cx, cy, cell); break;
+    case 'led':        drawLED(cx, cy, cell); break;
+    case 'transformer':drawTransformer(cx, cy, cell); break;
+    case 'transistor': drawTransistor(cx, cy, cell); break;
+    case 'ground':     drawGround(cx, cy, cell); break;
+  }
+}
+
+function drawWire(cx, cy, cell) {
+  const px = cx * CELL + state.cam.x + CELL / 2;
+  const py = cy * CELL + state.cam.y + CELL / 2;
+  const key = cx + ',' + cy;
+  const shorted = simResult.redWires.has(key);
+  const color = shorted ? '#ef4444' : WIRE_COLORS[cell.type];
+  const links = cell.links || {};
+  const drawDirs = [];
+  for (const d of DIRS) {
+    const st = links[d] || 'auto';
+    if (st === 'off') continue;
+    if (st === 'on') { drawDirs.push(d); continue; }
+    const [dx, dy] = DIRV[d];
+    const n = state.cells[(cx + dx) + ',' + (cy + dy)];
+    if (!n) continue;
+    if (isWire(n) && n.links && n.links[OPP[d]] === 'on') { drawDirs.push(d); continue; }
+    if (connectionAllowed(cell, n, d)) drawDirs.push(d);
+  }
+
+  ctx.lineCap  = 'round';
+  ctx.lineJoin = 'round';
+
+  if (drawDirs.length === 0) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(px, py, 4.6, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.beginPath();
+    for (const d of drawDirs) {
+      const [dx, dy] = DIRV[d];
+      ctx.moveTo(px, py);
+      ctx.lineTo(px + dx * CELL / 2, py + dy * CELL / 2);
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 7;
+    if (shorted) { ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 12; }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    if (drawDirs.length >= 2) {
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  for (const d of DIRS) {
+    const st = links[d];
+    if (!st || st === 'auto') continue;
+    const [dx, dy] = DIRV[d];
+    const ex = px + dx * CELL * 0.33;
+    const ey = py + dy * CELL * 0.33;
+    ctx.beginPath();
+    ctx.arc(ex, ey, 3.5, 0, Math.PI * 2);
+    if (st === 'on') {
+      ctx.fillStyle = shorted ? '#ef4444' : color;
+      ctx.fill();
+      ctx.strokeStyle = '#0b0f14'; ctx.lineWidth = 1; ctx.stroke();
+    } else {
+      ctx.fillStyle = '#0b0f14'; ctx.fill();
+      ctx.strokeStyle = 'rgba(160,172,188,.75)';
+      ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.beginPath();
+      const r = 2.2;
+      ctx.moveTo(ex - r, ey - r); ctx.lineTo(ex + r, ey + r);
+      ctx.strokeStyle = 'rgba(160,172,188,.8)';
+      ctx.lineWidth = 1.2; ctx.stroke();
+    }
+  }
+}
+
+function drawPower(cx, cy, cell, isAC) {
+  const px = cx * CELL + state.cam.x;
+  const py = cy * CELL + state.cam.y;
+  const pad = 5;
+  const x = px + pad, y = py + pad, w = CELL - pad * 2, h = CELL - pad * 2;
+  const on = !!cell.on;
+  const col = isAC ? (on ? '#a855f7' : '#48566a') : (on ? '#f59e0b' : '#48566a');
+  const pins = cell.pins || { pos:'up', neg:'down' };
+
+  ctx.fillStyle = isAC
+    ? (on ? 'rgba(168,85,247,.12)' : 'rgba(72,86,106,.10)')
+    : (on ? 'rgba(245,158,11,.12)' : 'rgba(72,86,106,.10)');
+  roundRect(ctx, x, y, w, h, 9);
+  ctx.fill();
+
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 2;
+  if (on) { ctx.shadowColor = col; ctx.shadowBlur = 12; }
+  roundRect(ctx, x, y, w, h, 9);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  const sameSide = pins.pos === pins.neg;
+  drawPolarityMark(px, py, pins.pos, '+', on, sameSide ? -1 : 0);
+  drawPolarityMark(px, py, pins.neg, '−', on, sameSide ?  1 : 0);
+
+  if (isAC) {
+    ctx.strokeStyle = on ? '#e9d5ff' : '#67788e';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    const cx0 = px + CELL / 2, cy0 = py + CELL / 2 + 1;
+    const amp = 5, halfW = 9;
+    for (let i = 0; i <= 20; i++) {
+      const tt = i / 20;
+      const xx = cx0 - halfW + tt * 2 * halfW;
+      const yy = cy0 - amp * Math.sin(2 * Math.PI * tt);
+      if (i === 0) ctx.moveTo(xx, yy); else ctx.lineTo(xx, yy);
+    }
+    ctx.stroke();
+  } else {
+    ctx.fillStyle = on ? '#fde68a' : '#67788e';
+    ctx.font = 'bold 9px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(shortNum(cell.v), px + CELL / 2, py + CELL / 2 + 1);
+  }
+}
+
+function drawPolarityMark(px, py, dir, ch, on, shift) {
+  const off = 9;
+  let x = px + CELL / 2, y = py + CELL / 2;
+  if (dir === 'up')    { y = py + off;        x = px + CELL / 2 + shift * 7; }
+  if (dir === 'down')  { y = py + CELL - off; x = px + CELL / 2 + shift * 7; }
+  if (dir === 'left')  { x = px + off;        y = py + CELL / 2 + shift * 7; }
+  if (dir === 'right') { x = px + CELL - off; y = py + CELL / 2 + shift * 7; }
+  ctx.fillStyle = on ? '#fde68a' : '#7a8a9e';
+  ctx.font = 'bold 11px ui-monospace, SFMono-Regular, Menlo, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(ch, x, y);
+}
+
+function drawSwitch(cx, cy, cell) {
+  const px = cx * CELL + state.cam.x + CELL / 2;
+  const py = cy * CELL + state.cam.y + CELL / 2;
+  const pins = cell.pins || { a:'left', b:'right' };
+  const on = !!cell.on;
+  const col = on ? '#22d3ee' : '#5a6a7d';
+
+  const P = {};
+  for (const name of ['a','b']) {
+    const d = pins[name];
+    if (!d) continue;
+    const [dx, dy] = DIRV[d];
+    P[name] = { x: px + dx * CELL / 2, y: py + dy * CELL / 2, dx, dy };
+  }
+
+  ctx.lineCap = 'round';
+  if (on && P.a && P.b) {
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 3.5;
+    ctx.shadowColor = col; ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.moveTo(P.a.x, P.a.y); ctx.lineTo(P.b.x, P.b.y);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  } else {
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 3.5;
+    const gap = 9;
+    for (const name of ['a','b']) {
+      const p = P[name];
+      if (!p) continue;
+      const ix = px + p.dx * gap;
+      const iy = py + p.dy * gap;
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y); ctx.lineTo(ix, iy);
+      ctx.stroke();
+    }
+  }
+
+  for (const name of ['a','b']) {
+    const p = P[name];
+    if (!p) continue;
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.arc(p.x - p.dx * 3, p.y - p.dy * 3, 2.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawLeads(px, py, pins, innerOffset) {
+  ctx.strokeStyle = '#4b5c72';
+  ctx.lineWidth = 2;
+  for (const name of ['a','b']) {
+    const d = pins[name];
+    if (!d) continue;
+    const [dx, dy] = DIRV[d];
+    ctx.beginPath();
+    ctx.moveTo(px + dx * innerOffset, py + dy * innerOffset);
+    ctx.lineTo(px + dx * CELL / 2, py + dy * CELL / 2);
+    ctx.stroke();
+  }
+  for (const name of ['a','b']) {
+    const d = pins[name];
+    if (!d) continue;
+    const [dx, dy] = DIRV[d];
+    ctx.fillStyle = '#8fa3ba';
+    ctx.beginPath();
+    ctx.arc(px + dx * CELL / 2, py + dy * CELL / 2, 2.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawLamp(cx, cy, cell) {
+  const px = cx * CELL + state.cam.x + CELL / 2;
+  const py = cy * CELL + state.cam.y + CELL / 2;
+  const res = simResult.results.get(cx + ',' + cy);
+  const power = res ? Math.max(0, res.p) : 0;
+  const bright = Math.min(1, Math.pow(power, 0.35));
+  const R = CELL * 0.27;
+  const pins = cell.pins || { a:'left', b:'right' };
+  ctx.strokeStyle = '#4b5c72';
+  ctx.lineWidth = 2;
+  for (const name of ['a','b']) {
+    const d = pins[name];
+    if (!d) continue;
+    const [dx, dy] = DIRV[d];
+    ctx.beginPath();
+    ctx.moveTo(px + dx * R, py + dy * R);
+    ctx.lineTo(px + dx * CELL / 2, py + dy * CELL / 2);
+    ctx.stroke();
+  }
+  if (bright > 0.015) {
+    const g = ctx.createRadialGradient(px, py, 0, px, py, R * 2.6);
+    g.addColorStop(0, `rgba(255,231,120,${0.75 * bright})`);
+    g.addColorStop(1, 'rgba(255,231,120,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(px, py, R * 2.6, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.beginPath();
+  ctx.arc(px, py, R, 0, Math.PI * 2);
+  ctx.fillStyle = `rgba(255,231,120,${0.06 + 0.85 * bright})`;
+  ctx.fill();
+  ctx.strokeStyle = bright > 0.015
+    ? `rgba(255,222,110,${0.55 + 0.45 * bright})` : '#4b5c72';
+  ctx.lineWidth = 2; ctx.stroke();
+  ctx.strokeStyle = bright > 0.015
+    ? `rgba(120,80,0,${0.4 + 0.5 * (1 - bright)})` : '#4b5c72';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(px - R * 0.5, py - R * 0.5); ctx.lineTo(px + R * 0.5, py + R * 0.5);
+  ctx.moveTo(px + R * 0.5, py - R * 0.5); ctx.lineTo(px - R * 0.5, py + R * 0.5);
+  ctx.stroke();
+  for (const name of ['a','b']) {
+    const d = pins[name];
+    if (!d) continue;
+    const [dx, dy] = DIRV[d];
+    ctx.fillStyle = '#8fa3ba';
+    ctx.beginPath();
+    ctx.arc(px + dx * CELL / 2, py + dy * CELL / 2, 2.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawResistor(cx, cy, cell) {
+  const px = cx * CELL + state.cam.x + CELL / 2;
+  const py = cy * CELL + state.cam.y + CELL / 2;
+  const res = simResult.results.get(cx + ',' + cy);
+  const power = res ? Math.max(0, res.p) : 0;
+  const hot = Math.min(1, Math.pow(power, 0.35) * 0.7);
+  const pins = cell.pins || { a:'left', b:'right' };
+  ctx.strokeStyle = '#5a6a7d';
+  ctx.lineWidth = 2;
+  for (const name of ['a','b']) {
+    const d = pins[name];
+    if (!d) continue;
+    const [dx, dy] = DIRV[d];
+    ctx.beginPath();
+    ctx.moveTo(px + dx * CELL * 0.28, py + dy * CELL * 0.28);
+    ctx.lineTo(px + dx * CELL / 2, py + dy * CELL / 2);
+    ctx.stroke();
+  }
+  const w = CELL * 0.56, h = CELL * 0.34;
+  ctx.fillStyle = hot > 0.02
+    ? `rgba(249,115,22,${0.12 + 0.5 * hot})` : 'rgba(90,105,125,.14)';
+  roundRect(ctx, px - w / 2, py - h / 2, w, h, 4);
+  ctx.fill();
+  ctx.strokeStyle = hot > 0.02
+    ? `rgba(251,146,60,${0.55 + 0.45 * hot})` : '#5a6a7d';
+  ctx.lineWidth = 2;
+  roundRect(ctx, px - w / 2, py - h / 2, w, h, 4);
+  ctx.stroke();
+  for (const name of ['a','b']) {
+    const d = pins[name];
+    if (!d) continue;
+    const [dx, dy] = DIRV[d];
+    ctx.fillStyle = '#8fa3ba';
+    ctx.beginPath();
+    ctx.arc(px + dx * CELL / 2, py + dy * CELL / 2, 2.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawCapacitor(cx, cy, cell) {
+  const px = cx * CELL + state.cam.x + CELL / 2;
+  const py = cy * CELL + state.cam.y + CELL / 2;
+  const pins = cell.pins || { a:'left', b:'right' };
+  drawLeads(px, py, pins, 9);
+  const dA = DIRV[pins.a] || [-1, 0];
+  const dB = DIRV[pins.b] || [1, 0];
+  const axisX = dB[0] - dA[0], axisY = dB[1] - dA[1];
+  const len = Math.hypot(axisX, axisY) || 1;
+  const ux = axisX / len, uy = axisY / len;
+  const perpX = -uy, perpY = ux;
+  const gap = 4.5, plateLen = CELL * 0.36;
+  ctx.strokeStyle = '#a78bfa';
+  ctx.lineWidth = 3; ctx.lineCap = 'round';
+  for (const sgn of [-1, 1]) {
+    const cxp = px + ux * gap * sgn, cyp = py + uy * gap * sgn;
+    ctx.beginPath();
+    ctx.moveTo(cxp + perpX * plateLen / 2, cyp + perpY * plateLen / 2);
+    ctx.lineTo(cxp - perpX * plateLen / 2, cyp - perpY * plateLen / 2);
+    ctx.stroke();
+  }
+  ctx.font = 'bold 8px ui-monospace, SFMono-Regular, Menlo, monospace';
+  ctx.fillStyle = 'rgba(167,139,250,.7)';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('+', px + ux * (gap + 8) + perpX * 10, py + uy * (gap + 8) + perpY * 10);
+  ctx.fillText('−', px - ux * (gap + 8) - perpX * 10, py - uy * (gap + 8) - perpY * 10);
+}
+
+function drawInductor(cx, cy, cell) {
+  const px = cx * CELL + state.cam.x + CELL / 2;
+  const py = cy * CELL + state.cam.y + CELL / 2;
+  const pins = cell.pins || { a:'left', b:'right' };
+  drawLeads(px, py, pins, CELL * 0.24);
+  const dA = DIRV[pins.a] || [-1, 0];
+  const dB = DIRV[pins.b] || [1, 0];
+  const axisX = dB[0] - dA[0], axisY = dB[1] - dA[1];
+  const len = Math.hypot(axisX, axisY) || 1;
+  const ux = axisX / len, uy = axisY / len;
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(Math.atan2(uy, ux));
+  ctx.strokeStyle = '#60a5fa';
+  ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+  const n = 3, coilR = CELL * 0.12;
+  const totalW = n * 2 * coilR;
+  const startX = -totalW / 2 + coilR;
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) ctx.arc(startX + i * 2 * coilR, 0, coilR, Math.PI, 0, false);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawCoil(cx, cy, cell) {
+  const px = cx * CELL + state.cam.x + CELL / 2;
+  const py = cy * CELL + state.cam.y + CELL / 2;
+  const res = simResult.results.get(cx + ',' + cy);
+  const power = res ? Math.max(0, res.p) : 0;
+  const hot = Math.min(1, Math.pow(power, 0.35) * 0.7);
+  const pins = cell.pins || { a:'left', b:'right' };
+  drawLeads(px, py, pins, CELL * 0.24);
+  const dA = DIRV[pins.a] || [-1, 0];
+  const dB = DIRV[pins.b] || [1, 0];
+  const axisX = dB[0] - dA[0], axisY = dB[1] - dA[1];
+  const len = Math.hypot(axisX, axisY) || 1;
+  const ux = axisX / len, uy = axisY / len;
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(Math.atan2(uy, ux));
+  ctx.strokeStyle = hot > 0.02
+    ? `rgba(251,146,60,${0.65 + 0.35 * hot})` : '#f472b6';
+  ctx.lineWidth = 2.6; ctx.lineCap = 'round';
+  const n = 3, coilR = CELL * 0.12;
+  const totalW = n * 2 * coilR;
+  const startX = -totalW / 2 + coilR;
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) ctx.arc(startX + i * 2 * coilR, 0, coilR, Math.PI, 0, false);
+  ctx.stroke();
+  ctx.strokeStyle = hot > 0.02
+    ? `rgba(251,146,60,${0.45 + 0.35 * hot})` : 'rgba(244,114,182,.45)';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(-totalW / 2 - 2, -coilR * 1.1); ctx.lineTo(totalW / 2 + 2, -coilR * 1.1);
+  ctx.moveTo(-totalW / 2 - 2,  coilR * 1.1); ctx.lineTo(totalW / 2 + 2,  coilR * 1.1);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawDiode(cx, cy, cell) {
+  const px = cx * CELL + state.cam.x + CELL / 2;
+  const py = cy * CELL + state.cam.y + CELL / 2;
+  const pins = cell.pins || { a:'left', b:'right' };
+  const key = cx + ',' + cy;
+  const on = simResult.diodeOn.has(key);
+  const col = on ? '#fbbf24' : '#5a6a7d';
+  drawLeads(px, py, pins, CELL * 0.20);
+  const dA = DIRV[pins.a] || [-1, 0];
+  const dB = DIRV[pins.b] || [1, 0];
+  const axisX = dB[0] - dA[0], axisY = dB[1] - dA[1];
+  const len = Math.hypot(axisX, axisY) || 1;
+  const ux = axisX / len, uy = axisY / len;
+  const perpX = -uy, perpY = ux;
+  const size = CELL * 0.22;
+  const tipX = px + ux * size, tipY = py + uy * size;
+  const b1X  = px - ux * size + perpX * size, b1Y = py - uy * size + perpY * size;
+  const b2X  = px - ux * size - perpX * size, b2Y = py - uy * size - perpY * size;
+  ctx.beginPath();
+  ctx.moveTo(tipX, tipY); ctx.lineTo(b1X, b1Y); ctx.lineTo(b2X, b2Y);
+  ctx.closePath();
+  ctx.fillStyle = on ? 'rgba(251,191,36,.35)' : 'rgba(90,106,125,.25)';
+  ctx.fill();
+  ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(tipX + perpX * size, tipY + perpY * size);
+  ctx.lineTo(tipX - perpX * size, tipY - perpY * size);
+  ctx.strokeStyle = col; ctx.lineWidth = 2.4; ctx.stroke();
+}
+
+function drawLED(cx, cy, cell) {
+  const px = cx * CELL + state.cam.x + CELL / 2;
+  const py = cy * CELL + state.cam.y + CELL / 2;
+  const pins = cell.pins || { a:'left', b:'right' };
+  const key = cx + ',' + cy;
+  const on = simResult.ledOn.has(key);
+  const res = simResult.results.get(key);
+  const power = res ? Math.max(0, res.p) : 0;
+  const bright = on ? Math.min(1, Math.pow(power * 4, 0.4)) : 0;
+  const col = on ? '#f87171' : '#5a6a7d';
+  if (bright > 0.02) {
+    const R = CELL * 0.42;
+    const g = ctx.createRadialGradient(px, py, 0, px, py, R * 2.4);
+    g.addColorStop(0, `rgba(248,113,113,${0.7 * bright})`);
+    g.addColorStop(1, 'rgba(248,113,113,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(px, py, R * 2.4, 0, Math.PI * 2); ctx.fill();
+  }
+  drawLeads(px, py, pins, CELL * 0.20);
+  const dA = DIRV[pins.a] || [-1, 0];
+  const dB = DIRV[pins.b] || [1, 0];
+  const axisX = dB[0] - dA[0], axisY = dB[1] - dA[1];
+  const len = Math.hypot(axisX, axisY) || 1;
+  const ux = axisX / len, uy = axisY / len;
+  const perpX = -uy, perpY = ux;
+  const size = CELL * 0.20;
+  const tipX = px + ux * size, tipY = py + uy * size;
+  const b1X  = px - ux * size + perpX * size, b1Y = py - uy * size + perpY * size;
+  const b2X  = px - ux * size - perpX * size, b2Y = py - uy * size - perpY * size;
+  ctx.beginPath();
+  ctx.moveTo(tipX, tipY); ctx.lineTo(b1X, b1Y); ctx.lineTo(b2X, b2Y);
+  ctx.closePath();
+  ctx.fillStyle = on ? `rgba(248,113,113,${0.35 + 0.5 * bright})` : 'rgba(90,106,125,.22)';
+  ctx.fill();
+  ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(tipX + perpX * size, tipY + perpY * size);
+  ctx.lineTo(tipX - perpX * size, tipY - perpY * size);
+  ctx.strokeStyle = col; ctx.lineWidth = 2.4; ctx.stroke();
+}
+
+function drawTransformer(cx, cy, cell) {
+  const px = cx * CELL + state.cam.x + CELL / 2;
+  const py = cy * CELL + state.cam.y + CELL / 2;
+  const pins = cell.pins || {};
+  const leads = ['p1','p2','s1','s2'];
+  ctx.strokeStyle = '#5a6a7d'; ctx.lineWidth = 2;
+  for (const n of leads) {
+    const d = pins[n];
+    if (!d) continue;
+    const [dx, dy] = DIRV[d];
+    ctx.beginPath();
+    ctx.moveTo(px + dx * CELL * 0.28, py + dy * CELL * 0.28);
+    ctx.lineTo(px + dx * CELL / 2, py + dy * CELL / 2);
+    ctx.stroke();
+    ctx.fillStyle = n.startsWith('p') ? '#fbbf24' : '#60a5fa';
+    ctx.beginPath();
+    ctx.arc(px + dx * CELL / 2, py + dy * CELL / 2, 2.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const R = CELL * 0.11;
+  ctx.strokeStyle = '#fbbf24';
+  ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (let i = 0; i < 3; i++) ctx.arc(px - CELL * 0.14 + i * 2 * R * 0.6, py - CELL * 0.04, R, Math.PI, 0, false);
+  ctx.stroke();
+  ctx.strokeStyle = '#60a5fa';
+  ctx.beginPath();
+  for (let i = 0; i < 3; i++) ctx.arc(px + CELL * 0.02 + i * 2 * R * 0.6, py + CELL * 0.04, R, Math.PI, 0, false);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(148,163,184,.6)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(px - CELL * 0.22, py); ctx.lineTo(px + CELL * 0.22, py);
+  ctx.moveTo(px - CELL * 0.22, py + 4); ctx.lineTo(px + CELL * 0.22, py + 4);
+  ctx.stroke();
+}
+
+function drawTransistor(cx, cy, cell) {
+  const px = cx * CELL + state.cam.x + CELL / 2;
+  const py = cy * CELL + state.cam.y + CELL / 2;
+  const R = CELL * 0.20;
+  const pins = cell.pins || { c:'up', b:'left', e:'down' };
+  ctx.lineCap = 'round';
+  for (const name of ['c', 'b', 'e']) {
+    const d = pins[name];
+    if (!d) continue;
+    const [dx, dy] = DIRV[d];
+    ctx.strokeStyle = name === 'b' ? '#c4b5fd' : name === 'c' ? '#a78bfa' : '#8b5cf6';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(px + dx * R * 0.8, py + dy * R * 0.8);
+    ctx.lineTo(px + dx * CELL / 2, py + dy * CELL / 2);
+    ctx.stroke();
+    ctx.fillStyle = '#ddd6fe';
+    ctx.beginPath();
+    ctx.arc(px + dx * CELL / 2, py + dy * CELL / 2, 2.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.beginPath();
+  ctx.arc(px, py, R, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(167,139,250,.16)';
+  ctx.fill();
+  ctx.strokeStyle = '#a78bfa'; ctx.lineWidth = 2; ctx.stroke();
+}
+
+function drawGround(cx, cy, cell) {
+  const px = cx * CELL + state.cam.x + CELL / 2;
+  const py = cy * CELL + state.cam.y + CELL / 2;
+  const col = '#94a3b8';
+  ctx.fillStyle = 'rgba(148,163,184,.07)';
+  roundRect(ctx, px - CELL / 2 + 3, py - CELL / 2 + 3, CELL - 6, CELL - 6, 6);
+  ctx.fill();
+  ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(px, py - 7); ctx.lineTo(px, py + 4); ctx.stroke();
+  const bars = [{ y: py + 4, w: 18 }, { y: py + 10, w: 11 }, { y: py + 16, w: 5 }];
+  for (const b of bars) {
+    ctx.beginPath();
+    ctx.moveTo(px - b.w / 2, b.y); ctx.lineTo(px + b.w / 2, b.y);
+    ctx.stroke();
+  }
+}
+
+/* ============================================================
+   Scope rendering
+   ============================================================ */
+
+const scopeCv = document.getElementById('scopeCv');
+const scopeCtx = scopeCv.getContext('2d');
+
+function resizeScope() {
+  const r = scopeCv.getBoundingClientRect();
+  scopeCv.width = Math.max(1, Math.floor(r.width * dpr));
+  scopeCv.height = Math.max(1, Math.floor(r.height * dpr));
+  drawScope();
+}
+
+function refreshScope() {
+  const el = document.getElementById('scopeStats');
+  if (state.mode === 'dc') {
+    el.textContent = 'DC steady state';
+  } else {
+    el.textContent = `Transient · dt ${(TRANSIENT.dt*1000).toFixed(2)} ms · ${(TRANSIENT.duration*1000).toFixed(0)} ms window`;
+  }
+  const legend = document.getElementById('legend');
+  legend.innerHTML = '';
+  const wf = simResult.waveforms;
+  if (wf) {
+    for (const [k, tr] of wf.traces) {
+      const s = document.createElement('span');
+      const i = document.createElement('i');
+      i.style.background = tr.color;
+      s.appendChild(i);
+      s.appendChild(document.createTextNode(tr.name));
+      legend.appendChild(s);
+    }
+  }
+  drawScope();
+}
+
+function drawScope() {
+  const w = scopeCv.clientWidth, h = scopeCv.clientHeight;
+  scopeCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  scopeCtx.clearRect(0, 0, w, h);
+  scopeCtx.fillStyle = '#05080c';
+  scopeCtx.fillRect(0, 0, w, h);
+
+  scopeCtx.strokeStyle = '#0f1720'; scopeCtx.lineWidth = 1;
+  scopeCtx.beginPath();
+  for (let i = 0; i <= 8; i++) {
+    const x = (i / 8) * w;
+    scopeCtx.moveTo(x, 0); scopeCtx.lineTo(x, h);
+  }
+  for (let i = 0; i <= 4; i++) {
+    const y = (i / 4) * h;
+    scopeCtx.moveTo(0, y); scopeCtx.lineTo(w, y);
+  }
+  scopeCtx.stroke();
+
+  const wf = simResult.waveforms;
+  if (!wf || wf.t.length < 2) {
+    scopeCtx.fillStyle = '#4d5b6b';
+    scopeCtx.font = '11px system-ui';
+    scopeCtx.textAlign = 'center';
+    scopeCtx.fillText('Alt+Left-click a component to probe', w / 2, h / 2);
+    return;
+  }
+
+  let minV = Infinity, maxV = -Infinity;
+  for (const [_, tr] of wf.traces) {
+    for (const v of tr.samples) {
+      if (v < minV) minV = v;
+      if (v > maxV) maxV = v;
+    }
+  }
+  if (!isFinite(minV) || !isFinite(maxV)) { minV = -1; maxV = 1; }
+  const pad = (maxV - minV) * 0.15 || 0.1;
+  minV -= pad; maxV += pad;
+  const span = maxV - minV || 1;
+
+  const t0 = wf.t[0], t1 = wf.t[wf.t.length - 1];
+  const tSpan = t1 - t0 || 1;
+
+  for (const [_, tr] of wf.traces) {
+    scopeCtx.strokeStyle = tr.color;
+    scopeCtx.lineWidth = 1.5;
+    scopeCtx.beginPath();
+    for (let i = 0; i < tr.samples.length; i++) {
+      const x = ((wf.t[i] - t0) / tSpan) * w;
+      const y = h - ((tr.samples[i] - minV) / span) * h;
+      if (i === 0) scopeCtx.moveTo(x, y);
+      else scopeCtx.lineTo(x, y);
+    }
+    scopeCtx.stroke();
+  }
+
+  if (minV < 0 && maxV > 0) {
+    const y0 = h - ((0 - minV) / span) * h;
+    scopeCtx.strokeStyle = 'rgba(148,163,184,.3)';
+    scopeCtx.setLineDash([3, 3]);
+    scopeCtx.beginPath();
+    scopeCtx.moveTo(0, y0); scopeCtx.lineTo(w, y0);
+    scopeCtx.stroke();
+    scopeCtx.setLineDash([]);
+  }
+
+  scopeCtx.fillStyle = '#56657a';
+  scopeCtx.font = '9px ui-monospace';
+  scopeCtx.textAlign = 'left';
+  scopeCtx.fillText(fmtNum(maxV) + ' V', 4, 10);
+  scopeCtx.fillText(fmtNum(minV) + ' V', 4, h - 4);
+}
+
+/* ============================================================
+   Formatting
+   ============================================================ */
+
+function shortNum(n) {
+  if (!isFinite(n)) return '∞';
+  const a = Math.abs(n);
+  if (a === 0) return '0';
+  if (a >= 0.001 && a < 10000) return String(parseFloat(n.toPrecision(4)));
+  return n.toExponential(1).replace('e+', 'e').replace('e-', 'e-');
+}
+function fmtNum(n) {
+  if (!isFinite(n)) return '∞';
+  const a = Math.abs(n);
+  if (a === 0) return '0';
+  if (a >= 1e-4 && a < 1e6) return String(parseFloat(n.toPrecision(5)));
+  return n.toExponential(3);
+}
+function fmtEng(v, unit) {
+  if (!isFinite(v)) return '∞ ' + unit;
+  const a = Math.abs(v);
+  if (a === 0) return '0 ' + unit;
+  const prefixes = [
+    [1e9,'G'], [1e6,'M'], [1e3,'k'], [1,''],
+    [1e-3,'m'], [1e-6,'µ'], [1e-9,'n'], [1e-12,'p']
+  ];
+  for (const [s, p] of prefixes) {
+    if (a >= s * 0.999) return String(parseFloat((v / s).toPrecision(4))) + ' ' + p + unit;
+  }
+  return v.toExponential(2) + ' ' + unit;
+}
+
+/* ============================================================
+   Interactions
+   ============================================================ */
+
+let pointerState = null;
+
+document.addEventListener('contextmenu', e => e.preventDefault());
+
+cv.addEventListener('pointerdown', e => {
+  if (e.button === 2) e.preventDefault();
+  cv.setPointerCapture(e.pointerId);
+  pointerState = {
+    sx: e.clientX, sy: e.clientY,
+    camX: state.cam.x, camY: state.cam.y,
+    button: e.button,
+    alt: e.altKey,
+    moved: false
+  };
+});
+
+cv.addEventListener('pointermove', e => {
+  const rect = cv.getBoundingClientRect();
+  const sx = e.clientX - rect.left;
+  const sy = e.clientY - rect.top;
+
+  const prevHover = hoverCell;
+  hoverCell = screenToCell(sx, sy);
+  if (!prevHover || prevHover.x !== hoverCell.x || prevHover.y !== hoverCell.y) render();
+
+  if (!pointerState) return;
+  const dx = e.clientX - pointerState.sx;
+  const dy = e.clientY - pointerState.sy;
+  if (!pointerState.moved && Math.hypot(dx, dy) > 4) pointerState.moved = true;
+
+  if (pointerState.moved && pointerState.button === 0 && !pointerState.alt) {
+    state.cam.x = pointerState.camX + dx;
+    state.cam.y = pointerState.camY + dy;
+    render();
+  }
+});
+
+cv.addEventListener('pointerup', e => {
+  if (!pointerState) return;
+  const ps = pointerState;
+  pointerState = null;
+  if (ps.moved) { save(); return; }
+
+  const rect = cv.getBoundingClientRect();
+  const pt = screenToCell(e.clientX - rect.left, e.clientY - rect.top);
+
+  if (ps.alt && ps.button === 0) {
+    toggleProbe(pt.x, pt.y);
+    if (scopeCollapsed) toggleScope();
+    return;
+  }
+
+  handleClick(pt.x, pt.y, e.button);
+});
+
+cv.addEventListener('pointercancel', () => { pointerState = null; });
+cv.addEventListener('pointerleave', () => {
+  if (hoverCell) { hoverCell = null; render(); }
+});
+
+document.addEventListener('keydown', e => {
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
+  const ov = document.getElementById('overlay');
+  if (ov && !ov.classList.contains('hidden')) return;
+
+  const k = e.key.toLowerCase();
+  if (k === 'r') { e.preventDefault(); rotateCurrent(true); return; }
+  if (k === 't') { e.preventDefault(); rotateCurrent(false); return; }
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (hoverCell) {
+      const hk = hoverCell.x + ',' + hoverCell.y;
+      if (state.cells[hk]) {
+        e.preventDefault();
+        delete state.cells[hk];
+        state.probes.delete(hk);
+        update();
+      }
+    }
+  }
+});
+
+function handleClick(cx, cy, button) {
+  const key  = cx + ',' + cy;
+  const cell = state.cells[key];
+  const tool = state.tool;
+
+  if (button === 2) {
+    if (cell) openContextMenu(cell, key);
+    return;
+  }
+  if (tool === 'delete') {
+    if (cell) { delete state.cells[key]; state.probes.delete(key); update(); }
+    return;
+  }
+  if (tool === 'rightclick') {
+    if (cell) openContextMenu(cell, key);
+    return;
+  }
+  if (cell) { leftAction(cell, key); return; }
+
+  const fresh = placeTool(tool);
+  if (fresh) {
+    state.cells[key] = fresh;
+    update();
+  }
+}
+
+function leftAction(cell, key) {
+  switch (cell.type) {
+    case 'power':
+    case 'acpower':
+    case 'switch':
+      cell.on = !cell.on;
+      update();
+      break;
+
+    case 'lamp': case 'resistor': case 'coil': {
+      const res = simResult.results.get(key);
+      const label = cell.type === 'lamp' ? 'Lamp'
+                  : cell.type === 'coil' ? 'Coil' : 'Resistor';
+      if (res) showToast(`${label} · ${fmtNum(res.p)} W · ${fmtNum(res.i)} A · ${fmtNum(res.v)} V`);
+      else showToast(`${label} · not in a closed circuit`);
+      break;
+    }
+
+    case 'capacitor': {
+      const va = simResult.volt.get(key + '#a') || 0;
+      const vb = simResult.volt.get(key + '#b') || 0;
+      showToast(`Capacitor · ${fmtEng(cell.c, 'F')} · ΔV ${fmtNum(Math.abs(va - vb))} V`);
+      break;
+    }
+    case 'inductor':
+      showToast(`Inductor · ${fmtEng(cell.l, 'H')} · ideal short in DC`);
+      break;
+    case 'diode':
+      showToast(`Diode · ${simResult.diodeOn.has(key) ? 'conducting' : 'blocking'}`);
+      break;
+    case 'led':
+      showToast(`LED · ${simResult.ledOn.has(key) ? 'ON' : 'OFF'}`);
+      break;
+    case 'transformer':
+      showToast(`Transformer · k=${cell.k.toFixed(2)} · L1=${fmtEng(cell.L1,'H')} · L2=${fmtEng(cell.L2,'H')}`);
+      break;
+    case 'transistor':
+      showToast(`Transistor · C:${cell.pins?.c || '—'}  B:${cell.pins?.b || '—'}  E:${cell.pins?.e || '—'}`);
+      break;
+    case 'ground':
+      showToast('Ground · reference node (0 V)');
+      break;
+  }
+
+  if (isWire(cell)) {
+    showWireInfo(key);
+  }
+}
+
+/* ============================================================
+   Tool rotation
+   ============================================================ */
+
+function deepCloneCell(c) { return JSON.parse(JSON.stringify(c)); }
+
+function rotatePins(cell, cw) {
+  if (!cell || !cell.pins || typeof cell.pins !== 'object') return false;
+  const map = cw ? ROTATE_CW : ROTATE_CCW;
+  let changed = false;
+  for (const k in cell.pins) {
+    const v = cell.pins[k];
+    if (typeof v === 'string' && map[v]) { cell.pins[k] = map[v]; changed = true; }
+  }
+  return changed;
+}
+
+function getToolCell(type) {
+  if (!toolCells[type]) {
+    const c = makeCell(type);
+    if (!c) return null;
+    toolCells[type] = c;
+  }
+  return toolCells[type];
+}
+
+function placeTool(type) {
+  const tpl = getToolCell(type);
+  if (!tpl) return null;
+  return deepCloneCell(tpl);
+}
+
+function rotateCurrent(cw) {
+  const type = state.tool;
+  const cell = getToolCell(type);
+  if (!cell || !cell.pins || Object.keys(cell.pins).length === 0) {
+    showToast('This tool has no orientation');
+    return;
+  }
+  const changed = rotatePins(cell, cw);
+  if (!changed) { showToast('This tool has no orientation'); return; }
+  save();
+  render();
+  showToast(`${toolLabel(type)} rotated ${cw ? 'clockwise' : 'counter-clockwise'}`);
+}
+
+function toolLabel(type) {
+  const t = TOOLS.find(x => x.id === type);
+  return t ? t.label : type;
+}
+
+/* ============================================================
+   Dialogs
+   ============================================================ */
+
+function openContextMenu(cell, key) {
+  if (!openConfigDialogFor(cell, false)) {
+    if (cell.type === 'ground') showToast('Ground · reference node (0 V)');
+  }
+}
+
+function openToolConfig(type) {
+  const tpl = getToolCell(type);
+  if (!tpl) return;
+  if (tpl.type === 'ground') { showToast('Ground has no configurable properties'); return; }
+  if (!CONFIGURABLE_TYPES.has(tpl.type)) { showToast(`${toolLabel(type)} has no configurable properties`); return; }
+  openConfigDialogFor(tpl, true);
+}
+
+function openConfigDialogFor(cell, isTool) {
+  const pre = isTool ? 'Tool Defaults · ' : '';
+
+  if (cell.type === 'power') {
+    const pins = cell.pins || {};
+    openDialog(pre + 'DC Power Source', [
+      { key:'v', label:'Voltage (V)  ·  1e-9 – 100', type:'number', value:cell.v, min:1e-9, max:100 },
+      { key:'pos', label:'+ terminal', type:'select', value:pins.pos, options:DIRS, labels:DIR_LABELS },
+      { key:'neg', label:'− terminal', type:'select', value:pins.neg, options:DIRS, labels:DIR_LABELS }
+    ], vals => {
+      const v = parseFloat(vals.v);
+      if (isFinite(v)) cell.v = Math.min(100, Math.max(1e-9, v));
+      cell.pins = { pos: vals.pos, neg: vals.neg };
+    }, isTool ? 'Applies to every DC Power you place from now on.'
+              : 'Both + and − must face a neighbour to make contact.');
+    return true;
+  }
+
+  if (cell.type === 'acpower') {
+    const pins = cell.pins || {};
+    openDialog(pre + 'AC Power Source', [
+      { key:'amp',   label:'Amplitude (V peak)',  type:'number', value:cell.amp,   min:0, max:200 },
+      { key:'freq',  label:'Frequency (Hz)',      type:'number', value:cell.freq,  min:1e-3, max:1e6 },
+      { key:'phase', label:'Phase (deg)',         type:'number', value:cell.phase },
+      { key:'offset',label:'DC Offset (V)',       type:'number', value:cell.offset },
+      { key:'pos',   label:'+ terminal',          type:'select', value:pins.pos, options:DIRS, labels:DIR_LABELS },
+      { key:'neg',   label:'− terminal',          type:'select', value:pins.neg, options:DIRS, labels:DIR_LABELS }
+    ], vals => {
+      const a = parseFloat(vals.amp);   if (isFinite(a) && a >= 0) cell.amp = a;
+      const f = parseFloat(vals.freq);  if (isFinite(f) && f > 0) cell.freq = f;
+      const p = parseFloat(vals.phase); if (isFinite(p)) cell.phase = p;
+      const o = parseFloat(vals.offset);if (isFinite(o)) cell.offset = o;
+      cell.pins = { pos: vals.pos, neg: vals.neg };
+    }, isTool ? 'Applies to every AC Power you place from now on.'
+              : 'v(t) = offset + amplitude · sin(2π·f·t + phase)');
+    return true;
+  }
+
+  if (cell.type === 'switch') {
+    const p = cell.pins || {};
+    openDialog(pre + 'Switch', [
+      { key:'a', label:'Terminal A', type:'select', value:p.a, options:DIRS, labels:DIR_LABELS },
+      { key:'b', label:'Terminal B', type:'select', value:p.b, options:DIRS, labels:DIR_LABELS }
+    ], vals => { cell.pins = { a: vals.a, b: vals.b }; });
+    return true;
+  }
+
+  if (cell.type === 'lamp' || cell.type === 'resistor') {
+    const p = cell.pins || {};
+    openDialog(pre + (cell.type === 'lamp' ? 'Lamp' : 'Resistor'), [
+      { key:'r', label:'Resistance (Ω)', type:'number', value:cell.r, min:1e-6, max:1e12 },
+      { key:'a', label:'Terminal A', type:'select', value:p.a, options:DIRS, labels:DIR_LABELS },
+      { key:'b', label:'Terminal B', type:'select', value:p.b, options:DIRS, labels:DIR_LABELS }
+    ], vals => {
+      const r = parseFloat(vals.r);
+      if (isFinite(r) && r > 0) cell.r = r;
+      cell.pins = { a: vals.a, b: vals.b };
+    });
+    return true;
+  }
+
+  if (cell.type === 'capacitor') {
+    const p = cell.pins || {};
+    openDialog(pre + 'Capacitor', [
+      { key:'c',   label:'Capacitance (F)',    type:'number', value:cell.c,   min:1e-15, max:1e3 },
+      { key:'esr', label:'ESR (Ω)',            type:'number', value:cell.esr, min:0,     max:1e6 },
+      { key:'a',   label:'Terminal A', type:'select', value:p.a, options:DIRS, labels:DIR_LABELS },
+      { key:'b',   label:'Terminal B', type:'select', value:p.b, options:DIRS, labels:DIR_LABELS }
+    ], vals => {
+      const c = parseFloat(vals.c);
+      const e = parseFloat(vals.esr);
+      if (isFinite(c) && c > 0) cell.c = c;
+      if (isFinite(e) && e >= 0) cell.esr = e;
+      cell.pins = { a: vals.a, b: vals.b };
+    }, 'Z = ESR + 1/(jωC). DC → open circuit.');
+    return true;
+  }
+
+  if (cell.type === 'inductor') {
+    const p = cell.pins || {};
+    openDialog(pre + 'Inductor', [
+      { key:'l', label:'Inductance (H)', type:'number', value:cell.l, min:1e-12, max:1e6 },
+      { key:'a', label:'Terminal A', type:'select', value:p.a, options:DIRS, labels:DIR_LABELS },
+      { key:'b', label:'Terminal B', type:'select', value:p.b, options:DIRS, labels:DIR_LABELS }
+    ], vals => {
+      const l = parseFloat(vals.l);
+      if (isFinite(l) && l > 0) cell.l = l;
+      cell.pins = { a: vals.a, b: vals.b };
+    }, 'Ideal L. Z = jωL. DC → short.');
+    return true;
+  }
+
+  if (cell.type === 'coil') {
+    const p = cell.pins || {};
+    openDialog(pre + 'Coil (R + L)', [
+      { key:'r', label:'Series R (Ω)',   type:'number', value:cell.r, min:1e-6, max:1e12 },
+      { key:'l', label:'Inductance (H)', type:'number', value:cell.l, min:1e-12, max:1e6 },
+      { key:'a', label:'Terminal A', type:'select', value:p.a, options:DIRS, labels:DIR_LABELS },
+      { key:'b', label:'Terminal B', type:'select', value:p.b, options:DIRS, labels:DIR_LABELS }
+    ], vals => {
+      const r = parseFloat(vals.r);
+      const l = parseFloat(vals.l);
+      if (isFinite(r) && r > 0) cell.r = r;
+      if (isFinite(l) && l > 0) cell.l = l;
+      cell.pins = { a: vals.a, b: vals.b };
+    }, 'Z = R + jωL. DC → R.');
+    return true;
+  }
+
+  if (cell.type === 'diode') {
+    const p = cell.pins || {};
+    openDialog(pre + 'Diode', [
+      { key:'vf', label:'Forward drop (V)', type:'number', value:cell.vf, min:0, max:100 },
+      { key:'a', label:'Anode',   type:'select', value:p.a, options:DIRS, labels:DIR_LABELS },
+      { key:'b', label:'Cathode', type:'select', value:p.b, options:DIRS, labels:DIR_LABELS }
+    ], vals => {
+      const vf = parseFloat(vals.vf);
+      if (isFinite(vf) && vf >= 0) cell.vf = vf;
+      cell.pins = { a: vals.a, b: vals.b };
+    }, 'Ideal one-way valve. Conducts anode → cathode.');
+    return true;
+  }
+
+  if (cell.type === 'led') {
+    const p = cell.pins || {};
+    openDialog(pre + 'LED', [
+      { key:'vf', label:'Forward drop (V)', type:'number', value:cell.vf, min:0, max:100 },
+      { key:'r',  label:'Series R (Ω)',     type:'number', value:cell.r,  min:1e-3, max:1e9 },
+      { key:'a',  label:'Anode',   type:'select', value:p.a, options:DIRS, labels:DIR_LABELS },
+      { key:'b',  label:'Cathode', type:'select', value:p.b, options:DIRS, labels:DIR_LABELS }
+    ], vals => {
+      const vf = parseFloat(vals.vf);
+      const r  = parseFloat(vals.r);
+      if (isFinite(vf) && vf >= 0) cell.vf = vf;
+      if (isFinite(r) && r > 0) cell.r = r;
+      cell.pins = { a: vals.a, b: vals.b };
+    });
+    return true;
+  }
+
+  if (cell.type === 'transformer') {
+    const p = cell.pins || {};
+    openDialog(pre + 'Transformer', [
+      { key:'L1', label:'Primary L1 (H)',   type:'number', value:cell.L1, min:1e-9, max:1e6 },
+      { key:'L2', label:'Secondary L2 (H)', type:'number', value:cell.L2, min:1e-9, max:1e6 },
+      { key:'R1', label:'Primary R1 (Ω)',   type:'number', value:cell.R1, min:0, max:1e6 },
+      { key:'R2', label:'Secondary R2 (Ω)', type:'number', value:cell.R2, min:0, max:1e6 },
+      { key:'k',  label:'Coupling k (0–1)', type:'number', value:cell.k,  min:0, max:0.999 },
+      { key:'p1', label:'Primary +',   type:'select', value:p.p1, options:DIRS, labels:DIR_LABELS },
+      { key:'p2', label:'Primary −',   type:'select', value:p.p2, options:DIRS, labels:DIR_LABELS },
+      { key:'s1', label:'Secondary +', type:'select', value:p.s1, options:DIRS, labels:DIR_LABELS },
+      { key:'s2', label:'Secondary −', type:'select', value:p.s2, options:DIRS, labels:DIR_LABELS }
+    ], vals => {
+      const L1 = parseFloat(vals.L1), L2 = parseFloat(vals.L2);
+      const R1 = parseFloat(vals.R1), R2 = parseFloat(vals.R2);
+      const k  = parseFloat(vals.k);
+      if (isFinite(L1) && L1 > 0) cell.L1 = L1;
+      if (isFinite(L2) && L2 > 0) cell.L2 = L2;
+      if (isFinite(R1) && R1 >= 0) cell.R1 = R1;
+      if (isFinite(R2) && R2 >= 0) cell.R2 = R2;
+      if (isFinite(k))  cell.k = Math.min(0.999, Math.max(0, k));
+      cell.pins = { p1: vals.p1, p2: vals.p2, s1: vals.s1, s2: vals.s2 };
+    }, 'M = k·√(L1·L2). Turns ratio ≈ √(L2/L1).');
+    return true;
+  }
+
+  if (cell.type === 'transistor') {
+    const p = cell.pins || {};
+    openDialog(pre + 'Transistor', [
+      { key:'c', label:'Collector', type:'select', value:p.c, options:DIRS, labels:DIR_LABELS },
+      { key:'b', label:'Base',      type:'select', value:p.b, options:DIRS, labels:DIR_LABELS },
+      { key:'e', label:'Emitter',   type:'select', value:p.e, options:DIRS, labels:DIR_LABELS }
+    ], vals => { cell.pins = { c: vals.c, b: vals.b, e: vals.e }; });
+    return true;
+  }
+
+  if (isWire(cell)) {
+    const links = cell.links || {};
+    openDialog(pre + 'Wire', [
+      { key:'up',    label:'Up',    type:'select', value:links.up,    options:LINK_OPTIONS, labels:LINK_LABELS },
+      { key:'down',  label:'Down',  type:'select', value:links.down,  options:LINK_OPTIONS, labels:LINK_LABELS },
+      { key:'left',  label:'Left',  type:'select', value:links.left,  options:LINK_OPTIONS, labels:LINK_LABELS },
+      { key:'right', label:'Right', type:'select', value:links.right, options:LINK_OPTIONS, labels:LINK_LABELS }
+    ], vals => {
+      cell.links = { up: vals.up, down: vals.down, left: vals.left, right: vals.right };
+    }, 'Left-click a placed wire to read its voltage / current / frequency.');
+    return true;
+  }
+
+  return false;
+}
+
+function openDialog(title, fields, onOk, subtitle) {
+  const ov = document.getElementById('overlay');
+  ov.classList.remove('hidden');
+  ov.innerHTML = '';
+
+  const box = document.createElement('div');
+  box.className = 'dialog';
+
+  const h = document.createElement('h3');
+  h.textContent = title;
+  box.appendChild(h);
+
+  if (subtitle) {
+    const s = document.createElement('div');
+    s.className = 'sub';
+    s.textContent = subtitle;
+    box.appendChild(s);
+  }
+
+  const inputs = {};
+  for (const f of fields) {
+    const row = document.createElement('label');
+    row.className = 'field';
+    const span = document.createElement('span');
+    span.textContent = f.label;
+    row.appendChild(span);
+
+    let inp;
+    if (f.type === 'select') {
+      inp = document.createElement('select');
+      f.options.forEach((o, i) => {
+        const opt = document.createElement('option');
+        opt.value = o;
+        opt.textContent = f.labels ? f.labels[i] : o;
+        inp.appendChild(opt);
+      });
+      inp.value = f.value;
+    } else {
+      inp = document.createElement('input');
+      inp.type = 'number'; inp.step = 'any';
+      inp.value = f.value;
+      if (f.min !== undefined) inp.min = f.min;
+      if (f.max !== undefined) inp.max = f.max;
+    }
+    inputs[f.key] = inp;
+    row.appendChild(inp);
+    box.appendChild(row);
+  }
+
+  const btns = document.createElement('div');
+  btns.className = 'btns';
+
+  const cancel = document.createElement('button');
+  cancel.textContent = 'Cancel';
+  cancel.onclick = closeDialog;
+
+  const ok = document.createElement('button');
+  ok.textContent = 'OK';
+  ok.className = 'primary';
+  ok.onclick = () => {
+    const vals = {};
+    for (const k in inputs) vals[k] = inputs[k].value;
+    closeDialog();
+    onOk(vals);
+    update();
+  };
+
+  btns.appendChild(cancel);
+  btns.appendChild(ok);
+  box.appendChild(btns);
+
+  box.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); ok.click(); }
+    if (e.key === 'Escape') { closeDialog(); }
+  });
+
+  ov.appendChild(box);
+  ov.onclick = e => { if (e.target === ov) closeDialog(); };
+
+  const first = box.querySelector('input, select');
+  if (first) { first.focus(); if (first.select) first.select(); }
+}
+
+function closeDialog() {
+  const ov = document.getElementById('overlay');
+  ov.classList.add('hidden');
+  ov.innerHTML = '';
+  ov.onclick = null;
+}
+
+/* ============================================================
+   Toast
+   ============================================================ */
+
+let toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+/* ============================================================
+   Toolbar
+   ============================================================ */
+
+const TOOLS = [
+  { id: 'delete',      label: 'Del' },
+  { id: 'rightclick',  label: 'RirhtClick' },
+  { sep: true },
+  { id: 'power',       label: 'DC' },
+  { id: 'acpower',     label: 'AC' },
+  { id: 'wire1',       label: 'W1', color: WIRE_COLORS.wire1 },
+  { id: 'wire2',       label: 'W2', color: WIRE_COLORS.wire2 },
+  { id: 'wire3',       label: 'W3', color: WIRE_COLORS.wire3 },
+  { id: 'switch',      label: 'Switch' },
+  { id: 'lamp',        label: 'Lamp' },
+  { id: 'resistor',    label: 'Resistor' },
+  { id: 'capacitor',   label: 'Capacitor' },
+  { id: 'inductor',    label: 'Inductor' },
+  { id: 'coil',        label: 'Coil' },
+  { id: 'diode',       label: 'Diode' },
+  { id: 'led',         label: 'LED' },
+  { id: 'transformer', label: 'Xfmr/Transformer' },
+  { id: 'transistor',  label: 'Q/Transistor' },
+  { id: 'ground',      label: 'GND' },
+  { sep: true },
+  { id: 'rotate-ccw',  label: '↺', special: 'rotate-ccw', title: 'Rotate CCW (T)' },
+  { id: 'rotate-cw',   label: '↻', special: 'rotate-cw',  title: 'Rotate CW (R)'  }
+];
+
+function buildToolbar() {
+  const bar = document.getElementById('toolbar');
+  bar.innerHTML = '';
+
+  for (const t of TOOLS) {
+    if (t.sep) {
+      const s = document.createElement('span');
+      s.className = 'sep';
+      bar.appendChild(s);
+      continue;
+    }
+    const b = document.createElement('button');
+    b.dataset.tool = t.id;
+    if (t.title) b.title = t.title;
+
+    if (t.special) {
+      b.className = 'rotate-btn';
+      b.appendChild(document.createTextNode(t.label));
+      b.onclick = () => {
+        if (t.special === 'rotate-ccw') rotateCurrent(false);
+        else                            rotateCurrent(true);
+      };
+      bar.appendChild(b);
+      continue;
+    }
+
+    if (t.color) {
+      const i = document.createElement('i');
+      i.style.background = t.color;
+      b.appendChild(i);
+    }
+    b.appendChild(document.createTextNode(t.label));
+    b.onclick = () => {
+      state.tool = t.id;
+      refreshToolbar();
+      save();
+      render();
+    };
+
+    if (CONFIGURABLE_TYPES.has(t.id)) {
+      b.title = 'Right-click to edit defaults';
+      b.addEventListener('contextmenu', ev => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        openToolConfig(t.id);
+      });
+    }
+
+    bar.appendChild(b);
+  }
+  refreshToolbar();
+}
+
+function refreshToolbar() {
+  document.querySelectorAll('#toolbar button').forEach(b => {
+    if (b.classList.contains('rotate-btn')) return;
+    b.classList.toggle('active', b.dataset.tool === state.tool);
+  });
+}
+
+/* ============================================================
+   Scope interactions
+   ============================================================ */
+
+function toggleScope() {
+  scopeCollapsed = !scopeCollapsed;
+  const el = document.getElementById('scope');
+  el.classList.toggle('collapsed', scopeCollapsed);
+  document.getElementById('scopeToggle').textContent = scopeCollapsed ? '▴' : '▾';
+  if (!scopeCollapsed) resizeScope();
+}
+
+document.getElementById('scopeToggle').onclick = toggleScope;
+document.querySelectorAll('#scope .mode button').forEach(b => {
+  b.onclick = () => {
+    const m = b.dataset.mode;
+    if (!m) return;
+    state.mode = m;
+    document.querySelectorAll('#scope .mode button').forEach(x => x.classList.toggle('active', x === b));
+    update();
+    refreshScope();
+  };
+});
+
+/* ============================================================
+   Main
+   ============================================================ */
+
+function update() {
+  save();
+  simulate();
+  render();
+  refreshScope();
+}
+
+function init() {
+  const hadSave = load();
+
+  for (const k in state.cells) ensureDefaults(state.cells[k]);
+  for (const t in toolCells) ensureDefaults(toolCells[t]);
+  for (const t of TOOLS) {
+    if (t.special || t.sep) continue;
+    getToolCell(t.id);
+  }
+
+  buildToolbar();
+  resize();
+
+  document.querySelectorAll('#scope .mode button').forEach(x => {
+    x.classList.toggle('active', x.dataset.mode === state.mode);
+  });
+
+  if (!hadSave) {
+    state.cam.x = Math.round(window.innerWidth / 2 - CELL / 2);
+    state.cam.y = Math.round(window.innerHeight / 2 - CELL / 2);
+  }
+
+  simulate();
+  render();
+  refreshScope();
+
+  window.addEventListener('resize', resize);
+}
+
+init();
+</script>
+</body>
+</html>

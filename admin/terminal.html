@@ -1,0 +1,172 @@
+﻿<!-- File: C:\moj\admin\terminal.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Terminal - WYK Maths Team</title><link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" as="style">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <style>
+    .terminal-container {
+      background: var(--card-bg); border-radius: 4px; padding: 1.5rem; max-width: 900px; margin: 0 auto;
+    }
+    .output {
+      background: #1e1e1e; color: #d4d4d4; font-family: monospace; padding: 1rem; margin-top: 1rem;
+      border-radius: 4px; max-height: 400px; overflow: auto; white-space: pre-wrap;
+    }
+    .input-group { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: flex-start; }
+    /* 代码编辑器风格的文本框 */
+    .code-input {
+      flex: 1;
+      padding: 0.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      font-family: 'Fira Code', 'Cascadia Code', 'Consolas', 'Monaco', monospace;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      resize: vertical;
+      min-height: 40px;
+    }
+    .btn { padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: #6c757d; color: #fff; }
+    .btn-success { background: #2e7d32; color: #fff; }
+    .help-box {
+      background: var(--card-bg); border: 1px solid var(--border-color); padding: 1rem; margin-bottom: 1rem;
+      border-radius: 4px; display: none;
+    }
+    .help-box pre { margin: 0; white-space: pre-wrap; }
+    .button-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .sql-result-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 0.8rem;
+}
+.sql-result-table th, .sql-result-table td {
+  border: 1px solid var(--border-color);
+  padding: 0.3rem 0.6rem;
+  font-size: 0.85rem;
+  text-align: left;
+}
+.sql-result-table th {
+  background: #2d2d2d;
+  color: #eee;
+}
+.sql-statement pre {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 0.5rem;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+  </style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="terminal-container">
+        <h2>SQL Terminal</h2>
+        <div class="button-row">
+          <button class="btn btn-secondary" id="helpBtn">Show Commands</button>
+          <button class="btn btn-success" id="syncBtn">Sync Version</button>
+        </div>
+        <div class="help-box" id="helpBox">
+          <pre>
+<strong>Allowed commands:</strong>
+1. <strong>SELECT</strong> * FROM collection [WHERE conditions] [ORDER BY field ASC/DESC] [LIMIT n]
+2. <strong>INSERT INTO</strong> collection (field1, field2, ...) VALUES (val1, val2, ...), (val3, val4, ...)
+3. <strong>UPDATE</strong> collection SET field1=value1, field2=value2 [WHERE conditions]
+4. <strong>DELETE</strong> FROM collection WHERE conditions
+5. <strong>ALTER TABLE</strong> collection DROP COLUMN field
+6. <strong>SHOW TABLES</strong> - list all allowed collections</pre>
+        </div>
+
+        <div class="input-group">
+          <textarea id="sqlInput" class="code-input" rows="3" placeholder="SELECT * FROM problems LIMIT 10"></textarea>
+          <button class="btn btn-primary" id="executeBtn">Execute</button>
+        </div>
+        <div class="output" id="output"></div>
+      </div>
+    </main>
+    <!-- <button class="sidebar-toggle" id="sidebarToggle">☰</button> -->
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+    if (!isLoggedIn() || (getCurrentUser()?.role !== 'root')) {
+      window.location.href = '/index.html';
+    }
+
+    const input = document.getElementById('sqlInput');
+    const output = document.getElementById('output');
+    const helpBox = document.getElementById('helpBox');
+
+    document.getElementById('helpBtn').addEventListener('click', () => {
+      helpBox.style.display = helpBox.style.display === 'block' ? 'none' : 'block';
+    });
+
+    // 同步版本按钮
+    document.getElementById('syncBtn').addEventListener('click', async () => {
+      output.textContent = 'Syncing problems version...';
+      try {
+        const data = await apiCall('/api/admin?action=syncVersion', 'POST');
+        if (data.success) {
+          output.textContent = 'Version synced successfully. New version: ' + data.version;
+        } else {
+          output.textContent = 'Error: ' + (data.message || 'Unknown error');
+        }
+      } catch (err) {
+        output.textContent = 'Error: ' + (err.message || 'Network error');
+      }
+    });
+
+    document.getElementById('executeBtn').addEventListener('click', async () => {
+  const sql = input.value.trim();
+  if (!sql) return;
+
+  // 显示当前 SQL 语句（纯文本转义）
+  const sqlEscaped = sql.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  output.innerHTML = `<div class="sql-statement"><strong>SQL:</strong> <pre>${sqlEscaped}</pre></div>`;
+
+  // 执行
+  try {
+    const data = await apiCall('/api/admin?action=terminal', 'POST', { sql });
+    if (data.success) {
+      if (data.result.tableHtml) {
+        // SELECT 结果：直接插入表格 HTML
+        output.innerHTML += data.result.tableHtml;
+      } else {
+        // 其他操作：纯文本显示
+        output.innerHTML += `<pre>${JSON.stringify(data.result, null, 2).replace(/&/g,'&amp;').replace(/</g,'&lt;')}</pre>`;
+      }
+    } else {
+      output.innerHTML += `<div class="error">Error: ${data.message}</div>`;
+    }
+  } catch (err) {
+    output.innerHTML += `<div class="error">Error: ${err.message}</div>`;
+  }
+});
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        document.getElementById('executeBtn').click();
+      }
+    });
+  </script>
+</body>
+</html>

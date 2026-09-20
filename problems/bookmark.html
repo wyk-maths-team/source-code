@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Bookmarked Problems - WYK Maths Team</title><link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" as="style">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
+    <style>
+        .problems-table { width: 100%; border-collapse: collapse; margin-top: 1rem; background: var(--card-bg); border-radius: 4px; overflow: hidden; box-shadow: var(--shadow-sm); }
+        .problems-table th, .problems-table td {
+            padding: 0.2rem 0.5rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+        .problems-table th { background: #e9ecef; font-weight: 700; padding-top: 0.3rem; padding-bottom: 0.3rem; }
+        .problem-row { cursor: pointer; transition: background 0.15s; }
+        .problem-row.state-not_started { border-left: 2px solid #b3d4ff; }
+        .problem-row.state-passed td { background-color: #e6ffed; }
+        .problem-row.state-passed { border-left: 2px solid #4caf50; }
+        .problem-row.state-failed td { background-color: #ffeaea; }
+        .problem-row.state-failed { border-left: 2px solid #e74c3c; }
+        .problem-row:hover td { background-color: #f0f0f0 !important; }
+        .problem-row.state-passed:hover td { background-color: #b9f6ca !important; }
+        .problem-row.state-failed:hover td { background-color: #ffb3b3 !important; }
+
+        :root[data-theme="dark"] .problem-row.state-passed td {
+            background-color: #1a3a2a !important;
+        }
+        :root[data-theme="dark"] .problem-row.state-failed td {
+            background-color: #3a1a1a !important;
+        }
+        :root[data-theme="dark"] .problem-row:hover td {
+            background-color: #2a2a2a !important;
+        }
+        :root[data-theme="dark"] .problem-row.state-passed:hover td {
+            background-color: #2a4a3a !important;
+        }
+        :root[data-theme="dark"] .problem-row.state-failed:hover td {
+            background-color: #4a2a2a !important;
+        }
+
+        .problem-id { font-family: monospace; font-weight: 700; width: 120px; }
+        .problem-name { font-weight: 600; }
+        .tags-container {
+            display: flex;
+            gap: 0.4rem;
+            flex-wrap: nowrap;
+            overflow: hidden;
+            min-height: 1.5em;
+            align-items: center;
+            padding: 0;
+        }
+        .tag { background: #f0f0f0; padding: 0.1rem 0.5rem; border-radius: 12px; font-size: 0.7rem; white-space: nowrap; }
+        .difficulty { text-align: right; width: 70px; }
+        .solves { text-align: right; width: 70px; }
+        .sortable { cursor: pointer; user-select: none; }
+        .sortable:hover { color: var(--accent); }
+        .back-link { margin-bottom: 1rem; display: inline-block; }
+        /* 星星样式 */
+        .star-favorite { color: #f1c40f; cursor: pointer; font-size: 1.2rem; }
+        .star-favorite:hover { opacity: 0.8; }
+    </style>
+</head>
+<body class="index-body">
+    <div id="appContainer">
+        <header class="topbar" id="topbarContainer"></header>
+        <aside class="sidebar" id="sidebarContainer"></aside>
+        <main class="main-content" id="mainContent">
+            <div class="loading-msg">Loading bookmarks...</div>
+        </main>
+        <!-- <button class="sidebar-toggle" id="sidebarToggle">☰</button> -->
+    </div>
+
+    <div id="loginModal" class="modal-overlay" style="display: none;"></div>
+
+    <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+    <script>
+        if (!isLoggedIn()) window.location.href = '/index.html';
+
+        const mainContainer = document.getElementById('mainContent');
+        let userStates = {};
+        let bookmarks = [];
+        let sortBy = 'id';
+        let sortOrder = 'asc';
+
+        function escapeHtml(str) {
+            return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+        }
+
+        async function loadData() {
+            try {
+                // 获取解题状态
+                const statsRes = await apiCall('/api/users?action=stats');
+                if (statsRes.success) userStates = statsRes.states;
+
+                // 获取收藏列表
+                const favRes = await apiCall('/api/users?action=favorites');
+                if (favRes.success && favRes.favorites.length > 0) {
+                    const idsParam = favRes.favorites.join(',');
+                    const problemsRes = await apiCall(`/api/problem?ids=${encodeURIComponent(idsParam)}`);
+                    if (problemsRes.success && problemsRes.problems) {
+                        bookmarks = problemsRes.problems;
+                    } else {
+                        bookmarks = [];
+                    }
+                } else {
+                    bookmarks = [];
+                }
+            } catch (err) {
+                userStates = {};
+                bookmarks = [];
+            }
+        }
+
+        // 取消收藏函数
+        async function unfavorite(problemId) {
+            try {
+                const res = await apiCall('/api/users?action=favorite', 'POST', { problemId });
+                if (res.success) {
+                    // 从列表中移除
+                    bookmarks = bookmarks.filter(p => p.id !== problemId);
+                    renderTable();
+                }
+            } catch (e) {
+                alert('Error');
+            }
+        }
+
+        function renderTable() {
+            document.title = 'Bookmarked Problems - WYK Maths Team';
+
+            if (bookmarks.length === 0) {
+                mainContainer.innerHTML = `<div style="padding:2rem; text-align:center;">
+                    <p>No bookmarked problems.</p>
+                    <a href="/problems" class="back-link">← Back to Problem Set</a>
+                </div>`;
+                return;
+            }
+
+            // 排序
+            bookmarks.sort((a, b) => {
+                let valA, valB;
+                if (sortBy === 'difficulty') {
+                    valA = a.difficulty || 0;
+                    valB = b.difficulty || 0;
+                } else if (sortBy === 'solves') {
+                    valA = a.solves || 0;
+                    valB = b.solves || 0;
+                } else { // id
+                    valA = a.id;
+                    valB = b.id;
+                    if (typeof valA === 'string' && typeof valB === 'string') {
+                        const regex = /^([A-Za-z]*)(\d+)$/;
+                        const matchA = valA.match(regex);
+                        const matchB = valB.match(regex);
+                        if (matchA && matchB) {
+                            const prefixA = matchA[1].toLowerCase();
+                            const prefixB = matchB[1].toLowerCase();
+                            if (prefixA !== prefixB) return sortOrder === 'asc' ? prefixA.localeCompare(prefixB) : prefixB.localeCompare(prefixA);
+                            return sortOrder === 'asc' ? parseInt(matchA[2]) - parseInt(matchB[2]) : parseInt(matchB[2]) - parseInt(matchA[2]);
+                        }
+                    }
+                    if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+                    if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+                    return 0;
+                }
+                if (sortOrder === 'asc') return valA - valB;
+                return valB - valA;
+            });
+
+            let html = `
+                <div style="padding:1rem;">
+                    <a href="/problems" class="back-link">← Back to Problem Set</a>
+                    <h2 style="margin: 0.5rem 0 1rem;">Bookmarked Problems</h2>
+                    <table class="problems-table">
+                        <thead><tr>
+                            <th style="width:30px;"></th>
+                            <th class="sortable" data-sort="id">ID ${sortBy==='id' ? (sortOrder==='asc'?'▲':'▼') : ''}</th>
+                            <th>Name</th>
+                            <th>Tags</th>
+                            <th class="sortable" data-sort="difficulty">Level ${sortBy==='difficulty' ? (sortOrder==='asc'?'▲':'▼') : ''}</th>
+                            <th class="sortable" data-sort="solves">Solves ${sortBy==='solves' ? (sortOrder==='asc'?'▲':'▼') : ''}</th>
+                        </tr></thead><tbody>`;
+
+            bookmarks.forEach(prob => {
+                const state = userStates[prob.id] || 'not_started';
+                const rowClass = state === 'failed' ? 'state-failed' : (state === 'passed' ? 'state-passed' : 'state-not_started');
+                const statusIcon = state === 'passed' ? '<span style="color:#2e7d32;">✔</span>' : (state === 'failed' ? '<span style="color:#c62828;">✘</span>' : '');
+
+                html += `
+                    <tr class="problem-row ${rowClass}" onclick="window.location.href='/problems/${encodeURIComponent(prob.id)}'">
+                        <td onclick="event.stopPropagation(); unfavorite('${prob.id}')" class="star-cell">
+                            <span class="star-favorite">★</span>
+                        </td>
+                        <td class="problem-id">${prob.id}</td>
+                        <td class="problem-name">${escapeHtml(prob.name)} ${statusIcon}</td>
+                        <td class="tags-container">${(prob.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</td>
+                        <td class="difficulty">${prob.difficulty===0?'∞':prob.difficulty.toFixed(2)}</td>
+                        <td class="solves">${prob.solves||0}</td>
+                    </tr>`;
+            });
+            html += '</tbody></table></div>';
+
+            mainContainer.innerHTML = html;
+
+            // 绑定排序事件
+            document.querySelectorAll('.sortable').forEach(th => {
+                th.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const field = th.getAttribute('data-sort');
+                    if (sortBy === field) sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+                    else { sortBy = field; sortOrder = 'asc'; }
+                    renderTable();
+                });
+            });
+        }
+
+        (async function init() {
+            await loadData();
+            renderTable();
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+(function(){
+  try {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                    || window.navigator.standalone === true
+                    || window.matchMedia('(display-mode: fullscreen)').matches
+                    || window.matchMedia('(display-mode: minimal-ui)').matches;
+    if (!isStandalone) return;
+    if (location.pathname.indexOf('/os') === 0) return;
+    if (location.pathname.indexOf('/admin') === 0) return;
+    if (!sessionStorage.getItem('pwaEnteredOS')) {
+      sessionStorage.setItem('pwaEnteredOS', '1');
+      location.replace('/os' + location.search + location.hash);
+    }
+  } catch(e){}
+})();
+</script>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>Judge Status - WYK Maths Team</title><link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" as="style">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <style>
+    .status-container {
+      background: var(--card-bg);
+      border-radius: 4px;
+      padding: 1.5rem;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .status-label { font-weight: 600; }
+    .status-value { font-family: monospace; }
+    .progress-bar {
+      height: 24px;
+      background: #e9ecef;
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 0.5rem 0;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.5s;
+      text-align: center;
+      color: white;
+      line-height: 24px;
+      font-size: 0.8rem;
+    }
+    .collection-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    .collection-table th, .collection-table td {
+      padding: 0.4rem;
+      border: 1px solid var(--border-color);
+      font-size: 0.9rem;
+    }
+    .collection-table th { background: #f0f0f0; }
+    .loading-msg { text-align: center; padding: 2rem; }
+  </style>
+
+  <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WYK Maths">
+  <meta name="mobile-web-app-capable" content="yes">
+
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="loading-msg">Loading status...</div>
+    </main>
+    <!-- <button class="sidebar-toggle" id="sidebarToggle">☰</button> -->
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+    if (!isLoggedIn()) window.location.href = '/index.html';
+
+    async function loadStatus() {
+      try {
+        const data = await apiCall('/api/status');
+        if (!data.success) throw new Error(data.message);
+        return data;
+      } catch (err) {
+        console.error(err);
+        return null;
+      }
+    }
+
+    function renderStatus(data) {
+      const mc = document.getElementById('mainContent');
+      if (!data) {
+        mc.innerHTML = '<div class="error-msg">Failed to load status.</div>';
+        return;
+      }
+
+      // MongoDB 部分
+      const usedPercent = Math.min(100, ((parseFloat(data.dbSizeMB) / 512) * 100)).toFixed(2);
+
+      let html = `<div class="status-container">
+        <h2>Server Status</h2>
+        <h3>MongoDB</h3>
+        <div class="status-item">
+          <span class="status-label">Database Storage Used</span>
+          <span class="status-value">${data.dbSizeMB} MB / 512 MB</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: ${usedPercent}%;">${usedPercent}%</div>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Data Size</span>
+          <span class="status-value">${data.dataSizeMB} MB</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Index Size</span>
+          <span class="status-value">${data.indexSizeMB} MB</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Free Space</span>
+          <span class="status-value">${data.freeMB} MB</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Server Time</span>
+          <span class="status-value">${new Date(data.serverTime).toLocaleString()}</span>
+        </div>
+        <div class="status-item" style="color: var(--text-secondary);">
+          <span>Load data not available on Vercel free plan.</span>
+        </div>`;
+
+      // Cloudinary 状态
+      if (data.cloudinary) {
+        if (data.cloudinary.error) {
+          html += `<h3>Cloudinary Status</h3>
+          <p style="color: var(--danger);">Error: ${data.cloudinary.message}</p>`;
+        } else {
+          const storageUsedMB = parseFloat(data.cloudinary.storageUsedMB) || 0;
+          const storageLimitMB = parseFloat(data.cloudinary.limitMB) || 25600; // 25 GB free
+          const storagePercent = Math.min(100, ((storageUsedMB / storageLimitMB) * 100)).toFixed(2);
+          const bandwidthUsedMB = parseFloat(data.cloudinary.bandwidthUsedMB) || 0;
+          const bandwidthLimitMB = parseFloat(data.cloudinary.limitMB) || 25600; // 25 GB free
+          const bandwidthPercent = Math.min(100, ((bandwidthUsedMB / bandwidthLimitMB) * 100)).toFixed(2);
+
+          html += `<h3>Cloudinary Status</h3>
+          <div class="status-item">
+            <span class="status-label">Storage Used</span>
+            <span class="status-value">${storageUsedMB.toFixed(2)} MB / ${storageLimitMB.toLocaleString()} MB</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: ${storagePercent}%;">${storagePercent}%</div>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Bandwidth Used</span>
+            <span class="status-value">${bandwidthUsedMB.toFixed(2)} MB / ${bandwidthLimitMB.toLocaleString()} MB</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: ${bandwidthPercent}%;">${bandwidthPercent}%</div>
+          </div>`;
+        }
+      }
+
+      // 集合详情
+      html += `<h3>Collections</h3>
+        <table class="collection-table">
+          <thead><tr><th>Name</th><th>Documents</th><th>Size (MB)</th><th>Avg. Obj Size (bytes)</th></tr></thead>
+          <tbody>`;
+
+      data.collections.forEach(c => {
+        html += `<tr>
+          <td>${c.name}</td>
+          <td>${c.documentCount}</td>
+          <td>${c.storageSizeMB}</td>
+          <td>${c.avgObjSize}</td>
+        </tr>`;
+      });
+
+      html += '</tbody></table></div>';
+      mc.innerHTML = html;
+    }
+
+    (async () => {
+      const data = await loadStatus();
+      renderStatus(data);
+    })();
+  </script>
+</body>
+</html>

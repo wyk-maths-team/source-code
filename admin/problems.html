@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manage Problems - WYK Maths Team</title>
+  <link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" as="style">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <style>
+    .admin-container { background: var(--card-bg); border-radius: 4px; padding: 1.5rem; }
+    .problems-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    .problems-table th, .problems-table td { padding: 0.5rem; border-bottom: 1px solid var(--border-color); text-align: left; }
+    .problems-table th:first-child { width: 30px; }
+    .btn { padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; margin-right: 0.5rem; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-warning { background: #ffc107; color: #000; }
+    .message { margin: 1rem 0; font-size: 0.9rem; }
+    .batch-actions { margin-top: 1rem; display: none; }
+    .batch-actions.visible { display: block; }
+  </style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="admin-container">
+        <h2>Manage Problems</h2>
+        <div style="margin-bottom:1rem;">
+          <a href="/admin/create/problem" class="btn btn-primary">+ Add New Problem</a>
+        </div>
+        <table class="problems-table">
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="selectAll" /></th>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Answer</th>
+              <th>Public</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="problemsList"></tbody>
+        </table>
+        <div class="batch-actions" id="batchActions">
+          <button class="btn btn-danger" id="batchDeleteBtn">Delete Selected</button>
+          <button class="btn btn-warning" id="batchHideBtn">Hide Selected</button>
+        </div>
+        <div id="message" class="message"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+    const user = getCurrentUser();
+    if (!isLoggedIn() || (user?.role !== 'admin' && user?.role !== 'root')) {
+      window.location.href = '/index.html';
+    }
+
+    function escapeHtml(str) { return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+
+    async function loadProblems() {
+      try {
+        const data = await apiCall('/api/problem?action=adminProblems');
+        if (data.success) {
+          const tbody = document.getElementById('problemsList');
+          tbody.innerHTML = data.problems.map(p => `
+            <tr>
+              <td><input type="checkbox" class="problem-checkbox" data-id="${escapeHtml(p.id)}" /></td>
+              <td><a href="/problems/${encodeURIComponent(p.id)}">${escapeHtml(p.id)}</a></td>
+              <td>${escapeHtml(p.name)}</td>
+              <td>${escapeHtml(String(p.ans))}</td>
+              <td>${p.public ? 'Yes' : 'No'}</td>
+              <td>
+                <button class="btn btn-primary" onclick="window.location.href='/admin/problems/${encodeURIComponent(p.id)}'">Edit</button>
+                <button class="btn btn-danger" onclick="deleteProblem('${escapeHtml(p.id)}')">Delete</button>
+              </td>
+            </tr>
+          `).join('');
+
+          document.getElementById('selectAll').addEventListener('change', function() {
+            document.querySelectorAll('.problem-checkbox').forEach(cb => cb.checked = this.checked);
+            toggleBatchActions();
+          });
+
+          document.querySelectorAll('.problem-checkbox').forEach(cb => {
+            cb.addEventListener('change', toggleBatchActions);
+          });
+
+          toggleBatchActions();
+        }
+      } catch (err) { console.error(err); }
+    }
+
+    function toggleBatchActions() {
+      const checked = document.querySelectorAll('.problem-checkbox:checked').length;
+      const batchDiv = document.getElementById('batchActions');
+      if (checked > 0) batchDiv.classList.add('visible');
+      else batchDiv.classList.remove('visible');
+    }
+
+    async function deleteProblem(id) {
+      if (!confirm(`Delete problem "${id}"?`)) return;
+      try {
+        const result = await apiCall('/api/problem?action=adminProblems', 'DELETE', { id });
+        showMessage(result.message, result.success ? 'success' : 'error');
+        if (result.success) loadProblems();
+      } catch (err) { showMessage('Error', 'error'); }
+    }
+
+    document.getElementById('batchDeleteBtn').addEventListener('click', async function() {
+      const checked = document.querySelectorAll('.problem-checkbox:checked');
+      if (!checked.length) return;
+      const ids = Array.from(checked).map(cb => cb.dataset.id);
+      if (!confirm(`Delete ${ids.length} problem(s)?`)) return;
+      try {
+        const result = await apiCall('/api/problem?action=adminProblems', 'DELETE', { ids });
+        showMessage(result.message, result.success ? 'success' : 'error');
+        if (result.success) loadProblems();
+      } catch (err) { showMessage('Error', 'error'); }
+    });
+
+    document.getElementById('batchHideBtn').addEventListener('click', async function() {
+      const checked = document.querySelectorAll('.problem-checkbox:checked');
+      if (!checked.length) return;
+      const ids = Array.from(checked).map(cb => cb.dataset.id);
+      if (!confirm(`Hide ${ids.length} problem(s)? (They will be invisible to students)`)) return;
+      try {
+        const result = await apiCall('/api/problem?action=adminProblems', 'PUT', { ids, public: false });
+        showMessage(result.message, result.success ? 'success' : 'error');
+        if (result.success) loadProblems();
+      } catch (err) { showMessage('Error', 'error'); }
+    });
+
+    function showMessage(msg, type) {
+      const el = document.getElementById('message');
+      el.textContent = msg;
+      el.style.color = type === 'error' ? 'var(--danger)' : '#2e7d32';
+      setTimeout(() => el.textContent = '', 5000);
+    }
+
+    loadProblems();
+  </script>
+</body>
+</html>

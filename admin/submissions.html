@@ -1,0 +1,282 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>All Submissions (Admin) - WYK Maths Team</title>
+  <link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+  <!-- 复用 submissions 样式 -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" as="style">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/submissions.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+  <style>
+    /* 额外小调整，覆盖可能冲突 */
+    .to-mark-bar {
+      background: var(--warning-bg);
+      color: var(--warning-text);
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+      font-weight: 600;
+    }
+    .to-mark-bar a { color: inherit; }
+    .filter-info .filter-clear { margin-left: 0.3rem; }
+    .btn-sm {
+      padding: 0.15rem 0.5rem;
+      font-size: 0.75rem;
+      border: 1px solid var(--border-color);
+      border-radius: 3px;
+      cursor: pointer;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      margin-right: 2px;
+    }
+    .btn-sm.btn-danger { color: var(--danger); border-color: var(--danger); }
+    .btn-sm.btn-primary { color: var(--accent); border-color: var(--accent); }
+    .message { margin: 0.5rem 0; font-size: 0.9rem; }
+    .header-toolbar { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  </style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <!-- 骨架由 JS 渲染 -->
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+    if (!isLoggedIn() || (getCurrentUser()?.role !== 'admin' && getCurrentUser()?.role !== 'root')) {
+      window.location.href = '/index.html';
+    }
+
+    let currentPage = 1;
+    const limit = 50;
+    let problemIdFilter = null;
+    let statusFilter = null;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('problem_id')) problemIdFilter = urlParams.get('problem_id');
+    if (urlParams.has('status')) statusFilter = urlParams.get('status');
+
+    function formatUsername(user) {
+      if (!user) return 'N/A';
+      const { username, displayName } = user;
+      if (!displayName || displayName === username) return username;
+      return `${username} - ${displayName}`;
+    }
+
+    async function loadSubmissions(page = 1) {
+      try {
+        const params = new URLSearchParams({ page, limit });
+        if (problemIdFilter) params.set('problem_id', problemIdFilter);
+        if (statusFilter) params.set('status', statusFilter);
+        const data = await apiCall(`/api/admin?action=ssubmissions&${params.toString()}`);
+        return data;
+      } catch (err) {
+        console.error(err);
+        return null;
+      }
+    }
+
+    function renderSkeleton() {
+      const mc = document.getElementById('mainContent');
+      mc.innerHTML = `
+        <div class="submissions-wrapper">
+          <div class="header-toolbar">
+            <h2 style="margin:0;flex:1;">${problemIdFilter ? `Submissions for Problem #${problemIdFilter}` : 'All Submissions (Admin)'}</h2>
+            <div class="filter-info" id="filterDisplay"></div>
+          </div>
+          <div id="toMarkBar" class="to-mark-bar">
+            <a href="/admin/marker">To mark: <span id="toMarkCount">…</span></a>
+          </div>
+          <div class="pagination-nav" id="paginationTop"></div>
+          <div class="table-responsive">
+            <table class="submissions-table">
+              <thead>
+                <tr>
+                  <th class="col-id">ID</th>
+                  <th class="col-datetime">Date / Time</th>
+                  <th class="col-user left-align">User</th>
+                  <th class="col-problem left-align">Problem</th>
+                  <th class="col-answer">Answer</th>
+                  <th class="col-status">Status</th>
+                  <th class="col-actions" style="width:120px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="submissionsBody">
+                <tr><td colspan="7" class="loading-msg">Loading submissions…</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination-nav" id="paginationBottom"></div>
+        </div>
+      `;
+    }
+
+    function updateTableBody(submissions) {
+      const tbody = document.getElementById('submissionsBody');
+      if (!tbody) return;
+      if (!submissions || submissions.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;">No submissions found.</td></tr>';
+        return;
+      }
+      let html = '';
+      submissions.forEach(s => {
+        const time = new Date(s.timestamp).toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong' });
+        const statusText = s.status || 'Pending';
+        let cls = 'status-system';
+        if (statusText === 'Accepted') cls = 'status-accepted';
+        else if (statusText === 'Wrong Answer') cls = 'status-wrong';
+        else if (statusText.startsWith('Partial Score')) cls = 'status-partial';
+        else if (statusText === 'Pending') cls = 'status-pending';
+        else if (statusText === 'System Error') cls = 'status-system';
+
+        // 题目列格式：id - name
+        const problemDisplay = `${escapeHtml(s.problemId)} - ${escapeHtml(s.problemName || '')}`;
+        html += `<tr>
+          <td class="col-id"><a href="/submissions/${s.subid || s._id}/detail">${escapeHtml(s.subid || s._id)}</a></td>
+          <td class="col-datetime">${time}</td>
+          <td class="col-user left-align"><a href="/users/${encodeURIComponent(s.username)}">${escapeHtml(formatUsername(s))}</a></td>
+          <td class="col-problem left-align"><a href="/problems/${encodeURIComponent(s.problemId)}">${problemDisplay}</a></td>
+          <td class="col-answer">${s.type === 'image' ? '<i>Image</i>' : escapeHtml(String(s.answer || '-'))}</td>
+          <td class="col-status"><a href="/submissions/${s.subid || s._id}/detail"><span class="status-badge ${cls}">${escapeHtml(statusText)}</span></a></td>
+          <td class="col-actions" style="white-space:nowrap;">
+            <button class="btn-sm btn-danger" onclick="deleteSubmission('${s._id}')">Del</button>
+            <button class="btn-sm btn-primary" onclick="rejudgeSubmission('${s._id}')">Rej</button>
+          </td>
+        </tr>`;
+      });
+      tbody.innerHTML = html;
+    }
+
+    function updatePagination(page, totalPages, total) {
+      const render = (container) => {
+        if (!container) return;
+        if (totalPages <= 1) {
+          container.innerHTML = `<span class="page-info">${total} submission${total !== 1 ? 's' : ''}</span>`;
+          return;
+        }
+        let html = '<ul class="pagination-list">';
+        html += `<li class="page-item ${page <= 1 ? 'disabled' : ''}">
+          <span class="page-link arrow" ${page > 1 ? `onclick="navigateToPage(${page - 1})"` : ''}>‹</span>
+        </li>`;
+        for (let p = 1; p <= totalPages; p++) {
+          html += `<li class="page-item ${p === page ? 'active' : ''}">
+            <span class="page-link" ${p !== page ? `onclick="navigateToPage(${p})"` : ''}>${p}</span>
+          </li>`;
+        }
+        html += `<li class="page-item ${page >= totalPages ? 'disabled' : ''}">
+          <span class="page-link arrow" ${page < totalPages ? `onclick="navigateToPage(${page + 1})"` : ''}>›</span>
+        </li>`;
+        html += `</ul><span class="page-info" style="margin-left:0.5rem;font-size:0.8rem;">${total} submissions</span>`;
+        container.innerHTML = html;
+      };
+
+      render(document.getElementById('paginationTop'));
+      render(document.getElementById('paginationBottom'));
+    }
+
+    function updateToMark(toMark) {
+      const el = document.getElementById('toMarkCount');
+      if (el) el.textContent = toMark || 0;
+    }
+
+    function updateFilterDisplay() {
+      const fd = document.getElementById('filterDisplay');
+      if (!fd) return;
+      let filters = [];
+      if (problemIdFilter) filters.push(`Problem: ${problemIdFilter}`);
+      if (statusFilter) filters.push(`Status: ${statusFilter}`);
+      fd.innerHTML = filters.length 
+        ? `Filters: ${filters.join(', ')} <a href="/admin/ssubmissions" class="filter-clear">✕</a>`
+        : '';
+    }
+
+    function renderData(data) {
+      if (!data || !data.success) {
+        document.getElementById('submissionsBody').innerHTML = '<tr><td colspan="7" class="error-msg">Failed to load submissions.</td></tr>';
+        return;
+      }
+      updateToMark(data.toMark);
+      updateTableBody(data.submissions);
+      updatePagination(data.page, data.totalPages, data.total);
+      updateFilterDisplay();
+    }
+
+    async function navigateToPage(newPage) {
+      currentPage = newPage;
+      // 显示加载状态
+      const tbody = document.getElementById('submissionsBody');
+      if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="loading-msg">Loading…</td></tr>';
+      const data = await loadSubmissions(newPage);
+      renderData(data);
+    }
+
+    async function deleteSubmission(id) {
+      if (!confirm('Delete this submission?')) return;
+      try {
+        const result = await apiCall('/api/submissions?admin=1', 'DELETE', { submissionId: id });
+        showMessage(result.message, result.success ? 'success' : 'error');
+        if (result.success) {
+          const data = await loadSubmissions(currentPage);
+          renderData(data);
+        }
+      } catch (err) { showMessage('Error deleting', 'error'); }
+    }
+
+    async function rejudgeSubmission(id) {
+      try {
+        const result = await apiCall('/api/submissions?admin=1', 'PUT', { submissionId: id });
+        if (result.success) {
+          showMessage(`Rejudged: ${result.correct ? 'Accepted' : 'Wrong Answer'}`, 'success');
+          const data = await loadSubmissions(currentPage);
+          renderData(data);
+        } else {
+          showMessage(result.message || 'Error rejudging', 'error');
+        }
+      } catch (err) { showMessage('Error rejudging', 'error'); }
+    }
+
+    function showMessage(msg, type) {
+      const mc = document.getElementById('mainContent');
+      const existing = mc.querySelector('.message');
+      if (existing) existing.remove();
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'message';
+      msgDiv.textContent = msg;
+      msgDiv.style.color = type === 'error' ? 'var(--danger)' : '#2e7d32';
+      mc.prepend(msgDiv);
+      setTimeout(() => msgDiv.remove(), 3000);
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[m]);
+    }
+
+    (async function init() {
+      renderSkeleton();
+      const data = await loadSubmissions(1);
+      renderData(data);
+    })();
+
+    // 暴露给全局 onclick
+    window.deleteSubmission = deleteSubmission;
+    window.rejudgeSubmission = rejudgeSubmission;
+    window.navigateToPage = navigateToPage;
+  </script>
+</body>
+</html>

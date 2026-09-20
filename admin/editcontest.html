@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Edit Contest - WYK Maths Team</title><link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" as="style">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <style>
+    .form-container {
+      background: var(--card-bg);
+      border-radius: 4px;
+      padding: 2rem;
+      max-width: 700px;
+      margin: 2rem auto;
+    }
+    .form-group {
+      margin-bottom: 1.2rem;
+    }
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+    }
+    .form-group input, .form-group textarea, .form-group select {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-family: inherit;
+    }
+    .btn {
+      padding: 0.5rem 1.5rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-right: 0.5rem;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: #6c757d; color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .message {
+      margin-top: 1rem;
+      font-size: 0.9rem;
+    }
+    .problem-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 0.5rem;
+    }
+    .problem-table th, .problem-table td {
+      padding: 0.3rem;
+      border: 1px solid var(--border-color);
+    }
+    .problem-table th {
+      background: #f0f0f0;
+    }
+    .problem-table select {
+      width: 100%;
+      padding: 0.3rem;
+    }
+    .add-problem-btn {
+      margin-top: 0.5rem;
+    }
+        /* ⭐ 題目列表 textarea */
+    .problem-list-input {
+      width: 100%;
+      min-height: 200px;
+      padding: 0.7rem 0.9rem;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 0.9rem;
+      line-height: 1.7;
+      resize: vertical;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      outline: none;
+      tab-size: 2;
+    }
+    .problem-list-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(74,144,217,.15);
+    }
+    .problem-list-hint {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 6px;
+      line-height: 1.6;
+    }
+    .problem-list-hint code {
+      background: rgba(74,144,217,.12);
+      color: var(--accent);
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 0.85em;
+    }
+    /* ⭐ 解析預覽 */
+    .problem-list-preview {
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: rgba(74,144,217,.06);
+      border: 1px solid rgba(74,144,217,.25);
+      border-radius: 5px;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+    .problem-list-preview .pv-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 1px 0;
+    }
+    .problem-list-preview .pv-id {
+      font-family: 'Consolas', monospace;
+      color: var(--accent);
+      font-weight: 600;
+      min-width: 60px;
+    }
+    .problem-list-preview .pv-type {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 8px;
+    }
+    .problem-list-preview .pv-type.numeric {
+      background: rgba(74,144,217,.18);
+      color: #4a90d9;
+    }
+    .problem-list-preview .pv-type.image {
+      background: rgba(230,126,34,.18);
+      color: #e67e22;
+    }
+    .problem-list-preview .pv-empty {
+      color: var(--text-secondary);
+      font-style: italic;
+    }
+  </style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="form-container" id="formContainer">
+        <div class="loading-msg">Loading contest...</div>
+      </div>
+    </main>
+    <!-- <button class="sidebar-toggle" id="sidebarToggle">☰</button> -->
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+    if (!isLoggedIn() || (getCurrentUser()?.role !== 'admin' && getCurrentUser()?.role !== 'root')) {
+      window.location.href = '/index.html';
+    }
+
+    // 从 URL 提取竞赛 ID
+    const pathMatch = window.location.pathname.match(/^\/admin\/contest\/(\d+)$/);
+    if (!pathMatch) {
+      document.getElementById('formContainer').innerHTML = '<div class="error-msg">Invalid contest ID.</div>';
+      throw new Error('No ID');
+    }
+    const contestId = parseInt(pathMatch[1], 10);
+    document.title = `Edit Contest #${contestId} - WYK Maths Team`;
+
+    async function loadContest() {
+      try {
+        const data = await apiCall(`/api/contests?action=adminDetail&id=${contestId}`);
+        if (data.success && data.contest) return data.contest;
+        return null;
+      } catch (err) {
+        console.error(err);
+        return null;
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+    }
+        /* ⭐ 題目列表解析（與 new.html 相同邏輯） */
+    function parseProblemList(text) {
+      const out = [];
+      const lines = String(text || '').split(/\r?\n/);
+      for (const rawLine of lines) {
+        let line = rawLine.trim();
+        if (!line) continue;
+        if (line.startsWith('#')) continue;
+
+        let evalType = 'numeric';
+        if (/;\s*$/.test(line)) {
+          evalType = 'image_model';
+          line = line.replace(/;\s*$/, '').trim();
+        }
+        if (!line) continue;
+
+        out.push({ problemId: line, evalType });
+      }
+      return out;
+    }
+
+    /* ⭐ 把 contest.problems 轉回 textarea 內容 */
+    function problemsToText(problems) {
+      if (!Array.isArray(problems)) return '';
+      return problems.map(p => {
+        const id = (typeof p === 'object' && p.problemId) ? p.problemId : String(p || '');
+        const isImg = (typeof p === 'object' && p.evalType === 'image_model');
+        return isImg ? `${id};` : id;
+      }).join('\n');
+    }
+
+    function updateProblemListPreview() {
+      const input = document.getElementById('problemListInput');
+      const preview = document.getElementById('problemListPreview');
+      if (!input || !preview) return;
+      const problems = parseProblemList(input.value);
+      if (!problems.length) {
+        preview.style.display = 'none';
+        return;
+      }
+      preview.style.display = 'block';
+      preview.innerHTML = problems.map((p, i) => `
+        <div class="pv-row">
+          <span style="color:#8b9bc0;font-size:.72rem;min-width:22px;">#${i + 1}</span>
+          <span class="pv-id">${escapeHtml(p.problemId)}</span>
+          <span class="pv-type ${p.evalType === 'image_model' ? 'image' : 'numeric'}">
+            ${p.evalType === 'image_model' ? 'Photo' : 'Numeric'}
+          </span>
+        </div>
+      `).join('');
+    }
+
+    function renderForm(contest) {
+      const container = document.getElementById('formContainer');
+      if (!contest) {
+        container.innerHTML = '<div class="error-msg">Contest not found.</div>';
+        return;
+      }
+
+      const startTimeLocal = contest.startTime
+  ? (() => {
+      const d = new Date(contest.startTime);
+      // 如果日期无效，返回空
+      if (isNaN(d.getTime())) return '';
+      // 转为北京时间（Asia/Hong_Kong）
+      const localStr = d.toLocaleString('sv', { timeZone: 'Asia/Hong_Kong' });
+      return localStr.replace(' ', 'T').slice(0, 16);
+    })()
+  : '';
+
+      const participantsStr = (contest.participants || []).join(', ');
+
+      let html = `
+        <h2>Edit Contest #${contest.id}</h2>
+        <form id="editContestForm">
+          <div class="form-group">
+            <label for="contestName">Name *</label>
+            <input type="text" id="contestName" value="${escapeHtml(contest.name)}" required>
+          </div>
+
+          <div class="form-group">
+            <label for="startTime">Start Time *</label>
+            <input type="datetime-local" id="startTime" value="${startTimeLocal}" required>
+          </div>
+
+          <div class="form-group">
+            <label for="duration">Duration (minutes, max 2016000) *</label>
+            <input type="number" id="duration" min="1" max="2016000" value="${contest.duration}" required>
+          </div>
+
+                    <div class="form-group">
+            <label for="problemListInput">Problems</label>
+            <textarea
+              class="problem-list-input"
+              id="problemListInput"
+              rows="10"
+              placeholder="每行一道題，格式：&#10;A001&#10;A002&#10;A003;&#10;A004&#10;&#10;行末加分號 ; 表示 Photo（圖片評分），否則為 Numeric（數值評分）"
+              spellcheck="false"></textarea>
+            <div class="problem-list-hint">
+              每行一道題：<code>A001</code> → Numeric，<code>A001;</code> → Photo。
+              空行和 <code># 開頭</code> 的行會被忽略。
+            </div>
+            <div class="problem-list-preview" id="problemListPreview" style="display:none"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="participants">Participants (comma separated usernames)</label>
+            <textarea id="participants" rows="3">${escapeHtml(participantsStr)}</textarea>
+          </div>
+
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="isPublic" ${contest.public !== false ? 'checked' : ''}> Public
+            </label>
+          </div>
+
+          <div class="form-group">
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <a href="/admin/contest" class="btn btn-secondary">Cancel</a>
+            <button type="button" id="deleteBtn" class="btn btn-danger">Delete</button>
+          </div>
+        </form>
+        <div id="message" class="message"></div>
+      `;
+
+      container.innerHTML = html;
+
+      // ⭐ 把 contest.problems 填進 textarea
+      const problemListInput = document.getElementById('problemListInput');
+      problemListInput.value = problemsToText(contest.problems || []);
+      problemListInput.addEventListener('input', updateProblemListPreview);
+      updateProblemListPreview();
+
+      // 提交修改
+      document.getElementById('editContestForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('contestName').value.trim();
+        const startTime = document.getElementById('startTime').value;
+        const duration = parseInt(document.getElementById('duration').value, 10);
+        const participantsStr = document.getElementById('participants').value.trim();
+        const isPublic = document.getElementById('isPublic').checked;
+
+        // ⭐ 從 textarea 解析題目列表
+        const problems = parseProblemList(
+          document.getElementById('problemListInput').value
+        );
+        
+
+        const participants = participantsStr.split(',').map(u => u.trim()).filter(u => u);
+
+        try {
+                  if (!problems.length) {
+          const msgEl = document.getElementById('message');
+          msgEl.textContent = 'Please add at least one problem.';
+          msgEl.style.color = 'var(--danger)';
+          return;
+        }
+          const result = await apiCall(`/api/contests?action=adminUpdate&id=${contestId}`, 'PUT', {
+            name,
+            startTime: new Date(startTime).toISOString(),
+            duration,
+            problems,
+            participants,
+            public: isPublic
+          });
+          const msgEl = document.getElementById('message');
+          if (result.success) {
+            msgEl.textContent = 'Contest updated!';
+            msgEl.style.color = '#2e7d32';
+          } else {
+            msgEl.textContent = result.message || 'Error';
+            msgEl.style.color = 'var(--danger)';
+          }
+        } catch (err) {
+          document.getElementById('message').textContent = 'Network error';
+          document.getElementById('message').style.color = 'var(--danger)';
+        }
+      });
+
+      // 删除竞赛
+      document.getElementById('deleteBtn').addEventListener('click', async () => {
+        if (!confirm(`Delete contest #${contestId}?`)) return;
+        try {
+          const result = await apiCall('/api/contests?action=adminDelete', 'DELETE', { id: contestId });
+          if (result.success) {
+            window.location.href = '/admin/contest';
+          } else {
+            alert(result.message);
+          }
+        } catch (err) {
+          alert('Error deleting');
+        }
+      });
+    }
+
+    (async function init() {
+      const contest = await loadContest();
+      renderForm(contest);
+    })();
+  </script>
+</body>
+</html>

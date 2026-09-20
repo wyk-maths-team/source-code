@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<script>
+(function(){
+  try {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                    || window.navigator.standalone === true
+                    || window.matchMedia('(display-mode: fullscreen)').matches
+                    || window.matchMedia('(display-mode: minimal-ui)').matches;
+    if (!isStandalone) return;
+    if (location.pathname.indexOf('/os') === 0) return;
+    if (location.pathname.indexOf('/admin') === 0) return;
+    if (!sessionStorage.getItem('pwaEnteredOS')) {
+      sessionStorage.setItem('pwaEnteredOS', '1');
+      location.replace('/os' + location.search + location.hash);
+    }
+  } catch(e){}
+})();
+</script>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard - WYK Maths Team</title>
+  <link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="preload" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" as="style">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+  <style>
+    /* ═══════════════ 版面 ═══════════════ */
+    .admin-dashboard {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.6rem;
+    }
+
+    .dash-header {
+      background: linear-gradient(135deg, var(--accent) 0%, #2a6cb0 100%);
+      color: #fff;
+      padding: 1.6rem 1.8rem;
+      border-radius: 12px;
+      box-shadow: 0 6px 24px rgba(74,144,217,.25);
+      position: relative;
+      overflow: hidden;
+    }
+    .dash-header::before {
+      content: '';
+      position: absolute;
+      top: -60%; right: -10%;
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(255,255,255,.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .dash-header h1 {
+      margin: 0 0 4px 0;
+      font-size: 1.75rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+    }
+    .dash-header h1 i { font-size: 1.5rem; opacity: .9; }
+    .dash-subtitle {
+      margin: 0;
+      font-size: .95rem;
+      opacity: .9;
+      position: relative;
+    }
+
+    /* ═══════════════ 分區 ═══════════════ */
+    .dash-section { display: flex; flex-direction: column; gap: .8rem; }
+    .dash-section h2 {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-bottom: .5rem;
+      border-bottom: 2px solid var(--border-color);
+    }
+    .dash-section h2 i {
+      color: var(--accent);
+      font-size: 1rem;
+      width: 1.4em;
+      text-align: center;
+    }
+
+    .dash-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 14px;
+    }
+
+    /* ═══════════════ 卡片 ═══════════════ */
+    .tile {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 18px 20px;
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+      background: var(--card-bg);
+      color: var(--text-primary);
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+      min-height: 130px;
+      position: relative;
+      overflow: hidden;
+      font-family: inherit;
+      text-align: left;
+    }
+    .tile::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 100% 0%, rgba(74,144,217,.08) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity .2s ease;
+      pointer-events: none;
+    }
+    .tile:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent);
+      box-shadow: 0 10px 28px rgba(74,144,217,.16);
+    }
+    .tile:hover::after { opacity: 1; }
+    .tile:active { transform: translateY(0); }
+
+    .tile-icon {
+      font-size: 30px;
+      color: var(--accent);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .tile-title {
+      font-size: 1.02rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .tile-desc {
+      font-size: .82rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      flex: 1;
+    }
+
+    /* 緊湊模式（快速建立） */
+    .dash-grid.compact { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+    .dash-grid.compact .tile {
+      min-height: 96px;
+      padding: 14px 16px;
+      flex-direction: row;
+      align-items: center;
+      gap: 12px;
+    }
+    .dash-grid.compact .tile-icon { font-size: 22px; margin: 0; flex-shrink: 0; }
+    .dash-grid.compact .tile-title { font-size: .95rem; margin: 0; }
+    .dash-grid.compact .tile-desc { display: none; }
+
+    /* ═══════════════ 危險區域 ═══════════════ */
+    .danger-section h2 { color: #c0392b; border-bottom-color: rgba(220,50,50,.3); }
+    .danger-section h2 i { color: #c0392b; }
+    [data-theme="dark"] .danger-section h2,
+    [data-theme="dark"] .danger-section h2 i { color: #ff7a6e; }
+
+    .danger-zone {
+      position: relative;
+      border: 1px solid rgba(220,50,50,.35);
+      border-radius: 12px;
+      overflow: hidden;
+      background: rgba(220,50,50,.03);
+    }
+
+    /* 灰色迷霧 */
+    .danger-mist {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      color: #fff;
+      text-shadow: 0 1px 4px rgba(0,0,0,.4);
+      background:
+        radial-gradient(circle at 25% 30%, rgba(190,190,190,.92) 0%, transparent 55%),
+        radial-gradient(circle at 78% 68%, rgba(140,140,140,.9) 0%, transparent 55%),
+        radial-gradient(circle at 50% 50%, rgba(110,110,110,.82) 0%, rgba(80,80,80,.96) 100%);
+      backdrop-filter: blur(6px) saturate(.35);
+      -webkit-backdrop-filter: blur(6px) saturate(.35);
+      transition: opacity .5s ease, visibility .5s;
+    }
+    .danger-mist:hover {
+      background:
+        radial-gradient(circle at 25% 30%, rgba(210,210,210,.92) 0%, transparent 55%),
+        radial-gradient(circle at 78% 68%, rgba(160,160,160,.9) 0%, transparent 55%),
+        radial-gradient(circle at 50% 50%, rgba(130,130,130,.82) 0%, rgba(90,90,90,.96) 100%);
+    }
+    .danger-mist i.fa-lock {
+      font-size: 2.4rem;
+      opacity: .9;
+      animation: lockPulse 2.4s ease-in-out infinite;
+    }
+    @keyframes lockPulse {
+      0%, 100% { transform: scale(1); opacity: .85; }
+      50% { transform: scale(1.08); opacity: 1; }
+    }
+    .mist-title { font-size: 1.15rem; font-weight: 800; letter-spacing: 2px; }
+    .mist-hint {
+      font-size: .85rem;
+      opacity: .9;
+      padding: 4px 14px;
+      border: 1px solid rgba(255,255,255,.4);
+      border-radius: 20px;
+      background: rgba(0,0,0,.15);
+      transition: all .15s;
+    }
+    .danger-mist:hover .mist-hint {
+      background: rgba(0,0,0,.3);
+      border-color: rgba(255,255,255,.7);
+    }
+
+    .danger-zone.unlocked .danger-mist {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .danger-zone.locked .danger-body {
+      filter: blur(7px) grayscale(1) brightness(.92);
+      pointer-events: none;
+      user-select: none;
+      transition: filter .5s ease;
+    }
+
+    .danger-body {
+      padding: 20px;
+      transition: filter .5s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .danger-desc {
+      margin: 0;
+      font-size: .85rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .danger-desc i { color: var(--danger); margin-top: 2px; flex-shrink: 0; }
+
+    .danger-unlocked-badge {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      font-size: .82rem;
+      color: var(--danger);
+      font-weight: 600;
+      padding: 6px 12px;
+      background: rgba(220,50,50,.08);
+      border: 1px solid rgba(220,50,50,.25);
+      border-radius: 6px;
+      align-self: flex-start;
+    }
+    .danger-zone.unlocked .danger-unlocked-badge { display: inline-flex; }
+    .danger-unlocked-badge i { font-size: 1rem; }
+
+    /* ═══════════════ Purge 清單 ═══════════════ */
+    .purge-checklist {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .purge-category {
+      border: 1px solid rgba(220,50,50,.22);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--card-bg);
+    }
+    .purge-cat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      background: rgba(220,50,50,.06);
+      border-bottom: 1px solid rgba(220,50,50,.18);
+      gap: 8px;
+    }
+    .purge-cat-name {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: .9rem;
+      color: var(--danger);
+    }
+    .purge-cat-name i { font-size: .95rem; }
+    .purge-cat-name .count {
+      font-weight: 500;
+      font-size: .75rem;
+      color: var(--text-secondary);
+      background: rgba(0,0,0,.06);
+      padding: 1px 7px;
+      border-radius: 10px;
+    }
+    [data-theme="dark"] .purge-cat-name .count { background: rgba(255,255,255,.08); }
+
+    .purge-select-all {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: .78rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+      user-select: none;
+      padding: 2px 8px;
+      border-radius: 4px;
+      transition: background .15s;
+    }
+    .purge-select-all:hover { background: rgba(0,0,0,.04); }
+    [data-theme="dark"] .purge-select-all:hover { background: rgba(255,255,255,.06); }
+
+    .purge-file-list {
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+    .purge-file-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      user-select: none;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: .82rem;
+      color: var(--text-primary);
+      transition: background .12s;
+      line-height: 1.4;
+    }
+    .purge-file-item:hover { background: rgba(74,144,217,.07); }
+    .purge-file-item input[type="checkbox"] {
+      cursor: pointer;
+      accent-color: var(--danger);
+      flex-shrink: 0;
+      margin: 0;
+    }
+    .purge-file-item .file-path {
+      word-break: break-all;
+      flex: 1;
+      min-width: 0;
+    }
+    .purge-file-item .file-badge {
+      font-size: .68rem;
+      padding: 1px 6px;
+      border-radius: 8px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .purge-file-item .file-badge.wildcard {
+      background: rgba(155,89,182,.15);
+      color: #7d3c98;
+    }
+
+    /* ═══════════════ Purge 按鈕 ═══════════════ */
+    .purge-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding-top: 4px;
+    }
+    .btn-purge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 1px solid var(--danger);
+      background: var(--danger);
+      color: #fff;
+      font-family: inherit;
+      font-size: .9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform .12s ease, box-shadow .15s ease, opacity .15s ease;
+      box-shadow: 0 2px 8px rgba(220,50,50,.25);
+    }
+    .btn-purge:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(220,50,50,.35);
+    }
+    .btn-purge:active:not(:disabled) { transform: translateY(0); }
+    .btn-purge:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+      filter: grayscale(.5);
+    }
+    .btn-purge.btn-purge-all {
+      background: transparent;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+      box-shadow: none;
+    }
+    .btn-purge.btn-purge-all:hover:not(:disabled) {
+      background: rgba(220,50,50,.08);
+      box-shadow: none;
+      transform: translateY(-1px);
+    }
+    .btn-purge .btn-icon { font-size: .95em; }
+
+    .purge-cooldown-info {
+      font-size: .82rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 1.4em;
+    }
+    .purge-cooldown-info i { color: #f0ad4e; }
+    .purge-cooldown-info.active { color: #f0ad4e; }
+
+    /* ═══════════════ Purge 日誌 ═══════════════ */
+    .purge-log {
+      display: none;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: .78rem;
+      line-height: 1.6;
+      border-radius: 6px;
+      padding: 12px 14px;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+    .purge-log.visible { display: block; }
+    .purge-log .log-line { margin: 0; white-space: pre-wrap; word-break: break-all; }
+    .purge-log .log-ok   { color: #8fdf8f; }
+    .purge-log .log-err  { color: #ff9b8f; }
+    .purge-log .log-info { color: #8ec3ff; }
+    .purge-log .log-dim  { color: #888; }
+
+    @media (max-width: 600px) {
+      .dash-header { padding: 1.2rem; }
+      .dash-header h1 { font-size: 1.4rem; }
+      .dash-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+      .tile { padding: 14px; min-height: 110px; }
+      .tile-icon { font-size: 24px; }
+      .tile-title { font-size: .92rem; }
+      .tile-desc { font-size: .76rem; }
+      .purge-actions { width: 100%; }
+      .btn-purge { flex: 1; justify-content: center; }
+    }
+  </style>
+  <!-- ⭐ PWA（必須靜態寫入 <head>，不能靠 JS 動態注入） -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WYK Maths">
+  <meta name="mobile-web-app-capable" content="yes">
+
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="admin-dashboard">
+
+        <header class="dash-header">
+          <h1><i class="fas fa-shield-halved"></i> Admin Dashboard</h1>
+          <p class="dash-subtitle" id="dashSubtitle">Loading…</p>
+        </header>
+
+        <!-- ═══════════ 內容管理 ═══════════ -->
+        <section class="dash-section">
+          <h2><i class="fas fa-layer-group"></i> Content</h2>
+          <div class="dash-grid">
+            <a href="/admin/problems" class="tile">
+              <i class="tile-icon fas fa-pen-to-square"></i>
+              <div class="tile-title">Problems</div>
+            </a>
+            <a href="/admin/contests" class="tile">
+              <i class="tile-icon fas fa-trophy"></i>
+              <div class="tile-title">Contests</div>
+            </a>
+            <a href="/admin/updates" class="tile">
+              <i class="tile-icon fas fa-bullhorn"></i>
+              <div class="tile-title">Updates</div>
+            </a>
+            <a href="/admin/users" class="tile">
+              <i class="tile-icon fas fa-users-gear"></i>
+              <div class="tile-title">Users</div>
+            </a>
+            <a href="/resources" class="tile">
+              <i class="tile-icon fas fa-folder-open"></i>
+              <div class="tile-title">Resources</div>
+            </a>
+          </div>
+        </section>
+
+        <!-- ═══════════ 提交與舉報 ═══════════ -->
+        <section class="dash-section">
+          <h2><i class="fas fa-inbox"></i> Submissions and Reports</h2>
+          <div class="dash-grid">
+            <a href="/admin/submissions" class="tile">
+              <i class="tile-icon fas fa-paper-plane"></i>
+              <div class="tile-title">All Submissions</div>
+            </a>
+            <a href="/admin/marker" class="tile">
+              <i class="tile-icon fas fa-clipboard-check"></i>
+              <div class="tile-title">Marking List</div>
+            </a>
+            <a href="/admin/reports" class="tile">
+              <i class="tile-icon fas fa-flag"></i>
+              <div class="tile-title">Problem Reports</div>
+            </a>
+          </div>
+        </section>
+
+        <!-- ═══════════ 快速建立 ═══════════ -->
+        <section class="dash-section">
+          <h2><i class="fas fa-circle-plus"></i> Instant Create</h2>
+          <div class="dash-grid compact">
+            <a href="/admin/create/problem" class="tile">
+              <i class="tile-icon fas fa-square-plus"></i>
+              <div class="tile-title">New Problem</div>
+            </a>
+            <a href="/admin/create/contest" class="tile">
+              <i class="tile-icon fas fa-square-plus"></i>
+              <div class="tile-title">New Contest</div>
+            </a>
+            <a href="/admin/create/update" class="tile">
+              <i class="tile-icon fas fa-square-plus"></i>
+              <div class="tile-title">New Update</div>
+            </a>
+            <a href="/admin/create/user" class="tile">
+              <i class="tile-icon fas fa-square-plus"></i>
+              <div class="tile-title">New User</div>
+            </a>
+          </div>
+        </section>
+
+        <!-- ═══════════ 工具 ═══════════ -->
+        <section class="dash-section">
+          <h2><i class="fas fa-toolbox"></i> Tools</h2>
+          <div class="dash-grid">
+            <a href="/admin/log" class="tile">
+              <i class="tile-icon fas fa-scroll"></i>
+              <div class="tile-title">Server Log</div>
+            </a>
+            <a href="/charts" class="tile">
+              <i class="tile-icon fas fa-chart-line"></i>
+              <div class="tile-title">Charts</div>
+            </a>
+            <a href="/status" class="tile">
+              <i class="tile-icon fas fa-heart-pulse"></i>
+              <div class="tile-title">Storage</div>
+            </a>
+            <a href="/settings" class="tile">
+              <i class="tile-icon fas fa-gear"></i>
+              <div class="tile-title">Settings</div>
+            </a>
+          </div>
+        </section>
+
+        <!-- ═══════════ 終端（僅 root） ═══════════ -->
+        <section class="dash-section" id="rootOnlySection" hidden>
+          <h2><i class="fas fa-terminal"></i> Terminal</h2>
+          <div class="dash-grid">
+            <a href="/admin/sql" class="tile">
+              <i class="tile-icon fas fa-database"></i>
+              <div class="tile-title">SQL Terminal</div>
+            </a>
+            <a href="/admin/cmd" class="tile">
+              <i class="tile-icon fas fa-code"></i>
+              <div class="tile-title">CMD</div>
+            </a>
+          </div>
+        </section>
+
+        <!-- ═══════════ 危險區域 ═══════════ -->
+        <section class="dash-section danger-section">
+          <h2><i class="fas fa-triangle-exclamation"></i> Danger Zone</h2>
+
+          <div class="danger-zone locked" id="dangerZone">
+            <!-- 灰色迷霧 -->
+            <div class="danger-mist" id="dangerMist">
+              <i class="fas fa-lock"></i>
+              <div class="mist-title">Danger Zone</div>
+              <div class="mist-hint">Click to unlock</div>
+            </div>
+
+            <div class="danger-body">
+              <div class="danger-unlocked-badge">
+                <i class="fas fa-unlock"></i>
+                <span>Unlocked, double confirm</span>
+              </div>
+
+              <p class="danger-desc">
+                <i class="fas fa-circle-info"></i>
+                <span>Select the files you want to purge.</span>
+              </p>
+
+              <!-- ⭐ 動態生成的複選清單 -->
+              <div class="purge-checklist" id="purgeChecklist"></div>
+
+              <div class="purge-actions">
+                <button class="btn-purge" id="purgeSelectedBtn" disabled>
+                  <i class="fas fa-broom btn-icon"></i>
+                  <span>Clear(0)</span>
+                </button>
+                <button class="btn-purge btn-purge-all" id="purgeAllBtn">
+                  <i class="fas fa-radiation btn-icon"></i>
+                  <span>Clear all</span>
+                </button>
+                <span class="purge-cooldown-info" id="purgeCooldownInfo"></span>
+              </div>
+
+              <pre class="purge-log" id="purgeLog"></pre>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+    // ═══════════════════════════════════════════════════════
+    //                      權限檢查
+    // ═══════════════════════════════════════════════════════
+    (function() {
+      if (!isLoggedIn()) {
+        window.location.href = '/index.html';
+        return;
+      }
+      const user = getCurrentUser() || {};
+      if (user.role !== 'admin' && user.role !== 'root') {
+        window.location.href = '/index.html';
+        return;
+      }
+
+      const subtitle = document.getElementById('dashSubtitle');
+      if (subtitle) {
+        const name = user.displayName || user.username || 'admin';
+        const roleLabel = user.role === 'root' ? 'Root' : 'Admin';
+        subtitle.textContent = `歡迎回來，${name} · ${roleLabel}`;
+      }
+
+      if (user.role === 'root') {
+        const section = document.getElementById('rootOnlySection');
+        if (section) section.hidden = false;
+      }
+    })();
+
+    // ═══════════════════════════════════════════════════════
+    //                    危險區域：解鎖
+    // ═══════════════════════════════════════════════════════
+    (function() {
+      const zone = document.getElementById('dangerZone');
+      const mist = document.getElementById('dangerMist');
+      if (!zone || !mist) return;
+
+      mist.addEventListener('click', () => {
+        const ok = confirm(
+          '⚠️  危險區域警告\n\n' +
+          '此區域包含 CDN 快取清除操作。\n' +
+          '執行後，所有使用者會立即重新下載最新版本的\n' +
+          'CSS / JS / 題目檔案。\n\n' +
+          '若你剛才沒有更新任何前端檔案，通常不需要清除。\n\n' +
+          '確定要解鎖此區域嗎？'
+        );
+        if (!ok) return;
+        zone.classList.remove('locked');
+        zone.classList.add('unlocked');
+      });
+    })();
+
+    // ═══════════════════════════════════════════════════════
+    //                  CDN Purge（複選清單）
+    // ═══════════════════════════════════════════════════════
+
+    const REPO = 'wyk-math-team/resources';
+    const PURGE_BASE = `https://purge.jsdelivr.net/gh/${REPO}`;
+    const COOLDOWN_MS = 60_000;
+    const COOLDOWN_KEY = 'cdnPurgeLastRun';   // 全域冷卻（單一 key）
+
+    // ── CDN 檔案清單（可依需求擴充）──
+    const PURGE_CATALOG = [
+      {
+        id: 'css',
+        label: 'stylesheet',
+        icon: 'fas fa-brush',
+        files: [
+          'web_css/styles.css',
+          'web_css/submissions.css'
+        ]
+      },
+      {
+        id: 'scripts',
+        label: 'scripts',
+        icon: 'fas fa-broom',
+        files: [
+          'script/auth.js',
+          'script/app.js',
+          'script/topbar.js',
+          'script/sidebar.js',
+          'script/problems-1.js',
+          'script/pd-script.js'
+        ]
+      },
+      {
+        id: 'problems',
+        label: 'Problems CDN',
+        icon: 'fas fa-database',
+        files: [
+          'static/_problems/*'
+        ]
+      }
+    ];
+
+    // ── 冷卻 ──
+    function getCooldownRemaining() {
+      try {
+        const ts = parseInt(localStorage.getItem(COOLDOWN_KEY) || '0', 10);
+        const remaining = COOLDOWN_MS - (Date.now() - ts);
+        return remaining > 0 ? remaining : 0;
+      } catch { return 0; }
+    }
+    function setCooldown() {
+      try { localStorage.setItem(COOLDOWN_KEY, String(Date.now())); } catch {}
+    }
+
+    // ── 日誌面板 ──
+    const logEl = document.getElementById('purgeLog');
+    function logLine(text, cls = '') {
+      if (!logEl) return;
+      logEl.classList.add('visible');
+      const p = document.createElement('p');
+      p.className = 'log-line' + (cls ? ' ' + cls : '');
+      p.textContent = text;
+      logEl.appendChild(p);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    function clearLog() {
+      if (!logEl) return;
+      logEl.innerHTML = '';
+      logEl.classList.add('visible');
+    }
+
+    // ── 生成複選清單 ──
+    function renderChecklist() {
+      const container = document.getElementById('purgeChecklist');
+      if (!container) return;
+
+      let html = '';
+      for (const cat of PURGE_CATALOG) {
+        html += `
+          <div class="purge-category" data-cat="${cat.id}">
+            <div class="purge-cat-header">
+              <span class="purge-cat-name">
+                <i class="${cat.icon}"></i>
+                ${cat.label}
+                <span class="count" data-count="${cat.id}">0/${cat.files.length}</span>
+              </span>
+              <label class="purge-select-all">
+                <input type="checkbox" data-select-all="${cat.id}">
+                <span>全選</span>
+              </label>
+            </div>
+            <div class="purge-file-list">
+              ${cat.files.map(f => {
+                const isWildcard = f.includes('*');
+                return `
+                  <label class="purge-file-item">
+                    <input type="checkbox" data-file="${f}" data-cat="${cat.id}">
+                    <span class="file-path">${f}</span>
+                    ${isWildcard ? '<span class="file-badge wildcard">WILDCARD</span>' : ''}
+                  </label>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }
+      container.innerHTML = html;
+
+      // 綁定
+      container.querySelectorAll('input[type="checkbox"][data-file]').forEach(cb => {
+        cb.addEventListener('change', updateCounts);
+      });
+      container.querySelectorAll('input[type="checkbox"][data-select-all]').forEach(cb => {
+        cb.addEventListener('change', (e) => {
+          const catId = cb.dataset.selectAll;
+          container.querySelectorAll(`input[data-file][data-cat="${catId}"]`).forEach(f => {
+            f.checked = cb.checked;
+          });
+          updateCounts();
+        });
+      });
+      updateCounts();
+    }
+
+    function updateCounts() {
+      const container = document.getElementById('purgeChecklist');
+      const selectedBtn = document.getElementById('purgeSelectedBtn');
+      if (!container || !selectedBtn) return;
+
+      let totalSelected = 0;
+
+      for (const cat of PURGE_CATALOG) {
+        const all = container.querySelectorAll(`input[data-file][data-cat="${cat.id}"]`);
+        const checked = container.querySelectorAll(`input[data-file][data-cat="${cat.id}"]:checked`);
+        const countEl = container.querySelector(`[data-count="${cat.id}"]`);
+        if (countEl) countEl.textContent = `${checked.length}/${all.length}`;
+        totalSelected += checked.length;
+
+        // 更新 group 全選的勾選狀態
+        const selectAll = container.querySelector(`input[data-select-all="${cat.id}"]`);
+        if (selectAll) {
+          selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
+          selectAll.checked = checked.length > 0 && checked.length === all.length;
+        }
+      }
+
+      const span = selectedBtn.querySelector('span');
+      if (span) span.textContent = `Cleared(${totalSelected})`;
+      selectedBtn.disabled = totalSelected === 0 || getCooldownRemaining() > 0;
+    }
+
+    function getSelectedFiles() {
+      const container = document.getElementById('purgeChecklist');
+      const files = [];
+      container.querySelectorAll('input[data-file]:checked').forEach(cb => {
+        files.push(cb.dataset.file);
+      });
+      return files;
+    }
+
+    // ── 單一 URL 清空 ──
+    async function purgeOne(path) {
+      const url = `${PURGE_BASE}/${path}`;
+      logLine(`→ ${url}`, 'log-info');
+      try {
+        const res = await fetch(url, { cache: 'no-store' });
+        let data = null;
+        try { data = await res.json(); } catch {}
+        if (res.ok) {
+          const status = (data && data.status) || 'ok';
+          logLine(`   ✓ ${status}`, 'log-ok');
+          return { ok: true, path };
+        }
+        logLine(`   ✗ HTTP ${res.status}`, 'log-err');
+        return { ok: false, path };
+      } catch (err) {
+        // CORS / 網路錯誤 → no-cors 盲送
+        try {
+          await fetch(url, { mode: 'no-cors', cache: 'no-store' });
+          logLine(`   ✓ 已送出（no-cors，無法讀取回應）`, 'log-ok');
+          return { ok: true, path };
+        } catch (err2) {
+          logLine(`   ✗ ${err2.message || 'failed'}`, 'log-err');
+          return { ok: false, path };
+        }
+      }
+    }
+
+    // ── 執行清空 ──
+    async function runPurge(files, label) {
+      if (!files.length) return;
+      const t0 = Date.now();
+      logLine(`\n━━━ 開始清除：${label}（${files.length} 個檔案）━━━`, 'log-info');
+
+      const results = [];
+      for (const path of files) {
+        results.push(await purgeOne(path));
+      }
+
+      const okCount = results.filter(r => r.ok).length;
+      const errCount = results.length - okCount;
+      const dur = ((Date.now() - t0) / 1000).toFixed(1);
+      if (errCount === 0) {
+        logLine(`━━━ 完成：${okCount}/${results.length} 成功（${dur}s）━━━`, 'log-ok');
+      } else {
+        logLine(`━━━ 完成：${okCount} 成功 · ${errCount} 失敗（${dur}s）━━━`, 'log-err');
+      }
+    }
+
+    // ── 冷卻 UI ──
+    let cooldownTimer = null;
+    function refreshCooldownUI() {
+      const info = document.getElementById('purgeCooldownInfo');
+      const selectedBtn = document.getElementById('purgeSelectedBtn');
+      const allBtn = document.getElementById('purgeAllBtn');
+      const remaining = getCooldownRemaining();
+
+      if (remaining > 0) {
+        const sec = Math.ceil(remaining / 1000);
+        if (info) {
+          info.classList.add('active');
+          info.innerHTML = `<i class="fas fa-hourglass-half"></i> 冷卻中… ${sec}s`;
+        }
+        if (selectedBtn) selectedBtn.disabled = true;
+        if (allBtn) allBtn.disabled = true;
+        clearTimeout(cooldownTimer);
+        cooldownTimer = setTimeout(refreshCooldownUI, 300);
+      } else {
+        if (info) {
+          info.classList.remove('active');
+          info.innerHTML = '';
+        }
+        if (selectedBtn) selectedBtn.disabled = (getSelectedFiles().length === 0);
+        if (allBtn) allBtn.disabled = false;
+        clearTimeout(cooldownTimer);
+      }
+    }
+
+    // ── 綁定主按鈕 ──
+    function bindPurgeButtons() {
+      const selectedBtn = document.getElementById('purgeSelectedBtn');
+      const allBtn = document.getElementById('purgeAllBtn');
+
+      selectedBtn.addEventListener('click', async () => {
+        if (getCooldownRemaining() > 0) {
+          alert(`請稍候 ${Math.ceil(getCooldownRemaining() / 1000)} 秒後再試。`);
+          return;
+        }
+        const files = getSelectedFiles();
+        if (!files.length) return;
+
+        const ok = confirm(
+          `⚠️  確認清除 ${files.length} 個 CDN 檔案？\n\n` +
+          files.slice(0, 8).join('\n') +
+          (files.length > 8 ? `\n… （還有 ${files.length - 8} 個）` : '') +
+          '\n\n使用者下次訪問時會下載最新版本。\n\n確定要執行嗎？'
+        );
+        if (!ok) return;
+
+        setCooldown();
+        refreshCooldownUI();
+        clearLog();
+        logLine(`[${new Date().toLocaleTimeString('zh-HK')}] 使用者觸發：清除所選`, 'log-dim');
+        try {
+          await runPurge(files, '自訂選擇');
+        } catch (err) {
+          logLine(`✗ 整體錯誤：${err.message}`, 'log-err');
+        }
+      });
+
+      allBtn.addEventListener('click', async () => {
+        if (getCooldownRemaining() > 0) {
+          alert(`請稍候 ${Math.ceil(getCooldownRemaining() / 1000)} 秒後再試。`);
+          return;
+        }
+        const allFiles = PURGE_CATALOG.flatMap(c => c.files);
+        const ok = confirm(
+          `⚠️  確認清除全部 ${allFiles.length} 個 CDN 檔案？\n\n` +
+          '這將會清除整個 resources repo 的快取。\n' +
+          '所有使用者下次訪問時會下載最新版本。\n\n確定要執行嗎？'
+        );
+        if (!ok) return;
+
+        setCooldown();
+        refreshCooldownUI();
+        clearLog();
+        logLine(`[${new Date().toLocaleTimeString('zh-HK')}] 使用者觸發：清除全部`, 'log-dim');
+        try {
+          await runPurge(allFiles, '全部');
+        } catch (err) {
+          logLine(`✗ 整體錯誤：${err.message}`, 'log-err');
+        }
+      });
+    }
+
+    // ── 初始化 ──
+    renderChecklist();
+    bindPurgeButtons();
+    refreshCooldownUI();
+  </script>
+</body>
+</html>

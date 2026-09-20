@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+(function(){
+  try {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                    || window.navigator.standalone === true
+                    || window.matchMedia('(display-mode: fullscreen)').matches
+                    || window.matchMedia('(display-mode: minimal-ui)').matches;
+    if (!isStandalone) return;
+    if (location.pathname.indexOf('/os') === 0) return;
+    if (location.pathname.indexOf('/admin') === 0) return;
+    if (!sessionStorage.getItem('pwaEnteredOS')) {
+      sessionStorage.setItem('pwaEnteredOS', '1');
+      location.replace('/os' + location.search + location.hash);
+    }
+  } catch(e){}
+})();
+</script>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>User Guide - WYK Maths Team</title>
+  <link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" as="style">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <style>
+    .guide-container {
+      background: var(--card-bg);
+      border-radius: 4px;
+      padding: 2rem;
+      max-width: 800px;
+      margin: 2rem auto;
+      line-height: 1.8;
+    }
+    .guide-container h1 {
+      margin-bottom: 1.5rem;
+      border-bottom: 2px solid var(--accent);
+      padding-bottom: 0.5rem;
+    }
+    .guide-container h2 {
+      margin: 1.5rem 0 0.8rem;
+      color: var(--accent);
+    }
+    .guide-container p, .guide-container li {
+      color: var(--text-secondary);
+    }
+    .guide-container ul {
+      padding-left: 1.5rem;
+    }
+    .guide-container li {
+      margin-bottom: 0.5rem;
+    }
+  </style>
+
+  <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WYK Maths">
+  <meta name="mobile-web-app-capable" content="yes">
+
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="guide-container">
+        <h1>User Guide</h1>
+
+        <h2>1. Platform Overview</h2>
+        <ul>
+          <li>The system is deployed on the Vercel serverless platform.</li>
+          <li>Data persistence is handled by MongoDB, with image assets stored via Cloudinary.</li>
+        </ul>
+
+        <h2>2. Submission Modes &amp; Behaviour</h2>
+        <ul>
+          <li><strong>Text Mode</strong> (numeric): The submitted answer is compared with the standard answer. A tolerance of \(10^{-6}\) is allowed for floating-point rounding.</li>
+          <li><strong>Text Mode</strong> (advanced): For selected problems, the answer is evaluated by a custom logic function defined in the problem statement.</li>
+          <li><strong>Photo Mode</strong>: This mode is supported but is not recommended for regular use, as marking requires manual review and may result in a longer feedback delay.</li>
+          <li>Discussions are automatically unlocked once a problem has been successfully solved.</li>
+          <li>During peak usage hours, operations involving database queries—such as submissions, favourites, and page loads—may experience slower response times due to server load.</li>
+        </ul>
+
+        <h2>3. Important Notes</h2>
+        <ul>
+          <li>A mandatory cooldown period of 5 seconds applies to each submission to prevent accidental duplicate requests.</li>
+          <li>Problem IDs may change over time. Some problems may be removed or hidden from the public list without prior notice.</li>
+          <li>Due to occasional technical anomalies in the OCR processing pipeline, certain problems may contain formatting errors, incomplete statements, or unclear descriptions. If you encounter any such issues, please use the <strong>Report</strong> button on the problem page.</li>
+        </ul>
+
+        <h2>4. Contest Rules</h2>
+        <ul>
+          <li>Contests are created by teachers and consist of a curated set of problems.</li>
+          <li>Enrolment is only permitted before the contest starts; once the contest has begun, no further participants may join.</li>
+          <li>For numeric-type problems, each incorrect submission incurs a penalty of 10 marks per problem.</li>
+          <li>In the event of a tie in total score, the ranking will be determined by the timestamp of the last submission—earlier submissions rank higher.</li>
+        </ul>
+
+        <h2>5. Additional Information</h2>
+        <ul>
+          <li>The platform includes several non-obvious features intended for advanced users.</li>
+          <li>The website is fully responsive and optimised for mobile devices.</li>
+          <li>All PDF resources provided on this site are either contributed by Mr Patrick Chung or sourced from publicly available materials, used with permission where applicable.</li>
+          <li>The judging engine and core logic are original developments, while the user interface design draws inspiration from established online judge systems.</li>
+        </ul>
+
+        <p style="margin-top:2rem; text-align:center;">
+          <a href="/">← Back to Home</a>
+        </p>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+</body>
+</html>
