@@ -11,6 +11,11 @@ export default async function handler(req, res) {
 
   const { action } = req.query;
   let decoded = null;
+  if (action !== 'leaderboard') {
+    decoded = await verifyToken(req);
+    if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+  const db = await connectToDatabase();
     // ========== 管理端 ==========
   if (typeof action === 'string' && action.startsWith('admin')) {
     const isAdminUser = decoded && (decoded.role === 'admin' || decoded.role === 'root');
@@ -154,13 +159,10 @@ export default async function handler(req, res) {
     return res.status(400).json({ success: false, message: 'Invalid admin action' });
   }
   // 除 leaderboard 外都需要登录
-  if (action !== 'leaderboard') {
-    decoded = await verifyToken(req);
-    if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
-  }
+  
 
   try {
-    const db = await connectToDatabase();
+    
 
     // ---------- 用户状态 ----------
     if (action === 'stats') {
