@@ -40,8 +40,136 @@
 <meta name="mobile-web-app-capable" content="yes">
 
 <style>
+  /* ═══════════ 背景裝飾變數（跟隨主題）═══════════ */
+  :root {
+    --decor-grad-top: #eef2f6;
+    --decor-grad-mid: #e3e9ef;
+    --decor-grad-bottom: #d9e1e8;
+    --decor-blob-1: rgba(74,144,217,.35);
+    --decor-blob-2: rgba(168,85,247,.20);
+    --decor-blob-3: rgba(6,182,212,.22);
+    --decor-star: rgba(31,35,40,.25);
+    --decor-grid: rgba(31,35,40,.06);
+    --hero-shadow: 0 12px 40px rgba(74,144,217,.22);
+    --card-glass: rgba(255,255,255,.55);
+    --card-glass-hover: rgba(255,255,255,.75);
+    --skeleton-base: #e5e9ee;
+    --skeleton-shine: #f0f3f7;
+  }
+  :root[data-theme="dark"] {
+    --decor-grad-top: #1a1a2e;
+    --decor-grad-mid: #0a0a15;
+    --decor-grad-bottom: #050510;
+    --decor-blob-1: rgba(74,144,217,.55);
+    --decor-blob-2: rgba(168,85,247,.45);
+    --decor-blob-3: rgba(6,182,212,.40);
+    --decor-star: rgba(255,255,255,.75);
+    --decor-grid: rgba(120,170,240,.14);
+    --hero-shadow: 0 12px 40px rgba(74,144,217,.35);
+    --card-glass: rgba(22,27,34,.55);
+    --card-glass-hover: rgba(22,27,34,.75);
+    --skeleton-base: #2a2f38;
+    --skeleton-shine: #343a44;
+  }
+
+  /* ═══════════ 背景裝飾層 ═══════════ */
+  .bg-decor {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .bg-decor::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg,
+      var(--decor-grad-top) 0%,
+      var(--decor-grad-mid) 55%,
+      var(--decor-grad-bottom) 100%);
+    transition: background .3s ease;
+  }
+
+  .bg-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(90px);
+    will-change: transform;
+    transition: background .3s ease;
+  }
+  .bg-blob-1 {
+    width: 620px; height: 620px;
+    top: -220px; left: -140px;
+    background: radial-gradient(circle, var(--decor-blob-1) 0%, transparent 70%);
+    animation: blobFloat1 22s ease-in-out infinite;
+  }
+  .bg-blob-2 {
+    width: 520px; height: 520px;
+    top: 28%; right: -180px;
+    background: radial-gradient(circle, var(--decor-blob-2) 0%, transparent 70%);
+    animation: blobFloat2 28s ease-in-out infinite;
+  }
+  .bg-blob-3 {
+    width: 720px; height: 720px;
+    bottom: -320px; left: 28%;
+    background: radial-gradient(circle, var(--decor-blob-3) 0%, transparent 70%);
+    animation: blobFloat3 34s ease-in-out infinite;
+  }
+
+  @keyframes blobFloat1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33%      { transform: translate(90px, 110px) scale(1.12); }
+    66%      { transform: translate(-70px, 60px) scale(.94); }
+  }
+  @keyframes blobFloat2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33%      { transform: translate(-110px, 90px) scale(1.18); }
+    66%      { transform: translate(60px, -90px) scale(.88); }
+  }
+  @keyframes blobFloat3 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(-90px, -110px) scale(1.1); }
+  }
+
+  .bg-stars {
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 10% 20%, var(--decor-star), transparent),
+      radial-gradient(1px 1px at 25% 40%, var(--decor-star), transparent),
+      radial-gradient(2px 2px at 40% 15%, var(--decor-star), transparent),
+      radial-gradient(1px 1px at 55% 60%, var(--decor-star), transparent),
+      radial-gradient(1px 1px at 70% 25%, var(--decor-star), transparent),
+      radial-gradient(2px 2px at 85% 55%, var(--decor-star), transparent),
+      radial-gradient(1px 1px at 15% 80%, var(--decor-star), transparent),
+      radial-gradient(2px 2px at 45% 75%, var(--decor-star), transparent),
+      radial-gradient(1px 1px at 75% 85%, var(--decor-star), transparent),
+      radial-gradient(1px 1px at 90% 10%, var(--decor-star), transparent),
+      radial-gradient(1px 1px at 5% 55%, var(--decor-star), transparent),
+      radial-gradient(2px 2px at 62% 90%, var(--decor-star), transparent);
+    background-size: 620px 420px;
+    animation: starsDrift 100s linear infinite;
+    opacity: .7;
+  }
+  @keyframes starsDrift {
+    from { background-position: 0 0; }
+    to   { background-position: 620px 420px; }
+  }
+
+  .bg-grid {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, var(--decor-grid) 1px, transparent 1.4px);
+    background-size: 34px 34px;
+    mask-image: radial-gradient(ellipse at center, #000 15%, transparent 78%);
+    -webkit-mask-image: radial-gradient(ellipse at center, #000 15%, transparent 78%);
+    opacity: .7;
+  }
+
   /* ═══════════ Home Dashboard ═══════════ */
-.home-wrap {
+  .home-wrap {
     width: 100%;
     margin: 0;
     display: flex;
@@ -58,7 +186,7 @@
     padding: 2rem 2.2rem;
     background: linear-gradient(135deg, #4a90d9 0%, #2e5fa0 60%, #1a1a2e 100%);
     color: #fff;
-    box-shadow: 0 12px 40px rgba(74,144,217,.28);
+    box-shadow: var(--hero-shadow), 0 0 0 1px rgba(255,255,255,.08) inset;
     min-height: 180px;
     display: flex;
     flex-direction: column;
@@ -74,10 +202,9 @@
       radial-gradient(2px 2px at 58% 20%, rgba(255,255,255,.9), transparent),
       radial-gradient(1px 1px at 78% 78%, rgba(255,255,255,.7), transparent),
       radial-gradient(2px 2px at 90% 35%, rgba(255,255,255,.85), transparent),
-      radial-gradient(1px 1px at 5% 88%, rgba(255,255,255,.6), transparent),
-      radial-gradient(1px 1px at 45% 45%, rgba(255,255,255,.5), transparent);
+      radial-gradient(1px 1px at 5% 88%, rgba(255,255,255,.6), transparent);
     background-size: 400px 400px;
-    opacity: .6;
+    opacity: .55;
     pointer-events: none;
     animation: heroDrift 60s linear infinite;
   }
@@ -94,22 +221,20 @@
     pointer-events: none;
   }
   .hero-inner { position: relative; z-index: 1; }
+
   .hero-greet {
     font-size: 2.1rem;
     font-weight: 800;
     letter-spacing: -0.5px;
     margin: 0 0 0.3rem;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
+    color: #fff;
   }
-  
   .hero-sub {
     font-size: 1rem;
-    opacity: .9;
+    opacity: .92;
     margin: 0 0 1.2rem;
     font-weight: 400;
+    color: #fff;
   }
   .hero-actions {
     display: flex;
@@ -127,6 +252,7 @@
     font-size: 0.92rem;
     transition: transform .15s, box-shadow .15s, background .15s;
     border: 1px solid rgba(255,255,255,.3);
+    font-family: inherit;
   }
   .hero-btn.primary {
     background: #fff;
@@ -142,6 +268,7 @@
     background: rgba(255,255,255,.12);
     color: #fff;
     backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
   .hero-btn.ghost:hover {
     background: rgba(255,255,255,.22);
@@ -155,7 +282,9 @@
     gap: 12px;
   }
   .quick-card {
-    background: var(--card-bg);
+    background: var(--card-glass);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 20px 18px;
@@ -164,7 +293,7 @@
     gap: 10px;
     text-decoration: none;
     color: var(--text-primary);
-    transition: transform .15s, border-color .15s, box-shadow .15s;
+    transition: transform .15s, border-color .15s, box-shadow .15s, background .15s;
     position: relative;
     overflow: hidden;
     min-height: 120px;
@@ -173,15 +302,16 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at 100% 0%, rgba(74,144,217,.08) 0%, transparent 60%);
+    background: radial-gradient(circle at 100% 0%, rgba(74,144,217,.10) 0%, transparent 60%);
     opacity: 0;
     transition: opacity .2s;
     pointer-events: none;
   }
   .quick-card:hover {
     transform: translateY(-3px);
+    background: var(--card-glass-hover);
     border-color: var(--accent);
-    box-shadow: 0 12px 32px rgba(74,144,217,.15);
+    box-shadow: 0 12px 32px rgba(74,144,217,.2);
   }
   .quick-card:hover::after { opacity: 1; }
   .quick-card .qc-icon {
@@ -193,6 +323,7 @@
     font-size: 1.02rem;
     font-weight: 700;
     margin-top: auto;
+    color: var(--text-primary);
   }
   .quick-card .qc-desc {
     font-size: 0.8rem;
@@ -202,11 +333,13 @@
 
   /* ── Updates Panel ── */
   .updates-panel {
-    background: var(--card-bg);
+    background: var(--card-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border-radius: 14px;
-    box-shadow: var(--shadow-sm);
     border: 1px solid var(--border-color);
     overflow: hidden;
+    box-shadow: var(--shadow-sm);
   }
   .updates-header {
     display: flex;
@@ -224,6 +357,7 @@
     align-items: center;
     gap: 10px;
     margin: 0;
+    color: var(--text-primary);
   }
   .updates-header h2 i {
     color: var(--accent);
@@ -241,20 +375,17 @@
     min-height: 200px;
   }
 
-  /* Update card */
+  /* ── Update card ── */
   .update-card {
-    background: rgba(74,144,217,.04);
+    background: var(--hover-bg);
     border: 1px solid var(--border-color);
     border-radius: 10px;
     padding: 16px 18px;
     transition: border-color .15s, box-shadow .15s;
   }
   .update-card:hover {
-    border-color: rgba(74,144,217,.35);
-    box-shadow: 0 2px 12px rgba(74,144,217,.08);
-  }
-  [data-theme="dark"] .update-card {
-    background: rgba(74,144,217,.06);
+    border-color: var(--accent);
+    box-shadow: 0 2px 12px rgba(74,144,217,.12);
   }
   .update-card-header {
     display: flex;
@@ -271,21 +402,24 @@
     text-transform: uppercase;
     letter-spacing: .5px;
   }
-  .update-badge.new    { background: #e8f5e9; color: #2e7d32; }
-  .update-badge.info   { background: #e3f2fd; color: #1565c0; }
-  .update-badge.warning { background: #fff3e0; color: #e65100; }
-  [data-theme="dark"] .update-badge.new    { background: #1b4d2e; color: #8fdf8f; }
-  [data-theme="dark"] .update-badge.info   { background: #14395e; color: #8ec3ff; }
-  [data-theme="dark"] .update-badge.warning { background: #4d2e0d; color: #ffb86c; }
+  .update-badge.new     { background: rgba(46, 160, 67, .18); color: #2e7d32; }
+  .update-badge.info    { background: rgba(31, 111, 235, .18); color: #1565c0; }
+  .update-badge.warning { background: rgba(230, 140, 30, .18); color: #b45309; }
+
+  :root[data-theme="dark"] .update-badge.new     { background: #1b4d2e; color: #8fdf8f; }
+  :root[data-theme="dark"] .update-badge.info    { background: #14395e; color: #8ec3ff; }
+  :root[data-theme="dark"] .update-badge.warning { background: #4d2e0d; color: #ffb86c; }
+
   .update-time {
     font-size: .78rem;
     color: var(--text-secondary);
-    font-family: 'Consolas', monospace;
+    font-family: 'Consolas', 'Monaco', monospace;
   }
   .update-card h3 {
     font-size: 1rem;
     font-weight: 700;
     margin: 0 0 6px;
+    color: var(--text-primary);
   }
   .update-card p {
     font-size: .88rem;
@@ -294,9 +428,9 @@
     line-height: 1.6;
   }
 
-  /* Skeleton */
+  /* ── Skeleton ── */
   .skeleton-card {
-    background: var(--card-bg);
+    background: var(--card-glass);
     border: 1px solid var(--border-color);
     border-radius: 10px;
     padding: 16px 18px;
@@ -304,7 +438,10 @@
   .skeleton-line {
     display: block;
     height: 11px;
-    background: linear-gradient(90deg, #eee 25%, #f5f5f5 50%, #eee 75%);
+    background: linear-gradient(90deg,
+      var(--skeleton-base) 25%,
+      var(--skeleton-shine) 50%,
+      var(--skeleton-base) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
     border-radius: 4px;
@@ -318,11 +455,8 @@
     0% { background-position: -200% 0; }
     100% { background-position: 200% 0; }
   }
-  [data-theme="dark"] .skeleton-line {
-    background: linear-gradient(90deg, #2a2f38 25%, #343a44 50%, #2a2f38 75%);
-    background-size: 200% 100%;
-  }
 
+  /* ── Load more ── */
   .load-more-wrapper { text-align: center; padding-top: 6px; }
   .load-more-btn {
     padding: 8px 28px;
@@ -343,6 +477,7 @@
     transform: translateY(-1px);
   }
   .load-more-btn:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+
   .placeholder-card {
     text-align: center;
     padding: 40px 20px;
@@ -354,6 +489,14 @@
     padding: 30px 20px;
     color: var(--danger);
     font-size: .9rem;
+  }
+
+  /* ── 讓內容透出裝飾背景 ── */
+  body.index-body {
+    background: transparent !important;
+  }
+  body.index-body .main-content {
+    background: transparent !important;
   }
 
   /* ── Mobile ── */
@@ -368,230 +511,6 @@
     .quick-card .qc-title { font-size: .9rem; }
     .quick-card .qc-desc { font-size: .72rem; }
     .updates-header, .updates-body { padding-left: 16px; padding-right: 16px; }
-  }
-    /* ═══════════ 背景裝飾層 ═══════════ */
-  .bg-decor {
-    position: fixed;
-    inset: 0;
-    z-index: -1;                 /* 沉到最底 */
-    overflow: hidden;
-    pointer-events: none;
-  }
-
-  /* 深空漸變底 */
-  .bg-decor::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-      radial-gradient(ellipse at top, #1a1a2e 0%, #0a0a15 55%, #050510 100%),
-      linear-gradient(180deg, #141425 0%, #050510 100%);
-  }
-
-  /* ── 漂浮彩色光斑 ── */
-  .bg-blob {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(90px);
-    opacity: .55;
-    will-change: transform;
-  }
-  .bg-blob-1 {
-    width: 620px; height: 620px;
-    top: -220px; left: -140px;
-    background: radial-gradient(circle, #4a90d9 0%, transparent 70%);
-    animation: blobFloat1 22s ease-in-out infinite;
-  }
-  .bg-blob-2 {
-    width: 520px; height: 520px;
-    top: 28%; right: -180px;
-    background: radial-gradient(circle, #a855f7 0%, transparent 70%);
-    animation: blobFloat2 28s ease-in-out infinite;
-    opacity: .45;
-  }
-  .bg-blob-3 {
-    width: 720px; height: 720px;
-    bottom: -320px; left: 28%;
-    background: radial-gradient(circle, #06b6d4 0%, transparent 70%);
-    animation: blobFloat3 34s ease-in-out infinite;
-    opacity: .4;
-  }
-
-  @keyframes blobFloat1 {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    33%      { transform: translate(90px, 110px) scale(1.12); }
-    66%      { transform: translate(-70px, 60px) scale(.94); }
-  }
-  @keyframes blobFloat2 {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    33%      { transform: translate(-110px, 90px) scale(1.18); }
-    66%      { transform: translate(60px, -90px) scale(.88); }
-  }
-  @keyframes blobFloat3 {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    50%      { transform: translate(-90px, -110px) scale(1.1); }
-  }
-
-  /* ── 星點層 ── */
-  .bg-stars {
-    position: absolute;
-    inset: 0;
-    background-image:
-      radial-gradient(1px 1px at 10% 20%, #fff, transparent),
-      radial-gradient(1px 1px at 25% 40%, #aac4ff, transparent),
-      radial-gradient(2px 2px at 40% 15%, #fff, transparent),
-      radial-gradient(1px 1px at 55% 60%, #aac4ff, transparent),
-      radial-gradient(1px 1px at 70% 25%, #fff, transparent),
-      radial-gradient(2px 2px at 85% 55%, #aac4ff, transparent),
-      radial-gradient(1px 1px at 15% 80%, #fff, transparent),
-      radial-gradient(2px 2px at 45% 75%, #aac4ff, transparent),
-      radial-gradient(1px 1px at 75% 85%, #fff, transparent),
-      radial-gradient(1px 1px at 90% 10%, #aac4ff, transparent),
-      radial-gradient(1px 1px at 5% 55%, #fff, transparent),
-      radial-gradient(2px 2px at 62% 90%, #aac4ff, transparent);
-    background-size: 620px 420px;
-    animation: starsDrift 100s linear infinite;
-    opacity: .75;
-  }
-  @keyframes starsDrift {
-    from { background-position: 0 0; }
-    to   { background-position: 620px 420px; }
-  }
-
-  /* ── 點陣網格 ── */
-  .bg-grid {
-    position: absolute;
-    inset: 0;
-    background-image:
-      radial-gradient(circle, rgba(120,170,240,.14) 1px, transparent 1.4px);
-    background-size: 34px 34px;
-    mask-image: radial-gradient(ellipse at center, #000 15%, transparent 78%);
-    -webkit-mask-image: radial-gradient(ellipse at center, #000 15%, transparent 78%);
-    opacity: .6;
-  }
-
-  /* ── 讓現有內容透出裝飾背景 ── */
-  body.index-body {
-    background: transparent !important;
-  }
-  body.index-body .main-content {
-    background: transparent !important;
-  }
-
-  /* ── 卡片稍微加點玻璃感，浮在裝飾上 ── */
-  .home-hero {
-    /* 原有藍色漸層保持 */
-    box-shadow:
-      0 12px 40px rgba(74,144,217,.35),
-      0 0 0 1px rgba(255,255,255,.06) inset;
-  }
-  .quick-card {
-    background: rgba(255,255,255,.04) !important;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border-color: rgba(120,170,240,.18);
-  }
-  [data-theme="dark"] .quick-card {
-    background: rgba(20,26,44,.55) !important;
-  }
-  .quick-card:hover {
-    border-color: rgba(74,144,217,.55);
-    box-shadow: 0 12px 32px rgba(74,144,217,.25);
-  }
-  .updates-panel {
-    background: rgba(20,26,44,.55) !important;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border-color: rgba(120,170,240,.16);
-  }
-  .update-card {
-    background: rgba(255,255,255,.03) !important;
-    border-color: rgba(120,170,240,.14);
-  }
-  [data-theme="dark"] .update-card {
-    background: rgba(74,144,217,.05) !important;
-  }
-    /* ═══════════ 強制首頁為深色（背景是深空） ═══════════ */
-  /* 只作用於 index，不影響其他頁面 */
-  body.index-body {
-    /* ── 基本顏色（深色主題）── */
-    --topbar-bg: #0d1117;
-    --topbar-text: #e6edf3;
-    --sidebar-bg: #0d1117;
-    --sidebar-text: #8b949e;
-    --sidebar-hover-bg: #21262d;
-    --sidebar-active-bg: #1f6feb;
-    --sidebar-active-text: #ffffff;
-
-    --accent: #58a6ff;
-    --accent-hover: #1f6feb;
-    --danger: #f85149;
-
-    --content-bg: transparent;
-    --card-bg: #0d1117;
-    --text-primary: #e6edf3;
-    --text-secondary: #8b949e;
-    --border-color: #30363d;
-    --shadow-sm: 0 1px 3px rgba(0,0,0,.5);
-  }
-
-  /* ── 卡片統一：半透明 + 毛玻璃 + 深色底 ── */
-  body.index-body .quick-card,
-  body.index-body .updates-panel,
-  body.index-body .update-card,
-  body.index-body .skeleton-card {
-    background: rgba(22,27,34,.55) !important;
-    border-color: rgba(48,54,61,.9) !important;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-  }
-  body.index-body .quick-card:hover {
-    background: rgba(22,27,34,.75) !important;
-    border-color: rgba(88,166,255,.6) !important;
-    box-shadow: 0 12px 32px rgba(88,166,255,.25) !important;
-  }
-  body.index-body .update-card:hover {
-    border-color: rgba(88,166,255,.4) !important;
-    box-shadow: 0 2px 12px rgba(88,166,255,.12) !important;
-  }
-
-  /* ── Update badge：深色版配色 ── */
-  body.index-body .update-badge.new     { background: #1b4d2e; color: #8fdf8f; }
-  body.index-body .update-badge.info    { background: #14395e; color: #8ec3ff; }
-  body.index-body .update-badge.warning { background: #4d2e0d; color: #ffb86c; }
-
-  /* ── Skeleton：深色底 ── */
-  body.index-body .skeleton-line {
-    background: linear-gradient(90deg, #2a2f38 25%, #343a44 50%, #2a2f38 75%);
-    background-size: 200% 100%;
-  }
-
-  /* ── Load more 按鈕：深色版 ── */
-  body.index-body .load-more-btn {
-    background: rgba(22,27,34,.6);
-    color: #e6edf3;
-    border-color: rgba(48,54,61,.9);
-  }
-  body.index-body .load-more-btn:hover {
-    background: #1f6feb;
-    color: #fff;
-    border-color: #1f6feb;
-  }
-
-  /* ── Hero 邊界：加個光暈跟背景分離 ── */
-  body.index-body .home-hero {
-    box-shadow:
-      0 12px 40px rgba(74,144,217,.35),
-      0 0 0 1px rgba(88,166,255,.15) inset;
-  }
-
-  /* ── placeholder / error 文字更明顯 ── */
-  body.index-body .placeholder-card,
-  body.index-body .error-msg {
-    color: #8b949e;
-  }
-  body.index-body .error-msg {
-    color: #f85149;
   }
 </style>
 </head>
