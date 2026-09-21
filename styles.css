@@ -896,20 +896,26 @@ input, textarea, select, [contenteditable="true"] {
 .bg-busy {
     cursor: url('https://cdn.jsdelivr.net/gh/makipom/BlueArchive-Cursors@main/background.ani') 0 0, progress;
 }
+@view-transition { navigation: auto; }
 
-@view-transition {
-    navigation: auto;
+/* topbar / sidebar：保持不變（不參與動畫，但名字保留位置）*/
+::view-transition-old(app-topbar),
+::view-transition-new(app-topbar),
+::view-transition-old(app-sidebar),
+::view-transition-new(app-sidebar) {
+  animation: none;
 }
 
-#topbarContainer { view-transition-name: app-topbar; }
-#sidebarContainer { view-transition-name: app-sidebar; }
-#mainContent { view-transition-name: main-content; }
-
+/* main-content：舊的直接消失 */
 ::view-transition-old(main-content) {
-    animation: 120ms ease-out vt-fade-out;
+  display: none;
 }
+/* main-content：新頁面淡入 */
 ::view-transition-new(main-content) {
-    animation: 180ms ease-in vt-fade-in;
+  animation: 180ms ease-in vt-fade-in;
 }
-@keyframes vt-fade-out { to { opacity: 0; } }
-@keyframes vt-fade-in { from { opacity: 0; } }
+
+@keyframes vt-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
