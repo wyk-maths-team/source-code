@@ -896,9 +896,16 @@ input, textarea, select, [contenteditable="true"] {
 .bg-busy {
     cursor: url('https://cdn.jsdelivr.net/gh/makipom/BlueArchive-Cursors@main/background.ani') 0 0, progress;
 }
+/* ══════════════ View Transitions ══════════════ */
 @view-transition { navigation: auto; }
 
-/* topbar / sidebar：保持不變（不參與動畫，但名字保留位置）*/
+/* topbar / sidebar：保留名字（内容一致，不参与动画） */
+#topbarContainer { view-transition-name: app-topbar; }
+#sidebarContainer { view-transition-name: app-sidebar; }
+
+/* ⭐ mainContent 不再设 view-transition-name → 属于 root，直接瞬切 */
+
+/* topbar / sidebar：完全不动 */
 ::view-transition-old(app-topbar),
 ::view-transition-new(app-topbar),
 ::view-transition-old(app-sidebar),
@@ -906,16 +913,18 @@ input, textarea, select, [contenteditable="true"] {
   animation: none;
 }
 
-/* main-content：舊的直接消失 */
-::view-transition-old(main-content) {
-  display: none;
-}
-/* main-content：新頁面淡入 */
-::view-transition-new(main-content) {
-  animation: 180ms ease-in vt-fade-in;
+/* ⭐ root（含 main-content）：直接瞬切，不做任何动画 */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
 }
 
-@keyframes vt-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+/* 使用者選擇減少動畫 → 全部禁用（雙保險） */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
 }
