@@ -173,7 +173,7 @@
     }
 
     // 从 URL 提取竞赛 ID
-    const pathMatch = window.location.pathname.match(/^\/admin\/contest\/(\d+)$/);
+    const pathMatch = window.location.pathname.match(/^\/admin\/contests\/(\d+)$/);
     if (!pathMatch) {
       document.getElementById('formContainer').innerHTML = '<div class="error-msg">Invalid contest ID.</div>';
       throw new Error('No ID');
