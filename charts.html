@@ -216,6 +216,16 @@
     #solveChart { height: 400px; }
     #cursorTooltip { max-height: 260px; max-width: 240px; font-size: 0.75rem; }
   }
+  #cursorTooltip.pinned {
+  border-color: rgba(255,255,255,0.45);
+  box-shadow: 0 8px 26px rgba(0,0,0,0.55);
+}
+#cursorTooltip.pinned .tt-header::after {
+  content: ' 📌';
+  font-size: 0.75rem;
+  opacity: 0.7;
+  margin-left: 4px;
+}
 </style>
 
 <!-- ⭐ PWA -->
@@ -258,12 +268,14 @@
 
     let chartRoot = null;
     let chartDataCache = null;
-    const seriesMap = {};          // username -> am5 LineSeries
-    let activeUsersCache = [];     // 過濾後的 user 陣列
-    let seriesDataCache = {};      // username -> [{ date: ms, value: n }]
+    const seriesMap = {};
+    let activeUsersCache = [];
+    let seriesDataCache = {};
 
-    // ⭐ 鼠標屏幕坐標（fixed 定位用）
+    // ⭐ 鼠標位置 & 當前日期 & pin 狀態
     let mouseClientX = 0, mouseClientY = 0;
+    let currentDateMs = null;
+    const tooltipState = { pinned: false, dateMs: null };
 
     function escapeHtml(str) {
       return String(str).replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
@@ -279,9 +291,7 @@
     }
 
     function displayNameFor(user) {
-      if (user.realName && user.realName.trim()) {
-        return user.realName + '-' + user.username;
-      }
+      if (user.realName && user.realName.trim()) return user.realName + '-' + user.username;
       return user.username;
     }
 
@@ -294,10 +304,7 @@
         const data = await apiCall('/api/users?action=charts');
         if (!data.success) throw new Error('Failed');
         return data.data;
-      } catch (err) {
-        console.error(err);
-        return null;
-      }
+      } catch (err) { console.error(err); return null; }
     }
 
     function renderSkeleton(userCount) {
@@ -319,7 +326,9 @@
               <label class="opt-row">
                 <input type="checkbox" id="optLog"> Logarithmic Y Axis
               </label>
-
+              <p style="font-size:0.75rem;color:var(--text-secondary);margin:0.3rem 0 0.6rem 0;">
+                💡 點擊圖表可<b>鎖定</b>當前時刻的數據，點擊其他地方解除
+              </p>
               <h3>Time Range</h3>
               <div class="range-row">
                 <label>Start: <input type="date" id="rangeStart"></label>
@@ -329,7 +338,6 @@
                   <button class="btn" id="resetRangeBtn">Reset</button>
                 </div>
               </div>
-
               <h3>Users (${userCount})</h3>
               <div class="legend-toolbar">
                 <a id="selectAllBtn">All</a>
@@ -363,30 +371,36 @@
         cb.addEventListener('change', () => {
           const s = seriesMap[cb.dataset.username];
           if (!s) return;
-          if (cb.checked) s.show();
-          else s.hide();
+          if (cb.checked) s.show(); else s.hide();
+          // ⭐ 若已 pinned，重新渲染 tooltip 以反映勾選變化
+          if (tooltipState.pinned && tooltipState.dateMs != null) {
+            showTooltipForDate(tooltipState.dateMs);
+          }
         });
       });
 
       document.getElementById('selectAllBtn').addEventListener('click', () => {
         legendEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
         Object.values(seriesMap).forEach(s => s.show());
+        if (tooltipState.pinned && tooltipState.dateMs != null) {
+          showTooltipForDate(tooltipState.dateMs);
+        }
       });
       document.getElementById('selectNoneBtn').addEventListener('click', () => {
         legendEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
         Object.values(seriesMap).forEach(s => s.hide());
+        if (tooltipState.pinned && tooltipState.dateMs != null) {
+          showTooltipForDate(tooltipState.dateMs);
+        }
       });
     }
 
     function disposeChart() {
-      if (chartRoot) {
-        chartRoot.dispose();
-        chartRoot = null;
-      }
+      if (chartRoot) { chartRoot.dispose(); chartRoot = null; }
       Object.keys(seriesMap).forEach(k => delete seriesMap[k]);
     }
 
-    // ⭐ 全局滑鼠跟蹤（fixed 定位）
+    // ⭐ 全局鼠標跟蹤
     document.addEventListener('mousemove', (e) => {
       mouseClientX = e.clientX;
       mouseClientY = e.clientY;
@@ -394,6 +408,7 @@
     });
 
     function positionTooltip() {
+      if (tooltipState.pinned) return;   // ⭐ pinned 不跟隨
       const w = tooltipEl.offsetWidth;
       const h = tooltipEl.offsetHeight;
       let left = mouseClientX + 16;
@@ -405,16 +420,12 @@
     }
 
     function hideTooltip() {
+      if (tooltipState.pinned) return;   // ⭐ pinned 不隱藏
       tooltipEl.style.display = 'none';
     }
 
-    /**
-     * 給定日期（ms），遍歷所有已勾選的 series，
-     * 找最近點，收集 value > 0 的用戶，按 solves 降序顯示。
-     */
     function showTooltipForDate(dateMs) {
       const rows = [];
-
       for (const u of activeUsersCache) {
         const s = seriesMap[u.username];
         if (!s) continue;
@@ -423,22 +434,22 @@
         const sdata = seriesDataCache[u.username];
         if (!sdata || !sdata.length) continue;
 
-        // 線性掃描最近點（< 100 用戶，性能足夠）
         let bestIdx = 0, bestDiff = Infinity;
         for (let i = 0; i < sdata.length; i++) {
           const diff = Math.abs(sdata[i].date - dateMs);
           if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
         }
         const val = sdata[bestIdx].value;
-        if (val > 0) {
-          rows.push({ name: displayNameFor(u), value: val });
-        }
+        if (val > 0) rows.push({ name: displayNameFor(u), value: val });
       }
 
-      if (!rows.length) { hideTooltip(); return; }
+      if (!rows.length) {
+        if (!tooltipState.pinned) hideTooltip();
+        else tooltipEl.innerHTML = `<div class="tt-header">${new Date(dateMs).toISOString().slice(0,10)}</div><div class="tt-row" style="opacity:.6;">No solves</div>`;
+        return;
+      }
 
       rows.sort((a, b) => b.value - a.value);
-
       const dateStr = new Date(dateMs).toISOString().slice(0, 10);
       tooltipEl.innerHTML =
         `<div class="tt-header">${escapeHtml(dateStr)}</div>` +
@@ -453,31 +464,54 @@
       positionTooltip();
     }
 
+    function pinTooltip() {
+      if (currentDateMs == null) return;
+      tooltipState.pinned = true;
+      tooltipState.dateMs = currentDateMs;
+      showTooltipForDate(currentDateMs);
+      tooltipEl.classList.add('pinned');
+    }
+
+    function unpinTooltip() {
+      tooltipState.pinned = false;
+      tooltipState.dateMs = null;
+      tooltipEl.classList.remove('pinned');
+      tooltipEl.style.display = 'none';
+    }
+
     function attachCursorTracking(cursor, xAxis) {
       cursor.events.on('cursormoved', () => {
-        // 取 cursor 在 x 軸上的比例（0-1）
         let x = null;
-        try { x = cursor.getPrivate('positionX'); } catch (e) { /* ignore */ }
-        if (x == null) { hideTooltip(); return; }
+        try { x = cursor.getPrivate('positionX'); } catch (e) {}
+        if (x == null) { if (!tooltipState.pinned) hideTooltip(); return; }
 
-        // 換成日期
         let startMs = null, endMs = null;
         try {
           const s = xAxis.getPrivate('start');
           const e = xAxis.getPrivate('end');
           startMs = s instanceof Date ? s.getTime() : Number(s);
           endMs = e instanceof Date ? e.getTime() : Number(e);
-        } catch (_) { /* ignore */ }
+        } catch (_) {}
 
-        if (!isFinite(startMs) || !isFinite(endMs)) { hideTooltip(); return; }
+        if (!isFinite(startMs) || !isFinite(endMs)) {
+          if (!tooltipState.pinned) hideTooltip();
+          return;
+        }
 
         const dateMs = startMs + (endMs - startMs) * x;
-        if (!isFinite(dateMs)) { hideTooltip(); return; }
+        if (!isFinite(dateMs)) {
+          if (!tooltipState.pinned) hideTooltip();
+          return;
+        }
 
+        currentDateMs = dateMs;    // ⭐ 記錄當前日期
+        if (tooltipState.pinned) return;
         showTooltipForDate(dateMs);
       });
 
-      cursor.events.on('cursorhidden', hideTooltip);
+      cursor.events.on('cursorhidden', () => {
+        if (!tooltipState.pinned) hideTooltip();
+      });
     }
 
     function buildChart(data) {
@@ -490,7 +524,6 @@
         return;
       }
 
-      // 準備每個用戶的 series data
       seriesDataCache = {};
       activeUsers.forEach(u => {
         seriesDataCache[u.username] = dates.map((d, i) => ({
@@ -500,7 +533,13 @@
       });
       activeUsersCache = activeUsers;
 
+      // ⭐ 重置 pin 狀態
+      tooltipState.pinned = false;
+      tooltipState.dateMs = null;
+      currentDateMs = null;
+      tooltipEl.classList.remove('pinned');
       hideTooltip();
+
       disposeChart();
 
       const root = am5.Root.new('solveChart');
@@ -508,14 +547,11 @@
       root.setThemes([am5themes_Animated.new(root)]);
 
       const chart = root.container.children.push(am5xy.XYChart.new(root, {
-        panX: true,
-        panY: false,
-        wheelX: 'panX',
-        wheelY: 'zoomX',
+        panX: true, panY: false,
+        wheelX: 'panX', wheelY: 'zoomX',
         layout: root.verticalLayout
       }));
 
-      // Cursor：不顯示原生 tooltip
       const cursor = chart.set('cursor', am5xy.XYCursor.new(root, { behavior: 'none' }));
       cursor.lineY.set('visible', false);
       cursor.lineX.set('visible', true);
@@ -523,16 +559,13 @@
       cursor.lineX.set('strokeOpacity', 0.5);
       cursor.lineX.set('strokeDasharray', [4, 4]);
 
-      // 底部 Scrollbar（可拖動時間軸）
       chart.set('scrollbarX', am5.Scrollbar.new(root, { orientation: 'horizontal' }));
 
-      // X 軸（日期）
       const xAxis = chart.xAxes.push(am5xy.DateAxis.new(root, {
         baseInterval: { timeUnit: 'day', count: 1 },
         renderer: am5xy.AxisRendererX.new(root, { minGridDistance: 60 })
       }));
 
-      // Y 軸（可選對數）
       const isLog = document.getElementById('optLog').checked;
       const yAxis = chart.yAxes.push(am5xy.ValueAxis.new(root, {
         renderer: am5xy.AxisRendererY.new(root, {}),
@@ -541,7 +574,6 @@
         extraMax: 0.05
       }));
 
-      // 建立所有 series
       activeUsers.forEach(u => {
         const color = am5.color(colorForUser(u.username));
         const series = chart.series.push(am5xy.LineSeries.new(root, {
@@ -549,14 +581,11 @@
           xAxis, yAxis,
           valueYField: 'value',
           valueXField: 'date',
-          stroke: color,
-          fill: color,
-          tooltip: am5.Tooltip.new(root, { labelText: '' })  // 停用原生
+          stroke: color, fill: color,
+          tooltip: am5.Tooltip.new(root, { labelText: '' })
         }));
         series.strokes.template.setAll({ strokeWidth: 2, strokeOpacity: 0.9 });
         series.fills.template.setAll({ visible: false });
-
-        // 完全關閉原生 tooltip
         series.set('tooltip', undefined);
         series.set('tooltipText', '');
         series.set('showTooltipOn', 'none');
@@ -568,6 +597,22 @@
 
       attachCursorTracking(cursor, xAxis);
       setupRangeControls(xAxis, dates);
+
+      // ⭐ 圖表區域點擊 → pin / unpin
+      const chartMain = document.getElementById('chartMain');
+      chartMain.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        // 若已 pinned 且再點圖表 → 解除
+        if (tooltipState.pinned) { unpinTooltip(); return; }
+        if (currentDateMs != null) pinTooltip();
+      });
+
+      // ⭐ 點擊圖表外部 → 解除 pin
+      document.addEventListener('click', (e) => {
+        if (!tooltipState.pinned) return;
+        if (chartMain.contains(e.target)) return;
+        unpinTooltip();
+      });
 
       chart.appear(600, 80);
     }

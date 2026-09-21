@@ -19,7 +19,6 @@
 })();
 </script>
 
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>WYK Maths Team</title>
@@ -41,134 +40,6 @@
 <meta name="mobile-web-app-capable" content="yes">
 
 <style>
-  /* ═══════════ 背景裝飾變數（跟隨主題）═══════════ */
-  :root {
-    --decor-grad-top: #eef2f6;
-    --decor-grad-mid: #e3e9ef;
-    --decor-grad-bottom: #d9e1e8;
-    --decor-blob-1: rgba(74,144,217,.35);
-    --decor-blob-2: rgba(168,85,247,.20);
-    --decor-blob-3: rgba(6,182,212,.22);
-    --decor-star: rgba(31,35,40,.25);
-    --decor-grid: rgba(31,35,40,.06);
-    --hero-shadow: 0 12px 40px rgba(74,144,217,.22);
-    --card-glass: rgba(255,255,255,.55);
-    --card-glass-hover: rgba(255,255,255,.75);
-    --skeleton-base: #e5e9ee;
-    --skeleton-shine: #f0f3f7;
-  }
-  :root[data-theme="dark"] {
-    --decor-grad-top: #1a1a2e;
-    --decor-grad-mid: #0a0a15;
-    --decor-grad-bottom: #050510;
-    --decor-blob-1: rgba(74,144,217,.55);
-    --decor-blob-2: rgba(168,85,247,.45);
-    --decor-blob-3: rgba(6,182,212,.40);
-    --decor-star: rgba(255,255,255,.75);
-    --decor-grid: rgba(120,170,240,.14);
-    --hero-shadow: 0 12px 40px rgba(74,144,217,.35);
-    --card-glass: rgba(22,27,34,.55);
-    --card-glass-hover: rgba(22,27,34,.75);
-    --skeleton-base: #2a2f38;
-    --skeleton-shine: #343a44;
-  }
-
-  /* ═══════════ 背景裝飾層 ═══════════ */
-  .bg-decor {
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    overflow: hidden;
-    pointer-events: none;
-  }
-
-  .bg-decor::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg,
-      var(--decor-grad-top) 0%,
-      var(--decor-grad-mid) 55%,
-      var(--decor-grad-bottom) 100%);
-    transition: background .3s ease;
-  }
-
-  .bg-blob {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(90px);
-    will-change: transform;
-    transition: background .3s ease;
-  }
-  .bg-blob-1 {
-    width: 620px; height: 620px;
-    top: -220px; left: -140px;
-    background: radial-gradient(circle, var(--decor-blob-1) 0%, transparent 70%);
-    animation: blobFloat1 22s ease-in-out infinite;
-  }
-  .bg-blob-2 {
-    width: 520px; height: 520px;
-    top: 28%; right: -180px;
-    background: radial-gradient(circle, var(--decor-blob-2) 0%, transparent 70%);
-    animation: blobFloat2 28s ease-in-out infinite;
-  }
-  .bg-blob-3 {
-    width: 720px; height: 720px;
-    bottom: -320px; left: 28%;
-    background: radial-gradient(circle, var(--decor-blob-3) 0%, transparent 70%);
-    animation: blobFloat3 34s ease-in-out infinite;
-  }
-
-  @keyframes blobFloat1 {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    33%      { transform: translate(90px, 110px) scale(1.12); }
-    66%      { transform: translate(-70px, 60px) scale(.94); }
-  }
-  @keyframes blobFloat2 {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    33%      { transform: translate(-110px, 90px) scale(1.18); }
-    66%      { transform: translate(60px, -90px) scale(.88); }
-  }
-  @keyframes blobFloat3 {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    50%      { transform: translate(-90px, -110px) scale(1.1); }
-  }
-
-  .bg-stars {
-    position: absolute;
-    inset: 0;
-    background-image:
-      radial-gradient(1px 1px at 10% 20%, var(--decor-star), transparent),
-      radial-gradient(1px 1px at 25% 40%, var(--decor-star), transparent),
-      radial-gradient(2px 2px at 40% 15%, var(--decor-star), transparent),
-      radial-gradient(1px 1px at 55% 60%, var(--decor-star), transparent),
-      radial-gradient(1px 1px at 70% 25%, var(--decor-star), transparent),
-      radial-gradient(2px 2px at 85% 55%, var(--decor-star), transparent),
-      radial-gradient(1px 1px at 15% 80%, var(--decor-star), transparent),
-      radial-gradient(2px 2px at 45% 75%, var(--decor-star), transparent),
-      radial-gradient(1px 1px at 75% 85%, var(--decor-star), transparent),
-      radial-gradient(1px 1px at 90% 10%, var(--decor-star), transparent),
-      radial-gradient(1px 1px at 5% 55%, var(--decor-star), transparent),
-      radial-gradient(2px 2px at 62% 90%, var(--decor-star), transparent);
-    background-size: 620px 420px;
-    animation: starsDrift 100s linear infinite;
-    opacity: .7;
-  }
-  @keyframes starsDrift {
-    from { background-position: 0 0; }
-    to   { background-position: 620px 420px; }
-  }
-
-  .bg-grid {
-    position: absolute;
-    inset: 0;
-    background-image: radial-gradient(circle, var(--decor-grid) 1px, transparent 1.4px);
-    background-size: 34px 34px;
-    mask-image: radial-gradient(ellipse at center, #000 15%, transparent 78%);
-    -webkit-mask-image: radial-gradient(ellipse at center, #000 15%, transparent 78%);
-    opacity: .7;
-  }
-
   /* ═══════════ Home Dashboard ═══════════ */
   .home-wrap {
     width: 100%;
@@ -187,7 +58,7 @@
     padding: 2rem 2.2rem;
     background: linear-gradient(135deg, #4a90d9 0%, #2e5fa0 60%, #1a1a2e 100%);
     color: #fff;
-    box-shadow: var(--hero-shadow), 0 0 0 1px rgba(255,255,255,.08) inset;
+    box-shadow: 0 12px 40px rgba(74,144,217,.22), 0 0 0 1px rgba(255,255,255,.08) inset;
     min-height: 180px;
     display: flex;
     flex-direction: column;
@@ -283,9 +154,7 @@
     gap: 12px;
   }
   .quick-card {
-    background: var(--card-glass);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 20px 18px;
@@ -294,7 +163,7 @@
     gap: 10px;
     text-decoration: none;
     color: var(--text-primary);
-    transition: transform .15s, border-color .15s, box-shadow .15s, background .15s;
+    transition: transform .15s, border-color .15s, box-shadow .15s;
     position: relative;
     overflow: hidden;
     min-height: 120px;
@@ -310,7 +179,6 @@
   }
   .quick-card:hover {
     transform: translateY(-3px);
-    background: var(--card-glass-hover);
     border-color: var(--accent);
     box-shadow: 0 12px 32px rgba(74,144,217,.2);
   }
@@ -334,9 +202,7 @@
 
   /* ── Updates Panel ── */
   .updates-panel {
-    background: var(--card-glass);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: var(--card-bg);
     border-radius: 14px;
     border: 1px solid var(--border-color);
     overflow: hidden;
@@ -431,7 +297,7 @@
 
   /* ── Skeleton ── */
   .skeleton-card {
-    background: var(--card-glass);
+    background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 10px;
     padding: 16px 18px;
@@ -439,14 +305,15 @@
   .skeleton-line {
     display: block;
     height: 11px;
-    background: linear-gradient(90deg,
-      var(--skeleton-base) 25%,
-      var(--skeleton-shine) 50%,
-      var(--skeleton-base) 75%);
+    background: linear-gradient(90deg, #e5e9ee 25%, #f0f3f7 50%, #e5e9ee 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
     border-radius: 4px;
     margin-bottom: 8px;
+  }
+  :root[data-theme="dark"] .skeleton-line {
+    background: linear-gradient(90deg, #2a2f38 25%, #343a44 50%, #2a2f38 75%);
+    background-size: 200% 100%;
   }
   .skeleton-line:last-child { margin-bottom: 0; }
   .skeleton-line.short { width: 30%; }
@@ -492,14 +359,6 @@
     font-size: .9rem;
   }
 
-  /* ── 讓內容透出裝飾背景 ── */
-  body.index-body {
-    background: transparent !important;
-  }
-  body.index-body .main-content {
-    background: transparent !important;
-  }
-
   /* ── Mobile ── */
   @media (max-width: 640px) {
     .home-hero { padding: 1.5rem 1.4rem; min-height: 160px; border-radius: 12px; }
@@ -516,13 +375,6 @@
 </style>
 </head>
 <body class="index-body">
-    <div class="bg-decor" aria-hidden="true">
-  <div class="bg-blob bg-blob-1"></div>
-  <div class="bg-blob bg-blob-2"></div>
-  <div class="bg-blob bg-blob-3"></div>
-  <div class="bg-stars"></div>
-  <div class="bg-grid"></div>
-</div>
   <div id="appContainer">
     <header class="topbar" id="topbarContainer"></header>
     <aside class="sidebar" id="sidebarContainer"></aside>
