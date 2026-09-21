@@ -804,7 +804,7 @@ table tbody tr:hover td {
 .problems-table th {
     padding-top: 0.3rem;
     padding-bottom: 0.3rem;
-}
+} 
 
 /* 桌面端侧边栏固定 */
 @media (min-width: 769px) {
