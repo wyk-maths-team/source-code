@@ -5,7 +5,12 @@ import bcrypt from 'bcrypt';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { uploadImage } from '../lib/cloudinary.js';
 
-
+// ⭐ 排行榜內存緩存（30 秒）
+let _leaderboardCache = { data: null, expireAt: 0 };
+const LEADERBOARD_TTL = 30_000;
+// ⭐ Charts 內存緩存（24 小時）
+let _chartCache = { data: null, expireAt: 0 };
+const CHART_CACHE_TTL = 24 * 60 * 60_000;
 export default async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
 
@@ -217,8 +222,120 @@ export default async function handler(req, res) {
   return res.status(405).json({ error: 'Method not allowed' });
     }
 
+        // ---------- 解題進度圖（所有人可見）----------
+    if (action === 'charts') {
+      if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
+      // ⭐ 瀏覽器端緩存 60 秒（不經 Edge，避免權限穿透）
+      res.setHeader('Cache-Control', 'private, max-age=60');
+
+      // ⭐ 內存緩存命中 → 直接返回
+      if (_chartCache.data && _chartCache.expireAt > Date.now()) {
+        return res.status(200).json({ success: true, data: _chartCache.data, cached: true });
+      }
+
+      try {
+        // 聚合：每位用戶對每題的最早 AC 時間 → 按日期累計
+        const pipeline = [
+          { $match: { correct: true, systemError: false } },
+          {
+            $group: {
+              _id: { username: '$username', problemId: '$problemId' },
+              firstCorrect: { $min: '$timestamp' }
+            }
+          },
+          {
+            $addFields: {
+              date: { $dateToString: { format: '%Y-%m-%d', date: '$firstCorrect' } }
+            }
+          },
+          {
+            $group: {
+              _id: { username: '$_id.username', date: '$date' },
+              count: { $sum: 1 }
+            }
+          },
+          { $sort: { '_id.date': 1 } }
+        ];
+
+        const dailyData = await db.collection('submissions').aggregate(pipeline).toArray();
+
+        const dateSet = new Set();
+        dailyData.forEach(d => dateSet.add(d._id.date));
+        const datesArray = Array.from(dateSet).sort();
+
+        if (datesArray.length === 0) {
+          return res.status(200).json({ success: true, data: { dates: [], users: [] } });
+        }
+
+        // 補齊日期（從開服第一天到今天）
+        const startDate = new Date(datesArray[0] + 'T00:00:00Z');
+        const endDate = new Date();
+        const allDates = [];
+        for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+          allDates.push(d.toISOString().split('T')[0]);
+        }
+
+        // 按 user 重組
+        const userMap = {};
+        dailyData.forEach(d => {
+          const username = d._id.username;
+          const date = d._id.date;
+          if (!userMap[username]) userMap[username] = {};
+          userMap[username][date] = d.count;
+        });
+
+        const usernames = Object.keys(userMap);
+
+        // 一次拉 realName / displayName
+        const userDocs = await db.collection('users')
+          .find(
+            { username: { $in: usernames } },
+            { projection: { username: 1, realName: 1, displayName: 1 } }
+          )
+          .toArray();
+        const nameMap = Object.fromEntries(
+          userDocs.map(u => [u.username, { realName: u.realName || '', displayName: u.displayName || '' }])
+        );
+
+        // 構建累計序列
+        const users = usernames.map(username => {
+          const dailyMap = userMap[username];
+          let cumulative = 0;
+          const daily = allDates.map(date => {
+            cumulative += (dailyMap[date] || 0);
+            return cumulative;
+          });
+          const meta = nameMap[username] || {};
+          return {
+            username,
+            realName: meta.realName || '',
+            displayName: meta.displayName || '',
+            daily
+          };
+        });
+
+        users.sort((a, b) => a.username.localeCompare(b.username));
+
+        const payload = { dates: allDates, users };
+        _chartCache = { data: payload, expireAt: Date.now() + CHART_CACHE_TTL };
+        return res.status(200).json({ success: true, data: payload });
+      } catch (err) {
+        console.error('Charts API error:', err);
+        return res.status(500).json({ success: false, message: err.message });
+      }
+    }
     if (action === 'leaderboard') {
+      res.setHeader(
+        'Cache-Control',
+        'public, s-maxage=30, stale-while-revalidate=120'
+      );
+
+      // ⭐ 內存緩存：30 秒內直接返回，不打 DB
+      const now = Date.now();
+      if (_leaderboardCache.data && _leaderboardCache.expireAt > now) {
+        return res.status(200).json(_leaderboardCache.data);
+      }
       const leaderboardData = await db.collection('leaderboardView').find({}).toArray();
       const usernames = leaderboardData.map(e => e.username);
 
@@ -249,8 +366,10 @@ export default async function handler(req, res) {
             realName: u.realName || ''   // ⭐ 新增
           };
         });
-
-      return res.status(200).json({ success: true, leaderboard });
+      const payload = { success: true, leaderboard };
+      _leaderboardCache = { data: payload, expireAt: Date.now() + LEADERBOARD_TTL };
+      return res.status(200).json(payload);
+      // return res.status(200).json({ success: true, leaderboard });
     }
     
 

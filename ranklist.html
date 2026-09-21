@@ -19,7 +19,7 @@
 })();
 </script>
 
-  <link rel="stylesheet" href="/critical.css" />
+  
 <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
   <title>Leaderboard - WYK Maths Team</title>
@@ -352,7 +352,7 @@
           const isMe = (currentUsername && entry.username === currentUsername);
           const avatarUrl = entry.pfp || '';
           const avatarHtml = avatarUrl
-            ? `<img src="${avatarUrl}" style="width:24px;height:24px;border-radius:50%;vertical-align:middle;margin-right:8px;">`
+            ? `<img src="${avatarUrl}" width="24" height="24" loading="lazy" decoding="async" alt="" style="border-radius:50%;vertical-align:middle;margin-right:8px;object-fit:cover;">`
             : '';
           html += `
             <tr${isMe ? ' class="mine"' : ''}>

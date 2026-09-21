@@ -19,271 +19,213 @@
 })();
 </script>
 
-  <link rel="stylesheet" href="/critical.css" />
 <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>Solve Progress - WYK Maths Team</title>
-  <link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
-  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
-  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+<title>Solve Progress - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
 
 <link rel="stylesheet" href="/styles.css" />
 
-  <!-- amCharts 5 -->
-  <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
-  <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
-  <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+<!-- amCharts 5 -->
+<script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+<script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
+<script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
 
-  <style>
-    :root {
-      --card-bg: #fff;
-      --border-color: #dee2e6;
-      --text-primary: #212529;
-      --text-secondary: #6c757d;
-      --accent: #337ab7;
-      --danger: #dc3545;
-      --hover-bg: #e9ecef;
-    }
-    [data-theme="dark"] {
-      --card-bg: #1e1e1e;
-      --border-color: #444;
-      --text-primary: #e0e0e0;
-      --text-secondary: #aaa;
-      --hover-bg: #2c2c2c;
-    }
+<style>
+  .chart-page-container {
+    background: var(--card-bg);
+    border-radius: 4px;
+    padding: 1.2rem;
+    box-shadow: var(--shadow-sm);
+  }
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+  }
+  .page-header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: var(--text-primary);
+  }
+  .btn-group { display: flex; gap: 0.5rem; }
+  .btn {
+    padding: 0.4rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: background 0.2s;
+    display: inline-block;
+  }
+  .btn:hover { background: var(--hover-bg); }
+  .btn.disabled { opacity: 0.6; pointer-events: none; cursor: default; }
+  .btn-info { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-info:hover { background: var(--accent-hover); }
 
-    .chart-page-container {
-      background: var(--card-bg);
-      border-radius: 4px;
-      padding: 1.2rem;
-      box-shadow: var(--shadow-sm);
-    }
-    .page-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      margin-bottom: 0.75rem;
-    }
-    .page-header h1 {
-      margin: 0;
-      font-size: 1.5rem;
-      color: var(--text-primary);
-    }
-    .btn-group {
-      display: flex;
-      gap: 0.5rem;
-    }
-    .btn {
-      padding: 0.4rem 1rem;
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      background: var(--card-bg);
-      color: var(--text-primary);
-      cursor: pointer;
-      font-size: 0.9rem;
-      text-decoration: none;
-      transition: background 0.2s;
-      display: inline-block;
-    }
-    .btn:hover { background: var(--hover-bg); }
-    .btn.disabled { opacity: 0.6; pointer-events: none; cursor: default; }
-    .btn-info { background: var(--accent); color: #fff; border-color: var(--accent); }
-    .btn-info:hover { background: #286090; }
+  .chart-row {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .chart-main {
+    flex: 1 1 65%;
+    min-width: 320px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.8rem;
+  }
+  #solveChart { width: 100%; height: 560px; }
 
-    .chart-row {
-      display: flex;
-      gap: 1rem;
-      align-items: flex-start;
-      flex-wrap: wrap;
-    }
-    .chart-main {
-      flex: 1 1 65%;
-      min-width: 320px;
-      background: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      padding: 0.8rem;
-      position: relative; /* 給 cursor tooltip 用 */
-    }
-    #solveChart {
-      width: 100%;
-      height: 560px;
-    }
+  /* ⭐ 全局 tooltip（fixed 定位，跟随鼠标）*/
+  #cursorTooltip {
+    position: fixed;
+    pointer-events: none;
+    display: none;
+    background: rgba(25, 25, 30, 0.94);
+    color: #f0f0f0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-family: inherit;
+    max-height: 380px;
+    overflow-y: auto;
+    min-width: 180px;
+    max-width: 320px;
+    z-index: 9999;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  #cursorTooltip .tt-header {
+    font-weight: 700;
+    margin-bottom: 6px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid rgba(255,255,255,0.15);
+    color: #fff;
+    font-size: 0.85rem;
+  }
+  #cursorTooltip .tt-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 1px 0;
+    white-space: nowrap;
+  }
+  #cursorTooltip .tt-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #cursorTooltip .tt-value {
+    font-weight: 700;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+  }
 
-    /* 全局 cursor tooltip */
-    #cursorTooltip {
-      position: absolute;
-      pointer-events: none;
-      display: none;
-      background: rgba(25, 25, 30, 0.94);
-      color: #f0f0f0;
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 0.82rem;
-      font-family: inherit;
-      max-height: 380px;
-      overflow-y: auto;
-      min-width: 180px;
-      max-width: 320px;
-      z-index: 10;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.35);
-      border: 1px solid rgba(255,255,255,0.1);
-      transition: border-color 0.15s, box-shadow 0.15s;
-    }
-    /* 鎖定時的視覺提示：邊框變亮、陰影加深 */
-    #cursorTooltip.pinned {
-      border-color: rgba(255,255,255,0.45);
-      box-shadow: 0 8px 26px rgba(0,0,0,0.55);
-    }
-    #cursorTooltip .tt-header {
-      font-weight: 700;
-      margin-bottom: 6px;
-      padding-bottom: 5px;
-      border-bottom: 1px solid rgba(255,255,255,0.15);
-      color: #fff;
-      font-size: 0.85rem;
-    }
-    #cursorTooltip .tt-row {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      padding: 1px 0;
-      white-space: nowrap;
-    }
-    #cursorTooltip .tt-name {
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    #cursorTooltip .tt-value {
-      font-weight: 700;
-      color: #fff;
-      font-variant-numeric: tabular-nums;
-      flex-shrink: 0;
-    }
+  .chart-options {
+    flex: 1 1 28%;
+    min-width: 260px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.9rem 1rem;
+  }
+  .chart-options h3 {
+    margin: 0.8rem 0 0.4rem 0;
+    font-size: 1rem;
+    color: var(--text-primary);
+  }
+  .chart-options h3:first-child { margin-top: 0; }
+  .opt-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+  .range-row { display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.85rem; }
+  .range-row label { display: flex; align-items: center; gap: 0.5rem; color: var(--text-primary); }
+  .range-row input[type="date"] {
+    flex: 1;
+    padding: 0.25rem 0.4rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+  }
+  .range-buttons { display: flex; gap: 0.4rem; margin-top: 0.3rem; }
+  .range-buttons .btn { flex: 1; padding: 0.3rem 0.5rem; font-size: 0.8rem; text-align: center; }
 
-    .chart-options {
-      flex: 1 1 28%;
-      min-width: 260px;
-      background: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      padding: 0.9rem 1rem;
-    }
-    .chart-options h3 {
-      margin: 0.8rem 0 0.4rem 0;
-      font-size: 1rem;
-      color: var(--text-primary);
-    }
-    .chart-options h3:first-child { margin-top: 0; }
-    .opt-row {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.35rem 0;
-      font-size: 0.9rem;
-      color: var(--text-primary);
-      cursor: pointer;
-    }
-    .opt-row input[type="checkbox"] { cursor: pointer; }
-    .opt-row input[type="checkbox"]:disabled { cursor: not-allowed; }
+  .chart-legend-list {
+    margin-top: 0.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+  .chart-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.3rem 0.4rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background 0.15s;
+    user-select: none;
+  }
+  .chart-legend-item:hover { background: var(--hover-bg); }
+  .chart-legend-item input[type="checkbox"] { flex-shrink: 0; cursor: pointer; margin: 0; }
+  .chart-legend-swatch {
+    display: inline-block;
+    width: 20px; height: 3px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .chart-legend-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chart-legend-count { color: var(--text-secondary); font-size: 0.8rem; flex-shrink: 0; }
+  .legend-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.2rem;
+    font-size: 0.8rem;
+  }
+  .legend-toolbar a { color: var(--accent); cursor: pointer; text-decoration: none; }
+  .legend-toolbar a:hover { text-decoration: underline; }
 
-    .range-row {
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-      font-size: 0.85rem;
-    }
-    .range-row label {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      color: var(--text-primary);
-    }
-    .range-row input[type="date"] {
-      flex: 1;
-      padding: 0.25rem 0.4rem;
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      background: var(--card-bg);
-      color: var(--text-primary);
-      font-size: 0.85rem;
-    }
-    .range-buttons {
-      display: flex;
-      gap: 0.4rem;
-      margin-top: 0.3rem;
-    }
-    .range-buttons .btn {
-      flex: 1;
-      padding: 0.3rem 0.5rem;
-      font-size: 0.8rem;
-      text-align: center;
-    }
+  .loading-msg { text-align: center; padding: 2rem; color: var(--text-secondary); }
 
-    .chart-legend-list {
-      margin-top: 0.4rem;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .chart-legend-item {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.3rem 0.4rem;
-      font-size: 0.85rem;
-      cursor: pointer;
-      border-radius: 3px;
-      transition: background 0.15s;
-      user-select: none;
-    }
-    .chart-legend-item:hover { background: var(--hover-bg); }
-    .chart-legend-item input[type="checkbox"] { flex-shrink: 0; cursor: pointer; margin: 0; }
-    .chart-legend-swatch {
-      display: inline-block;
-      width: 20px;
-      height: 3px;
-      border-radius: 2px;
-      flex-shrink: 0;
-    }
-    .chart-legend-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .chart-legend-count { color: var(--text-secondary); font-size: 0.8rem; flex-shrink: 0; }
-    .legend-toolbar {
-      display: flex;
-      justify-content: flex-end;
-      gap: 0.5rem;
-      margin-top: 0.2rem;
-      font-size: 0.8rem;
-    }
-    .legend-toolbar a { color: var(--accent); cursor: pointer; text-decoration: none; }
-    .legend-toolbar a:hover { text-decoration: underline; }
+  @media (max-width: 768px) {
+    .chart-main, .chart-options { flex: 1 1 100%; }
+    #solveChart { height: 400px; }
+    #cursorTooltip { max-height: 260px; max-width: 240px; font-size: 0.75rem; }
+  }
+</style>
 
-    .loading-msg {
-      text-align: center;
-      padding: 2rem;
-      color: var(--text-secondary);
-    }
-    @media (max-width: 768px) {
-      .chart-main, .chart-options { flex: 1 1 100%; }
-      #solveChart { height: 400px; }
-      #cursorTooltip { max-height: 260px; max-width: 240px; font-size: 0.75rem; }
-    }
-  </style>
-  <!-- ⭐ PWA（必須靜態寫入 <head>，不能靠 JS 動態注入） -->
-  <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#1a1a2e">
-  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="WYK Maths">
-  <meta name="mobile-web-app-capable" content="yes">
-
+<!-- ⭐ PWA -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1a1a2e">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WYK Maths">
+<meta name="mobile-web-app-capable" content="yes">
 </head>
 <body class="index-body">
   <div id="appContainer">
@@ -294,6 +236,8 @@
     </main>
   </div>
 
+  <div id="cursorTooltip"></div>
+
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
@@ -303,6 +247,7 @@
     if (!isLoggedIn()) window.location.href = '/index.html';
 
     const mainContainer = document.getElementById('mainContent');
+    const tooltipEl = document.getElementById('cursorTooltip');
 
     const CHART_COLORS = [
       '#ae85c9', '#aab9f7', '#b6d2ff', '#c9e6f2', '#c9f0e1',
@@ -313,25 +258,15 @@
 
     let chartRoot = null;
     let chartDataCache = null;
-    const seriesMap = {};       // username -> am5 LineSeries
+    const seriesMap = {};          // username -> am5 LineSeries
+    let activeUsersCache = [];     // 過濾後的 user 陣列
+    let seriesDataCache = {};      // username -> [{ date: ms, value: n }]
 
-    // 供自訂 tooltip 使用
-    let activeUsersCache = [];  // 過濾後的 user 陣列
-    let seriesDataCache = {};   // username -> [{ date: ms, value: n }]
-
-    // 鼠標相對 chart-main 的位置
-    let mouseX = 0, mouseY = 0;
-    // 目前 hover 到的日期
-    let currentDateMs = null;
-
-    // Pin 狀態（按下後鎖定，列表保持顯示）
-    const tooltipState = {
-      pinned: false,
-      dateMs: null
-    };
+    // ⭐ 鼠標屏幕坐標（fixed 定位用）
+    let mouseClientX = 0, mouseClientY = 0;
 
     function escapeHtml(str) {
-      return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+      return String(str).replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
     }
 
     function colorForUser(username) {
@@ -343,7 +278,6 @@
       return CHART_COLORS[Math.abs(hash) % CHART_COLORS.length];
     }
 
-    // 名字格式：realname-username；沒有 realname 就只用 username
     function displayNameFor(user) {
       if (user.realName && user.realName.trim()) {
         return user.realName + '-' + user.username;
@@ -351,14 +285,13 @@
       return user.username;
     }
 
-    // 只保留有解題的人（最後一天累計 > 0）
     function getActiveUsers(data) {
       return data.users.filter(u => (u.daily[u.daily.length - 1] || 0) > 0);
     }
 
     async function loadChartData() {
       try {
-        const data = await apiCall('/api/charts');
+        const data = await apiCall('/api/users?action=charts');
         if (!data.success) throw new Error('Failed');
         return data.data;
       } catch (err) {
@@ -373,23 +306,18 @@
           <div class="page-header">
             <h1>Solve Progress</h1>
             <div class="btn-group">
-              <a href="/ranklist" class="btn">Leaderboard</a>
+              <a href="/leaderboard" class="btn">Leaderboard</a>
               <button class="btn btn-info disabled" disabled>Chart</button>
             </div>
           </div>
           <div class="chart-row">
             <div class="chart-main" id="chartMain">
               <div id="solveChart"></div>
-              <div id="cursorTooltip"></div>
             </div>
             <div class="chart-options">
               <h3>Chart Options</h3>
               <label class="opt-row">
                 <input type="checkbox" id="optLog"> Logarithmic Y Axis
-              </label>
-              <label class="opt-row">
-                <input type="checkbox" id="optRealName" checked disabled>
-                Show Real Name
               </label>
 
               <h3>Time Range</h3>
@@ -458,73 +386,61 @@
       Object.keys(seriesMap).forEach(k => delete seriesMap[k]);
     }
 
-    // ===== 自訂 tooltip =====
-
-    function hideTooltip() {
-      const el = document.getElementById('cursorTooltip');
-      if (el) el.style.display = 'none';
-    }
+    // ⭐ 全局滑鼠跟蹤（fixed 定位）
+    document.addEventListener('mousemove', (e) => {
+      mouseClientX = e.clientX;
+      mouseClientY = e.clientY;
+      if (tooltipEl.style.display === 'block') positionTooltip();
+    });
 
     function positionTooltip() {
-      const el = document.getElementById('cursorTooltip');
-      const wrap = document.getElementById('chartMain');
-      if (!el || !wrap) return;
-      // pinned 狀態下不跟隨滑鼠，保持原地
-      if (tooltipState.pinned) return;
+      const w = tooltipEl.offsetWidth;
+      const h = tooltipEl.offsetHeight;
+      let left = mouseClientX + 16;
+      let top = mouseClientY + 14;
+      if (left + w > window.innerWidth - 8) left = mouseClientX - w - 16;
+      if (top + h > window.innerHeight - 8) top = mouseClientY - h - 14;
+      tooltipEl.style.left = Math.max(8, left) + 'px';
+      tooltipEl.style.top  = Math.max(8, top) + 'px';
+    }
 
-      const wrapRect = wrap.getBoundingClientRect();
-      const w = el.offsetWidth;
-      const h = el.offsetHeight;
-      let left = mouseX + 18;
-      let top = mouseY + 12;
-      if (left + w > wrapRect.width - 4) left = mouseX - w - 18;
-      if (top + h > wrapRect.height - 4) top = wrapRect.height - h - 4;
-      if (left < 4) left = 4;
-      if (top < 4) top = 4;
-      el.style.left = left + 'px';
-      el.style.top = top + 'px';
+    function hideTooltip() {
+      tooltipEl.style.display = 'none';
     }
 
     /**
-     * 給定一個日期（ms），找出每個 active user 在該日期的 solves，
-     * 過濾掉 0，按 solves 降序排列後渲染成列表。
+     * 給定日期（ms），遍歷所有已勾選的 series，
+     * 找最近點，收集 value > 0 的用戶，按 solves 降序顯示。
      */
     function showTooltipForDate(dateMs) {
-      const el = document.getElementById('cursorTooltip');
-      if (!el) return;
-
       const rows = [];
-      activeUsersCache.forEach(u => {
+
+      for (const u of activeUsersCache) {
+        const s = seriesMap[u.username];
+        if (!s) continue;
+        if (s.get('visible') === false) continue;
+
         const sdata = seriesDataCache[u.username];
-        if (!sdata || !sdata.length) return;
+        if (!sdata || !sdata.length) continue;
 
-        // seriesDataCache 已按日期升序，二分查找最接近的
-        let lo = 0, hi = sdata.length - 1;
-        while (hi - lo > 1) {
-          const mid = (lo + hi) >> 1;
-          if (sdata[mid].date < dateMs) lo = mid;
-          else hi = mid;
+        // 線性掃描最近點（< 100 用戶，性能足夠）
+        let bestIdx = 0, bestDiff = Infinity;
+        for (let i = 0; i < sdata.length; i++) {
+          const diff = Math.abs(sdata[i].date - dateMs);
+          if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
         }
-        const a = sdata[lo], b = sdata[hi];
-        const best = Math.abs(a.date - dateMs) <= Math.abs(b.date - dateMs) ? a : b;
-        if (best.value > 0) {
-          rows.push({
-            name: displayNameFor(u),
-            value: best.value
-          });
+        const val = sdata[bestIdx].value;
+        if (val > 0) {
+          rows.push({ name: displayNameFor(u), value: val });
         }
-      });
-
-      if (!rows.length) {
-        hideTooltip();
-        return;
       }
 
-      // 更多的排前面（降序）
+      if (!rows.length) { hideTooltip(); return; }
+
       rows.sort((a, b) => b.value - a.value);
 
       const dateStr = new Date(dateMs).toISOString().slice(0, 10);
-      el.innerHTML =
+      tooltipEl.innerHTML =
         `<div class="tt-header">${escapeHtml(dateStr)}</div>` +
         rows.map(r =>
           `<div class="tt-row">` +
@@ -533,108 +449,35 @@
           `</div>`
         ).join('');
 
-      el.style.display = 'block';
+      tooltipEl.style.display = 'block';
       positionTooltip();
     }
 
-    function pinTooltip() {
-      if (currentDateMs == null) return;
-      tooltipState.pinned = true;
-      tooltipState.dateMs = currentDateMs;
-      showTooltipForDate(currentDateMs);
-      const el = document.getElementById('cursorTooltip');
-      if (el) el.classList.add('pinned');
-    }
-
-    function unpinTooltip() {
-      tooltipState.pinned = false;
-      tooltipState.dateMs = null;
-      const el = document.getElementById('cursorTooltip');
-      if (el) el.classList.remove('pinned');
-      hideTooltip();
-    }
-
     function attachCursorTracking(cursor, xAxis) {
-      const wrap = document.getElementById('chartMain');
-      if (!wrap) return;
-
-      // 記錄鼠標位置（相對 chartMain），用於 tooltip 定位
-      wrap.addEventListener('mousemove', (e) => {
-        const rect = wrap.getBoundingClientRect();
-        mouseX = e.clientX - rect.left;
-        mouseY = e.clientY - rect.top;
-        // 非 pinned 時跟隨滑鼠
-        if (!tooltipState.pinned) positionTooltip();
-      });
-
-      wrap.addEventListener('mouseleave', () => {
-        // pinned 時保持顯示
-        if (tooltipState.pinned) return;
-        hideTooltip();
-      });
-
-      // 點擊 chart 內部：pin / unpin
-      wrap.addEventListener('click', (e) => {
-        if (tooltipState.pinned) {
-          unpinTooltip();
-        } else {
-          pinTooltip();
-        }
-        e.stopPropagation();
-      });
-
-      // 點擊 chart 外部：若已 pin，取消 pin
-      document.addEventListener('click', (e) => {
-        if (!tooltipState.pinned) return;
-        if (wrap.contains(e.target)) return;
-        unpinTooltip();
-      });
-
-      // Cursor 移動事件：更新 tooltip 內容
       cursor.events.on('cursormoved', () => {
+        // 取 cursor 在 x 軸上的比例（0-1）
         let x = null;
         try { x = cursor.getPrivate('positionX'); } catch (e) { /* ignore */ }
-        if (x == null) {
-          if (!tooltipState.pinned) hideTooltip();
-          return;
-        }
+        if (x == null) { hideTooltip(); return; }
 
-        let dateObj = null;
+        // 換成日期
+        let startMs = null, endMs = null;
         try {
-          if (typeof xAxis.positionToDate === 'function') {
-            dateObj = xAxis.positionToDate(x);
-          }
-        } catch (e) { /* ignore */ }
+          const s = xAxis.getPrivate('start');
+          const e = xAxis.getPrivate('end');
+          startMs = s instanceof Date ? s.getTime() : Number(s);
+          endMs = e instanceof Date ? e.getTime() : Number(e);
+        } catch (_) { /* ignore */ }
 
-        if (!dateObj) {
-          try {
-            const startMs = xAxis.getPrivate('start') || xAxis.get('start');
-            const endMs = xAxis.getPrivate('end') || xAxis.get('end');
-            if (startMs && endMs) {
-              dateObj = new Date(startMs + (endMs - startMs) * x);
-            }
-          } catch (e) { /* ignore */ }
-        }
-        if (!dateObj) {
-          if (!tooltipState.pinned) hideTooltip();
-          return;
-        }
+        if (!isFinite(startMs) || !isFinite(endMs)) { hideTooltip(); return; }
 
-        const ms = dateObj instanceof Date ? dateObj.getTime() : Number(dateObj);
-        if (isNaN(ms)) {
-          if (!tooltipState.pinned) hideTooltip();
-          return;
-        }
+        const dateMs = startMs + (endMs - startMs) * x;
+        if (!isFinite(dateMs)) { hideTooltip(); return; }
 
-        currentDateMs = ms;
-        if (tooltipState.pinned) return; // 已鎖定，不隨 hover 變動
-        showTooltipForDate(ms);
+        showTooltipForDate(dateMs);
       });
 
-      cursor.events.on('cursorhidden', () => {
-        if (tooltipState.pinned) return;
-        hideTooltip();
-      });
+      cursor.events.on('cursorhidden', hideTooltip);
     }
 
     function buildChart(data) {
@@ -647,7 +490,7 @@
         return;
       }
 
-      // 準備每個用戶的 series data 與快取
+      // 準備每個用戶的 series data
       seriesDataCache = {};
       activeUsers.forEach(u => {
         seriesDataCache[u.username] = dates.map((d, i) => ({
@@ -657,10 +500,7 @@
       });
       activeUsersCache = activeUsers;
 
-      // 重建時清掉 pin 狀態，避免殘留舊資料
-      unpinTooltip();
-      currentDateMs = null;
-
+      hideTooltip();
       disposeChart();
 
       const root = am5.Root.new('solveChart');
@@ -675,22 +515,21 @@
         layout: root.verticalLayout
       }));
 
-      // Cursor：不顯示內建 tooltip
-      const cursor = chart.set('cursor', am5xy.XYCursor.new(root, {
-        behavior: 'none'
-      }));
+      // Cursor：不顯示原生 tooltip
+      const cursor = chart.set('cursor', am5xy.XYCursor.new(root, { behavior: 'none' }));
       cursor.lineY.set('visible', false);
+      cursor.lineX.set('visible', true);
+      cursor.lineX.set('stroke', am5.color(0x888888));
+      cursor.lineX.set('strokeOpacity', 0.5);
+      cursor.lineX.set('strokeDasharray', [4, 4]);
 
       // 底部 Scrollbar（可拖動時間軸）
-      chart.set('scrollbarX', am5.Scrollbar.new(root, {
-        orientation: 'horizontal'
-      }));
+      chart.set('scrollbarX', am5.Scrollbar.new(root, { orientation: 'horizontal' }));
 
-      // X 軸
+      // X 軸（日期）
       const xAxis = chart.xAxes.push(am5xy.DateAxis.new(root, {
         baseInterval: { timeUnit: 'day', count: 1 },
-        renderer: am5xy.AxisRendererX.new(root, { minGridDistance: 60 }),
-        // tooltip: am5.Tooltip.new(root, {})
+        renderer: am5xy.AxisRendererX.new(root, { minGridDistance: 60 })
       }));
 
       // Y 軸（可選對數）
@@ -702,23 +541,19 @@
         extraMax: 0.05
       }));
 
-      // 建立所有 series（停用內建 tooltip）
+      // 建立所有 series
       activeUsers.forEach(u => {
         const color = am5.color(colorForUser(u.username));
         const series = chart.series.push(am5xy.LineSeries.new(root, {
           name: displayNameFor(u),
-          xAxis: xAxis,
-          yAxis: yAxis,
+          xAxis, yAxis,
           valueYField: 'value',
           valueXField: 'date',
           stroke: color,
           fill: color,
-          tooltip: am5.Tooltip.new(root, { labelText: '' })
+          tooltip: am5.Tooltip.new(root, { labelText: '' })  // 停用原生
         }));
-        series.strokes.template.setAll({
-          strokeWidth: 2,
-          strokeOpacity: 0.9
-        });
+        series.strokes.template.setAll({ strokeWidth: 2, strokeOpacity: 0.9 });
         series.fills.template.setAll({ visible: false });
 
         // 完全關閉原生 tooltip
@@ -731,10 +566,7 @@
         series.appear(600);
       });
 
-      // 掛上自訂 tooltip 監聽
       attachCursorTracking(cursor, xAxis);
-
-      // 時間範圍控制
       setupRangeControls(xAxis, dates);
 
       chart.appear(600, 80);
@@ -753,15 +585,8 @@
         const start = new Date(startStr + 'T00:00:00Z');
         const end = new Date(endStr + 'T23:59:59Z');
         if (isNaN(start.getTime()) || isNaN(end.getTime())) return;
-        if (start > end) {
-          alert('Start date must be before end date.');
-          return;
-        }
-        try {
-          xAxis.zoomToDates(start, end, true);
-        } catch (e) {
-          console.warn('zoomToDates failed', e);
-        }
+        if (start > end) { alert('Start date must be before end date.'); return; }
+        try { xAxis.zoomToDates(start, end, true); } catch (e) { console.warn('zoomToDates failed', e); }
       }
 
       applyBtn.addEventListener('click', () => applyZoom(startInput.value, endInput.value));
