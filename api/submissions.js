@@ -1,4 +1,4 @@
-﻿// api/submissions.js
+// api/submissions.js
 import { connectToDatabase } from './db.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
@@ -199,11 +199,19 @@ export default async function handler(req, res) {
 
     // GET：列表
     if (req.method === 'GET') {
-      const { problem_id, status, page = '1', limit = '50' } = req.query;
+      const {
+        problem_id, status,
+        user, username: qUsername,
+        page = '1', limit = '50'
+      } = req.query;
       const pageNum = Math.max(1, parseInt(page) || 1);
       const limitNum = Math.min(100, parseInt(limit) || 50);
 
       const filter = {};
+      // ⭐ 用戶過濾
+      const targetUser = user || qUsername;
+      if (targetUser) filter.username = targetUser;
+
       if (problem_id) filter.problemId = { $in: buildProblemIdFilter([problem_id]) };
       const sf = status ? buildStatusFilter(status) : null;
       if (sf) Object.assign(filter, sf);
