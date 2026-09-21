@@ -41,9 +41,9 @@
 
 <style>
   /* ═══════════ Home Dashboard ═══════════ */
-  .home-wrap {
-    max-width: 1200px;
-    margin: 0 auto;
+.home-wrap {
+    width: 100%;
+    margin: 0;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
@@ -104,19 +104,7 @@
     gap: 12px;
     flex-wrap: wrap;
   }
-  .hero-greet .wave {
-    display: inline-block;
-    animation: waveHand 2.4s ease-in-out infinite;
-    transform-origin: 70% 70%;
-    font-size: 1.8rem;
-  }
-  @keyframes waveHand {
-    0%, 60%, 100% { transform: rotate(0deg); }
-    10%, 30%      { transform: rotate(14deg); }
-    20%           { transform: rotate(-8deg); }
-    40%           { transform: rotate(-4deg); }
-    50%           { transform: rotate(10deg); }
-  }
+  
   .hero-sub {
     font-size: 1rem;
     opacity: .9;
@@ -381,9 +369,158 @@
     .quick-card .qc-desc { font-size: .72rem; }
     .updates-header, .updates-body { padding-left: 16px; padding-right: 16px; }
   }
+    /* ═══════════ 背景裝飾層 ═══════════ */
+  .bg-decor {
+    position: fixed;
+    inset: 0;
+    z-index: -1;                 /* 沉到最底 */
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  /* 深空漸變底 */
+  .bg-decor::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at top, #1a1a2e 0%, #0a0a15 55%, #050510 100%),
+      linear-gradient(180deg, #141425 0%, #050510 100%);
+  }
+
+  /* ── 漂浮彩色光斑 ── */
+  .bg-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(90px);
+    opacity: .55;
+    will-change: transform;
+  }
+  .bg-blob-1 {
+    width: 620px; height: 620px;
+    top: -220px; left: -140px;
+    background: radial-gradient(circle, #4a90d9 0%, transparent 70%);
+    animation: blobFloat1 22s ease-in-out infinite;
+  }
+  .bg-blob-2 {
+    width: 520px; height: 520px;
+    top: 28%; right: -180px;
+    background: radial-gradient(circle, #a855f7 0%, transparent 70%);
+    animation: blobFloat2 28s ease-in-out infinite;
+    opacity: .45;
+  }
+  .bg-blob-3 {
+    width: 720px; height: 720px;
+    bottom: -320px; left: 28%;
+    background: radial-gradient(circle, #06b6d4 0%, transparent 70%);
+    animation: blobFloat3 34s ease-in-out infinite;
+    opacity: .4;
+  }
+
+  @keyframes blobFloat1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33%      { transform: translate(90px, 110px) scale(1.12); }
+    66%      { transform: translate(-70px, 60px) scale(.94); }
+  }
+  @keyframes blobFloat2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33%      { transform: translate(-110px, 90px) scale(1.18); }
+    66%      { transform: translate(60px, -90px) scale(.88); }
+  }
+  @keyframes blobFloat3 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(-90px, -110px) scale(1.1); }
+  }
+
+  /* ── 星點層 ── */
+  .bg-stars {
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 10% 20%, #fff, transparent),
+      radial-gradient(1px 1px at 25% 40%, #aac4ff, transparent),
+      radial-gradient(2px 2px at 40% 15%, #fff, transparent),
+      radial-gradient(1px 1px at 55% 60%, #aac4ff, transparent),
+      radial-gradient(1px 1px at 70% 25%, #fff, transparent),
+      radial-gradient(2px 2px at 85% 55%, #aac4ff, transparent),
+      radial-gradient(1px 1px at 15% 80%, #fff, transparent),
+      radial-gradient(2px 2px at 45% 75%, #aac4ff, transparent),
+      radial-gradient(1px 1px at 75% 85%, #fff, transparent),
+      radial-gradient(1px 1px at 90% 10%, #aac4ff, transparent),
+      radial-gradient(1px 1px at 5% 55%, #fff, transparent),
+      radial-gradient(2px 2px at 62% 90%, #aac4ff, transparent);
+    background-size: 620px 420px;
+    animation: starsDrift 100s linear infinite;
+    opacity: .75;
+  }
+  @keyframes starsDrift {
+    from { background-position: 0 0; }
+    to   { background-position: 620px 420px; }
+  }
+
+  /* ── 點陣網格 ── */
+  .bg-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle, rgba(120,170,240,.14) 1px, transparent 1.4px);
+    background-size: 34px 34px;
+    mask-image: radial-gradient(ellipse at center, #000 15%, transparent 78%);
+    -webkit-mask-image: radial-gradient(ellipse at center, #000 15%, transparent 78%);
+    opacity: .6;
+  }
+
+  /* ── 讓現有內容透出裝飾背景 ── */
+  body.index-body {
+    background: transparent !important;
+  }
+  body.index-body .main-content {
+    background: transparent !important;
+  }
+
+  /* ── 卡片稍微加點玻璃感，浮在裝飾上 ── */
+  .home-hero {
+    /* 原有藍色漸層保持 */
+    box-shadow:
+      0 12px 40px rgba(74,144,217,.35),
+      0 0 0 1px rgba(255,255,255,.06) inset;
+  }
+  .quick-card {
+    background: rgba(255,255,255,.04) !important;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-color: rgba(120,170,240,.18);
+  }
+  [data-theme="dark"] .quick-card {
+    background: rgba(20,26,44,.55) !important;
+  }
+  .quick-card:hover {
+    border-color: rgba(74,144,217,.55);
+    box-shadow: 0 12px 32px rgba(74,144,217,.25);
+  }
+  .updates-panel {
+    background: rgba(20,26,44,.55) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-color: rgba(120,170,240,.16);
+  }
+  .update-card {
+    background: rgba(255,255,255,.03) !important;
+    border-color: rgba(120,170,240,.14);
+  }
+  [data-theme="dark"] .update-card {
+    background: rgba(74,144,217,.05) !important;
+  }
 </style>
 </head>
 <body class="index-body">
+    <div class="bg-decor" aria-hidden="true">
+  <div class="bg-blob bg-blob-1"></div>
+  <div class="bg-blob bg-blob-2"></div>
+  <div class="bg-blob bg-blob-3"></div>
+  <div class="bg-stars"></div>
+  <div class="bg-grid"></div>
+</div>
   <div id="appContainer">
     <header class="topbar" id="topbarContainer"></header>
     <aside class="sidebar" id="sidebarContainer"></aside>
@@ -396,7 +533,6 @@
           <div class="hero-inner">
             <h1 class="hero-greet">
               <span id="heroGreet">Welcome back</span>
-              <span class="wave">👋</span>
             </h1>
             <p class="hero-sub" id="heroSub">Ready to solve some problems?</p>
             <div class="hero-actions">
