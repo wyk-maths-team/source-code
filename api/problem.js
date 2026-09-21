@@ -397,8 +397,9 @@ export default async function handler(req, res) {
 
     const adminUser = isAdminUser(req.user);
 
+    const currentFilter = adminUser ? { id: pid } : { id: pid, public: true };
     const current = await db.collection('problems').findOne(
-      { id: pid },
+      currentFilter,
       { projection: { id: 1, tags: 1, difficulty: 1, name: 1 } }
     );
     if (!current) return res.status(404).json({ success: false, message: 'Problem not found' });
@@ -593,7 +594,11 @@ export default async function handler(req, res) {
 
     // 輕量 id 列表
     if (ids === '1') {
-      const idList = await db.collection('problems').find({}, { projection: { id: 1, _id: 0 } }).toArray();
+      // ⭐ 非管理員只能看到 public 題目
+      const idFilter = adminUser ? {} : { public: true };
+      const idList = await db.collection('problems')
+        .find(idFilter, { projection: { id: 1, _id: 0 } })
+        .toArray();
       return res.status(200).json({ success: true, ids: idList.map(p => p.id) });
     }
 

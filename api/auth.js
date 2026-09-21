@@ -20,16 +20,41 @@ function extractRealName(msDisplayName) {
   // 沒有偵測到學號前綴，整串視為真名
   return trimmed;
 }
+// ⭐ Cookie 工具
+function setCookie(res, name, value, opts = {}) {
+  const parts = [`${name}=${encodeURIComponent(value)}`];
+  parts.push(`Path=${opts.path || '/'}`);
+  if (opts.maxAge !== undefined) parts.push(`Max-Age=${opts.maxAge}`);
+  if (opts.httpOnly) parts.push('HttpOnly');
+  if (opts.secure) parts.push('Secure');
+  if (opts.sameSite) parts.push(`SameSite=${opts.sameSite}`);
+  res.setHeader('Set-Cookie', parts.join('; '));
+}
 
+function getCookie(req, name) {
+  const cookies = req.headers.cookie || '';
+  const match = cookies.match(new RegExp(`(?:^|; )${name}=([^;]+)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
 export default async function handler(req, res) {
   const action = req.query.action || (req.body && req.body.action);
 
   // ===== 1. 發起微軟登入 =====
-  if (action === 'microsoft') {
+    if (action === 'microsoft') {
     const clientId = process.env.MICROSOFT_CLIENT_ID;
     const redirectUri = process.env.MICROSOFT_REDIRECT_URI;
     const tenant = process.env.MICROSOFT_TENANT || 'common';
-    const state = Math.random().toString(36).substring(2);
+
+    // ⭐ 產生 state 並存到 HttpOnly cookie
+    const state = (await import('crypto')).randomBytes(16).toString('hex');
+    setCookie(res, 'oauth_state', state, {
+      path: '/',
+      maxAge: 600,        // 10 分鐘
+      httpOnly: true,
+      secure: true,
+      sameSite: 'Lax',
+    });
+
     const authUrl = `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/authorize?` +
       `client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}` +
       `&response_mode=query&scope=openid%20profile%20email%20User.Read&state=${state}` +
@@ -39,9 +64,17 @@ export default async function handler(req, res) {
   }
 
   // ===== 2. 處理微軟回調 =====
-  if (action === 'callback') {
-    const { code } = req.query;
+    if (action === 'callback') {
+    const { code, state } = req.query;
+    const cookieState = getCookie(req, 'oauth_state');
+
+    // ⭐ 無論成功失敗，先清掉 cookie
+    setCookie(res, 'oauth_state', '', { path: '/', maxAge: 0 });
+
     if (!code) return res.status(400).send('Missing code');
+    if (!state || !cookieState || state !== cookieState) {
+      return res.status(400).send('Invalid state parameter (CSRF blocked)');
+    }
 
     const clientId = process.env.MICROSOFT_CLIENT_ID;
     const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;

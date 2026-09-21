@@ -76,14 +76,28 @@ function executeCustomLogic(logicStr, ans, userAnswer) {
 
 async function updateUserStats(db, username, pid, correct) {
   const statsCol = db.collection('userstats');
-  const stats = await statsCol.findOne({ username });
-  const states = stats?.states || {};
-  if (correct && states[pid] !== 'passed') {
-    states[pid] = 'passed';
-  } else if (!correct && states[pid] !== 'passed') {
-    states[pid] = 'failed';
+
+  // 1. 確保文檔存在
+  await statsCol.updateOne(
+    { username },
+    { $setOnInsert: { username, states: {} } },
+    { upsert: true }
+  );
+
+  // 2. 原子更新單個字段（點號路徑）
+  if (correct) {
+    // 正確：直接寫 passed（覆蓋任何狀態）
+    await statsCol.updateOne(
+      { username },
+      { $set: { [`states.${pid}`]: 'passed' } }
+    );
+  } else {
+    // 錯誤：只在當前不是 passed 時寫 failed（不降級已 AC）
+    await statsCol.updateOne(
+      { username, [`states.${pid}`]: { $ne: 'passed' } },
+      { $set: { [`states.${pid}`]: 'failed' } }
+    );
   }
-  await statsCol.updateOne({ username }, { $set: { states } }, { upsert: true });
 }
 
 // ========== 主處理函數 ==========
@@ -295,9 +309,26 @@ export default async function handler(req, res) {
           systemError = cmp.systemError;
         }
         if (!systemError) {
-          // 錯誤提交累計扣分（正確時也扣歷史錯誤）
-          if (!isCorrect) wrongAttempts++;
-          currentScore = Math.max(0, 100 - 10 * wrongAttempts);
+          const updateOp = isCorrect
+            ? { $set: { lastSubmissionTime: now } }
+            : { $inc: { wrongAttempts: 1 }, $set: { lastSubmissionTime: now } };
+
+          const updated = await db.collection('contest_results').findOneAndUpdate(
+            { contestId: activeContest.id, username, problemId: pid },
+            updateOp,
+            { upsert: true, returnDocument: 'after' }
+          );
+
+          // MongoDB driver v4 回 {value: doc}，v6 直接回 doc
+          const doc = updated?.value ?? updated;
+          wrongAttempts = doc?.wrongAttempts || 0;
+          currentScore = Math.max(0, 100 * Math.pow(0.9,wrongAttempts));
+
+          // 寫回分數（會被最新一輪修正）
+          await db.collection('contest_results').updateOne(
+            { contestId: activeContest.id, username, problemId: pid },
+            { $set: { score: currentScore } }
+          );
         }
       }
       // evalType === 'image_model'：isCorrect 保持 false，systemError 保持 false

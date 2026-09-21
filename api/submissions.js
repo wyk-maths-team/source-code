@@ -1,4 +1,4 @@
-// api/submissions.js
+﻿// api/submissions.js
 import { connectToDatabase } from './db.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
@@ -183,9 +183,18 @@ export default async function handler(req, res) {
       systemError: !!sub.systemError,
       markedAt: sub.markedAt || null
     };
-    if (sub.type === 'image') result.image = sub.image || '';
-    else if (canSeeContent) result.answer = sub.answer || '';
-    else result.answerHidden = true;
+        if (sub.type === 'image') {
+      // ⭐ 圖片提交：只有本人和管理員能看，防止競賽抄襲
+      if (isOwner || isAdmin) {
+        result.image = sub.image || '';
+      } else {
+        result.imageHidden = true;
+      }
+    } else if (canSeeContent) {
+      result.answer = sub.answer || '';
+    } else {
+      result.answerHidden = true;
+    }
 
     if (canSeeContent) result.comment = sub.comment || '';
     else result.commentHidden = true;
