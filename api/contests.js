@@ -18,7 +18,6 @@ function deriveStatus(contest, now = new Date()) {
   return 'ongoing';
 }
 
-// 把 contest.problems（可為 object/string）轉為 [{problemId, evalType}]
 function normalizeProblems(raw) {
   const out = [];
   for (const p of (raw || [])) {
@@ -42,7 +41,7 @@ export default async function handler(req, res) {
   const username = decoded.username;
   const isAdmin = isAdminUser(decoded);
 
-  // ========== 列表（用戶）==========
+  // ========== 列表 ==========
   if (action === 'list') {
     const { page = '1', limit = '20' } = req.query;
     const pageNum = Math.max(1, parseInt(page) || 1);
@@ -84,7 +83,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // ========== 合併詳情頁（用戶）==========
+  // ========== 詳情頁 ==========
   if (action === 'page') {
     const { id } = req.query;
     if (!id) return res.status(400).json({ success: false, message: 'Missing contest id' });
@@ -116,6 +115,7 @@ export default async function handler(req, res) {
         problems: [],
         userScores: {},
         userContestStates: {},
+        userWrongAttempts: {},   // ⭐ 新增
         globalStates: {}
       };
 
@@ -126,7 +126,6 @@ export default async function handler(req, res) {
 
       const tasks = [];
 
-      // 1) 題目（含 evalType，保留競賽內順序）
       if (showProblems) {
         tasks.push(
           db.collection('problems')
@@ -145,29 +144,31 @@ export default async function handler(req, res) {
         );
       }
 
-      // 2) 當前用戶在此競賽的分數 / 狀態
+      // 當前用戶在此競賽的分數 / 狀態 / wrongAttempts
       tasks.push(
         db.collection('contest_results')
           .find(
             { contestId: contest.id, username },
-            { projection: { problemId: 1, score: 1, _id: 0 } }
+            { projection: { problemId: 1, score: 1, wrongAttempts: 1, _id: 0 } }
           )
           .toArray()
           .then(results => {
             const scores = {};
             const states = {};
+            const attempts = {};
             for (const r of results) {
               scores[r.problemId] = r.score;
+              attempts[r.problemId] = Number(r.wrongAttempts) || 0;
               if (r.score === 100) states[r.problemId] = 'passed';
               else if (r.score > 0) states[r.problemId] = 'partial';
               else states[r.problemId] = 'failed';
             }
             result.userScores = scores;
             result.userContestStates = states;
+            result.userWrongAttempts = attempts;
           })
       );
 
-      // 3) 當前用戶對「此競賽題目」的全域狀態（用於「賽前已完成」判斷）
       if (showProblems) {
         tasks.push(
           db.collection('userstats')
@@ -183,7 +184,6 @@ export default async function handler(req, res) {
         );
       }
 
-      // 4) 已結束 → 統計（公開給參賽者）
       if (status === 'ended') {
         tasks.push(
           calculateContestStats(db, contest)
@@ -255,7 +255,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // ========== 結果（保留供 contestresults.html 使用）==========
+  // ========== 結果 ==========
   if (action === 'results') {
     const { id } = req.query;
     if (!id) return res.status(400).json({ success: false, message: 'Missing contest id' });
@@ -282,7 +282,6 @@ export default async function handler(req, res) {
   if (typeof action === 'string' && action.startsWith('admin')) {
     if (!isAdmin) return res.status(403).json({ success: false, message: 'Admin only' });
 
-    // ---- 單一競賽（用於編輯）----
     if (action === 'adminDetail') {
       if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
       const { id } = req.query;
@@ -292,7 +291,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, contest });
     }
 
-    // ---- 建立 ----
     if (action === 'adminCreate') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
       const { name, problems, participants, startTime, duration, public: isPublic } = req.body || {};
@@ -322,7 +320,6 @@ export default async function handler(req, res) {
       return res.status(201).json({ success: true, message: 'Contest created', id: nextId });
     }
 
-    // ---- 更新 ----
     if (action === 'adminUpdate') {
       if (req.method !== 'PUT') return res.status(405).json({ error: 'Method not allowed' });
       const { id } = req.query;
@@ -350,7 +347,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, message: 'Contest updated' });
     }
 
-    // ---- 刪除 ----
     if (action === 'adminDelete') {
       if (req.method !== 'DELETE') return res.status(405).json({ error: 'Method not allowed' });
       const { id } = req.body || {};
@@ -369,7 +365,7 @@ export default async function handler(req, res) {
   return res.status(400).json({ success: false, message: 'Invalid action' });
 }
 
-// ====== 統計（保留原邏輯）======
+// ====== 統計（⭐ problems[pid] 改為 { score, wrongAttempts }）======
 async function calculateContestStats(db, contest) {
   const participants = Array.isArray(contest.participants) ? contest.participants : [];
   const userScores = {};
@@ -386,9 +382,13 @@ async function calculateContestStats(db, contest) {
       try {
         if (!r.username || !userScores[r.username]) continue;
         const score = Number(r.score) || 0;
+        const wrongAttempts = Number(r.wrongAttempts) || 0;
+
         userScores[r.username].total += score;
+
         if (r.problemId) {
-          userScores[r.username].problems[r.problemId] = score;
+          // ⭐ 改為物件格式
+          userScores[r.username].problems[r.problemId] = { score, wrongAttempts };
         }
 
         let time = r.lastSubmissionTime || r.time || r.timestamp || null;

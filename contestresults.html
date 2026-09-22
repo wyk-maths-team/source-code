@@ -1,24 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>
-(function(){
-  try {
-    var isStandalone = window.matchMedia('(display-mode: standalone)').matches
-                    || window.navigator.standalone === true
-                    || window.matchMedia('(display-mode: fullscreen)').matches
-                    || window.matchMedia('(display-mode: minimal-ui)').matches;
-    if (!isStandalone) return;
-    if (location.pathname.indexOf('/os') === 0) return;
-    if (location.pathname.indexOf('/admin') === 0) return;
-    if (!sessionStorage.getItem('pwaEnteredOS')) {
-      sessionStorage.setItem('pwaEnteredOS', '1');
-      location.replace('/os' + location.search + location.hash);
-    }
-  } catch(e){}
-})();
-</script>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 <title>Contest Results - WYK Maths Team</title>
@@ -32,154 +14,68 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 
 <style>
-  /* ═══════════════ Results Page ═══════════════ */
-  .results-wrap {
-    max-width: 1200px;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-  }
+  /* ═══════════════ Results ═══════════════ */
+  .results-wrap { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.25rem; }
 
-  /* ── Hero ── */
   .rs-hero {
-    position: relative;
-    overflow: hidden;
-    border-radius: 16px;
+    position: relative; overflow: hidden; border-radius: 16px;
     padding: 2rem 2.2rem 1.8rem;
     background: linear-gradient(135deg, #4a90d9 0%, #2e5fa0 55%, #1a1a2e 100%);
     color: #fff;
     box-shadow: 0 12px 40px rgba(74,144,217,.22), 0 0 0 1px rgba(255,255,255,.08) inset;
   }
   .rs-hero::before {
-    content: '';
-    position: absolute;
-    inset: 0;
+    content: ''; position: absolute; inset: 0;
     background-image:
       radial-gradient(1px 1px at 12% 25%, rgba(255,255,255,.85), transparent),
       radial-gradient(1px 1px at 35% 65%, rgba(255,255,255,.6), transparent),
       radial-gradient(2px 2px at 58% 20%, rgba(255,255,255,.9), transparent),
       radial-gradient(1px 1px at 78% 78%, rgba(255,255,255,.7), transparent),
       radial-gradient(2px 2px at 90% 35%, rgba(255,255,255,.85), transparent);
-    background-size: 400px 400px;
-    opacity: .55;
-    pointer-events: none;
-    animation: rsDrift 60s linear infinite;
+    background-size: 400px 400px; opacity: .55;
+    pointer-events: none; animation: rsDrift 60s linear infinite;
   }
-  @keyframes rsDrift {
-    from { background-position: 0 0; }
-    to   { background-position: 400px 300px; }
-  }
+  @keyframes rsDrift { from { background-position: 0 0; } to { background-position: 400px 300px; } }
   .rs-hero::after {
-    content: '';
-    position: absolute;
-    top: -80px; right: -80px;
+    content: ''; position: absolute; top: -80px; right: -80px;
     width: 340px; height: 340px;
     background: radial-gradient(circle, rgba(255,255,255,.22) 0%, transparent 65%);
     pointer-events: none;
   }
   .rs-hero-inner { position: relative; z-index: 1; }
 
-  .rs-hero-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 1rem;
-    flex-wrap: wrap;
-    margin-bottom: .4rem;
-  }
   .rs-hero-name {
-    font-size: 1.9rem;
-    font-weight: 800;
-    letter-spacing: -.5px;
-    margin: 0;
-    color: #fff;
-    line-height: 1.2;
-    flex: 1;
-    min-width: 200px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    font-size: 1.9rem; font-weight: 800; letter-spacing: -.5px;
+    margin: 0 0 .3rem; color: #fff; line-height: 1.2;
+    display: flex; align-items: center; gap: 12px;
   }
-  .rs-hero-name i {
-    font-size: 1.5rem;
-    color: #ffd54f;
-    filter: drop-shadow(0 2px 8px rgba(255,213,79,.5));
-  }
-  .rs-hero-sub {
-    font-size: .92rem;
-    opacity: .88;
-    margin: .3rem 0 1.4rem;
-  }
-  .rs-hero-actions {
-    display: flex;
-    gap: .6rem;
-    flex-wrap: wrap;
-  }
+  .rs-hero-name i { font-size: 1.5rem; color: #ffd54f; filter: drop-shadow(0 2px 8px rgba(255,213,79,.5)); }
+  .rs-hero-sub { font-size: .92rem; opacity: .88; margin: .3rem 0 1.4rem; }
+  .rs-hero-actions { display: flex; gap: .6rem; flex-wrap: wrap; }
   .rs-hero-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: .55rem 1.2rem;
-    border-radius: 9px;
-    font-size: .88rem;
-    font-weight: 600;
-    font-family: inherit;
-    cursor: pointer;
-    border: 1px solid rgba(255,255,255,.3);
-    background: rgba(255,255,255,.15);
-    color: #fff;
-    text-decoration: none;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: .55rem 1.2rem; border-radius: 9px;
+    font-size: .88rem; font-weight: 600; font-family: inherit;
+    cursor: pointer; border: 1px solid rgba(255,255,255,.3);
+    background: rgba(255,255,255,.15); color: #fff; text-decoration: none;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
     transition: all .15s;
   }
-  .rs-hero-btn:hover {
-    background: rgba(255,255,255,.28);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 14px rgba(0,0,0,.15);
-  }
-  .rs-hero-btn.primary {
-    background: #fff;
-    color: #2e5fa0;
-    border-color: #fff;
-    box-shadow: 0 4px 16px rgba(0,0,0,.2);
-  }
-  .rs-hero-btn.primary:hover {
-    box-shadow: 0 8px 24px rgba(0,0,0,.3);
-  }
+  .rs-hero-btn:hover { background: rgba(255,255,255,.28); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,.15); }
+  .rs-hero-btn.primary { background: #fff; color: #2e5fa0; border-color: #fff; box-shadow: 0 4px 16px rgba(0,0,0,.2); }
+  .rs-hero-btn.primary:hover { box-shadow: 0 8px 24px rgba(0,0,0,.3); }
 
-  /* ── Stat cards ── */
-  .rs-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: .75rem;
-  }
+  .rs-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .75rem; }
   .rs-stat {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 1rem 1.1rem;
-    display: flex;
-    align-items: center;
-    gap: .9rem;
+    background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px;
+    padding: 1rem 1.1rem; display: flex; align-items: center; gap: .9rem;
     transition: border-color .15s, box-shadow .15s, transform .15s;
   }
-  .rs-stat:hover {
-    border-color: var(--accent);
-    box-shadow: 0 6px 20px rgba(74,144,217,.12);
-    transform: translateY(-2px);
-  }
+  .rs-stat:hover { border-color: var(--accent); box-shadow: 0 6px 20px rgba(74,144,217,.12); transform: translateY(-2px); }
   .rs-stat-icon {
-    width: 40px; height: 40px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.05rem;
-    background: rgba(74,144,217,.12);
-    color: var(--accent);
-    flex-shrink: 0;
+    width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.05rem; background: rgba(74,144,217,.12); color: var(--accent); flex-shrink: 0;
   }
   .rs-stat-icon.gold   { background: rgba(255,193,7,.16);  color: #d4a017; }
   .rs-stat-icon.green  { background: rgba(76,175,80,.14);  color: #2e7d32; }
@@ -188,221 +84,159 @@
   [data-theme="dark"] .rs-stat-icon.green  { color: #8fdf8f; }
   [data-theme="dark"] .rs-stat-icon.purple { color: #c0a2e8; }
   .rs-stat-info { min-width: 0; }
-  .rs-stat-label {
-    font-size: .75rem;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: .5px;
-    font-weight: 600;
-    margin-bottom: 2px;
-  }
-  .rs-stat-value {
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    line-height: 1.2;
-    word-break: break-word;
-  }
+  .rs-stat-label { font-size: .75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .5px; font-weight: 600; margin-bottom: 2px; }
+  .rs-stat-value { font-size: 1.15rem; font-weight: 700; color: var(--text-primary); line-height: 1.2; word-break: break-word; font-family: 'Fira Code', 'Consolas', monospace; }
+  .rs-stat-value .max { font-size: .72rem; color: var(--text-secondary); font-weight: 600; font-family: inherit; }
 
-  /* ── Table section ── */
   .rs-section {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 14px;
-    overflow: hidden;
-    box-shadow: var(--shadow-sm);
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-radius: 14px; overflow: hidden; box-shadow: var(--shadow-sm);
   }
   .rs-section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: .9rem 1.3rem;
-    border-bottom: 1px solid var(--border-color);
-    background: rgba(0,0,0,.015);
-    gap: .5rem;
-    flex-wrap: wrap;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: .9rem 1.3rem; border-bottom: 1px solid var(--border-color);
+    background: rgba(0,0,0,.015); gap: .5rem; flex-wrap: wrap;
   }
   [data-theme="dark"] .rs-section-header { background: rgba(255,255,255,.02); }
-  .rs-section-header h3 {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--text-primary);
-  }
+  .rs-section-header h3 { margin: 0; font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--text-primary); }
   .rs-section-header h3 i { color: var(--accent); font-size: .9rem; }
-  .rs-section-header .hint {
-    font-size: .8rem;
-    color: var(--text-secondary);
-  }
+  .rs-section-header .hint { font-size: .8rem; color: var(--text-secondary); }
 
-  .rs-table-scroll {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
+  .rs-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .rs-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    font-size: .88rem;
-    min-width: 640px;
+    width: 100%; border-collapse: separate; border-spacing: 0;
+    font-size: .88rem; min-width: 640px;
   }
-
-  /* Header sticky */
   .rs-table thead th {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    padding: .75rem .8rem;
-    text-align: center;
-    font-size: .74rem;
-    text-transform: uppercase;
-    letter-spacing: .5px;
-    font-weight: 700;
-    color: var(--text-secondary);
+    position: sticky; top: 0; z-index: 2;
+    padding: .75rem .8rem; text-align: center;
+    font-size: .74rem; text-transform: uppercase; letter-spacing: .5px;
+    font-weight: 700; color: var(--text-secondary);
     background: var(--card-bg);
-    border-bottom: 1px solid var(--border-color);
-    white-space: nowrap;
+    border-bottom: 1px solid var(--border-color); white-space: nowrap;
   }
   [data-theme="dark"] .rs-table thead th { background: #161b22; }
 
-  .rs-table thead th.col-rank   { width: 64px; }
-  .rs-table thead th.col-user   { width: 200px; text-align: left; }
-  .rs-table thead th.col-prob   { width: 72px; }
-  .rs-table thead th.col-total  { width: 90px; }
-  .rs-table thead th.col-time   { width: 170px; }
+  .rs-table thead th.col-rank { width: 64px; }
+  .rs-table thead th.col-user { width: 200px; text-align: left; }
+  .rs-table thead th.col-prob { width: 80px; }
+  .rs-table thead th.col-total{ width: 100px; }
+  .rs-table thead th.col-time { width: 170px; }
 
   .rs-table tbody td {
-    padding: .7rem .8rem;
-    text-align: center;
+    padding: .55rem .7rem; text-align: center;
     border-bottom: 1px solid var(--border-color);
     vertical-align: middle;
   }
   .rs-table tbody tr:last-child td { border-bottom: none; }
-  .rs-table tbody tr {
-    transition: background .15s;
-  }
+  .rs-table tbody tr { transition: background .15s; }
   .rs-table tbody tr:hover { background: rgba(74,144,217,.06); }
   [data-theme="dark"] .rs-table tbody tr:hover { background: rgba(74,144,217,.10); }
 
+  /* ── 分數方塊：全方塊著色 ── */
+  .rs-table tbody td.cell {
+    padding: 0;
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: .82rem;
+    line-height: 1;
+    min-width: 64px;
+  }
+  .rs-table tbody td.cell > span {
+    display: flex; align-items: center; justify-content: center;
+    padding: 9px 6px; min-height: 36px;
+    transition: filter .15s;
+  }
+  .rs-table tbody tr:hover td.cell > span { filter: brightness(1.08); }
+
+  /* ⭐ 首次 AC：深綠 + 粗體白字 */
+  .rs-table tbody td.cell.cell-ac-first > span {
+    background: #1b5e20;
+    color: #ffffff;
+    font-weight: 800;
+    letter-spacing: .3px;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.08);
+  }
+  /* ⭐ 有掙扎的 AC：中綠 + 一般白字 */
+  .rs-table tbody td.cell.cell-ac > span {
+    background: #4caf50;
+    color: #ffffff;
+    font-weight: 500;
+  }
+  /* ⭐ WA：深紅 + 淡紅字 */
+  .rs-table tbody td.cell.cell-wa > span {
+    background: #c62828;
+    color: #ffcdd2;
+    font-weight: 700;
+  }
+  /* ⭐ Partial：琥珀 + 深棕字 */
+  .rs-table tbody td.cell.cell-partial > span {
+    background: #fbc02d;
+    color: #4e342e;
+    font-weight: 700;
+  }
+  /* 空 */
+  .rs-table tbody td.cell.cell-empty > span {
+    background: rgba(0,0,0,.03);
+    color: #b8b8b8;
+    font-weight: 400;
+  }
+  [data-theme="dark"] .rs-table tbody td.cell.cell-empty > span {
+    background: rgba(255,255,255,.04);
+    color: #666;
+  }
+
   /* ── Rank badge ── */
   .rs-rank {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    font-weight: 800;
-    font-size: .85rem;
-    background: rgba(0,0,0,.05);
-    color: var(--text-secondary);
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 50%;
+    font-weight: 800; font-size: .85rem;
+    background: rgba(0,0,0,.05); color: var(--text-secondary);
+    font-family: 'Fira Code', 'Consolas', monospace;
   }
   [data-theme="dark"] .rs-rank { background: rgba(255,255,255,.07); }
-  .rs-rank.gold {
-    background: linear-gradient(135deg, #ffd700, #d4a017);
-    color: #4a3a00;
-    box-shadow: 0 2px 10px rgba(255,193,7,.5);
-  }
-  .rs-rank.silver {
-    background: linear-gradient(135deg, #e8e8e8, #a8a8a8);
-    color: #333;
-    box-shadow: 0 2px 10px rgba(180,180,180,.5);
-  }
-  .rs-rank.bronze {
-    background: linear-gradient(135deg, #e8a87c, #a86a3d);
-    color: #fff;
-    box-shadow: 0 2px 10px rgba(200,130,80,.5);
-  }
+  .rs-rank.gold   { background: linear-gradient(135deg, #ffd700, #d4a017); color: #4a3a00; box-shadow: 0 2px 10px rgba(255,193,7,.5); }
+  .rs-rank.silver { background: linear-gradient(135deg, #e8e8e8, #a8a8a8); color: #333; box-shadow: 0 2px 10px rgba(180,180,180,.5); }
+  .rs-rank.bronze { background: linear-gradient(135deg, #e8a87c, #a86a3d); color: #fff; box-shadow: 0 2px 10px rgba(200,130,80,.5); }
 
   /* ── User cell ── */
   .rs-user {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    text-decoration: none;
-    color: var(--text-primary);
-    text-align: left;
-    min-width: 0;
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none; color: var(--text-primary); text-align: left; min-width: 0;
   }
   .rs-user-avatar {
-    width: 34px; height: 34px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #4a90d9, #2e5fa0);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: .82rem;
-    flex-shrink: 0;
-    text-transform: uppercase;
-    box-shadow: 0 2px 6px rgba(74,144,217,.25);
+    width: 34px; height: 34px; border-radius: 50%;
+    background: linear-gradient(135deg, #4a90d9, #2e5fa0); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: .82rem; flex-shrink: 0;
+    text-transform: uppercase; box-shadow: 0 2px 6px rgba(74,144,217,.25);
   }
   .rs-user-avatar.gold   { background: linear-gradient(135deg, #ffd700, #d4a017); box-shadow: 0 2px 8px rgba(255,193,7,.4); }
   .rs-user-avatar.silver { background: linear-gradient(135deg, #d8d8d8, #a8a8a8); box-shadow: 0 2px 8px rgba(180,180,180,.4); }
   .rs-user-avatar.bronze { background: linear-gradient(135deg, #e8a87c, #a86a3d); box-shadow: 0 2px 8px rgba(200,130,80,.4); }
   .rs-user-info { min-width: 0; }
   .rs-user-name {
-    font-weight: 600;
-    font-size: .9rem;
-    color: var(--text-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-weight: 600; font-size: .9rem; color: var(--text-primary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .rs-user-name:hover { color: var(--accent); }
 
-  /* ── Score cells ── */
-  .rs-cell {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 44px;
-    padding: 4px 8px;
-    border-radius: 8px;
-    font-weight: 700;
-    font-size: .82rem;
-    font-family: 'Fira Code', 'Consolas', monospace;
-  }
-  .rs-cell.s100 { background: rgba(76,175,80,.18);  color: #2e7d32; }
-  .rs-cell.s0   { background: rgba(231,76,60,.16);  color: #c0392b; }
-  .rs-cell.smid { background: rgba(255,193,7,.2);   color: #b28500; }
-  .rs-cell.snone{ background: rgba(0,0,0,.04); color: var(--text-secondary); font-weight: 500; }
-  [data-theme="dark"] .rs-cell.s100 { color: #8fdf8f; }
-  [data-theme="dark"] .rs-cell.s0   { color: #ff9b8f; }
-  [data-theme="dark"] .rs-cell.smid { color: #ffd54f; }
-  [data-theme="dark"] .rs-cell.snone{ background: rgba(255,255,255,.06); }
-
   /* ── Total cell ── */
-  .rs-total {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 3px;
+  .rs-table tbody td.cell-total {
     font-family: 'Fira Code', 'Consolas', monospace;
-    font-weight: 800;
+    font-weight: 800; color: var(--accent);
+    font-size: .95rem; white-space: nowrap;
   }
-  .rs-total .val {
-    font-size: 1.1rem;
-    color: var(--accent);
-  }
-  .rs-total .max {
-    font-size: .72rem;
-    color: var(--text-secondary);
-    font-weight: 600;
+  .rs-table tbody td.cell-total .max {
+    font-size: .72rem; color: var(--text-secondary); font-weight: 600;
   }
 
   /* ── Time cell ── */
   .rs-time {
     font-family: 'Fira Code', 'Consolas', monospace;
-    font-size: .78rem;
-    color: var(--text-secondary);
-    white-space: nowrap;
+    font-size: .78rem; color: var(--text-secondary); white-space: nowrap;
   }
 
-  /* ── Your row highlight ── */
+  /* ── Your row ── */
   .rs-table tbody tr.me {
     background: linear-gradient(90deg, rgba(74,144,217,.10), rgba(74,144,217,.03));
     box-shadow: inset 3px 0 0 var(--accent);
@@ -411,47 +245,43 @@
     background: linear-gradient(90deg, rgba(74,144,217,.16), rgba(74,144,217,.06));
   }
 
-  /* ── Empty / Loading ── */
-  .rs-loading, .rs-empty {
-    text-align: center;
-    padding: 3.5rem 1rem;
-    color: var(--text-secondary);
-    font-size: .95rem;
+  /* ── Legend ── */
+  .rs-legend {
+    display: flex; gap: 1.2rem; flex-wrap: wrap;
+    padding: .8rem 1.3rem;
+    border-top: 1px solid var(--border-color);
+    background: rgba(0,0,0,.015);
+    font-size: .78rem; color: var(--text-secondary);
   }
-  .rs-loading i, .rs-empty i {
-    font-size: 2.2rem;
-    color: var(--accent);
-    opacity: .6;
-    display: block;
-    margin-bottom: .9rem;
+  [data-theme="dark"] .rs-legend { background: rgba(255,255,255,.02); }
+  .rs-legend-item { display: inline-flex; align-items: center; gap: 7px; }
+  .rs-legend-swatch {
+    display: inline-block; width: 16px; height: 16px; border-radius: 3px;
   }
+  .rs-legend-swatch.ac-first { background: #1b5e20; }
+  .rs-legend-swatch.ac       { background: #4caf50; }
+  .rs-legend-swatch.wa       { background: #c62828; }
+  .rs-legend-swatch.partial  { background: #fbc02d; }
+  .rs-legend-swatch.empty    { background: rgba(0,0,0,.05); border: 1px solid var(--border-color); }
+
+  .rs-loading, .rs-empty { text-align: center; padding: 3.5rem 1rem; color: var(--text-secondary); font-size: .95rem; }
+  .rs-loading i, .rs-empty i { font-size: 2.2rem; color: var(--accent); opacity: .6; display: block; margin-bottom: .9rem; }
   .rs-spinner {
-    display: inline-block;
-    width: 22px; height: 22px;
-    border: 3px solid rgba(74,144,217,.25);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: rsSpin .7s linear infinite;
+    display: inline-block; width: 22px; height: 22px;
+    border: 3px solid rgba(74,144,217,.25); border-top-color: var(--accent);
+    border-radius: 50%; animation: rsSpin .7s linear infinite;
   }
   @keyframes rsSpin { to { transform: rotate(360deg); } }
 
-  /* ── Back link ── */
   .rs-back {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    color: var(--text-secondary);
-    font-size: .88rem;
-    font-weight: 500;
-    text-decoration: none;
-    padding: .4rem 0;
-    transition: color .15s;
+    display: inline-flex; align-items: center; gap: 7px;
+    color: var(--text-secondary); font-size: .88rem; font-weight: 500;
+    text-decoration: none; padding: .4rem 0; transition: color .15s;
   }
   .rs-back:hover { color: var(--accent); }
   .rs-back i { transition: transform .15s; }
   .rs-back:hover i { transform: translateX(-3px); }
 
-  /* ── Responsive ── */
   @media (max-width: 700px) {
     .rs-hero { padding: 1.4rem 1.2rem 1.2rem; border-radius: 12px; }
     .rs-hero-name { font-size: 1.4rem; }
@@ -461,15 +291,14 @@
     .rs-stat-value { font-size: 1rem; }
     .rs-table { font-size: .82rem; }
     .rs-table thead th,
-    .rs-table tbody td { padding: .55rem .5rem; }
+    .rs-table tbody td { padding: .5rem .4rem; }
+    .rs-table tbody td.cell > span { min-height: 32px; padding: 7px 4px; font-size: .76rem; }
     .rs-user-avatar { width: 28px; height: 28px; font-size: .72rem; }
     .rs-user-name { font-size: .82rem; }
-    .rs-cell { min-width: 36px; padding: 3px 6px; font-size: .76rem; }
-    .rs-total .val { font-size: .95rem; }
+    .rs-legend { font-size: .72rem; gap: .8rem; }
   }
 </style>
 
-<!-- ⭐ PWA -->
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#1a1a2e">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
@@ -510,7 +339,6 @@
     const mainContainer = document.getElementById('mainContent');
     const currentUsername = (typeof getCurrentUser === 'function' && getCurrentUser()?.username) || '';
 
-    // ═══════════ Data ═══════════
     async function loadResults() {
       try {
         const data = await apiCall(`/api/contests?action=results&id=${contestId}`);
@@ -519,27 +347,10 @@
       return null;
     }
 
-    // ═══════════ Utils ═══════════
     function escapeHtml(str) {
       return String(str ?? '').replace(/[&<>"']/g, m => ({
         '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
       }[m]));
-    }
-
-    function scoreClass(score) {
-      if (score === undefined || score === null || score === '') return 'snone';
-      const n = Number(score);
-      if (!Number.isFinite(n)) return 'snone';
-      if (n >= 100) return 's100';
-      if (n <= 0)   return 's0';
-      return 'smid';
-    }
-
-    function formatScore(score) {
-      if (score === undefined || score === null || score === '') return '—';
-      const n = Number(score);
-      if (!Number.isFinite(n)) return escapeHtml(String(score));
-      return Number.isInteger(n) ? String(n) : n.toFixed(1);
     }
 
     function rankClass(rank) {
@@ -559,7 +370,12 @@
              `${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}`;
     }
 
-    // ═══════════ Render ═══════════
+    function fmtScore(n) {
+      const v = Number(n);
+      if (!Number.isFinite(v)) return '0.00';
+      return v.toFixed(2);
+    }
+
     function renderResults(stats) {
       if (!stats || !stats.participants || stats.participants.length === 0) {
         mainContainer.innerHTML = `
@@ -579,45 +395,41 @@
       const participants = stats.participants;
       const maxTotal = problemIds.length * 100;
 
-      // Stats
       const totalParticipants = participants.length;
       const topScore = participants[0]?.total ?? 0;
-      const topUser = participants[0]?.username ?? '—';
+
+      // ⭐ AC = 綠色格子數量（score >= 100）
       const totalAC = participants.reduce((sum, p) => {
         const probs = p.problems || {};
-        return sum + problemIds.filter(pid => Number(probs[pid]) === 100).length;
+        return sum + problemIds.filter(pid => {
+          const info = probs[pid];
+          return info && Number(info.score) >= 100;
+        }).length;
       }, 0);
 
-      // My rank
       const myIndex = participants.findIndex(p => p.username === currentUsername);
       const myRank = myIndex >= 0 ? myIndex + 1 : null;
 
       let html = `<div class="results-wrap">`;
 
-      // ── Hero ──
+      // Hero
       html += `
         <div class="rs-hero">
           <div class="rs-hero-inner">
-            <div class="rs-hero-top">
-              <h1 class="rs-hero-name">
-                <i class="fas fa-trophy"></i>
-                Contest Results
-              </h1>
-            </div>
+            <h1 class="rs-hero-name">
+              <i class="fas fa-trophy"></i>
+              Contest Results
+            </h1>
             <p class="rs-hero-sub">Contest #${contestId} · ${totalParticipants} participant${totalParticipants !== 1 ? 's' : ''}</p>
             <div class="rs-hero-actions">
-              <a href="/contest/${contestId}" class="rs-hero-btn">
-                <i class="fas fa-arrow-left"></i> Back to Contest
-              </a>
-              <a href="/contest" class="rs-hero-btn primary">
-                <i class="fas fa-list"></i> All Contests
-              </a>
+              <a href="/contest/${contestId}" class="rs-hero-btn"><i class="fas fa-arrow-left"></i> Back to Contest</a>
+              <a href="/contest" class="rs-hero-btn primary"><i class="fas fa-list"></i> All Contests</a>
             </div>
           </div>
         </div>
       `;
 
-      // ── Stats ──
+      // Stats
       html += `
         <div class="rs-stats">
           <div class="rs-stat">
@@ -631,7 +443,7 @@
             <div class="rs-stat-icon gold"><i class="fas fa-crown"></i></div>
             <div class="rs-stat-info">
               <div class="rs-stat-label">Top Score</div>
-              <div class="rs-stat-value">${topScore} <span style="font-size:.72rem;color:var(--text-secondary);font-weight:600;">/ ${maxTotal}</span></div>
+              <div class="rs-stat-value">${fmtScore(topScore)} <span class="max">/ ${maxTotal.toFixed(2)}</span></div>
             </div>
           </div>
           <div class="rs-stat">
@@ -652,7 +464,7 @@
         </div>
       `;
 
-      // ── Leaderboard table ──
+      // Table
       html += `
         <div class="rs-section">
           <div class="rs-section-header">
@@ -684,15 +496,9 @@
         const rClass = rankClass(rank);
         const isMe = p.username === currentUsername;
         const problems = p.problems || {};
-        const userProblems = p.problems || {};
-
-        // Compute AC count for this user (for avatar hint)
-        const acCount = problemIds.filter(pid => Number(userProblems[pid]) === 100).length;
 
         html += `<tr class="${isMe ? 'me' : ''}">
-          <td>
-            <span class="rs-rank ${rClass}">${rank}</span>
-          </td>
+          <td><span class="rs-rank ${rClass}">${rank}</span></td>
           <td style="text-align:left;">
             <a class="rs-user" href="/users/${encodeURIComponent(p.username)}">
               <span class="rs-user-avatar ${rClass}">${escapeHtml((p.username[0] || '?').toUpperCase())}</span>
@@ -702,19 +508,34 @@
             </a>
           </td>`;
 
+        // ⭐ 每題：方塊著色
         problemIds.forEach(pid => {
-          const score = problems[pid];
-          const cls = scoreClass(score);
-          html += `<td><span class="rs-cell ${cls}">${formatScore(score)}</span></td>`;
+          const info = problems[pid];
+          if (!info) {
+            html += `<td class="cell cell-empty"><span>—</span></td>`;
+            return;
+          }
+          const score = Number(info.score) || 0;
+          const wrongAttempts = Number(info.wrongAttempts) || 0;
+
+          if (score >= 100) {
+            // AC
+            if (wrongAttempts === 0) {
+              html += `<td class="cell cell-ac-first"><span>${fmtScore(score)}</span></td>`;
+            } else {
+              html += `<td class="cell cell-ac"><span>${fmtScore(score)}</span></td>`;
+            }
+          } else if (score > 0) {
+            // Partial
+            html += `<td class="cell cell-partial"><span>${fmtScore(score)}</span></td>`;
+          } else {
+            // WA
+            html += `<td class="cell cell-wa"><span>${fmtScore(score)}</span></td>`;
+          }
         });
 
         html += `
-          <td>
-            <span class="rs-total">
-              <span class="val">${p.total ?? 0}</span>
-              <span class="max">/${maxTotal}</span>
-            </span>
-          </td>
+          <td class="cell-total">${fmtScore(p.total ?? 0)} <span class="max">/ ${maxTotal.toFixed(2)}</span></td>
           <td><span class="rs-time">${escapeHtml(fmtTime(p.lastTime))}</span></td>
         </tr>`;
       });
@@ -723,10 +544,16 @@
               </tbody>
             </table>
           </div>
+          <div class="rs-legend">
+            <span class="rs-legend-item"><span class="rs-legend-swatch ac-first"></span> First-try AC</span>
+            <span class="rs-legend-item"><span class="rs-legend-swatch ac"></span> AC (after tries)</span>
+            <span class="rs-legend-item"><span class="rs-legend-swatch wa"></span> Wrong Answer</span>
+            <span class="rs-legend-item"><span class="rs-legend-swatch partial"></span> Partial</span>
+            <span class="rs-legend-item"><span class="rs-legend-swatch empty"></span> Not attempted</span>
+          </div>
         </div>
       `;
 
-      // ── Back link ──
       html += `
         <div style="padding-top:.5rem;">
           <a href="/contest/${contestId}" class="rs-back"><i class="fas fa-arrow-left"></i> Back to Contest</a>

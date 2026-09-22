@@ -1,12 +1,11 @@
-// api/submit.js
+﻿// api/submit.js
 import { connectToDatabase } from './db.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
-// import { uploadImage } from '../lib/cloudinary.js';
 import crypto from 'crypto';
 import vm from 'vm';
 
-// ========== 用戶級限流（記憶體，保留原行為）==========
+// ========== 用戶級限流 ==========
 const submitRateLimit = new Map();
 const MAX_SUBMITS_PER_MIN = 10;
 const LIMIT_WINDOW = 60_000;
@@ -30,7 +29,6 @@ function checkUserRateLimit(username) {
 
 // ========== 工具函數 ==========
 function generateSubid() {
-  // 8 字元時間戳 + 8 字元加密隨機（base64url）
   const ts = Date.now().toString(36);
   const rnd = crypto.randomBytes(6).toString('base64url').slice(0, 8);
   return ts + rnd;
@@ -55,18 +53,10 @@ function executeCustomLogic(logicStr, ans, userAnswer) {
       `(${logicStr})(${JSON.stringify(ans)}, ${JSON.stringify(userAnswer)})`
     );
     if (typeof result === 'number') {
-      return {
-        score: Math.min(100, Math.max(0, result)),
-        comment: '',
-        systemError: false,
-      };
+      return { score: Math.min(100, Math.max(0, result)), comment: '', systemError: false };
     }
     if (result && typeof result === 'object' && typeof result.score === 'number') {
-      return {
-        score: Math.min(100, Math.max(0, result.score)),
-        comment: result.comment || '',
-        systemError: false,
-      };
+      return { score: Math.min(100, Math.max(0, result.score)), comment: result.comment || '', systemError: false };
     }
     return { score: 0, comment: 'Invalid logic return value', systemError: true };
   } catch (err) {
@@ -76,23 +66,14 @@ function executeCustomLogic(logicStr, ans, userAnswer) {
 
 async function updateUserStats(db, username, pid, correct) {
   const statsCol = db.collection('userstats');
-
-  // 1. 確保文檔存在
   await statsCol.updateOne(
     { username },
     { $setOnInsert: { username, states: {} } },
     { upsert: true }
   );
-
-  // 2. 原子更新單個字段（點號路徑）
   if (correct) {
-    // 正確：直接寫 passed（覆蓋任何狀態）
-    await statsCol.updateOne(
-      { username },
-      { $set: { [`states.${pid}`]: 'passed' } }
-    );
+    await statsCol.updateOne({ username }, { $set: { [`states.${pid}`]: 'passed' } });
   } else {
-    // 錯誤：只在當前不是 passed 時寫 failed（不降級已 AC）
     await statsCol.updateOne(
       { username, [`states.${pid}`]: { $ne: 'passed' } },
       { $set: { [`states.${pid}`]: 'failed' } }
@@ -102,25 +83,21 @@ async function updateUserStats(db, username, pid, correct) {
 
 // ========== 主處理函數 ==========
 export default async function handler(req, res) {
-  // 1. 全局限流 + 方法檢查
   if (!(await applyRateLimit(req, res))) return;
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // 2. 鑒權
   const decoded = await verifyToken(req);
   if (!decoded) {
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
   const { username, role } = decoded;
 
-  // 3. 角色檢查
   if (!['student', 'admin', 'root'].includes(role)) {
     return res.status(403).json({ success: false, message: 'Only students can submit' });
   }
 
-  // 4. 用戶級限流
   if (!checkUserRateLimit(username)) {
     return res.status(429).json({
       success: false,
@@ -128,7 +105,6 @@ export default async function handler(req, res) {
     });
   }
 
-  // 5. 解析請求
   const { problemId, answer, type = 'text', image = '' } = req.body;
   if (!problemId) return res.status(400).json({ success: false, message: 'Missing problemId' });
   if (type === 'text' && answer === undefined) {
@@ -141,13 +117,12 @@ export default async function handler(req, res) {
   const pid = String(problemId).trim();
   if (!pid) return res.status(400).json({ success: false, message: 'Invalid problemId' });
 
-  // ⚡ 全流程共用一個時間點（原本 5 處 new Date() 全部收斂為此）
   const now = new Date();
 
   try {
     const db = await connectToDatabase();
 
-    // ========== 6. 並行查詢：題目 + 活躍競賽 ==========
+    // ========== 並行查詢：題目 + 活躍競賽 ==========
     const [problem, activeContests] = await Promise.all([
       db.collection('problems').findOne({ id: pid }),
       db.collection('contests')
@@ -171,7 +146,7 @@ export default async function handler(req, res) {
       return res.status(404).json({ success: false, message: 'Problem not found' });
     }
 
-    // ========== 7. 確定是否落在活躍競賽中 ==========
+    // ========== 確定是否落在活躍競賽中 ==========
     let activeContest = null;
     let contestProblem = null;
     for (const c of activeContests) {
@@ -184,12 +159,11 @@ export default async function handler(req, res) {
     }
     const inContest = !!activeContest;
 
-    // 8. 權限：學生 & 非公開 & 不在競賽 -> 拒絕
     if (role === 'student' && !inContest && problem.public === false) {
       return res.status(404).json({ success: false, message: 'Problem not found' });
     }
 
-    // ========== 9. 構建提交對象 ==========
+    // ========== 構建提交對象 ==========
     const submissionData = {
       username,
       problemId: pid,
@@ -206,7 +180,6 @@ export default async function handler(req, res) {
       image: '',
     };
 
-    // 10. 圖片上傳（僅圖片類型）
     if (type === 'image') {
       try {
         const { uploadImage } = await import('../lib/cloudinary.js');
@@ -216,7 +189,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // ========== 11. 判分核心 ==========
+    // ========== 判分核心 ==========
     const hasLogic =
       typeof problem.logic === 'string' && problem.logic.trim() !== '';
 
@@ -225,45 +198,32 @@ export default async function handler(req, res) {
       const evalType = contestProblem.evalType || 'numeric';
 
       if (evalType === 'numeric' && type !== 'text') {
-        return res.status(400).json({
-          success: false,
-          message: 'This problem requires a numeric answer',
-        });
+        return res.status(400).json({ success: false, message: 'This problem requires a numeric answer' });
       }
       if (evalType === 'image_model' && type !== 'image') {
-        return res.status(400).json({
-          success: false,
-          message: 'This problem requires a photo answer',
-        });
+        return res.status(400).json({ success: false, message: 'This problem requires a photo answer' });
       }
 
       submissionData.contestId = activeContest.id;
 
-      // 取競賽既有結果（用於 wrongAttempts 扣分）
       const resultDoc = await db
         .collection('contest_results')
         .findOne(
           { contestId: activeContest.id, username, problemId: pid },
           { projection: { wrongAttempts: 1, score: 1 } }
         );
-      let wrongAttempts = resultDoc?.wrongAttempts || 0;
       let currentScore = resultDoc?.score || 0;
       let isCorrect = false;
       let systemError = false;
 
       if (hasLogic) {
-        // ---- 競賽 + 文本 + 邏輯 ----
+        // ---- 競賽 + 邏輯 ----
         const logicResult = executeCustomLogic(problem.logic, problem.ans, answer);
 
         if (logicResult.systemError) {
           submissionData.systemError = true;
           submissionData.comment = logicResult.comment;
           await db.collection('submissions').insertOne(submissionData);
-          await db.collection('contest_results').updateOne(
-            { contestId: activeContest.id, username, problemId: pid },
-            { $set: { score: 0, lastSubmissionTime: now } },
-            { upsert: true }
-          );
           return res.status(200).json({
             success: true,
             subid: submissionData.subid,
@@ -281,12 +241,34 @@ export default async function handler(req, res) {
         submissionData.comment = logicResult.comment;
 
         await db.collection('submissions').insertOne(submissionData);
-        await db.collection('contest_results').updateOne(
-          { contestId: activeContest.id, username, problemId: pid },
-          { $set: { score: currentScore, lastSubmissionTime: now } },
-          { upsert: true }
-        );
-        if (isCorrect) await updateUserStats(db, username, pid, true);
+
+        if (isCorrect) {
+          // ⭐ AC：分數永遠 100，不扣分（wrongAttempts 保留原值）
+          await db.collection('contest_results').updateOne(
+            { contestId: activeContest.id, username, problemId: pid },
+            { $set: { score: 100, lastSubmissionTime: now } },
+            { upsert: true }
+          );
+          await updateUserStats(db, username, pid, true);
+        } else if (currentScore > 0) {
+          // ⭐ Partial（logic 回傳的部分分）
+          await db.collection('contest_results').updateOne(
+            { contestId: activeContest.id, username, problemId: pid },
+            { $set: { score: currentScore, lastSubmissionTime: now } },
+            { upsert: true }
+          );
+        } else {
+          // ⭐ WA：累加 wrongAttempts，分數保持
+          await db.collection('contest_results').updateOne(
+            { contestId: activeContest.id, username, problemId: pid },
+            {
+              $inc: { wrongAttempts: 1 },
+              $set: { lastSubmissionTime: now },
+              $setOnInsert: { score: 0 },
+            },
+            { upsert: true }
+          );
+        }
 
         return res.status(200).json({
           success: true,
@@ -298,57 +280,46 @@ export default async function handler(req, res) {
         });
       }
 
-      // ---- 競賽 + 無邏輯 ----
-      // ---- 競賽 + 無邏輯 ----
-if (evalType === 'numeric') {
-  const ansStr = String(problem.ans).trim();
-  if (!isValidNumericAnswer(ansStr)) {
-    systemError = true;
-  } else {
-    const cmp = compareNumeric(ansStr, answer);
-    isCorrect = cmp.correct;
-    systemError = cmp.systemError;
-  }
+      // ---- 競賽 + 無邏輯（數值比較）----
+      if (evalType === 'numeric') {
+        const ansStr = String(problem.ans).trim();
+        if (!isValidNumericAnswer(ansStr)) {
+          systemError = true;
+        } else {
+          const cmp = compareNumeric(ansStr, answer);
+          isCorrect = cmp.correct;
+          systemError = cmp.systemError;
+        }
 
-  if (!systemError) {
-    if (isCorrect) {
-      // ⭐ 答對才寫分數：用「之前的錯誤次數」扣 10% / 次
-      const prevWrong = resultDoc?.wrongAttempts || 0;
-      currentScore = Math.max(0, 100 * Math.pow(0.9, prevWrong));
-
-      await db.collection('contest_results').updateOne(
-        { contestId: activeContest.id, username, problemId: pid },
-        { $set: { score: currentScore, lastSubmissionTime: now } },
-        { upsert: true }
-      );
-    } else {
-      // ⭐ 答錯只累加 wrongAttempts，**不碰分數**
-      await db.collection('contest_results').updateOne(
-        { contestId: activeContest.id, username, problemId: pid },
-        {
-          $inc: { wrongAttempts: 1 },
-          $set: { lastSubmissionTime: now },
-          $setOnInsert: { score: 0 }
-        },
-        { upsert: true }
-      );
-      wrongAttempts = (resultDoc?.wrongAttempts || 0) + 1;
-      currentScore = resultDoc?.score ?? 0;  // 保留既有分數（可能 0）
-    }
-  }
-}
-      // evalType === 'image_model'：isCorrect 保持 false，systemError 保持 false
-
-      await db.collection('contest_results').updateOne(
-        { contestId: activeContest.id, username, problemId: pid },
-        { $set: { score: currentScore, wrongAttempts, lastSubmissionTime: now } },
-        { upsert: true }
-      );
+        if (!systemError) {
+          if (isCorrect) {
+            // ⭐ AC：分數永遠 100，不扣分
+            currentScore = 100;
+            await db.collection('contest_results').updateOne(
+              { contestId: activeContest.id, username, problemId: pid },
+              { $set: { score: 100, lastSubmissionTime: now } },
+              { upsert: true }
+            );
+          } else {
+            // ⭐ WA：累加 wrongAttempts，分數保持原樣
+            currentScore = resultDoc?.score || 0;
+            await db.collection('contest_results').updateOne(
+              { contestId: activeContest.id, username, problemId: pid },
+              {
+                $inc: { wrongAttempts: 1 },
+                $set: { lastSubmissionTime: now },
+                $setOnInsert: { score: 0 },
+              },
+              { upsert: true }
+            );
+          }
+        }
+      }
+      // evalType === 'image_model'：isCorrect 保持 false，等人工批改
 
       submissionData.correct = isCorrect;
       submissionData.systemError = systemError;
       submissionData.score = currentScore;
-      // 落到末尾統一插入
     } else {
       // ---------- 非競賽判分 ----------
       if (type === 'text') {
@@ -356,7 +327,6 @@ if (evalType === 'numeric') {
         let systemError = false;
 
         if (hasLogic) {
-          // ---- 非競賽 + 文本 + 邏輯 ----
           const logicResult = executeCustomLogic(problem.logic, problem.ans, answer);
 
           if (logicResult.systemError) {
@@ -391,7 +361,6 @@ if (evalType === 'numeric') {
           });
         }
 
-        // ---- 非競賽 + 文本 + 無邏輯（數值比較）----
         const ansStr = String(problem.ans).trim();
         if (!isValidNumericAnswer(ansStr)) {
           systemError = true;
@@ -403,17 +372,15 @@ if (evalType === 'numeric') {
         submissionData.correct = isCorrect;
         submissionData.systemError = systemError;
       }
-      // 非競賽 + 圖片：保持默認（marked: false, correct: false）
     }
 
-    // ========== 12. 統一入庫（未提前 return 的路徑）==========
+    // ========== 統一入庫 ==========
     const writes = [db.collection('submissions').insertOne(submissionData)];
     if (type === 'text' && !submissionData.systemError) {
       writes.push(updateUserStats(db, username, pid, submissionData.correct));
     }
     await Promise.all(writes);
 
-    // ========== 13. 返回 ==========
     return res.status(200).json({
       success: true,
       subid: submissionData.subid,
