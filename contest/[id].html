@@ -1,66 +1,514 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  
 <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-  <title>Contest - WYK Maths Team</title><link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>Contest - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
 
 <link rel="stylesheet" href="/styles.css" />
-  <style>
-    .contest-detail { background: var(--card-bg); border-radius: 4px; padding: 1.5rem; max-width: 900px; margin: 0 auto; }
-    .contest-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; }
-    .contest-name { font-size: 1.5rem; font-weight: 700; }
-    .contest-status { padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
-    .status-upcoming { background: #fff3cd; color: #856404; }
-    .status-ongoing { background: #d4edda; color: #155724; }
-    .status-ended { background: #e2e3e5; color: #383d41; }
-    .info-bar { display: flex; gap: 2rem; margin-bottom: 1.5rem; color: var(--text-secondary); }
-    .btn { padding: 0.4rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; margin-right: 0.5rem; }
-    .btn-primary { background: var(--accent); color: #fff; }
-    .btn-secondary { background: #6c757d; color: #fff; }
-    .btn-success { background: #2e7d32; color: #fff; }
-    .btn-warning { background: #ffc107; color: #000; }
-    .btn-danger { background: var(--danger); color: #fff; }
-    .problem-table { width: 100%; border-collapse: collapse; margin: 1rem 0; border: 1px solid var(--border-color); }
-    .problem-table th, .problem-table td { padding: 0.6rem 0.5rem; border-bottom: 1px solid var(--border-color); text-align: left; }
-    .problem-table th { background: #f0f2f5; font-weight: 700; border-bottom: 2px solid var(--border-color); }
-    .problem-row { cursor: pointer; transition: background 0.2s; }
-    .problem-row:hover { background: rgba(0,0,0,0.03); }
-    .problem-row.accepted { background: #d4edda; }
-    .problem-row.partial { background: #fff3cd; }
-    .problem-row.failed { background: #f8d7da; }
-    .problem-row.finished-before { background: #a8d5a8; border-left: 4px solid #1b5e20; }
-    .problem-row.finished-before:hover { background: #98ca98; }
-    [data-theme="dark"] .problem-row.finished-before { background: #0d3b1a; border-left-color: #4caf50; }
-    [data-theme="dark"] .problem-row.finished-before:hover { background: #114a22; }
-    .problem-row.finished-before td:first-child { color: #1b5e20; font-weight: 700; }
-    [data-theme="dark"] .problem-row.finished-before td:first-child { color: #8fdf8f; }
-    .participant-list { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.5rem 0 1rem 0; }
-    .participant-tag { background: #f0f0f0; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.85rem; }
-    .loading-msg { text-align: center; padding: 2rem; color: var(--text-secondary); }
-  </style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 
-  <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
-  <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#1a1a2e">
-  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="WYK Maths">
-  <meta name="mobile-web-app-capable" content="yes">
+<style>
+  /* ═══════════════ Contest Detail ═══════════════ */
+  .contest-detail {
+    max-width: 1000px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
 
+  /* ── Hero ── */
+  .cd-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    padding: 2rem 2.2rem 1.8rem;
+    background: linear-gradient(135deg, #4a90d9 0%, #2e5fa0 55%, #1a1a2e 100%);
+    color: #fff;
+    box-shadow: 0 12px 40px rgba(74,144,217,.22), 0 0 0 1px rgba(255,255,255,.08) inset;
+  }
+  .cd-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 12% 25%, rgba(255,255,255,.85), transparent),
+      radial-gradient(1px 1px at 35% 65%, rgba(255,255,255,.6), transparent),
+      radial-gradient(2px 2px at 58% 20%, rgba(255,255,255,.9), transparent),
+      radial-gradient(1px 1px at 78% 78%, rgba(255,255,255,.7), transparent),
+      radial-gradient(2px 2px at 90% 35%, rgba(255,255,255,.85), transparent);
+    background-size: 400px 400px;
+    opacity: .55;
+    pointer-events: none;
+    animation: cdDrift 60s linear infinite;
+  }
+  @keyframes cdDrift {
+    from { background-position: 0 0; }
+    to   { background-position: 400px 300px; }
+  }
+  .cd-hero::after {
+    content: '';
+    position: absolute;
+    top: -80px; right: -80px;
+    width: 340px; height: 340px;
+    background: radial-gradient(circle, rgba(255,255,255,.22) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .cd-hero-inner { position: relative; z-index: 1; }
+
+  .cd-hero-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: .6rem;
+  }
+  .cd-hero-name {
+    font-size: 1.9rem;
+    font-weight: 800;
+    letter-spacing: -.5px;
+    margin: 0;
+    color: #fff;
+    line-height: 1.2;
+    flex: 1;
+    min-width: 200px;
+  }
+  .cd-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: .85rem;
+    font-weight: 700;
+    letter-spacing: .3px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .cd-status.upcoming { background: rgba(255,193,7,.25); color: #ffe066; border: 1px solid rgba(255,193,7,.4); }
+  .cd-status.ongoing  { background: rgba(76,175,80,.28); color: #a5f0a5; border: 1px solid rgba(76,175,80,.45); }
+  .cd-status.ended    { background: rgba(255,255,255,.15); color: #d0d0d0; border: 1px solid rgba(255,255,255,.25); }
+  .cd-status .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .cd-status.ongoing .dot { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: .4; transform: scale(1.4); }
+  }
+
+  .cd-hero-meta {
+    display: flex;
+    gap: 1.4rem;
+    flex-wrap: wrap;
+    font-size: .9rem;
+    opacity: .92;
+  }
+  .cd-hero-meta .item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .cd-hero-meta i { opacity: .85; font-size: .85rem; }
+
+  /* ── Countdown / Progress bar ── */
+  .cd-countdown {
+    margin-top: 1.4rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid rgba(255,255,255,.15);
+  }
+  .cd-countdown-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: .55rem;
+    flex-wrap: wrap;
+    gap: .4rem;
+  }
+  .cd-countdown-label {
+    font-size: .8rem;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+    opacity: .75;
+    font-weight: 600;
+  }
+  .cd-countdown-val {
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-shadow: 0 2px 8px rgba(0,0,0,.25);
+  }
+  .cd-progress {
+    height: 6px;
+    background: rgba(255,255,255,.18);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+  }
+  .cd-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #7ecbff, #ffffff);
+    border-radius: 3px;
+    transition: width .6s ease;
+    box-shadow: 0 0 12px rgba(255,255,255,.6);
+  }
+  .cd-progress-fill.done { background: linear-gradient(90deg, #a5f0a5, #7ed97e); }
+
+  /* ── Action bar ── */
+  .cd-actions {
+    display: flex;
+    gap: .6rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  /* ── Stat cards ── */
+  .cd-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: .75rem;
+  }
+  .cd-stat {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: .9rem;
+    transition: border-color .15s, box-shadow .15s, transform .15s;
+  }
+  .cd-stat:hover {
+    border-color: var(--accent);
+    box-shadow: 0 6px 20px rgba(74,144,217,.12);
+    transform: translateY(-2px);
+  }
+  .cd-stat-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    background: rgba(74,144,217,.12);
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+  .cd-stat-icon.green  { background: rgba(76,175,80,.14);  color: #2e7d32; }
+  .cd-stat-icon.amber  { background: rgba(255,193,7,.16);  color: #b28500; }
+  .cd-stat-icon.purple { background: rgba(125,91,176,.16); color: #7d5bb0; }
+  [data-theme="dark"] .cd-stat-icon.green  { color: #8fdf8f; }
+  [data-theme="dark"] .cd-stat-icon.amber  { color: #ffd54f; }
+  [data-theme="dark"] .cd-stat-icon.purple { color: #c0a2e8; }
+  .cd-stat-info { min-width: 0; }
+  .cd-stat-label {
+    font-size: .75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .cd-stat-value {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+    word-break: break-word;
+  }
+
+  /* ── Section card ── */
+  .cd-section {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .cd-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: .9rem 1.3rem;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(0,0,0,.015);
+    gap: .5rem;
+    flex-wrap: wrap;
+  }
+  [data-theme="dark"] .cd-section-header { background: rgba(255,255,255,.02); }
+  .cd-section-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-primary);
+  }
+  .cd-section-header h3 i { color: var(--accent); font-size: .9rem; }
+  .cd-section-header .count {
+    font-size: .8rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+  .cd-section-body { padding: 1.1rem 1.3rem; }
+
+  /* ── Participants ── */
+  .cd-participants {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+  }
+  .cd-ptag {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 12px 5px 6px;
+    border-radius: 20px;
+    background: var(--hover-bg, #eef1f5);
+    border: 1px solid var(--border-color);
+    font-size: .83rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    transition: all .15s;
+    text-decoration: none;
+  }
+  [data-theme="dark"] .cd-ptag { background: #21262d; }
+  .cd-ptag:hover {
+    border-color: var(--accent);
+    background: rgba(74,144,217,.1);
+    transform: translateY(-1px);
+  }
+  .cd-ptag .avatar {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4a90d9, #2e5fa0);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .72rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    text-transform: uppercase;
+  }
+
+  /* ── Problem table ── */
+  .cd-problem-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: .9rem;
+  }
+  .cd-problem-table thead th {
+    padding: .7rem 1rem;
+    text-align: left;
+    font-size: .75rem;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--text-secondary);
+    font-weight: 700;
+    border-bottom: 1px solid var(--border-color);
+    background: transparent;
+    white-space: nowrap;
+  }
+  .cd-problem-table tbody tr {
+    cursor: pointer;
+    transition: background .15s;
+    border-left: 4px solid transparent;
+  }
+  .cd-problem-table tbody td {
+    padding: .85rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+  }
+  .cd-problem-table tbody tr:last-child td { border-bottom: none; }
+  .cd-problem-table tbody tr:hover { background: rgba(74,144,217,.06); }
+
+  .cd-problem-table tbody tr.accepted        { border-left-color: #4caf50; background: rgba(76,175,80,.06); }
+  .cd-problem-table tbody tr.accepted:hover  { background: rgba(76,175,80,.13); }
+  .cd-problem-table tbody tr.partial         { border-left-color: #ffc107; background: rgba(255,193,7,.07); }
+  .cd-problem-table tbody tr.partial:hover   { background: rgba(255,193,7,.14); }
+  .cd-problem-table tbody tr.failed          { border-left-color: #e74c3c; background: rgba(231,76,60,.06); }
+  .cd-problem-table tbody tr.failed:hover    { background: rgba(231,76,60,.13); }
+  .cd-problem-table tbody tr.finished-before { border-left-color: #1b5e20; background: rgba(27,94,32,.08); }
+  .cd-problem-table tbody tr.finished-before:hover { background: rgba(27,94,32,.15); }
+  [data-theme="dark"] .cd-problem-table tbody tr.accepted        { background: rgba(76,175,80,.09); }
+  [data-theme="dark"] .cd-problem-table tbody tr.partial         { background: rgba(255,193,7,.09); }
+  [data-theme="dark"] .cd-problem-table tbody tr.failed          { background: rgba(231,76,60,.09); }
+  [data-theme="dark"] .cd-problem-table tbody tr.finished-before { background: rgba(27,94,32,.18); border-left-color: #4caf50; }
+
+  .cd-pid {
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-weight: 700;
+    color: var(--accent);
+    font-size: .85rem;
+  }
+  .cd-pname { font-weight: 500; color: var(--text-primary); }
+  .cd-ptype {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: .72rem;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+  }
+  .cd-ptype.numeric { background: rgba(74,144,217,.14); color: #3a7bc8; }
+  .cd-ptype.photo   { background: rgba(230,126,34,.14); color: #d2691e; }
+  [data-theme="dark"] .cd-ptype.numeric { background: rgba(74,144,217,.22); color: #8ec3ff; }
+  [data-theme="dark"] .cd-ptype.photo   { background: rgba(230,126,34,.22); color: #ffb86c; }
+
+  .cd-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: .8rem;
+    font-weight: 700;
+    padding: 4px 11px;
+    border-radius: 12px;
+    white-space: nowrap;
+  }
+  .cd-status-badge.accepted        { background: rgba(76,175,80,.18); color: #2e7d32; }
+  .cd-status-badge.partial         { background: rgba(255,193,7,.2);  color: #b28500; }
+  .cd-status-badge.failed          { background: rgba(231,76,60,.18); color: #c0392b; }
+  .cd-status-badge.finished-before { background: rgba(27,94,32,.18);  color: #1b5e20; }
+  .cd-status-badge.none            { background: rgba(0,0,0,.06); color: var(--text-secondary); }
+  [data-theme="dark"] .cd-status-badge.accepted        { color: #8fdf8f; }
+  [data-theme="dark"] .cd-status-badge.partial         { color: #ffd54f; }
+  [data-theme="dark"] .cd-status-badge.failed          { color: #ff9b8f; }
+  [data-theme="dark"] .cd-status-badge.finished-before { color: #a5f0a5; }
+  [data-theme="dark"] .cd-status-badge.none            { background: rgba(255,255,255,.08); }
+
+  /* ── Buttons ── */
+  .cd-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: .55rem 1.2rem;
+    border-radius: 9px;
+    font-size: .88rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all .15s ease;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .cd-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,.12); }
+  .cd-btn:active:not(:disabled) { transform: translateY(0); }
+  .cd-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+  .cd-btn.primary    { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .cd-btn.primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .cd-btn.success    { background: #2e7d32; color: #fff; border-color: #2e7d32; }
+  .cd-btn.success:hover:not(:disabled) { background: #256428; }
+  .cd-btn.danger     { background: transparent; color: var(--danger); border-color: var(--danger); }
+  .cd-btn.danger:hover:not(:disabled) { background: var(--danger); color: #fff; }
+  .cd-btn.ghost-light {
+    background: rgba(255,255,255,.15);
+    color: #fff;
+    border-color: rgba(255,255,255,.3);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .cd-btn.ghost-light:hover:not(:disabled) { background: rgba(255,255,255,.25); }
+
+  /* ── Empty / Loading ── */
+  .cd-loading, .cd-empty {
+    text-align: center;
+    padding: 3.5rem 1rem;
+    color: var(--text-secondary);
+    font-size: .95rem;
+  }
+  .cd-loading i, .cd-empty i {
+    font-size: 2.2rem;
+    color: var(--accent);
+    opacity: .6;
+    display: block;
+    margin-bottom: .9rem;
+  }
+  .cd-spinner {
+    display: inline-block;
+    width: 22px; height: 22px;
+    border: 3px solid rgba(74,144,217,.25);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: cdSpin .7s linear infinite;
+  }
+  @keyframes cdSpin { to { transform: rotate(360deg); } }
+
+  /* ── Back link ── */
+  .cd-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--text-secondary);
+    font-size: .88rem;
+    font-weight: 500;
+    text-decoration: none;
+    padding: .4rem 0;
+    transition: color .15s;
+  }
+  .cd-back:hover { color: var(--accent); }
+  .cd-back i { transition: transform .15s; }
+  .cd-back:hover i { transform: translateX(-3px); }
+
+  /* ── Responsive ── */
+  @media (max-width: 700px) {
+    .cd-hero { padding: 1.4rem 1.2rem 1.2rem; border-radius: 12px; }
+    .cd-hero-name { font-size: 1.4rem; }
+    .cd-countdown-val { font-size: 1.1rem; }
+    .cd-hero-meta { gap: .9rem; font-size: .82rem; }
+    .cd-stat { padding: .8rem .9rem; }
+    .cd-stat-icon { width: 34px; height: 34px; font-size: .9rem; }
+    .cd-stat-value { font-size: 1rem; }
+    .cd-section-body { padding: .8rem .9rem; }
+    .cd-section-header { padding: .75rem 1rem; }
+    .cd-problem-table thead th,
+    .cd-problem-table tbody td { padding: .65rem .7rem; font-size: .85rem; }
+    .cd-problem-table .hide-mobile { display: none; }
+    .cd-btn { padding: .5rem 1rem; font-size: .83rem; }
+  }
+
+  @media (max-width: 420px) {
+    .cd-problem-table .hide-xs { display: none; }
+  }
+</style>
+
+<!-- ⭐ PWA manifest -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1a1a2e">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WYK Maths">
+<meta name="mobile-web-app-capable" content="yes">
 </head>
 <body class="index-body">
   <div id="appContainer">
     <header class="topbar" id="topbarContainer"></header>
     <aside class="sidebar" id="sidebarContainer"></aside>
     <main class="main-content" id="mainContent">
-      <div class="loading-msg">Loading contest...</div>
+      <div class="cd-loading">
+        <i class="fas fa-trophy"></i>
+        <div><span class="cd-spinner"></span> Loading contest…</div>
+      </div>
     </main>
   </div>
 
@@ -74,7 +522,8 @@
 
     const pathMatch = window.location.pathname.match(/^\/contest\/(\d+)$/);
     if (!pathMatch) {
-      document.getElementById('mainContent').innerHTML = '<div class="error-msg">Invalid contest ID.</div>';
+      document.getElementById('mainContent').innerHTML =
+        '<div class="cd-empty"><i class="fas fa-triangle-exclamation"></i>Invalid contest ID.</div>';
       throw new Error('No ID');
     }
     const contestId = parseInt(pathMatch[1], 10);
@@ -83,10 +532,66 @@
     const mainContainer = document.getElementById('mainContent');
 
     function escapeHtml(str) {
-      return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+      return String(str).replace(/[&<>"']/g, m => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[m]));
     }
 
-    // 單一 API：一次拿 contest + userScores + userContestStates + globalStates（+stats）
+    // ═══════════ Countdown timer ═══════════
+    let _countdownTimer = null;
+    function clearCountdown() {
+      if (_countdownTimer) { clearInterval(_countdownTimer); _countdownTimer = null; }
+    }
+
+    function fmtDuration(ms) {
+      if (ms <= 0) return '00:00:00';
+      const totalSec = Math.floor(ms / 1000);
+      const d = Math.floor(totalSec / 86400);
+      const h = Math.floor((totalSec % 86400) / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+      const pad = n => String(n).padStart(2, '0');
+      if (d > 0) return `${d}d ${pad(h)}:${pad(m)}:${pad(s)}`;
+      return `${pad(h)}:${pad(m)}:${pad(s)}`;
+    }
+
+    function setupCountdown(contest) {
+      clearCountdown();
+      const start = new Date(contest.startTime).getTime();
+      const durMs = (Number(contest.duration) || 0) * 60_000;
+      const end = start + durMs;
+
+      const tick = () => {
+        const now = Date.now();
+        const valEl = document.getElementById('cdCountdownVal');
+        const labelEl = document.getElementById('cdCountdownLabel');
+        const fillEl = document.getElementById('cdProgressFill');
+        if (!valEl || !labelEl || !fillEl) return;
+
+        if (now < start) {
+          labelEl.textContent = 'Starts in';
+          valEl.textContent = fmtDuration(start - now);
+          fillEl.style.width = '0%';
+          fillEl.classList.remove('done');
+        } else if (now < end) {
+          labelEl.textContent = 'Ends in';
+          valEl.textContent = fmtDuration(end - now);
+          const pct = durMs > 0 ? ((now - start) / durMs) * 100 : 100;
+          fillEl.style.width = Math.min(100, Math.max(0, pct)) + '%';
+          fillEl.classList.remove('done');
+        } else {
+          labelEl.textContent = 'Contest ended';
+          valEl.textContent = '—';
+          fillEl.style.width = '100%';
+          fillEl.classList.add('done');
+          clearCountdown();
+        }
+      };
+      tick();
+      _countdownTimer = setInterval(tick, 1000);
+    }
+
+    // ═══════════ Data ═══════════
     async function loadPage() {
       try {
         const data = await apiCall(`/api/contests?action=page&id=${contestId}`);
@@ -95,9 +600,13 @@
       return null;
     }
 
+    // ═══════════ Render ═══════════
     function renderContest(contest) {
+      clearCountdown();
+
       if (!contest) {
-        mainContainer.innerHTML = '<div class="error-msg">Contest not found.</div>';
+        mainContainer.innerHTML =
+          '<div class="cd-empty"><i class="fas fa-circle-question"></i>Contest not found.</div>';
         return;
       }
 
@@ -107,105 +616,256 @@
       const userScores = contest.userScores || {};
       const globalStates = contest.globalStates || {};
 
-      let statusClass = '';
-      if (status === 'upcoming') statusClass = 'status-upcoming';
-      else if (status === 'ongoing') statusClass = 'status-ongoing';
-      else statusClass = 'status-ended';
+      // Format times
+      const startDate = new Date(contest.startTime);
+      const startStr = startDate.toLocaleString('zh-HK', {
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit', hour12: false
+      });
 
-      const startDate = new Date(contest.startTime).toLocaleString();
-      const durationHours = Math.floor(contest.duration / 60);
-      const durationMinutes = contest.duration % 60;
-      const durationStr = `${durationHours > 0 ? durationHours + 'h ' : ''}${durationMinutes}m`;
+      const durMin = Number(contest.duration) || 0;
+      const durH = Math.floor(durMin / 60);
+      const durM = durMin % 60;
+      const durStr = durH > 0 ? `${durH}h ${durM}m` : `${durM}m`;
 
+      const endDate = new Date(startDate.getTime() + durMin * 60_000);
+      const endStr = endDate.toLocaleString('zh-HK', {
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit', hour12: false
+      });
+
+      const statusLabel = { upcoming: 'Upcoming', ongoing: 'Live', ended: 'Ended' }[status] || status;
+      const statusIcon = { upcoming: 'fa-clock', ongoing: 'fa-circle-play', ended: 'fa-flag-checkered' }[status] || 'fa-circle';
+
+      // ── Hero ──
       let html = `
         <div class="contest-detail">
-          <div class="contest-header">
-            <span class="contest-name">${escapeHtml(contest.name)}</span>
-            <span class="contest-status ${statusClass}">${status.charAt(0).toUpperCase() + status.slice(1)}</span>
+          <div class="cd-hero">
+            <div class="cd-hero-inner">
+              <div class="cd-hero-top">
+                <h1 class="cd-hero-name">${escapeHtml(contest.name)}</h1>
+                <span class="cd-status ${status}">
+                  <span class="dot"></span>
+                  <i class="fas ${statusIcon}"></i>
+                  ${statusLabel}
+                </span>
+              </div>
+              <div class="cd-hero-meta">
+                <span class="item"><i class="fas fa-play"></i> ${escapeHtml(startStr)}</span>
+                <span class="item"><i class="fas fa-stopwatch"></i> ${escapeHtml(durStr)}</span>
+                <span class="item"><i class="fas fa-users"></i> ${contest.participantCount} participant${contest.participantCount !== 1 ? 's' : ''}</span>
+              </div>
+              <div class="cd-countdown">
+                <div class="cd-countdown-row">
+                  <span class="cd-countdown-label" id="cdCountdownLabel">—</span>
+                  <span class="cd-countdown-val" id="cdCountdownVal">--:--:--</span>
+                </div>
+                <div class="cd-progress">
+                  <div class="cd-progress-fill" id="cdProgressFill" style="width:0%"></div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="info-bar">
-            <span>Start: ${startDate}</span>
-            <span>Duration: ${durationStr}</span>
-            <span>Participants: ${contest.participantCount}</span>
-            ${status !== 'upcoming' ? `<a href="/contest/${contestId}/results" class="btn btn-primary">${status === 'ended' ? 'Final Results' : 'Live Results'}</a>` : ''}
-          </div>`;
+      `;
 
-      // 動作按鈕
+      // ── Action bar ──
       let actionHtml = '';
       if (status === 'upcoming') {
-        actionHtml = `
-          <div class="action-bar" style="margin-bottom:1rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
-            ${isParticipant
-              ? '<button id="quitBtn" class="btn btn-danger">Quit Contest</button>'
-              : '<button id="joinBtn" class="btn btn-success">Join Contest</button>'}
-          </div>`;
-      } else if (status === 'ongoing' && !isParticipant) {
-        actionHtml = `
-          <div class="action-bar" style="margin-bottom:1rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
-            <button id="joinBtn" class="btn btn-success">Join Contest (in progress)</button>
-          </div>`;
+        actionHtml = isParticipant
+          ? `<button id="quitBtn" class="cd-btn danger"><i class="fas fa-right-from-bracket"></i> Quit Contest</button>`
+          : `<button id="joinBtn" class="cd-btn success"><i class="fas fa-right-to-bracket"></i> Join Contest</button>`;
+      } else if (status === 'ongoing') {
+        if (isParticipant) {
+          actionHtml = `<button id="quitBtn" class="cd-btn danger" disabled title="Cannot quit after contest started"><i class="fas fa-lock"></i> In Progress</button>`;
+        } else {
+          actionHtml = `<button id="joinBtn" class="cd-btn success"><i class="fas fa-right-to-bracket"></i> Join Live Contest</button>`;
+        }
       }
-      html += actionHtml;
-
-      // 參賽者列表
-      if (contest.participants && contest.participants.length > 0) {
-        html += `<div class="participant-list">`;
-        contest.participants.forEach(p => {
-          html += `<span class="participant-tag">${escapeHtml(p)}</span>`;
-        });
-        html += '</div>';
-      } else {
-        html += '<p>No participants yet.</p>';
+      if (status !== 'upcoming') {
+        actionHtml += `<a href="/contest/${contestId}/results" class="cd-btn primary"><i class="fas fa-trophy"></i> ${status === 'ended' ? 'Final Results' : 'Live Results'}</a>`;
+      }
+      if (actionHtml) {
+        html += `<div class="cd-actions">${actionHtml}</div>`;
       }
 
-      // 題目列表
-      if ((status === 'ongoing' || status === 'ended') && isParticipant && contest.problems && contest.problems.length > 0) {
-        html += `<h4>Problems</h4>
-        <table class="problem-table">
-          <thead><tr><th>ID</th><th>Name</th><th>Type</th><th>Status / Score</th></tr></thead><tbody>`;
+      // ── Stat cards ──
+      const shownProblems = (contest.problems || []).length;
+      html += `
+        <div class="cd-stats">
+          <div class="cd-stat">
+            <div class="cd-stat-icon"><i class="fas fa-list-ol"></i></div>
+            <div class="cd-stat-info">
+              <div class="cd-stat-label">Problems</div>
+              <div class="cd-stat-value">${shownProblems || contest.problems?.length || '—'}</div>
+            </div>
+          </div>
+          <div class="cd-stat">
+            <div class="cd-stat-icon green"><i class="fas fa-users"></i></div>
+            <div class="cd-stat-info">
+              <div class="cd-stat-label">Participants</div>
+              <div class="cd-stat-value">${contest.participantCount}</div>
+            </div>
+          </div>
+          <div class="cd-stat">
+            <div class="cd-stat-icon amber"><i class="fas fa-hourglass-half"></i></div>
+            <div class="cd-stat-info">
+              <div class="cd-stat-label">Duration</div>
+              <div class="cd-stat-value">${escapeHtml(durStr)}</div>
+            </div>
+          </div>
+          <div class="cd-stat">
+            <div class="cd-stat-icon purple"><i class="fas fa-flag-checkered"></i></div>
+            <div class="cd-stat-info">
+              <div class="cd-stat-label">Ends</div>
+              <div class="cd-stat-value" style="font-size:.9rem;">${escapeHtml(endStr)}</div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // ── Participants ──
+      const parts = contest.participants || [];
+      html += `
+        <div class="cd-section">
+          <div class="cd-section-header">
+            <h3><i class="fas fa-users"></i> Participants</h3>
+            <span class="count">${parts.length}</span>
+          </div>
+          <div class="cd-section-body">
+            ${
+              parts.length === 0
+                ? '<div style="color:var(--text-secondary);font-size:.9rem;">No participants yet.</div>'
+                : `<div class="cd-participants">${parts.map(p => `
+                    <a class="cd-ptag" href="/users/${encodeURIComponent(p)}" title="@${escapeHtml(p)}">
+                      <span class="avatar">${escapeHtml((p[0] || '?').toUpperCase())}</span>
+                      <span>${escapeHtml(p)}</span>
+                    </a>`).join('')}</div>`
+            }
+          </div>
+        </div>
+      `;
+
+      // ── Problems ──
+      const canSeeProblems =
+        (status === 'ongoing' || status === 'ended') &&
+        isParticipant &&
+        Array.isArray(contest.problems) &&
+        contest.problems.length > 0;
+
+      if (canSeeProblems) {
+        html += `
+          <div class="cd-section">
+            <div class="cd-section-header">
+              <h3><i class="fas fa-list-check"></i> Problems</h3>
+              <span class="count">${contest.problems.length}</span>
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="cd-problem-table">
+                <thead>
+                  <tr>
+                    <th style="width:80px;">ID</th>
+                    <th>Name</th>
+                    <th class="hide-xs" style="width:100px;">Type</th>
+                    <th style="width:150px;">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+        `;
 
         contest.problems.forEach(prob => {
           const state = userStates[prob.id] || 'not_started';
-          const score = userScores[prob.id] ?? null;
-          const hasContestRecord = userScores[prob.id] !== undefined;
+          const score = userScores[prob.id];
+          const hasContestRecord = score !== undefined && score !== null;
           const globalPassed = globalStates[prob.id] === 'passed';
 
-          let rowClass = 'problem-row';
-          let statusDisplay = '—';
+          let rowClass = '';
+          let badgeClass = 'none';
+          let badgeIcon = 'fa-minus';
+          let statusDisplay = 'Not attempted';
 
           if (!hasContestRecord && globalPassed) {
-            rowClass = 'problem-row finished-before';
+            rowClass = 'finished-before';
+            badgeClass = 'finished-before';
+            badgeIcon = 'fa-circle-check';
             statusDisplay = 'Finished before';
           } else if (state === 'passed') {
-            rowClass = 'problem-row accepted';
-            statusDisplay = 'AC (100)';
+            rowClass = 'accepted';
+            badgeClass = 'accepted';
+            badgeIcon = 'fa-circle-check';
+            statusDisplay = 'AC · 100';
           } else if (state === 'partial') {
-            rowClass = 'problem-row partial';
-            statusDisplay = `Partial (${score})`;
+            rowClass = 'partial';
+            badgeClass = 'partial';
+            badgeIcon = 'fa-circle-half-stroke';
+            statusDisplay = `Partial · ${score}`;
           } else if (state === 'failed') {
-            rowClass = 'problem-row failed';
-            statusDisplay = score !== null ? `WA (${score})` : 'WA (0)';
+            rowClass = 'failed';
+            badgeClass = 'failed';
+            badgeIcon = 'fa-circle-xmark';
+            statusDisplay = hasContestRecord ? `WA · ${score}` : 'WA · 0';
           }
 
-          html += `<tr class="${rowClass}" onclick="window.location.href='/problems/${encodeURIComponent(prob.id)}'">
-            <td>${escapeHtml(prob.id)}</td>
-            <td>${escapeHtml(prob.name)}</td>
-            <td>${prob.evalType === 'image_model' ? 'Photo' : 'Numeric'}</td>
-            <td>${statusDisplay}</td>
-          </tr>`;
+          const typeBadge = prob.evalType === 'image_model'
+            ? '<span class="cd-ptype photo"><i class="fas fa-camera"></i> Photo</span>'
+            : '<span class="cd-ptype numeric"><i class="fas fa-calculator"></i> Numeric</span>';
+
+          html += `
+            <tr class="${rowClass}" onclick="window.location.href='/problems/${encodeURIComponent(prob.id)}'">
+              <td><span class="cd-pid">${escapeHtml(prob.id)}</span></td>
+              <td><span class="cd-pname">${escapeHtml(prob.name)}</span></td>
+              <td class="hide-xs">${typeBadge}</td>
+              <td>
+                <span class="cd-status-badge ${badgeClass}">
+                  <i class="fas ${badgeIcon}"></i> ${escapeHtml(statusDisplay)}
+                </span>
+              </td>
+            </tr>
+          `;
         });
-        html += '</tbody></table>';
+
+        html += `</tbody></table></div></div>`;
       } else if (!isParticipant && status === 'ended') {
-        html += '<p>You are not a participant of this contest.</p>';
+        html += `
+          <div class="cd-section">
+            <div class="cd-section-body">
+              <div style="color:var(--text-secondary);text-align:center;padding:1.5rem 0;">
+                <i class="fas fa-user-slash" style="font-size:1.8rem;opacity:.5;display:block;margin-bottom:.6rem;"></i>
+                You were not a participant of this contest.
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (status === 'upcoming') {
+        html += `
+          <div class="cd-section">
+            <div class="cd-section-body">
+              <div style="color:var(--text-secondary);text-align:center;padding:1.5rem 0;">
+                <i class="fas fa-hourglass-start" style="font-size:1.8rem;opacity:.5;display:block;margin-bottom:.6rem;"></i>
+                Problems will be revealed when the contest starts.
+              </div>
+            </div>
+          </div>
+        `;
       }
 
-      html += `<p style="margin-top:1.5rem;"><a href="/contest">← Back to Contest List</a></p></div>`;
+      // ── Back link ──
+      html += `
+        <div style="padding-top:.5rem;">
+          <a href="/contest" class="cd-back"><i class="fas fa-arrow-left"></i> Back to Contest List</a>
+        </div>
+        </div>
+      `;
+
       mainContainer.innerHTML = html;
 
+      // Setup countdown
+      setupCountdown(contest);
+
+      // Bind buttons
       const joinBtn = document.getElementById('joinBtn');
       if (joinBtn) joinBtn.addEventListener('click', () => joinContest(joinBtn));
       const quitBtn = document.getElementById('quitBtn');
-      if (quitBtn) quitBtn.addEventListener('click', () => quitContest(quitBtn));
+      if (quitBtn && !quitBtn.disabled) quitBtn.addEventListener('click', () => quitContest(quitBtn));
     }
 
     async function reload() {
@@ -214,37 +874,40 @@
     }
 
     async function joinContest(btn) {
-      if (btn) { btn.disabled = true; btn.textContent = 'Joining...'; }
+      if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Joining…'; }
       try {
         const res = await apiCall('/api/contests?action=join', 'POST', { contestId });
         if (res.success) {
           await reload();
         } else {
           alert(res.message || 'Failed to join contest');
-          if (btn) { btn.disabled = false; btn.textContent = 'Join Contest'; }
+          if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> Join Contest'; }
         }
       } catch (err) {
         alert('Network error: ' + err.message);
-        if (btn) { btn.disabled = false; btn.textContent = 'Join Contest'; }
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> Join Contest'; }
       }
     }
 
     async function quitContest(btn) {
-      if (!confirm('Confirm quit?')) return;
-      if (btn) { btn.disabled = true; btn.textContent = 'Quitting...'; }
+      if (!confirm('Confirm quit? You cannot rejoin after the contest starts.')) return;
+      if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Quitting…'; }
       try {
         const res = await apiCall('/api/contests?action=quit', 'POST', { contestId });
         if (res.success) {
           await reload();
         } else {
           alert(res.message || 'Failed to quit contest');
-          if (btn) { btn.disabled = false; btn.textContent = 'Quit Contest'; }
+          if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-right-from-bracket"></i> Quit Contest'; }
         }
       } catch (err) {
         alert('Network error: ' + err.message);
-        if (btn) { btn.disabled = false; btn.textContent = 'Quit Contest'; }
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-right-from-bracket"></i> Quit Contest'; }
       }
     }
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', clearCountdown);
 
     (async function init() {
       const contest = await loadPage();
