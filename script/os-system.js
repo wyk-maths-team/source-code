@@ -75,6 +75,11 @@
       category:'Tools', width:720, height:520,
       scriptUrl: CDN_BASE + 'os-app-notepad.js',
     },
+    music: {
+      id:'music', title:'Music', icon:'fa-music',
+      category:'Tools', width:560, height:700,
+      scriptUrl: CDN_BASE + 'os-app-music.js',
+    },
     // ⭐ 之前加過的
     pomodoro: {
       id:'pomodoro', title:'Pomodoro', icon:'fa-stopwatch',
