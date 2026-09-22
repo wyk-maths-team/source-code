@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
 
-<link rel="stylesheet" href="/styles.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 
 <style>
@@ -559,28 +559,28 @@
               rowClass = 'ac-first';
               badgeClass = 'ac-first';
               badgeIcon = 'fa-star';
-              statusDisplay = `AC · ${fmtScore(score)}`;
+              statusDisplay = `${fmtScore(score)}`;
             } else {
               rowClass = 'ac';
               badgeClass = 'ac';
               badgeIcon = 'fa-circle-check';
-              statusDisplay = `AC · ${fmtScore(score)}`;
+              statusDisplay = `${fmtScore(score)}`;
             }
           } else if (score > 0) {
             rowClass = 'partial';
             badgeClass = 'partial';
             badgeIcon = 'fa-circle-half-stroke';
-            statusDisplay = `Partial · ${fmtScore(score)}`;
+            statusDisplay = `${fmtScore(score)}`;
           } else if (hasContestRecord) {
             rowClass = 'failed';
             badgeClass = 'failed';
             badgeIcon = 'fa-circle-xmark';
-            statusDisplay = `WA · ${fmtScore(score)}`;
+            statusDisplay = `${fmtScore(score)}`;
           }
 
           const typeBadge = prob.evalType === 'image_model'
-            ? '<span class="cd-ptype photo"><i class="fas fa-camera"></i> Photo</span>'
-            : '<span class="cd-ptype numeric"><i class="fas fa-calculator"></i> Numeric</span>';
+            ? '<span class="cd-ptype photo">Photo</span>'
+            : '<span class="cd-ptype numeric">Numeric</span>';
 
           html += `
             <tr class="${rowClass}" onclick="window.location.href='/problems/${encodeURIComponent(prob.id)}'">

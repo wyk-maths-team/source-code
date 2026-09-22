@@ -442,7 +442,7 @@ async function calculateContestStats(db, contest) {
     return { participants: [], problems: [] };
   }
 
-  const sorted = Object.entries(userScores)
+    const sorted = Object.entries(userScores)
     .map(([uname, data]) => ({ username: uname, ...data }))
     .sort((a, b) => {
       if (b.total !== a.total) return b.total - a.total;
@@ -451,8 +451,41 @@ async function calculateContestStats(db, contest) {
       return a.lastTime - b.lastTime;
     });
 
+  // ⭐ 補齊 displayName / realName / pfp
+  const usernames = sorted.map(p => p.username);
+  let nameMap = {};
+  if (usernames.length > 0) {
+    try {
+      const userDocs = await db.collection('users')
+        .find(
+          { username: { $in: usernames } },
+          { projection: { username: 1, displayName: 1, realName: 1, pfp: 1, _id: 0 } }
+        )
+        .toArray();
+      nameMap = Object.fromEntries(
+        userDocs.map(u => [u.username, {
+          displayName: u.displayName || '',
+          realName: u.realName || '',
+          pfp: u.pfp || ''
+        }])
+      );
+    } catch (e) {
+      console.error('calculateContestStats user lookup failed:', e);
+    }
+  }
+
+  const enriched = sorted.map(p => {
+    const meta = nameMap[p.username] || {};
+    return {
+      ...p,
+      displayName: meta.displayName || '',
+      realName: meta.realName || '',
+      pfp: meta.pfp || ''
+    };
+  });
+
   return {
-    participants: sorted,
+    participants: enriched,
     problems: (contest.problems || []).map(p => {
       if (typeof p === 'object' && p.problemId) return p.problemId;
       if (typeof p === 'string') return p;
