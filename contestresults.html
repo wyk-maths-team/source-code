@@ -517,23 +517,23 @@
           }
           const score = Number(info.score) || 0;
           const wrongAttempts = Number(info.wrongAttempts) || 0;
+          const solved = info.solved === true;
 
-          if (score >= 100) {
-            // AC
+          if (solved) {
+            // ⭐ 已解：首次 AC 深綠粗體 vs 帶罰分 AC 中綠
             if (wrongAttempts === 0) {
               html += `<td class="cell cell-ac-first"><span>${fmtScore(score)}</span></td>`;
             } else {
               html += `<td class="cell cell-ac"><span>${fmtScore(score)}</span></td>`;
             }
           } else if (score > 0) {
-            // Partial
+            // ⭐ Partial（圖片 / logic 未滿分）
             html += `<td class="cell cell-partial"><span>${fmtScore(score)}</span></td>`;
           } else {
-            // WA
+            // ⭐ WA
             html += `<td class="cell cell-wa"><span>${fmtScore(score)}</span></td>`;
           }
         });
-
         html += `
           <td class="cell-total">${fmtScore(p.total ?? 0)} <span class="max">/ ${maxTotal.toFixed(2)}</span></td>
           <td><span class="rs-time">${escapeHtml(fmtTime(p.lastTime))}</span></td>

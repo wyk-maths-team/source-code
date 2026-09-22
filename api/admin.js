@@ -101,9 +101,16 @@ export default async function handler(req, res) {
 
     // 同步更新竞赛结果（如果是竞赛图片提交）
     if (sub.contestId && sub.type === 'image') {
+      const isSolved = numScore >= 100;
       await db.collection('contest_results').updateOne(
         { contestId: sub.contestId, username: sub.username, problemId: sub.problemId },
-        { $set: { score: numScore, lastSubmissionTime: new Date() } },
+        {
+          $set: {
+            score: numScore,
+            solved: isSolved,
+            lastSubmissionTime: new Date()
+          }
+        },
         { upsert: true }
       );
     }
