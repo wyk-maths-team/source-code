@@ -83,7 +83,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // ========== 詳情頁 ==========
+    // ========== 詳情頁 ==========
   if (action === 'page') {
     const { id } = req.query;
     if (!id) return res.status(400).json({ success: false, message: 'Missing contest id' });
@@ -98,7 +98,32 @@ export default async function handler(req, res) {
       const isParticipant = Array.isArray(contest.participants) && contest.participants.includes(username);
       const status = deriveStatus(contest);
 
-      const normProblems = normalizeProblems(contest.problems);
+      let normProblems = normalizeProblems(contest.problems);
+
+      // ⭐ Fallback：contest.problems 為空 → 從 contest_results 反推題目 ID
+      if (normProblems.length === 0) {
+        const resultPids = await db.collection('contest_results')
+          .distinct('problemId', { contestId: contest.id });
+
+        // 自然排序（HA2501 < HA2502 < ... < HA2520）
+        resultPids.sort((a, b) =>
+          String(a).localeCompare(String(b), undefined, { numeric: true })
+        );
+
+        normProblems = resultPids.map(pid => ({
+          problemId: String(pid),
+          evalType: 'numeric'
+        }));
+
+        // 順便寫回 contests collection（一次性修復，下次就不需要 fallback）
+        if (normProblems.length > 0) {
+          await db.collection('contests').updateOne(
+            { id: contest.id },
+            { $set: { problems: normProblems } }
+          );
+        }
+      }
+
       const problemIds = normProblems.map(p => p.problemId);
       const evalMap = Object.fromEntries(normProblems.map(p => [p.problemId, p.evalType]));
 
@@ -115,7 +140,7 @@ export default async function handler(req, res) {
         problems: [],
         userScores: {},
         userContestStates: {},
-        userWrongAttempts: {},   // ⭐ 新增
+        userWrongAttempts: {},
         globalStates: {}
       };
 
@@ -126,7 +151,26 @@ export default async function handler(req, res) {
 
       const tasks = [];
 
+      // 1) 題目詳情（含 name）
       if (showProblems) {
+        tasks.push(
+          db.collection('problems')
+            .find(
+              { id: { $in: problemIds } },
+              { projection: { id: 1, name: 1, difficulty: 1, tags: 1, _id: 0 } }
+            )
+            .toArray()
+            .then(probs => {
+              const map = Object.fromEntries(probs.map(p => [p.id, p]));
+              result.problems = problemIds.map(pid => {
+                const p = map[pid] || { id: pid, name: '(missing)' };
+                return { ...p, evalType: evalMap[pid] || 'numeric' };
+              });
+            })
+        );
+      }
+
+      // 2) 當前用戶分數 / 狀態 / wrongAttempts（⭐ 唯一一個讀 contest_results 的地方）
       tasks.push(
         db.collection('contest_results')
           .find(
@@ -141,34 +185,8 @@ export default async function handler(req, res) {
             for (const r of results) {
               scores[r.problemId] = r.score;
               attempts[r.problemId] = Number(r.wrongAttempts) || 0;
-              // ⭐ 用 solved 判斷，而不是 score
+              // ⭐ 用 solved 判斷，而非 score
               if (r.solved === true) states[r.problemId] = 'passed';
-              else if (r.score > 0) states[r.problemId] = 'partial';
-              else states[r.problemId] = 'failed';
-            }
-            result.userScores = scores;
-            result.userContestStates = states;
-            result.userWrongAttempts = attempts;   // ⭐ 新增
-          })
-      );
-      }
-
-      // 當前用戶在此競賽的分數 / 狀態 / wrongAttempts
-      tasks.push(
-        db.collection('contest_results')
-          .find(
-            { contestId: contest.id, username },
-            { projection: { problemId: 1, score: 1, wrongAttempts: 1, _id: 0 } }
-          )
-          .toArray()
-          .then(results => {
-            const scores = {};
-            const states = {};
-            const attempts = {};
-            for (const r of results) {
-              scores[r.problemId] = r.score;
-              attempts[r.problemId] = Number(r.wrongAttempts) || 0;
-              if (r.score === 100) states[r.problemId] = 'passed';
               else if (r.score > 0) states[r.problemId] = 'partial';
               else states[r.problemId] = 'failed';
             }
@@ -178,6 +196,7 @@ export default async function handler(req, res) {
           })
       );
 
+      // 3) 全域狀態（給「賽前已完成」判斷用）
       if (showProblems) {
         tasks.push(
           db.collection('userstats')
@@ -193,6 +212,7 @@ export default async function handler(req, res) {
         );
       }
 
+      // 4) 已結束 → 統計
       if (status === 'ended') {
         tasks.push(
           calculateContestStats(db, contest)
