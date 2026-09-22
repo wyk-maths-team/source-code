@@ -535,13 +535,13 @@
                 <tbody>
         `;
 
-        contest.problems.forEach(prob => {
+          contest.problems.forEach(prob => {
           const state = userStates[prob.id] || 'not_started';
           const rawScore = userScores[prob.id];
           const hasContestRecord = rawScore !== undefined && rawScore !== null;
           const score = Number(rawScore) || 0;
           const attempts = userAttempts[prob.id] || 0;
-          const solved = state === 'passed';   // ⭐ 用 solved 判斷
+          const solved = state === 'passed';
           const globalPassed = globalStates[prob.id] === 'passed';
 
           let rowClass = '';
@@ -555,7 +555,6 @@
             badgeIcon = 'fa-circle-check';
             statusDisplay = 'Finished before';
           } else if (solved) {
-            // ⭐ 已解：首次 AC vs 帶罰分 AC
             if (attempts === 0) {
               rowClass = 'ac-first';
               badgeClass = 'ac-first';
@@ -568,21 +567,35 @@
               statusDisplay = `AC · ${fmtScore(score)}`;
             }
           } else if (score > 0) {
-            // ⭐ Partial（圖片 / logic 未滿分）
             rowClass = 'partial';
             badgeClass = 'partial';
             badgeIcon = 'fa-circle-half-stroke';
             statusDisplay = `Partial · ${fmtScore(score)}`;
           } else if (hasContestRecord) {
-            // ⭐ WA
             rowClass = 'failed';
             badgeClass = 'failed';
             badgeIcon = 'fa-circle-xmark';
             statusDisplay = `WA · ${fmtScore(score)}`;
           }
 
-          // ... typeBadge 那段不變
+          const typeBadge = prob.evalType === 'image_model'
+            ? '<span class="cd-ptype photo"><i class="fas fa-camera"></i> Photo</span>'
+            : '<span class="cd-ptype numeric"><i class="fas fa-calculator"></i> Numeric</span>';
+
+          html += `
+            <tr class="${rowClass}" onclick="window.location.href='/problems/${encodeURIComponent(prob.id)}'">
+              <td><span class="cd-pid">${escapeHtml(prob.id)}</span></td>
+              <td><span class="cd-pname">${escapeHtml(prob.name)}</span></td>
+              <td class="hide-xs">${typeBadge}</td>
+              <td>
+                <span class="cd-status-badge ${badgeClass}">
+                  <i class="fas ${badgeIcon}"></i> ${escapeHtml(statusDisplay)}
+                </span>
+              </td>
+            </tr>
+          `;
         });
+
         html += `</tbody></table></div></div>`;
       } else if (!isParticipant && status === 'ended') {
         html += `
