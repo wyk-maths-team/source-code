@@ -186,40 +186,81 @@ export default async function handler(req, res) {
     favorites: userdata?.favorites || []
   });
 }
-    if (action === 'pfp') {
-  // GET: 获取任意用户的头像
-  if (req.method === 'GET') {
-    const { username } = req.query;
-    if (!username) return res.status(400).json({ success: false, message: 'Missing username' });
-    const user = await db.collection('users').findOne({ username }, { projection: { pfp: 1 } });
-    return res.status(200).json({ success: true, pfp: user?.pfp || '' });
-  }
+        if (action === 'pfp') {
+      // ── GET：拿單個或批量頭像 ──
+      if (req.method === 'GET') {
+        // ⭐ 批量：?action=pfp&usernames=a,b,c
+        const batchParam = req.query.usernames;
+        if (batchParam) {
+          const list = String(batchParam)
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean)
+            .slice(0, 100); // 上限 100 個
 
-  // POST: 上传自己的头像（需要登录）
-  if (req.method === 'POST') {
-    const { image } = req.body;   // base64 数据，格式如 'data:image/jpeg;base64,...'
-    if (!image) return res.status(400).json({ success: false, message: 'Missing image data' });
+          if (list.length === 0) {
+            res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=86400');
+            return res.status(200).json({ success: true, pfps: {} });
+          }
 
-    // 服务端校验图片大小（粗略限制 1MB）
-    const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
-    const buffer = Buffer.from(base64Data, 'base64');
-    if (buffer.length > 1 * 1024 * 1024) {
-      return res.status(400).json({ success: false, message: 'Image too large (max 1MB)' });
-    }
+          const docs = await db.collection('users')
+            .find(
+              { username: { $in: list } },
+              { projection: { username: 1, pfp: 1, _id: 0 } }
+            )
+            .toArray();
 
-    try {
-      const imageUrl = await uploadImage(image);   // 调用 Cloudinary 上传
-      await db.collection('users').updateOne(
-        { username: decoded.username },
-        { $set: { pfp: imageUrl } }
-      );
-      return res.status(200).json({ success: true, pfp: imageUrl });
-    } catch (err) {
-      console.error('PFP upload error:', err);
-      return res.status(500).json({ success: false, message: 'Image upload failed' });
-    }
-  }
-  return res.status(405).json({ error: 'Method not allowed' });
+          const map = {};
+          for (const u of docs) map[u.username] = u.pfp || '';
+
+          res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800');
+          return res.status(200).json({ success: true, pfps: map });
+        }
+
+        // 單個
+        const { username } = req.query;
+        if (!username) return res.status(400).json({ success: false, message: 'Missing username' });
+
+        const user = await db.collection('users')
+          .findOne({ username }, { projection: { pfp: 1, _id: 0 } });
+
+        // ⭐ 若沒有 pfp，短快取（避免反覆查 DB）
+        if (!user || !user.pfp) {
+          res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=600');
+          return res.status(200).json({ success: true, pfp: '' });
+        }
+
+        // ⭐ 有 pfp 長快取
+        res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800');
+        return res.status(200).json({ success: true, pfp: user.pfp });
+      }
+
+      // ── POST：上傳自己的頭像 ──
+      if (req.method === 'POST') {
+        const { image } = req.body;
+        if (!image) return res.status(400).json({ success: false, message: 'Missing image data' });
+
+        const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
+        const buffer = Buffer.from(base64Data, 'base64');
+        if (buffer.length > 1 * 1024 * 1024) {
+          return res.status(400).json({ success: false, message: 'Image too large (max 1MB)' });
+        }
+
+        try {
+          const imageUrl = await uploadImage(image);
+          await db.collection('users').updateOne(
+            { username: decoded.username },
+            { $set: { pfp: imageUrl, pfpUpdatedAt: new Date() } }
+          );
+          // ⭐ 上傳後清 CDN 快取（Vercel 換 URL 即可繞過，因為 Cloudinary URL 帶 hash）
+          return res.status(200).json({ success: true, pfp: imageUrl });
+        } catch (err) {
+          console.error('PFP upload error:', err);
+          return res.status(500).json({ success: false, message: 'Image upload failed' });
+        }
+      }
+
+      return res.status(405).json({ error: 'Method not allowed' });
     }
 
         // ---------- 解題進度圖（所有人可見）----------

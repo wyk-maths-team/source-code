@@ -61,34 +61,87 @@
     } catch(e) {}
   }
 
-  // ---------- 加载头像 ----------
-  async function loadUserAvatar() {
-    const avatarImg = document.getElementById('userAvatar');
-    if (!avatarImg) return;
+    // ---------- 頭像 ----------
+  // ⭐ 優先順序：localStorage → JWT → 預設頭像
+  // 完全不打 /api/users?action=pfp（除非當前用戶上傳了新 pfp）
 
-    const cached = getCachedAvatar();
-    if (cached) {
-      avatarImg.src = cached;
-      avatarImg.style.display = 'inline-block';
-      return;
-    }
+  const AVATAR_KEY = 'userAvatar_' + realUsername;
 
-    if (!loggedIn || !realUsername) return;
-
+  function getAvatarFromStorage() {
     try {
-      const data = await apiCall(`/api/users?action=pfp&username=${encodeURIComponent(realUsername)}`);
-      if (data.success && data.pfp) {
-        avatarImg.src = data.pfp;
+      const raw = localStorage.getItem(AVATAR_KEY);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      // TTL 7 天
+      if (Date.now() - data.timestamp < 7 * 24 * 3600 * 1000) {
+        return data.url || '';
+      }
+      localStorage.removeItem(AVATAR_KEY);
+    } catch {}
+    return null;
+  }
+
+  function setAvatarToStorage(url) {
+    try {
+      localStorage.setItem(AVATAR_KEY, JSON.stringify({
+        url: url || '',
+        timestamp: Date.now()
+      }));
+    } catch {}
+  }
+
+  function loadUserAvatar() {
+    const avatarImg = document.getElementById('userAvatar');
+    if (!avatarImg || !loggedIn || !realUsername) return;
+
+    // 1) localStorage
+    const cached = getAvatarFromStorage();
+    if (cached !== null) {
+      if (cached) {
+        avatarImg.src = cached;
         avatarImg.style.display = 'inline-block';
-        setCachedAvatar(data.pfp);
       } else {
         avatarImg.style.display = 'none';
       }
-    } catch (err) {
-      console.warn('Failed to load avatar:', err);
-      avatarImg.style.display = 'none';
+      return;
     }
+
+    // 2) JWT payload（登入時就帶了）
+    let jwtPfp = '';
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        jwtPfp = payload.pfp || '';
+      }
+    } catch {}
+
+    if (jwtPfp) {
+      avatarImg.src = jwtPfp;
+      avatarImg.style.display = 'inline-block';
+      setAvatarToStorage(jwtPfp);
+      return;
+    }
+
+    // 3) 完全沒有 → 隱藏頭像，不再打 API
+    avatarImg.style.display = 'none';
+    setAvatarToStorage('');   // 記住「沒有」，下次不再查
   }
+
+  // ⭐ 供設定頁在上傳頭像後呼叫
+  window.refreshTopbarAvatar = function (newUrl) {
+    setAvatarToStorage(newUrl);
+    const avatarImg = document.getElementById('userAvatar');
+    if (avatarImg && newUrl) {
+      avatarImg.src = newUrl;
+      avatarImg.style.display = 'inline-block';
+    }
+  };
+
+  // ⭐ 跨標籤頁同步：若其他標籤頁上傳了新頭像
+  window.addEventListener('storage', (e) => {
+    if (e.key === AVATAR_KEY) loadUserAvatar();
+  });
 
   // ---------- 下拉切换 ----------
   function toggleDropdown(e) {
@@ -296,7 +349,7 @@
 
   // 加载头像
   if (loggedIn && realUsername) {
-    setTimeout(loadUserAvatar, 100);
+    loadUserAvatar();   // 立即，不用 setTimeout
   }
 
   // 恢复桌面端侧边栏状态
