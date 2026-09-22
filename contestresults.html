@@ -107,24 +107,36 @@
     font-size: .88rem;
   }
 
-  /* ⭐ 每行的背景色由 CSS 變數控制，sticky 格直接繼承 */
+  /* ⭐ 每行的色調（tint）疊在不透明的 card-bg 上面 */
   .rs-table tbody tr {
-    --row-bg: var(--card-bg);
+    --row-tint: transparent;
   }
   .rs-table tbody tr:hover {
-    --row-bg: rgba(74,144,217,.06);
-  }
-  [data-theme="dark"] .rs-table tbody tr:hover {
-    --row-bg: rgba(74,144,217,.14);
+    --row-tint: rgba(74,144,217,.08);
   }
   .rs-table tbody tr.me {
-    --row-bg: rgba(74,144,217,.10);
+    --row-tint: rgba(74,144,217,.14);
   }
   .rs-table tbody tr.me:hover {
-    --row-bg: rgba(74,144,217,.18);
+    --row-tint: rgba(74,144,217,.22);
+  }
+  [data-theme="dark"] .rs-table tbody tr:hover {
+    --row-tint: rgba(74,144,217,.16);
   }
   [data-theme="dark"] .rs-table tbody tr.me {
-    --row-bg: rgba(74,144,217,.18);
+    --row-tint: rgba(74,144,217,.22);
+  }
+  [data-theme="dark"] .rs-table tbody tr.me:hover {
+    --row-tint: rgba(74,144,217,.32);
+  }
+
+  /* ⭐ 所有 tbody 單元格：不透明底 + 色調疊加（防穿透） */
+  table.rs-table tbody tr td {
+    background-color: var(--card-bg) !important;
+    background-image: linear-gradient(
+      var(--row-tint, transparent),
+      var(--row-tint, transparent)
+    );
   }
 
   /* ── Header ── */
