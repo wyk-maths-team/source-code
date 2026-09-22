@@ -2,8 +2,10 @@
 import { connectToDatabase } from './db.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
+import { runCustomLogic } from '../lib/logic-runner.js'; 
+
 import { ObjectId } from 'mongodb';
-import vm from 'vm';
+// import vm from 'vm';
 
 // =============== 快取 ===============
 let _publicIdsCache = { ids: null, expireAt: 0 };
@@ -302,7 +304,7 @@ export default async function handler(req, res) {
 
       if (hasLogic) {
         // ⭐ 有 logic → 用 logic 判定
-        const r = executeCustomLogic(problem.logic, problem.ans, sub.answer);
+        const r = await runCustomLogic(problem.logic, problem.ans, sub.answer);
         score = r.score;
         comment = r.comment;
         systemError = r.systemError;

@@ -4,7 +4,8 @@
     "cloudinary": "^2.10.0",
     "crypto-js": "^4.2.0",
     "jsonwebtoken": "^9.0.3",
-    "mongodb": "^4.17.2"
+    "mongodb": "^4.17.2",
+    "quickjs-emscripten": "^0.32.0"
   },
   "name": "moj",
   "version": "1.0.0",

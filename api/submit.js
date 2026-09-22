@@ -2,8 +2,9 @@
 import { connectToDatabase } from './db.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
+import { runCustomLogic } from '../lib/logic-runner.js';
 import crypto from 'crypto';
-import vm from 'vm';
+// import vm from 'vm';
 
 // ========== 用戶級限流 ==========
 const submitRateLimit = new Map();
@@ -220,7 +221,7 @@ export default async function handler(req, res) {
 
           if (hasLogic) {
             // ---- 競賽 + 邏輯 ----
-            const logicResult = executeCustomLogic(problem.logic, problem.ans, answer);
+            const logicResult = await runCustomLogic(problem.logic, problem.ans, answer);
 
             if (logicResult.systemError) {
               submissionData.systemError = true;
@@ -348,7 +349,7 @@ export default async function handler(req, res) {
             let systemError = false;
 
             if (hasLogic) {
-              const logicResult = executeCustomLogic(problem.logic, problem.ans, answer);
+              const logicResult = await runCustomLogic(problem.logic, problem.ans, answer);
               if (logicResult.systemError) {
                 submissionData.systemError = true;
                 submissionData.comment = logicResult.comment;
