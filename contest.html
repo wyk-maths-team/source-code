@@ -19,95 +19,442 @@
 })();
 </script>
 
-  
 <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Contests - WYK Maths Team</title><link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
-  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
-  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Contests - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg?v=1" type="image/svg+xml" />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
 
 <link rel="stylesheet" href="/styles.css" />
-  <style>
-    .contests-container {
-      background: var(--card-bg);
-      border-radius: 4px;
-      padding: 1.2rem;
-      box-shadow: var(--shadow-sm);
-    }
-    .contests-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 1rem;
-      border: 1px solid var(--border-color);
-    }
-    .contests-table th, .contests-table td {
-      padding: 0.6rem 0.5rem;
-      border-bottom: 1px solid var(--border-color);
-      text-align: left;
-    }
-    .contests-table th {
-      background: #e9ecef;
-      font-weight: 700;
-      border-bottom: 2px solid var(--border-color);
-    }
-    .contest-row {
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    .contest-row:hover {
-      background: rgba(0,0,0,0.03);
-    }
-    .pagination {
-      display: flex;
-      justify-content: center;
-      gap: 0.5rem;
-      margin-top: 1rem;
-    }
-    .pagination a {
-      padding: 0.3rem 0.7rem;
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      background: var(--card-bg);
-      color: var(--text-primary);
-      text-decoration: none;
-    }
-    .pagination .active {
-      background: var(--accent);
-      color: #fff;
-    }
-    .loading-msg {
-      text-align: center;
-      padding: 2rem;
-      color: var(--text-secondary);
-    }
-    :root[data-theme="dark"] .contests-table th {
-      background: #21262d;
-      color: #c9d1d9;
-    }
-  </style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 
-  <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
-  <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#1a1a2e">
-  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="WYK Maths">
-  <meta name="mobile-web-app-capable" content="yes">
+<style>
+  /* ═══════════════ Contest List ═══════════════ */
+  .ct-wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
 
+  /* ── Hero ── */
+  .ct-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    padding: 2rem 2.2rem 1.8rem;
+    background: linear-gradient(135deg, #4a90d9 0%, #2e5fa0 55%, #1a1a2e 100%);
+    color: #fff;
+    box-shadow: 0 12px 40px rgba(74,144,217,.22), 0 0 0 1px rgba(255,255,255,.08) inset;
+  }
+  .ct-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 12% 25%, rgba(255,255,255,.85), transparent),
+      radial-gradient(1px 1px at 35% 65%, rgba(255,255,255,.6), transparent),
+      radial-gradient(2px 2px at 58% 20%, rgba(255,255,255,.9), transparent),
+      radial-gradient(1px 1px at 78% 78%, rgba(255,255,255,.7), transparent),
+      radial-gradient(2px 2px at 90% 35%, rgba(255,255,255,.85), transparent);
+    background-size: 400px 400px;
+    opacity: .55;
+    pointer-events: none;
+    animation: ctDrift 60s linear infinite;
+  }
+  @keyframes ctDrift {
+    from { background-position: 0 0; }
+    to   { background-position: 400px 300px; }
+  }
+  .ct-hero::after {
+    content: '';
+    position: absolute;
+    top: -80px; right: -80px;
+    width: 340px; height: 340px;
+    background: radial-gradient(circle, rgba(255,255,255,.22) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .ct-hero-inner { position: relative; z-index: 1; }
+  .ct-hero-name {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -.5px;
+    margin: 0 0 .35rem;
+    color: #fff;
+    line-height: 1.2;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .ct-hero-name i {
+    font-size: 1.6rem;
+    color: #ffd54f;
+    filter: drop-shadow(0 2px 8px rgba(255,213,79,.5));
+  }
+  .ct-hero-sub {
+    font-size: .92rem;
+    opacity: .88;
+    margin: 0;
+  }
+
+  /* ── Tabs ── */
+  .ct-tabs {
+    display: flex;
+    gap: .4rem;
+    flex-wrap: wrap;
+    background: var(--card-bg);
+    padding: .5rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+  }
+  .ct-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: .5rem 1.1rem;
+    border-radius: 8px;
+    font-size: .88rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .ct-tab:hover:not(.active) {
+    background: rgba(74,144,217,.08);
+    color: var(--text-primary);
+  }
+  .ct-tab.active {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(74,144,217,.3);
+  }
+  .ct-tab i { font-size: .82rem; }
+  .ct-tab .count {
+    font-size: .72rem;
+    background: rgba(0,0,0,.08);
+    color: inherit;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-family: 'Fira Code', 'Consolas', monospace;
+    margin-left: 2px;
+    min-width: 22px;
+    text-align: center;
+  }
+  .ct-tab.active .count { background: rgba(255,255,255,.28); }
+  [data-theme="dark"] .ct-tab .count { background: rgba(255,255,255,.1); }
+
+  /* ── Grid ── */
+  .ct-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1rem;
+  }
+
+  /* ── Card ── */
+  .ct-card {
+    position: relative;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 1.2rem 1.3rem 1.1rem;
+    cursor: pointer;
+    transition: transform .18s cubic-bezier(.2,0,0,1),
+                box-shadow .18s ease,
+                border-color .18s ease;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: .85rem;
+    text-decoration: none;
+    color: var(--text-primary);
+    min-height: 200px;
+  }
+  .ct-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: var(--border-color);
+    transition: opacity .18s;
+  }
+  .ct-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+    box-shadow: 0 12px 32px rgba(74,144,217,.18);
+  }
+  .ct-card.upcoming::before { background: linear-gradient(90deg, #ffc107, #ff9800); }
+  .ct-card.ongoing::before  { background: linear-gradient(90deg, #4caf50, #2e7d32); }
+  .ct-card.ended::before    { background: linear-gradient(90deg, #9e9e9e, #616161); }
+
+  .ct-card.ongoing {
+    border-color: rgba(76,175,80,.35);
+  }
+  .ct-card.ongoing:hover {
+    border-color: #4caf50;
+    box-shadow: 0 12px 32px rgba(76,175,80,.22);
+  }
+
+  /* ── Card top row ── */
+  .ct-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: .5rem;
+  }
+  .ct-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .4px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .ct-badge.upcoming { background: rgba(255,193,7,.16);  color: #b28500; }
+  .ct-badge.ongoing  { background: rgba(76,175,80,.16);  color: #2e7d32; }
+  .ct-badge.ended    { background: rgba(0,0,0,.06);      color: var(--text-secondary); }
+  [data-theme="dark"] .ct-badge.upcoming { color: #ffd54f; }
+  [data-theme="dark"] .ct-badge.ongoing  { color: #8fdf8f; }
+  [data-theme="dark"] .ct-badge.ended    { background: rgba(255,255,255,.08); }
+
+  .ct-badge .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+  .ct-badge.ongoing .dot {
+    animation: ctPulse 1.6s ease-in-out infinite;
+  }
+  @keyframes ctPulse {
+    0%   { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+    70%  { box-shadow: 0 0 0 6px transparent; opacity: .75; }
+    100% { box-shadow: 0 0 0 0 transparent; opacity: 1; }
+  }
+
+  .ct-card-id {
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: .78rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    opacity: .75;
+  }
+
+  /* ── Card name ── */
+  .ct-card-name {
+    font-size: 1.08rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.35;
+    margin: 0;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    word-break: break-word;
+  }
+
+  /* ── Card meta ── */
+  .ct-card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: .45rem;
+    font-size: .84rem;
+    color: var(--text-secondary);
+    margin-top: auto;
+  }
+  .ct-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .ct-meta-item i {
+    width: 14px;
+    text-align: center;
+    color: var(--accent);
+    font-size: .82rem;
+    flex-shrink: 0;
+    opacity: .8;
+  }
+  .ct-meta-item span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── Countdown footer ── */
+  .ct-countdown {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    padding-top: .7rem;
+    border-top: 1px dashed var(--border-color);
+    font-size: .82rem;
+  }
+  .ct-countdown-label {
+    color: var(--text-secondary);
+    font-weight: 600;
+    letter-spacing: .3px;
+    text-transform: uppercase;
+    font-size: .72rem;
+  }
+  .ct-countdown-val {
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-weight: 800;
+    font-size: .95rem;
+    color: var(--text-primary);
+    letter-spacing: .5px;
+  }
+  .ct-card.ongoing .ct-countdown-val { color: #2e7d32; }
+  .ct-card.upcoming .ct-countdown-val { color: #b28500; }
+  .ct-card.ended .ct-countdown-val { color: var(--text-secondary); opacity: .7; }
+  [data-theme="dark"] .ct-card.ongoing .ct-countdown-val { color: #8fdf8f; }
+  [data-theme="dark"] .ct-card.upcoming .ct-countdown-val { color: #ffd54f; }
+
+  /* ── Empty / Loading ── */
+  .ct-loading, .ct-empty {
+    text-align: center;
+    padding: 4rem 1.5rem;
+    color: var(--text-secondary);
+    font-size: .95rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    box-shadow: var(--shadow-sm);
+  }
+  .ct-loading i, .ct-empty i {
+    font-size: 2.6rem;
+    color: var(--accent);
+    opacity: .55;
+    display: block;
+    margin-bottom: 1rem;
+  }
+  .ct-empty-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: .3rem;
+  }
+  .ct-spinner {
+    display: inline-block;
+    width: 22px; height: 22px;
+    border: 3px solid rgba(74,144,217,.25);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: ctSpin .7s linear infinite;
+  }
+  @keyframes ctSpin { to { transform: rotate(360deg); } }
+
+  /* ── Pagination ── */
+  .ct-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding-top: .5rem;
+  }
+  .ct-page-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font-size: .85rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all .15s;
+    text-decoration: none;
+  }
+  .ct-page-btn:hover:not(:disabled):not(.active) {
+    background: rgba(74,144,217,.1);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .ct-page-btn.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    cursor: default;
+    font-weight: 700;
+  }
+  .ct-page-btn:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+  }
+  .ct-page-btn.ellipsis {
+    border-color: transparent;
+    background: transparent;
+    cursor: default;
+    opacity: .55;
+  }
+  .ct-page-info {
+    font-size: .82rem;
+    color: var(--text-secondary);
+    margin: 0 .5rem;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 700px) {
+    .ct-hero { padding: 1.5rem 1.3rem 1.3rem; border-radius: 12px; }
+    .ct-hero-name { font-size: 1.5rem; }
+    .ct-hero-name i { font-size: 1.25rem; }
+    .ct-grid { grid-template-columns: 1fr; gap: .75rem; }
+    .ct-card { padding: 1rem 1.05rem .9rem; min-height: 180px; }
+    .ct-tabs { padding: .35rem; gap: .3rem; }
+    .ct-tab { padding: .45rem .85rem; font-size: .82rem; }
+    .ct-tab .count { font-size: .68rem; padding: 1px 6px; min-width: 20px; }
+    .ct-card-name { font-size: 1rem; }
+    .ct-loading, .ct-empty { padding: 3rem 1rem; }
+  }
+
+  @media (max-width: 420px) {
+    .ct-tab span:not(.count) { display: none; }
+    .ct-tab { padding: .45rem .7rem; }
+    .ct-tab .count { margin-left: 0; }
+  }
+</style>
+
+<!-- ⭐ PWA -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1a1a2e">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WYK Maths">
+<meta name="mobile-web-app-capable" content="yes">
 </head>
 <body class="index-body">
   <div id="appContainer">
     <header class="topbar" id="topbarContainer"></header>
     <aside class="sidebar" id="sidebarContainer"></aside>
     <main class="main-content" id="mainContent">
-      <div class="loading-msg">Loading contests...</div>
+      <div class="ct-loading">
+        <i class="fas fa-trophy"></i>
+        <div><span class="ct-spinner"></span> Loading contests…</div>
+      </div>
     </main>
-    <!-- <button class="sidebar-toggle" id="sidebarToggle">☰</button> -->
   </div>
 
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
@@ -119,17 +466,100 @@
     if (!isLoggedIn()) window.location.href = '/index.html';
 
     const mainContainer = document.getElementById('mainContent');
-    let currentPage = 1;
     const limit = 20;
-    let totalPages = 1;
 
+    // ── State ──
+    let currentPage = 1;
+    let totalPages = 1;
+    let allContests = [];       // 當前頁的比賽
+    let activeFilter = 'all';   // all | upcoming | ongoing | ended
+
+    // ═══════════ Utils ═══════════
+    function escapeHtml(str) {
+      return String(str ?? '').replace(/[&<>"']/g, m => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[m]));
+    }
+
+    function getStatus(c) {
+      const start = new Date(c.startTime).getTime();
+      if (!Number.isFinite(start)) return 'upcoming';
+      const durMs = (Number(c.duration) || 0) * 60000;
+      const end = start + durMs;
+      const now = Date.now();
+      if (now < start) return 'upcoming';
+      if (now > end)   return 'ended';
+      return 'ongoing';
+    }
+
+    function fmtDateTime(iso) {
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return '—';
+      const pad = n => String(n).padStart(2, '0');
+      const local = new Date(d.getTime() + 8 * 3600000);
+      return `${local.getUTCFullYear()}-${pad(local.getUTCMonth() + 1)}-${pad(local.getUTCDate())} ` +
+             `${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}`;
+    }
+
+    function fmtDuration(min) {
+      const m = Number(min) || 0;
+      const h = Math.floor(m / 60);
+      const mm = m % 60;
+      if (h > 0) return `${h}h ${mm}m`;
+      return `${mm}m`;
+    }
+
+    function fmtCountdown(ms) {
+      if (ms <= 0) return '00:00:00';
+      const s = Math.floor(ms / 1000);
+      const d = Math.floor(s / 86400);
+      const h = Math.floor((s % 86400) / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const ss = s % 60;
+      const pad = n => String(n).padStart(2, '0');
+      if (d > 0) return `${d}d ${pad(h)}:${pad(m)}:${pad(ss)}`;
+      return `${pad(h)}:${pad(m)}:${pad(ss)}`;
+    }
+
+    // ═══════════ Countdown engine ═══════════
+    let _cdTimer = null;
+    function stopCountdowns() {
+      if (_cdTimer) { clearInterval(_cdTimer); _cdTimer = null; }
+    }
+    function startCountdowns() {
+      stopCountdowns();
+      const tick = () => {
+        const now = Date.now();
+        document.querySelectorAll('.ct-countdown[data-start]').forEach(box => {
+          const start = Number(box.dataset.start);
+          const end   = Number(box.dataset.end);
+          const lbl   = box.querySelector('.ct-countdown-label');
+          const val   = box.querySelector('.ct-countdown-val');
+          if (!lbl || !val) return;
+          if (now < start) {
+            lbl.textContent = 'Starts in';
+            val.textContent = fmtCountdown(start - now);
+          } else if (now < end) {
+            lbl.textContent = 'Ends in';
+            val.textContent = fmtCountdown(end - now);
+          } else {
+            lbl.textContent = 'Ended';
+            val.textContent = '—';
+          }
+        });
+      };
+      tick();
+      _cdTimer = setInterval(tick, 1000);
+    }
+
+    // ═══════════ Data ═══════════
     async function loadContests(page = 1) {
       try {
         const data = await apiCall(`/api/contests?action=list&page=${page}&limit=${limit}`);
         if (data.success) {
-          totalPages = data.totalPages;
-          currentPage = data.page;
-          return data.contests;
+          totalPages = data.totalPages || 1;
+          currentPage = data.page || 1;
+          return data.contests || [];
         }
       } catch (err) {
         console.error(err);
@@ -137,53 +567,232 @@
       return [];
     }
 
-    function renderContests(contests) {
-      let html = `<div class="contests-container"><h2>Contests</h2>`;
-      if (!contests.length) {
-        html += '<p>No contests available.</p>';
+    // ═══════════ Filter counts ═══════════
+    function computeCounts(contests) {
+      const c = { all: contests.length, upcoming: 0, ongoing: 0, ended: 0 };
+      contests.forEach(x => { c[getStatus(x)]++; });
+      return c;
+    }
+
+    // ═══════════ Render ═══════════
+    function render() {
+      stopCountdowns();
+
+      const counts = computeCounts(allContests);
+
+      // Filter
+      const filtered = activeFilter === 'all'
+        ? allContests
+        : allContests.filter(c => getStatus(c) === activeFilter);
+
+      let html = `<div class="ct-wrap">`;
+
+      // Hero
+      html += `
+        <div class="ct-hero">
+          <div class="ct-hero-inner">
+            <h1 class="ct-hero-name">
+              <i class="fas fa-trophy"></i>
+              Contests
+            </h1>
+            <p class="ct-hero-sub">Compete, solve, and climb the leaderboard.</p>
+          </div>
+        </div>
+      `;
+
+      // Tabs
+      html += `
+        <div class="ct-tabs" id="ctTabs">
+          <button class="ct-tab ${activeFilter === 'all' ? 'active' : ''}" data-filter="all">
+            <i class="fas fa-list"></i>
+            <span>All</span>
+            <span class="count">${counts.all}</span>
+          </button>
+          <button class="ct-tab ${activeFilter === 'ongoing' ? 'active' : ''}" data-filter="ongoing">
+            <i class="fas fa-circle-play"></i>
+            <span>Live</span>
+            <span class="count">${counts.ongoing}</span>
+          </button>
+          <button class="ct-tab ${activeFilter === 'upcoming' ? 'active' : ''}" data-filter="upcoming">
+            <i class="fas fa-clock"></i>
+            <span>Upcoming</span>
+            <span class="count">${counts.upcoming}</span>
+          </button>
+          <button class="ct-tab ${activeFilter === 'ended' ? 'active' : ''}" data-filter="ended">
+            <i class="fas fa-flag-checkered"></i>
+            <span>Ended</span>
+            <span class="count">${counts.ended}</span>
+          </button>
+        </div>
+      `;
+
+      // Grid / empty
+      if (allContests.length === 0) {
+        html += `
+          <div class="ct-empty">
+            <i class="fas fa-inbox"></i>
+            <div class="ct-empty-title">No contests yet</div>
+            <div>Check back later for upcoming events.</div>
+          </div>
+        `;
+      } else if (filtered.length === 0) {
+        html += `
+          <div class="ct-empty">
+            <i class="fas fa-filter-circle-xmark"></i>
+            <div class="ct-empty-title">No ${escapeHtml(activeFilter)} contests on this page</div>
+            <div>Try a different filter or go to another page.</div>
+          </div>
+        `;
       } else {
-        html += `<table class="contests-table">
-          <thead><tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Participants</th>
-          </tr></thead><tbody>`;
+        html += `<div class="ct-grid">`;
+        filtered.forEach(c => {
+          const status = getStatus(c);
+          const startMs = new Date(c.startTime).getTime();
+          const endMs = startMs + (Number(c.duration) || 0) * 60000;
+          const count = c.contestantCount ?? 0;
 
-        contests.forEach(c => {
-          // 优先使用后端返回的 contestantCount，若无则根据 participants 数组长度计算
-          const count = c.contestantCount !== undefined ? c.contestantCount : (Array.isArray(c.participants) ? c.participants.length : 0);
-          html += `<tr class="contest-row" onclick="window.location.href='/contest/${c.id}'">
-            <td>${c.id}</td>
-            <td>${escapeHtml(c.name)}</td>
-            <td>${count}</td>
-          </tr>`;
+          const statusIcon = { upcoming: 'fa-clock', ongoing: 'fa-circle-play', ended: 'fa-flag-checkered' }[status];
+          const statusLabel = { upcoming: 'Upcoming', ongoing: 'Live', ended: 'Ended' }[status];
+
+          html += `
+            <a class="ct-card ${status}" href="/contest/${c.id}">
+              <div class="ct-card-top">
+                <span class="ct-badge ${status}">
+                  <span class="dot"></span>
+                  <i class="fas ${statusIcon}"></i>
+                  ${statusLabel}
+                </span>
+                <span class="ct-card-id">#${c.id}</span>
+              </div>
+
+              <h3 class="ct-card-name">${escapeHtml(c.name)}</h3>
+
+              <div class="ct-card-meta">
+                <div class="ct-meta-item">
+                  <i class="fas fa-play"></i>
+                  <span>${escapeHtml(fmtDateTime(c.startTime))}</span>
+                </div>
+                <div class="ct-meta-item">
+                  <i class="fas fa-stopwatch"></i>
+                  <span>${escapeHtml(fmtDuration(c.duration))}</span>
+                </div>
+                <div class="ct-meta-item">
+                  <i class="fas fa-users"></i>
+                  <span>${count} participant${count !== 1 ? 's' : ''}</span>
+                </div>
+              </div>
+
+              <div class="ct-countdown" data-start="${startMs}" data-end="${endMs}">
+                <span class="ct-countdown-label">—</span>
+                <span class="ct-countdown-val">--:--:--</span>
+              </div>
+            </a>
+          `;
         });
-        html += '</tbody></table>';
-
-        let paginationHtml = '<div class="pagination">';
-        for (let i = 1; i <= totalPages; i++) {
-          paginationHtml += `<a class="${i === currentPage ? 'active' : ''}" href="javascript:void(0)" onclick="gotoPage(${i})">${i}</a>`;
-        }
-        paginationHtml += '</div>';
-        html += paginationHtml;
+        html += `</div>`;
       }
-      html += '</div>';
+
+      // Pagination
+      if (totalPages > 1) {
+        html += `<div class="ct-pagination" id="ctPagination"></div>`;
+      }
+
+      html += `</div>`;
       mainContainer.innerHTML = html;
+
+      // Bind tabs
+      document.querySelectorAll('#ctTabs .ct-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          activeFilter = tab.dataset.filter;
+          render();
+        });
+      });
+
+      // Render pagination
+      if (totalPages > 1) {
+        renderPagination(document.getElementById('ctPagination'));
+      }
+
+      // Start countdowns
+      if (allContests.length > 0) startCountdowns();
+    }
+
+    // ═══════════ Pagination ═══════════
+    function getMaxVisiblePages() {
+      const w = window.innerWidth;
+      if (w < 400) return 5;
+      if (w < 600) return 7;
+      if (w < 900) return 9;
+      return 10;
+    }
+
+    function computePageItems(current, total, maxVisible) {
+      if (total <= maxVisible) return Array.from({ length: total }, (_, i) => i + 1);
+      const inner = maxVisible - 2;
+      const half = Math.floor(inner / 2);
+      let start = Math.max(2, current - half);
+      let end = Math.min(total - 1, start + inner - 1);
+      start = Math.max(2, end - inner + 1);
+      const items = [1];
+      if (start > 2) items.push('…');
+      for (let p = start; p <= end; p++) items.push(p);
+      if (end < total - 1) items.push('…');
+      items.push(total);
+      return items;
+    }
+
+    function renderPagination(container) {
+      if (!container) return;
+      const maxVisible = getMaxVisiblePages();
+      const items = computePageItems(currentPage, totalPages, maxVisible);
+
+      let html = '';
+      html += `<button class="ct-page-btn" ${currentPage <= 1 ? 'disabled' : ''} data-page="${currentPage - 1}">‹</button>`;
+      for (const it of items) {
+        if (it === '…') {
+          html += `<span class="ct-page-btn ellipsis">…</span>`;
+        } else if (it === currentPage) {
+          html += `<button class="ct-page-btn active">${it}</button>`;
+        } else {
+          html += `<button class="ct-page-btn" data-page="${it}">${it}</button>`;
+        }
+      }
+      html += `<button class="ct-page-btn" ${currentPage >= totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">›</button>`;
+      container.innerHTML = html;
+
+      container.querySelectorAll('[data-page]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const p = parseInt(btn.dataset.page, 10);
+          if (p >= 1 && p <= totalPages && p !== currentPage) {
+            gotoPage(p);
+          }
+        });
+      });
     }
 
     async function gotoPage(page) {
-      const contests = await loadContests(page);
-      renderContests(contests);
+      allContests = await loadContests(page);
+      render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    function escapeHtml(str) {
-      return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
-    }
-
+    // ═══════════ Init ═══════════
     (async function init() {
-      const contests = await loadContests(1);
-      renderContests(contests);
+      allContests = await loadContests(1);
+      render();
     })();
+
+    // 視窗改變時重繪分頁
+    let _resizeTimer = null;
+    window.addEventListener('resize', () => {
+      if (_resizeTimer) clearTimeout(_resizeTimer);
+      _resizeTimer = setTimeout(() => {
+        if (totalPages > 1) renderPagination(document.getElementById('ctPagination'));
+      }, 200);
+    });
+
+    // Cleanup
+    window.addEventListener('beforeunload', stopCountdowns);
   </script>
 </body>
 </html>
