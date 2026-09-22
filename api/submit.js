@@ -1,4 +1,4 @@
-﻿// api/submit.js
+// api/submit.js
 import { connectToDatabase } from './db.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
@@ -299,38 +299,44 @@ export default async function handler(req, res) {
       }
 
       // ---- 競賽 + 無邏輯 ----
-      if (evalType === 'numeric') {
-        const ansStr = String(problem.ans).trim();
-        if (!isValidNumericAnswer(ansStr)) {
-          systemError = true;
-        } else {
-          const cmp = compareNumeric(ansStr, answer);
-          isCorrect = cmp.correct;
-          systemError = cmp.systemError;
-        }
-        if (!systemError) {
-          const updateOp = isCorrect
-            ? { $set: { lastSubmissionTime: now } }
-            : { $inc: { wrongAttempts: 1 }, $set: { lastSubmissionTime: now } };
+      // ---- 競賽 + 無邏輯 ----
+if (evalType === 'numeric') {
+  const ansStr = String(problem.ans).trim();
+  if (!isValidNumericAnswer(ansStr)) {
+    systemError = true;
+  } else {
+    const cmp = compareNumeric(ansStr, answer);
+    isCorrect = cmp.correct;
+    systemError = cmp.systemError;
+  }
 
-          const updated = await db.collection('contest_results').findOneAndUpdate(
-            { contestId: activeContest.id, username, problemId: pid },
-            updateOp,
-            { upsert: true, returnDocument: 'after' }
-          );
+  if (!systemError) {
+    if (isCorrect) {
+      // ⭐ 答對才寫分數：用「之前的錯誤次數」扣 10% / 次
+      const prevWrong = resultDoc?.wrongAttempts || 0;
+      currentScore = Math.max(0, 100 * Math.pow(0.9, prevWrong));
 
-          // MongoDB driver v4 回 {value: doc}，v6 直接回 doc
-          const doc = updated?.value ?? updated;
-          wrongAttempts = doc?.wrongAttempts || 0;
-          currentScore = Math.max(0, 100 * Math.pow(0.9,wrongAttempts));
-
-          // 寫回分數（會被最新一輪修正）
-          await db.collection('contest_results').updateOne(
-            { contestId: activeContest.id, username, problemId: pid },
-            { $set: { score: currentScore } }
-          );
-        }
-      }
+      await db.collection('contest_results').updateOne(
+        { contestId: activeContest.id, username, problemId: pid },
+        { $set: { score: currentScore, lastSubmissionTime: now } },
+        { upsert: true }
+      );
+    } else {
+      // ⭐ 答錯只累加 wrongAttempts，**不碰分數**
+      await db.collection('contest_results').updateOne(
+        { contestId: activeContest.id, username, problemId: pid },
+        {
+          $inc: { wrongAttempts: 1 },
+          $set: { lastSubmissionTime: now },
+          $setOnInsert: { score: 0 }
+        },
+        { upsert: true }
+      );
+      wrongAttempts = (resultDoc?.wrongAttempts || 0) + 1;
+      currentScore = resultDoc?.score ?? 0;  // 保留既有分數（可能 0）
+    }
+  }
+}
       // evalType === 'image_model'：isCorrect 保持 false，systemError 保持 false
 
       await db.collection('contest_results').updateOne(
