@@ -257,6 +257,69 @@
   @media (max-width: 420px) {
     .cd-problem-table .hide-xs { display: none; }
   }
+  /* ═══════ Difficulty (移植自 problems.html) ═══════ */
+  .cd-diff {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 56px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: .8rem;
+    font-weight: 700;
+    font-family: 'Fira Code', 'Consolas', monospace;
+    white-space: nowrap;
+    line-height: 1.4;
+  }
+
+  /* 彩虹 (7 ≤ diff < 8) */
+  .rainbow-bg {
+    background: linear-gradient(90deg,#ff0000,#ff8800,#ffff00,#00ff00,#0088ff,#8800ff,#ff0088,#ff0000);
+    background-size: 300% 100%;
+    animation: rainbowFlow 4s linear infinite;
+    color: #ffffff !important;
+  }
+  @keyframes rainbowFlow { 0% { background-position: 0 0; } 100% { background-position: 300% 0; } }
+
+  /* 閃耀 (8 ≤ diff < 9) */
+  .star-shine {
+    position: relative;
+    color: #000000 !important;
+    overflow: hidden;
+    z-index: 0;
+  }
+  .star-shine::before {
+    content: '';
+    position: absolute;
+    top: -100%; left: -100%;
+    width: 300%; height: 300%;
+    background: conic-gradient(from 0deg,
+      #ffb3ba,#ffdfba,#ffffba,#baffc9,#bae1ff,#e8baff,#ffb3ba,
+      #ffb3ba,#ffdfba,#ffffba,#baffc9,#bae1ff,#e8baff,#ffb3ba);
+    animation: starRotate 4s linear infinite;
+    z-index: -1;
+  }
+  @keyframes starRotate { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+  /* 混沌 (diff ≥ 9) */
+  .chaos {
+    background: #000;
+    background-image:
+      repeating-linear-gradient(45deg,#000 0,#000 8px,#4a0088 8px,#4a0088 10px),
+      repeating-linear-gradient(-30deg,#000 0,#000 12px,#6a00cc 12px,#6a00cc 14px),
+      repeating-linear-gradient(70deg,#000 0,#000 15px,#8a2be2 15px,#8a2be2 17px);
+    background-blend-mode: screen;
+    animation: chaosMove .2s linear infinite;
+    color: #fff !important;
+    text-shadow: 0 0 4px #8a2be2;
+  }
+  @keyframes chaosMove {
+    0%   { background-position: 0 0, 5px 10px, -10px -5px; }
+    100% { background-position: 20px 20px, 30px 5px, 10px -15px; }
+  }
+
+  /* 深色模式下微調 */
+  [data-theme="dark"] .cd-diff { border: 1px solid rgba(255,255,255,.06); }
 </style>
 
 <link rel="manifest" href="/manifest.json">
@@ -303,7 +366,55 @@
         '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
       }[m]));
     }
+        // ═══════════ Difficulty 渲染（移植自 problems-1.js）═══════════
+    function computeDifficulty(difficulty) {
+      const diff = Number(difficulty) || 0;
 
+      if (diff === 0) {
+        return { display: '∞', style: '', extraClass: '' };
+      }
+
+      const display = diff.toFixed(2);
+      let style = '';
+      let extraClass = '';
+
+      if (diff >= 1 && diff < 2) {
+        const lightness = 85;
+        style = `background-color:hsl(0,0%,${lightness}%)!important;color:#000000!important;`;
+      } else if (diff >= 2 && diff < 3) {
+        const t = (diff - 2) / 1;
+        const lightness = 70 - t * 35;
+        style = `background-color:hsl(120,60%,${lightness}%)!important;color:#ffffff!important;`;
+      } else if (diff >= 3 && diff < 4) {
+        const t = (diff - 3) / 1;
+        const lightness = 65 - t * 30;
+        style = `background-color:hsl(210,70%,${lightness}%)!important;color:#ffffff!important;`;
+      } else if (diff >= 4 && diff < 5) {
+        const t = (diff - 4) / 1;
+        const lightness = 65 - t * 30;
+        style = `background-color:hsl(280,60%,${lightness}%)!important;color:#ffffff!important;`;
+      } else if (diff >= 5 && diff < 6) {
+        const t = (diff - 5) / 1;
+        const lightness = 70 - t * 30;
+        style = `background-color:hsl(45,80%,${lightness}%)!important;color:#000000!important;`;
+      } else if (diff >= 6 && diff < 7) {
+        const t = (diff - 6) / 1;
+        const lightness = 60 - t * 25;
+        style = `background-color:hsl(0,70%,${lightness}%)!important;color:#ffffff!important;`;
+      } else if (diff >= 7 && diff < 8) {
+        extraClass = 'rainbow-bg';
+        style = `color:#000000!important;`;
+      } else if (diff >= 8 && diff < 9) {
+        extraClass = 'star-shine';
+        style = `color:#000000!important;`;
+      } else {
+        // diff >= 9；順帶涵蓋 0 < diff < 1 的極端邊界（原邏輯同樣落入 chaos）
+        extraClass = 'chaos';
+        style = `color:#ffffff!important;`;
+      }
+
+      return { display, style, extraClass };
+    }
     let _countdownTimer = null;
     function clearCountdown() {
       if (_countdownTimer) { clearInterval(_countdownTimer); _countdownTimer = null; }
@@ -529,6 +640,7 @@
                     <th style="width:80px;">ID</th>
                     <th>Name</th>
                     <th class="hide-xs" style="width:100px;">Type</th>
+                    <th class="hide-xs" style="width:90px;">Diff</th>
                     <th style="width:170px;">Status</th>
                   </tr>
                 </thead>
@@ -581,12 +693,15 @@
           const typeBadge = prob.evalType === 'image_model'
             ? '<span class="cd-ptype photo">Photo</span>'
             : '<span class="cd-ptype numeric">Numeric</span>';
-
-          html += `
+          const diffInfo = computeDifficulty(prob.difficulty);
+                    html += `
             <tr class="${rowClass}" onclick="window.location.href='/problems/${encodeURIComponent(prob.id)}'">
               <td><span class="cd-pid">${escapeHtml(prob.id)}</span></td>
               <td><span class="cd-pname">${escapeHtml(prob.name)}</span></td>
               <td class="hide-xs">${typeBadge}</td>
+              <td class="hide-xs">
+                <span class="cd-diff ${diffInfo.extraClass}" style="${diffInfo.style}">${diffInfo.display}</span>
+              </td>
               <td>
                 <span class="cd-status-badge ${badgeClass}">
                   <i class="fas ${badgeIcon}"></i> ${escapeHtml(statusDisplay)}
