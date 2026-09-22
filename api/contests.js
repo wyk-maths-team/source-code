@@ -127,30 +127,30 @@ export default async function handler(req, res) {
       const tasks = [];
 
       if (showProblems) {
-          tasks.push(
-            db.collection('contest_results')
-              .find(
-                { contestId: contest.id, username },
-                { projection: { problemId: 1, score: 1, solved: 1, wrongAttempts: 1, _id: 0 } }
-              )
-              .toArray()
-              .then(results => {
-                const scores = {};
-                const states = {};
-                const attempts = {};
-                for (const r of results) {
-                  scores[r.problemId] = r.score;
-                  attempts[r.problemId] = Number(r.wrongAttempts) || 0;
-                  // ⭐ 用 solved 判斷，而不是分數
-                  if (r.solved === true) states[r.problemId] = 'passed';
-                  else if (r.score > 0) states[r.problemId] = 'partial';
-                  else states[r.problemId] = 'failed';
-                }
-                result.userScores = scores;
-                result.userContestStates = states;
-                result.userWrongAttempts = attempts;
-              })
-          );
+      tasks.push(
+        db.collection('contest_results')
+          .find(
+            { contestId: contest.id, username },
+            { projection: { problemId: 1, score: 1, solved: 1, wrongAttempts: 1, _id: 0 } }
+          )
+          .toArray()
+          .then(results => {
+            const scores = {};
+            const states = {};
+            const attempts = {};
+            for (const r of results) {
+              scores[r.problemId] = r.score;
+              attempts[r.problemId] = Number(r.wrongAttempts) || 0;
+              // ⭐ 用 solved 判斷，而不是 score
+              if (r.solved === true) states[r.problemId] = 'passed';
+              else if (r.score > 0) states[r.problemId] = 'partial';
+              else states[r.problemId] = 'failed';
+            }
+            result.userScores = scores;
+            result.userContestStates = states;
+            result.userWrongAttempts = attempts;   // ⭐ 新增
+          })
+      );
       }
 
       // 當前用戶在此競賽的分數 / 狀態 / wrongAttempts
