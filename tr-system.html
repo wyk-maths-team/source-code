@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>TR Training · 專注模式</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<style>
+  /* ═══════════════ 樣式完全不變，這裡省略；請沿用你原本的 <style> ═══════════════ */
+  :root{--paper:#faf6ed;--paper-2:#f3ecdc;--ink:#2a211a;--ink-2:#6b5e4d;--ink-3:#a89980;--line:#e0d5be;--card:#fffdf8;--accent:#5a7247;--accent-2:#c17c5c;--accent-3:#b08a3e;--good:#4a8c5a;--bad:#b04a3a;--shadow-sm:0 1px 2px rgba(60,40,20,.06);--shadow-md:0 4px 20px rgba(60,40,20,.08);--shadow-lg:0 20px 60px rgba(60,40,20,.12);--radius-sm:6px;--radius-md:12px;--radius-lg:20px}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{font-size:16px}
+  body{font-family:'Noto Serif TC','Georgia','Songti SC',serif;background:radial-gradient(circle at 20% 10%,rgba(255,250,235,.6),transparent 40%),radial-gradient(circle at 90% 90%,rgba(193,124,92,.06),transparent 45%),var(--paper);color:var(--ink);line-height:1.7;min-height:100vh;-webkit-font-smoothing:antialiased}
+  body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background-image:radial-gradient(rgba(90,60,30,.025) 1px,transparent 1px),radial-gradient(rgba(90,60,30,.015) 1px,transparent 1px);background-size:24px 24px,40px 40px;background-position:0 0,12px 12px}
+  button{font-family:inherit;cursor:pointer}
+  img{max-width:100%;display:block}
+  .tr-app{position:relative;z-index:1;min-height:100vh;display:grid;grid-template-columns:260px 1fr;grid-template-rows:62px 1fr;grid-template-areas:"head head" "nav main"}
+  .tr-header{grid-area:head;display:flex;align-items:center;gap:20px;padding:0 26px;border-bottom:1px solid var(--line);background:rgba(250,246,237,.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);position:sticky;top:0;z-index:20}
+  .tr-logo{font-family:'Georgia',serif;font-weight:700;font-size:22px;letter-spacing:3px;color:var(--accent)}
+  .tr-logo::after{content:'·';color:var(--accent-2);margin-left:2px}
+  .tr-header-sub{font-size:12px;color:var(--ink-3);letter-spacing:2px;text-transform:uppercase;font-family:'Segoe UI',sans-serif}
+  .tr-spacer{flex:1}
+  .tr-progress-mini{display:flex;align-items:center;gap:10px;font-family:'Consolas',monospace;font-size:13px;color:var(--ink-2);padding:6px 14px;background:var(--paper-2);border-radius:20px;border:1px solid var(--line)}
+  .tr-progress-mini .bar{width:100px;height:4px;background:var(--line);border-radius:2px;overflow:hidden}
+  .tr-progress-mini .bar>i{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .4s ease}
+  .tr-btn-icon{width:38px;height:38px;border:1px solid var(--line);background:var(--card);border-radius:var(--radius-sm);color:var(--ink-2);display:inline-flex;align-items:center;justify-content:center;transition:all .15s;font-size:14px}
+  .tr-btn-icon:hover{border-color:var(--accent);color:var(--accent);background:#fdfbf5}
+  .tr-nav{grid-area:nav;border-right:1px solid var(--line);padding:22px 8px 60px 22px;overflow-y:auto;background:rgba(243,236,220,.4)}
+  .tr-nav::-webkit-scrollbar{width:6px}
+  .tr-nav::-webkit-scrollbar-thumb{background:rgba(90,60,30,.15);border-radius:3px}
+  .tr-nav-title{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);margin:4px 8px 14px;font-family:'Segoe UI',sans-serif;font-weight:600}
+  .tr-nav-filter{margin-bottom:16px}
+  .tr-nav-filter select,.tr-nav-filter input{width:100%;padding:8px 12px;border:1px solid var(--line);background:var(--card);border-radius:var(--radius-sm);font-family:'Segoe UI',sans-serif;font-size:13px;color:var(--ink);margin-bottom:6px}
+  .tr-nav-filter select:focus,.tr-nav-filter input:focus{outline:none;border-color:var(--accent)}
+  .tr-nav-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--radius-sm);font-size:13px;color:var(--ink-2);cursor:pointer;font-family:'Consolas',monospace;transition:all .12s;border:1px solid transparent;margin-bottom:2px}
+  .tr-nav-item:hover{background:rgba(255,253,248,.9);color:var(--ink)}
+  .tr-nav-item.active{background:var(--card);border-color:var(--accent);color:var(--accent);font-weight:600}
+  .tr-nav-item .dot{width:8px;height:8px;border-radius:50%;background:var(--line);flex-shrink:0}
+  .tr-nav-item.done .dot{background:var(--good)}
+  .tr-nav-item.wrong .dot{background:var(--bad)}
+  .tr-nav-item .idx{color:var(--ink-3);font-size:11px;margin-left:auto}
+  .tr-main{grid-area:main;padding:40px 40px 80px;overflow-y:auto}
+  .tr-card{max-width:780px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-lg);padding:40px 44px;box-shadow:var(--shadow-md);position:relative}
+  .tr-card::before,.tr-card::after{content:'';position:absolute;width:24px;height:24px;border:2px solid var(--accent-2);opacity:.35}
+  .tr-card::before{top:12px;left:12px;border-right:none;border-bottom:none;border-top-left-radius:6px}
+  .tr-card::after{bottom:12px;right:12px;border-left:none;border-top:none;border-bottom-right-radius:6px}
+  .tr-meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:26px;padding-bottom:20px;border-bottom:1px dashed var(--line)}
+  .tr-tag{font-family:'Segoe UI',sans-serif;font-size:11.5px;font-weight:600;letter-spacing:.5px;padding:3px 10px;border-radius:12px;border:1px solid currentColor;opacity:.85}
+  .tr-tag.cat{color:var(--accent-2)}
+  .tr-tag.lvl{color:var(--accent-3)}
+  .tr-tag.diff{color:var(--accent)}
+  .tr-tag.id{color:var(--ink-3);font-family:'Consolas',monospace}
+  .tr-statement{font-size:19px;line-height:1.9;color:var(--ink);margin-bottom:26px;white-space:pre-wrap}
+  .tr-image{margin:0 0 26px;text-align:center;background:var(--paper);border-radius:var(--radius-md);padding:16px;border:1px solid var(--line);min-height:60px}
+  .tr-image img{max-height:320px;margin:0 auto;border-radius:var(--radius-sm);cursor:zoom-in}
+  .tr-image .placeholder{color:var(--ink-3);font-size:13px;font-family:'Segoe UI',sans-serif;padding:24px 0}
+  .tr-choices{display:flex;flex-direction:column;gap:10px;margin-bottom:22px}
+  .tr-choice{display:flex;align-items:flex-start;gap:14px;padding:14px 18px;background:#fffdf8;border:1.5px solid var(--line);border-radius:var(--radius-md);text-align:left;font-size:15.5px;line-height:1.6;color:var(--ink);transition:all .15s;position:relative}
+  .tr-choice:hover:not(:disabled){border-color:var(--accent);background:#fbfaf3;transform:translateY(-1px);box-shadow:var(--shadow-sm)}
+  .tr-choice .key{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--paper-2);color:var(--ink-2);font-family:'Georgia',serif;font-weight:700;font-size:13px;flex-shrink:0;transition:all .15s}
+  .tr-choice .text{flex:1}
+  .tr-choice.selected{border-color:var(--accent);background:#f2f7ec}
+  .tr-choice.selected .key{background:var(--accent);color:#fff}
+  .tr-choice.correct{border-color:var(--good);background:#eef7f0}
+  .tr-choice.correct .key{background:var(--good);color:#fff}
+  .tr-choice.wrong{border-color:var(--bad);background:#faeae6}
+  .tr-choice.wrong .key{background:var(--bad);color:#fff}
+  .tr-choice:disabled{cursor:default}
+  .tr-feedback{margin-top:20px;padding:16px 20px;border-radius:var(--radius-md);font-family:'Segoe UI',sans-serif;font-size:14px;display:none;animation:trIn .25s ease}
+  .tr-feedback.show{display:block}
+  .tr-feedback.good{background:#eef7f0;border-left:4px solid var(--good);color:#2d5a3a}
+  .tr-feedback.bad{background:#faeae6;border-left:4px solid var(--bad);color:#7a2e22}
+  @keyframes trIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+  .tr-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
+  .tr-btn{padding:12px 24px;border:1.5px solid var(--line);background:var(--card);border-radius:var(--radius-md);color:var(--ink);font-size:14px;font-weight:600;transition:all .15s;display:inline-flex;align-items:center;gap:8px}
+  .tr-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent);transform:translateY(-1px)}
+  .tr-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .tr-btn.primary:hover:not(:disabled){background:#4a6040;border-color:#4a6040;color:#fff}
+  .tr-btn.ghost{background:transparent;border-color:transparent;color:var(--ink-3)}
+  .tr-btn.ghost:hover:not(:disabled){background:var(--paper-2);color:var(--ink-2);transform:none}
+  .tr-btn:disabled{opacity:.4;cursor:not-allowed}
+  .tr-empty,.tr-loading{max-width:500px;margin:100px auto;text-align:center;color:var(--ink-3);font-size:15px}
+  .tr-empty i,.tr-loading i{font-size:40px;color:var(--accent-3);opacity:.6;display:block;margin-bottom:18px}
+  .tr-empty h2{font-family:'Georgia',serif;font-size:26px;color:var(--ink);margin-bottom:10px;font-weight:700}
+  .tr-spinner{display:inline-block;width:22px;height:22px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .tr-lightbox{position:fixed;inset:0;background:rgba(30,20,10,.85);z-index:100;display:none;align-items:center;justify-content:center;padding:40px;cursor:zoom-out}
+  .tr-lightbox.show{display:flex;animation:trIn .2s ease}
+  .tr-lightbox img{max-width:95vw;max-height:90vh;border-radius:var(--radius-md);box-shadow:var(--shadow-lg)}
+  /* 圖片載入骨架 */
+  .img-skeleton{display:inline-block;width:200px;height:120px;background:linear-gradient(90deg,#efe7d5 25%,#f7f1e2 50%,#efe7d5 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:8px}
+  @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+  @media (max-width:900px){
+    .tr-app{grid-template-columns:1fr;grid-template-areas:"head" "main"}
+    .tr-nav{position:fixed;top:62px;left:0;bottom:0;width:280px;background:var(--paper);z-index:30;transform:translateX(-100%);transition:transform .28s ease;box-shadow:var(--shadow-lg)}
+    .tr-nav.open{transform:translateX(0)}
+    .tr-main{padding:24px 16px 60px}
+    .tr-card{padding:26px 22px;border-radius:var(--radius-md)}
+    .tr-statement{font-size:17px}
+    .tr-logo{font-size:18px;letter-spacing:2px}
+    .tr-header-sub{display:none}
+    .tr-progress-mini{font-size:11px;padding:4px 10px}
+    .tr-progress-mini .bar{width:60px}
+  }
+</style>
+</head>
+<body>
+
+<div class="tr-app" id="trApp" style="display:none;">
+  <header class="tr-header">
+    <div class="tr-logo">TR</div>
+    <div class="tr-header-sub">Training Room</div>
+    <div class="tr-spacer"></div>
+    <div class="tr-progress-mini">
+      <span id="trCounter">0 / 0</span>
+      <div class="bar"><i id="trProgressFill"></i></div>
+      <span id="trAccuracy" title="正確率">—</span>
+    </div>
+    <button class="tr-btn-icon" id="trNavToggle" title="Toggle list"><i class="fas fa-list"></i></button>
+  </header>
+
+  <aside class="tr-nav" id="trNav">
+    <div class="tr-nav-title">題目</div>
+    <div class="tr-nav-filter">
+      <input type="text" id="trSearch" placeholder="搜尋 id / 內容...">
+      <select id="trFilterCat"><option value="">全部分類</option></select>
+      <select id="trFilterDiff">
+        <option value="">全部難度</option>
+        <option value="easy">Easy</option>
+        <option value="medium">Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+    </div>
+    <div id="trNavList"></div>
+  </aside>
+
+  <main class="tr-main" id="trMain">
+    <div class="tr-loading">
+      <i class="fas fa-spinner fa-spin"></i>
+      <div>載入題庫中…</div>
+    </div>
+  </main>
+</div>
+
+<div id="trDenied" class="tr-empty" style="display:none;">
+  <i class="fas fa-lock"></i>
+  <h2>404</h2>
+  <div>Page not found.</div>
+</div>
+
+<div class="tr-lightbox" id="trLightbox">
+  <img id="trLightboxImg" src="" alt="">
+</div>
+
+<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+<script>
+(function() {
+  'use strict';
+
+  if (!isLoggedIn()) {
+    window.location.href = '/index.html';
+    return;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // 🔧 設定：圖片來源
+  // ═══════════════════════════════════════════════════════════
+  const CDN_BASE = 'https://cdn.jsdelivr.net/gh/wyk-math-team/resources@main/tr-images/';
+  const FILEMAP_URL = CDN_BASE + 'filemap.json';           // 小檔，一定載
+  const IMAGES_JSON_URL = CDN_BASE + 'images.json';        // 大檔（11MB），可選 fallback
+
+  // ⭐ 是否載入 images.json（base64 fallback）
+  //   false → 只從 CDN 按需抓圖（推薦，首屏快）
+  //   true  → 一次下載所有圖片 base64（首屏慢，但離線可用）
+  const LOAD_B64_FALLBACK = false;
+
+  // ═══════════ 狀態 ═══════════
+  const STORAGE_KEY = 'tr_progress_v1';
+  const FILEMAP_CACHE_KEY = 'tr_filemap_v1';
+  const FILEMAP_CACHE_TTL = 6 * 60 * 60 * 1000;  // 6 小時
+
+  const state = {
+    items: [],
+    filtered: [],
+    currentIdx: 0,
+    currentDetail: null,
+    selected: null,
+    submitted: false,
+    correct: false,
+    progress: {},
+    filters: { q: '', cat: '', diff: '' },
+    fileMap: {},        // { id: "AQ-12292.png" }
+    imageMapB64: {},    // { id: "data:..." }  可選
+    imageLoadFailed: new Set(),  // 記錄載入失敗的 id，避免重試
+  };
+
+  const $  = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, m => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[m]));
+
+  // ═══════════ localStorage 進度 ═══════════
+  function loadProgress() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      state.progress = raw ? JSON.parse(raw) : {};
+    } catch { state.progress = {}; }
+  }
+  function saveProgress() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.progress)); } catch {}
+  }
+
+  // ═══════════ 圖片映射：載入 filemap.json ═══════════
+  async function loadFileMap() {
+    // 1) 先看 localStorage 快取
+    try {
+      const raw = localStorage.getItem(FILEMAP_CACHE_KEY);
+      if (raw) {
+        const cached = JSON.parse(raw);
+        if (cached && cached.ts && Date.now() - cached.ts < FILEMAP_CACHE_TTL && cached.map) {
+          state.fileMap = cached.map;
+          console.log(`[TR] filemap loaded from cache: ${Object.keys(state.fileMap).length} entries`);
+          return;
+        }
+      }
+    } catch {}
+
+    // 2) 從 CDN 下載
+    try {
+      const res = await fetch(FILEMAP_URL, { cache: 'force-cache' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const map = await res.json();
+      state.fileMap = map || {};
+      try {
+        localStorage.setItem(FILEMAP_CACHE_KEY, JSON.stringify({
+          ts: Date.now(),
+          map: state.fileMap,
+        }));
+      } catch {}
+      console.log(`[TR] filemap loaded from CDN: ${Object.keys(state.fileMap).length} entries`);
+    } catch (e) {
+      console.warn('[TR] filemap load failed:', e.message);
+      state.fileMap = {};
+    }
+  }
+
+  // ═══════════ 可選：載入 images.json（base64 fallback）═══════════
+  async function loadImageMapB64() {
+    if (!LOAD_B64_FALLBACK) return;
+    try {
+      console.log('[TR] loading images.json (base64 fallback, this may take a while)...');
+      const res = await fetch(IMAGES_JSON_URL, { cache: 'force-cache' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      state.imageMapB64 = await res.json() || {};
+      console.log(`[TR] imageMapB64 loaded: ${Object.keys(state.imageMapB64).length} entries`);
+    } catch (e) {
+      console.warn('[TR] images.json load failed:', e.message);
+      state.imageMapB64 = {};
+    }
+  }
+
+  // ═══════════ 取得圖片 URL（CDN 優先，base64 fallback）═══════════
+  function resolveImageSrc(id) {
+    // 1) CDN（filemap 有檔名）
+    const filename = state.fileMap[id];
+    if (filename && !state.imageLoadFailed.has('cdn:' + id)) {
+      return CDN_BASE + encodeURIComponent(filename);
+    }
+    // 2) base64 fallback（若有載入）
+    if (state.imageMapB64[id]) {
+      return state.imageMapB64[id];
+    }
+    // 3) 都沒有
+    return '';
+  }
+
+  // ═══════════ 認證：whoami ═══════════
+  async function checkAccess() {
+    try {
+      const r = await apiCall('/api/tr-problems?action=whoami');
+      return !!(r && r.canView);
+    } catch {
+      return false;
+    }
+  }
+
+  // ═══════════ 載入題目清單 ═══════════
+  async function loadList() {
+    const main = $('#trMain');
+    try {
+      const all = [];
+      let page = 1, totalPages = 1;
+      do {
+        const r = await apiCall(`/api/tr-problems?action=list&page=${page}&limit=200`);
+        if (!r.success) throw new Error(r.message || 'load failed');
+        all.push(...r.items);
+        totalPages = r.totalPages;
+        page++;
+      } while (page <= totalPages && page <= 50);
+
+      state.items = all;
+    } catch (e) {
+      console.error(e);
+      main.innerHTML = `<div class="tr-empty"><i class="fas fa-triangle-exclamation"></i>
+        <h2>載入失敗</h2><div>${esc(e.message)}</div></div>`;
+      return false;
+    }
+    return true;
+  }
+
+  // ═══════════ 分類選項 ═══════════
+  function buildCategoryOptions() {
+    const cats = [...new Set(state.items.map(i => i.category).filter(Boolean))].sort();
+    const sel = $('#trFilterCat');
+    sel.innerHTML = '<option value="">全部分類</option>' +
+      cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  }
+
+  // ═══════════ 過濾 ═══════════
+  function applyFilters() {
+    const { q, cat, diff } = state.filters;
+    const ql = q.trim().toLowerCase();
+    state.filtered = state.items.filter(it => {
+      if (cat && it.category !== cat) return false;
+      if (diff && it.difficulty !== diff) return false;
+      if (ql) {
+        const hay = (it.id + ' ' + it.statement).toLowerCase();
+        if (!hay.includes(ql)) return false;
+      }
+      return true;
+    });
+    if (state.currentIdx >= state.filtered.length) {
+      state.currentIdx = Math.max(0, state.filtered.length - 1);
+    }
+  }
+
+  // ═══════════ 側邊清單 ═══════════
+  function renderNavList() {
+    const el = $('#trNavList');
+    if (!state.filtered.length) {
+      el.innerHTML = `<div style="padding:16px;color:var(--ink-3);font-size:13px;text-align:center;">沒有符合的題目</div>`;
+      return;
+    }
+    el.innerHTML = state.filtered.map((it, idx) => {
+      const p = state.progress[it.id];
+      const cls = idx === state.currentIdx ? 'active' : '';
+      const pcls = p ? (p.correct ? 'done' : 'wrong') : '';
+      return `
+        <div class="tr-nav-item ${cls} ${pcls}" data-idx="${idx}">
+          <span class="dot"></span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(it.id)}</span>
+          <span class="idx">${idx + 1}</span>
+        </div>`;
+    }).join('');
+    $$('.tr-nav-item', el).forEach(node => {
+      node.addEventListener('click', () => {
+        state.currentIdx = parseInt(node.dataset.idx, 10);
+        state.selected = null;
+        state.submitted = false;
+        state.currentDetail = null;
+        $('#trNav').classList.remove('open');
+        render();
+      });
+    });
+  }
+
+  // ═══════════ 進度條 ═══════════
+  function updateProgress() {
+    const total = state.filtered.length;
+    const done = state.filtered.filter(it => state.progress[it.id]).length;
+    const correct = state.filtered.filter(it => state.progress[it.id]?.correct).length;
+    $('#trCounter').textContent = `${state.currentIdx + 1} / ${total}`;
+    $('#trProgressFill').style.width = (total ? (done / total) * 100 : 0) + '%';
+    $('#trAccuracy').textContent = done ? `${Math.round((correct / done) * 100)}%` : '—';
+  }
+
+  // ═══════════ 載入單題詳情 ═══════════
+  async function loadDetail(id) {
+    if (state.currentDetail && state.currentDetail.id === id) return state.currentDetail;
+    try {
+      const r = await apiCall(`/api/tr-problems?action=get&id=${encodeURIComponent(id)}`);
+      if (!r.success) throw new Error(r.message);
+      state.currentDetail = r.problem;
+      return r.problem;
+    } catch (e) {
+      console.error('load detail failed', e);
+      return null;
+    }
+  }
+
+  // ═══════════ 渲染主畫面 ═══════════
+  async function render() {
+    const main = $('#trMain');
+    if (!state.filtered.length) {
+      main.innerHTML = `<div class="tr-empty"><i class="fas fa-inbox"></i>
+        <h2>沒有題目</h2><div>試著調整搜尋條件，或聯絡管理員匯入題庫。</div></div>`;
+      updateProgress();
+      return;
+    }
+
+    const meta = state.filtered[state.currentIdx];
+    main.innerHTML = `<div class="tr-loading" style="margin:60px auto;">
+      <i class="fas fa-spinner fa-spin"></i><div>載入中…</div>
+    </div>`;
+
+    const detail = await loadDetail(meta.id);
+    if (!detail) {
+      main.innerHTML = `<div class="tr-empty"><i class="fas fa-triangle-exclamation"></i>
+        <h2>載入失敗</h2></div>`;
+      return;
+    }
+
+    const p = state.progress[detail.id];
+    if (p && !state.submitted) {
+      state.selected = p.selected;
+      state.submitted = true;
+      state.correct = p.correct;
+    }
+
+    const diffLabel = { easy: 'Easy', medium: 'Medium', hard: 'Hard' }[detail.difficulty] || detail.difficulty;
+
+    // ⭐ 用 fileMap / imageMapB64 解析圖片
+    const imgSrc = resolveImageSrc(detail.id);
+    let imageHtml = '';
+    if (imgSrc) {
+      imageHtml = `
+        <div class="tr-image" data-img-id="${esc(detail.id)}">
+          <img src="${esc(imgSrc)}" alt="題目圖" id="trProblemImg"
+               onload="this.parentElement.classList.add('loaded')"
+               onerror="window.__trImgError && window.__trImgError('${esc(detail.id)}', this)">
+        </div>`;
+    } else if (state.fileMap[detail.id] || state.imageMapB64[detail.id]) {
+      // 有記錄但解析不出來 → 顯示錯誤
+      imageHtml = `<div class="tr-image"><div class="placeholder">圖片載入失敗</div></div>`;
+    }
+    // 若都沒有圖片記錄 → 什麼都不顯示
+
+    const choicesHtml = Object.keys(detail.choice).sort().map(k => {
+      let cls = 'tr-choice';
+      if (state.submitted) {
+        if (k === detail.ans) cls += ' correct';
+        else if (k === state.selected) cls += ' wrong';
+      } else if (state.selected === k) {
+        cls += ' selected';
+      }
+      return `
+        <button class="${cls}" data-key="${esc(k)}" ${state.submitted ? 'disabled' : ''}>
+          <span class="key">${esc(k)}</span>
+          <span class="text">${esc(detail.choice[k])}</span>
+        </button>`;
+    }).join('');
+
+    let feedbackHtml = '';
+    if (state.submitted) {
+      const isCorrect = state.selected === detail.ans;
+      feedbackHtml = `
+        <div class="tr-feedback show ${isCorrect ? 'good' : 'bad'}">
+          <strong>${isCorrect ? '✓ 正確' : '✗ 錯誤'}</strong>
+          ${isCorrect ? '' : `　正確答案：<b>${esc(detail.ans)}</b>`}
+        </div>`;
+    }
+
+    main.innerHTML = `
+      <article class="tr-card">
+        <div class="tr-meta">
+          <span class="tr-tag id">${esc(detail.id)}</span>
+          ${detail.category ? `<span class="tr-tag cat">${esc(detail.category)}</span>` : ''}
+          <span class="tr-tag lvl">Lv.${detail.level}</span>
+          <span class="tr-tag diff">${esc(diffLabel)}</span>
+        </div>
+
+        <div class="tr-statement">${esc(detail.statement)}</div>
+
+        ${imageHtml}
+
+        <div class="tr-choices" id="trChoices">${choicesHtml}</div>
+
+        ${feedbackHtml}
+
+        <div class="tr-actions">
+          <button class="tr-btn ghost" id="trPrev" ${state.currentIdx <= 0 ? 'disabled' : ''}>
+            <i class="fas fa-arrow-left"></i> 上一題
+          </button>
+          <div style="flex:1;"></div>
+          <button class="tr-btn" id="trClear" ${state.submitted ? 'disabled' : ''}>
+            <i class="fas fa-eraser"></i> 清除
+          </button>
+          <button class="tr-btn primary" id="trSubmit" ${!state.selected || state.submitted ? 'disabled' : ''}>
+            <i class="fas fa-check"></i> 提交
+          </button>
+          <button class="tr-btn primary" id="trNext" ${state.currentIdx >= state.filtered.length - 1 ? 'disabled' : ''}>
+            下一題 <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
+      </article>
+    `;
+
+    bindMainEvents();
+    updateProgress();
+    renderNavList();
+  }
+
+  // ═══════════ 圖片錯誤處理（全域）═══════════
+  window.__trImgError = function(id, imgEl) {
+    // CDN 失敗 → 標記 + 試 base64 fallback
+    if (imgEl.src.startsWith(CDN_BASE)) {
+      state.imageLoadFailed.add('cdn:' + id);
+      const fallback = state.imageMapB64[id];
+      if (fallback) {
+        console.log(`[TR] CDN failed for ${id}, using base64 fallback`);
+        imgEl.src = fallback;
+        return;
+      }
+    }
+    // 都失敗 → 顯示佔位
+    const container = imgEl.parentElement;
+    if (container) {
+      container.innerHTML = `<div class="placeholder">
+        <i class="fas fa-image" style="margin-right:6px;opacity:.5;"></i>圖片載入失敗
+      </div>`;
+    }
+  };
+
+  // ═══════════ 主畫面事件 ═══════════
+  function bindMainEvents() {
+    $$('.tr-choice').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (state.submitted) return;
+        state.selected = btn.dataset.key;
+        $$('.tr-choice').forEach(x => x.classList.remove('selected'));
+        btn.classList.add('selected');
+        $('#trSubmit').disabled = false;
+      });
+    });
+
+    $('#trSubmit')?.addEventListener('click', submitAnswer);
+    $('#trClear')?.addEventListener('click', () => {
+      state.selected = null;
+      $$('.tr-choice').forEach(x => x.classList.remove('selected'));
+      $('#trSubmit').disabled = true;
+    });
+    $('#trPrev')?.addEventListener('click', () => goTo(state.currentIdx - 1));
+    $('#trNext')?.addEventListener('click', () => goTo(state.currentIdx + 1));
+
+    $('#trProblemImg')?.addEventListener('click', (e) => {
+      $('#trLightboxImg').src = e.target.src;
+      $('#trLightbox').classList.add('show');
+    });
+  }
+
+  function submitAnswer() {
+    if (!state.selected || state.submitted) return;
+    const detail = state.currentDetail;
+    const isCorrect = state.selected === detail.ans;
+    state.submitted = true;
+    state.correct = isCorrect;
+    state.progress[detail.id] = {
+      selected: state.selected,
+      correct: isCorrect,
+      ts: Date.now(),
+    };
+    saveProgress();
+    render();
+  }
+
+  function goTo(idx) {
+    if (idx < 0 || idx >= state.filtered.length) return;
+    state.currentIdx = idx;
+    state.selected = null;
+    state.submitted = false;
+    state.currentDetail = null;
+    render();
+  }
+
+  // ═══════════ Lightbox ═══════════
+  $('#trLightbox')?.addEventListener('click', () => {
+    $('#trLightbox').classList.remove('show');
+  });
+
+  // ═══════════ 鍵盤快捷鍵 ═══════════
+  document.addEventListener('keydown', (e) => {
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+    const detail = state.currentDetail;
+    if (!detail) return;
+
+    const key = e.key.toUpperCase();
+    if (/^[A-Z]$/.test(key) && detail.choice[key]) {
+      if (state.submitted) return;
+      state.selected = key;
+      $$('.tr-choice').forEach(x => x.classList.toggle('selected', x.dataset.key === key));
+      const btn = $('#trSubmit');
+      if (btn) btn.disabled = false;
+      e.preventDefault();
+      return;
+    }
+    if (e.key === 'Enter') {
+      if (!state.submitted && state.selected) submitAnswer();
+      else if (state.submitted) goTo(state.currentIdx + 1);
+      e.preventDefault();
+      return;
+    }
+    if (e.key === 'ArrowLeft') { goTo(state.currentIdx - 1); e.preventDefault(); }
+    else if (e.key === 'ArrowRight') { goTo(state.currentIdx + 1); e.preventDefault(); }
+    if (e.key === 'Escape' && !state.submitted) {
+      state.selected = null;
+      $$('.tr-choice').forEach(x => x.classList.remove('selected'));
+      const btn = $('#trSubmit');
+      if (btn) btn.disabled = true;
+    }
+  });
+
+  // ═══════════ 側邊欄切換 ═══════════
+  $('#trNavToggle')?.addEventListener('click', () => {
+    $('#trNav').classList.toggle('open');
+  });
+
+  // ═══════════ 過濾事件 ═══════════
+  let _filterTimer = null;
+  function onFilterChange() {
+    clearTimeout(_filterTimer);
+    _filterTimer = setTimeout(() => {
+      state.filters.q = $('#trSearch').value;
+      state.filters.cat = $('#trFilterCat').value;
+      state.filters.diff = $('#trFilterDiff').value;
+      applyFilters();
+      state.currentIdx = 0;
+      state.selected = null;
+      state.submitted = false;
+      state.currentDetail = null;
+      render();
+    }, 220);
+  }
+  ['#trSearch', '#trFilterCat', '#trFilterDiff'].forEach(sel => {
+    const el = $(sel);
+    if (el) {
+      el.addEventListener('input', onFilterChange);
+      el.addEventListener('change', onFilterChange);
+    }
+  });
+
+  // ═══════════ 啟動 ═══════════
+  (async function init() {
+    const ok = await checkAccess();
+    if (!ok) {
+      $('#trDenied').style.display = 'block';
+      return;
+    }
+
+    loadProgress();
+
+    // ⭐ 平行：載入 filemap + 題目清單
+    //   （filemap 很小，通常比題目清單先回來）
+    await Promise.all([
+      loadFileMap(),
+      loadList(),
+    ]);
+
+    // ⭐ 可選：背景載入 images.json（不阻塞首屏）
+    if (LOAD_B64_FALLBACK) {
+      // 不 await，讓它背景跑
+      loadImageMapB64();
+    }
+
+    if (!state.items.length) return;
+
+    buildCategoryOptions();
+    applyFilters();
+
+    $('#trApp').style.display = 'grid';
+    render();
+  })();
+})();
+</script>
+</body>
+</html>
