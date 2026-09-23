@@ -1,148 +1,602 @@
 <!DOCTYPE html>
-<html lang="zh-HK">
+<html lang="zh-HK" data-theme="">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-<title>TR Training · 專注模式</title>
+<title>TR Training</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 <style>
-  /* ═══════════════ 樣式完全不變，這裡省略；請沿用你原本的 <style> ═══════════════ */
-  :root{--paper:#faf6ed;--paper-2:#f3ecdc;--ink:#2a211a;--ink-2:#6b5e4d;--ink-3:#a89980;--line:#e0d5be;--card:#fffdf8;--accent:#5a7247;--accent-2:#c17c5c;--accent-3:#b08a3e;--good:#4a8c5a;--bad:#b04a3a;--shadow-sm:0 1px 2px rgba(60,40,20,.06);--shadow-md:0 4px 20px rgba(60,40,20,.08);--shadow-lg:0 20px 60px rgba(60,40,20,.12);--radius-sm:6px;--radius-md:12px;--radius-lg:20px}
-  *{box-sizing:border-box;margin:0;padding:0}
-  html{font-size:16px}
-  body{font-family:'Noto Serif TC','Georgia','Songti SC',serif;background:radial-gradient(circle at 20% 10%,rgba(255,250,235,.6),transparent 40%),radial-gradient(circle at 90% 90%,rgba(193,124,92,.06),transparent 45%),var(--paper);color:var(--ink);line-height:1.7;min-height:100vh;-webkit-font-smoothing:antialiased}
-  body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background-image:radial-gradient(rgba(90,60,30,.025) 1px,transparent 1px),radial-gradient(rgba(90,60,30,.015) 1px,transparent 1px);background-size:24px 24px,40px 40px;background-position:0 0,12px 12px}
-  button{font-family:inherit;cursor:pointer}
-  img{max-width:100%;display:block}
-  .tr-app{position:relative;z-index:1;min-height:100vh;display:grid;grid-template-columns:260px 1fr;grid-template-rows:62px 1fr;grid-template-areas:"head head" "nav main"}
-  .tr-header{grid-area:head;display:flex;align-items:center;gap:20px;padding:0 26px;border-bottom:1px solid var(--line);background:rgba(250,246,237,.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);position:sticky;top:0;z-index:20}
-  .tr-logo{font-family:'Georgia',serif;font-weight:700;font-size:22px;letter-spacing:3px;color:var(--accent)}
-  .tr-logo::after{content:'·';color:var(--accent-2);margin-left:2px}
-  .tr-header-sub{font-size:12px;color:var(--ink-3);letter-spacing:2px;text-transform:uppercase;font-family:'Segoe UI',sans-serif}
-  .tr-spacer{flex:1}
-  .tr-progress-mini{display:flex;align-items:center;gap:10px;font-family:'Consolas',monospace;font-size:13px;color:var(--ink-2);padding:6px 14px;background:var(--paper-2);border-radius:20px;border:1px solid var(--line)}
-  .tr-progress-mini .bar{width:100px;height:4px;background:var(--line);border-radius:2px;overflow:hidden}
-  .tr-progress-mini .bar>i{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .4s ease}
-  .tr-btn-icon{width:38px;height:38px;border:1px solid var(--line);background:var(--card);border-radius:var(--radius-sm);color:var(--ink-2);display:inline-flex;align-items:center;justify-content:center;transition:all .15s;font-size:14px}
-  .tr-btn-icon:hover{border-color:var(--accent);color:var(--accent);background:#fdfbf5}
-  .tr-nav{grid-area:nav;border-right:1px solid var(--line);padding:22px 8px 60px 22px;overflow-y:auto;background:rgba(243,236,220,.4)}
-  .tr-nav::-webkit-scrollbar{width:6px}
-  .tr-nav::-webkit-scrollbar-thumb{background:rgba(90,60,30,.15);border-radius:3px}
-  .tr-nav-title{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);margin:4px 8px 14px;font-family:'Segoe UI',sans-serif;font-weight:600}
-  .tr-nav-filter{margin-bottom:16px}
-  .tr-nav-filter select,.tr-nav-filter input{width:100%;padding:8px 12px;border:1px solid var(--line);background:var(--card);border-radius:var(--radius-sm);font-family:'Segoe UI',sans-serif;font-size:13px;color:var(--ink);margin-bottom:6px}
-  .tr-nav-filter select:focus,.tr-nav-filter input:focus{outline:none;border-color:var(--accent)}
-  .tr-nav-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--radius-sm);font-size:13px;color:var(--ink-2);cursor:pointer;font-family:'Consolas',monospace;transition:all .12s;border:1px solid transparent;margin-bottom:2px}
-  .tr-nav-item:hover{background:rgba(255,253,248,.9);color:var(--ink)}
-  .tr-nav-item.active{background:var(--card);border-color:var(--accent);color:var(--accent);font-weight:600}
-  .tr-nav-item .dot{width:8px;height:8px;border-radius:50%;background:var(--line);flex-shrink:0}
-  .tr-nav-item.done .dot{background:var(--good)}
-  .tr-nav-item.wrong .dot{background:var(--bad)}
-  .tr-nav-item .idx{color:var(--ink-3);font-size:11px;margin-left:auto}
-  .tr-main{grid-area:main;padding:40px 40px 80px;overflow-y:auto}
-  .tr-card{max-width:780px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-lg);padding:40px 44px;box-shadow:var(--shadow-md);position:relative}
-  .tr-card::before,.tr-card::after{content:'';position:absolute;width:24px;height:24px;border:2px solid var(--accent-2);opacity:.35}
-  .tr-card::before{top:12px;left:12px;border-right:none;border-bottom:none;border-top-left-radius:6px}
-  .tr-card::after{bottom:12px;right:12px;border-left:none;border-top:none;border-bottom-right-radius:6px}
-  .tr-meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:26px;padding-bottom:20px;border-bottom:1px dashed var(--line)}
-  .tr-tag{font-family:'Segoe UI',sans-serif;font-size:11.5px;font-weight:600;letter-spacing:.5px;padding:3px 10px;border-radius:12px;border:1px solid currentColor;opacity:.85}
-  .tr-tag.cat{color:var(--accent-2)}
-  .tr-tag.lvl{color:var(--accent-3)}
-  .tr-tag.diff{color:var(--accent)}
-  .tr-tag.id{color:var(--ink-3);font-family:'Consolas',monospace}
-  .tr-statement{font-size:19px;line-height:1.9;color:var(--ink);margin-bottom:26px;white-space:pre-wrap}
-  .tr-image{margin:0 0 26px;text-align:center;background:var(--paper);border-radius:var(--radius-md);padding:16px;border:1px solid var(--line);min-height:60px}
-  .tr-image img{max-height:320px;margin:0 auto;border-radius:var(--radius-sm);cursor:zoom-in}
-  .tr-image .placeholder{color:var(--ink-3);font-size:13px;font-family:'Segoe UI',sans-serif;padding:24px 0}
-  .tr-choices{display:flex;flex-direction:column;gap:10px;margin-bottom:22px}
-  .tr-choice{display:flex;align-items:flex-start;gap:14px;padding:14px 18px;background:#fffdf8;border:1.5px solid var(--line);border-radius:var(--radius-md);text-align:left;font-size:15.5px;line-height:1.6;color:var(--ink);transition:all .15s;position:relative}
-  .tr-choice:hover:not(:disabled){border-color:var(--accent);background:#fbfaf3;transform:translateY(-1px);box-shadow:var(--shadow-sm)}
-  .tr-choice .key{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--paper-2);color:var(--ink-2);font-family:'Georgia',serif;font-weight:700;font-size:13px;flex-shrink:0;transition:all .15s}
-  .tr-choice .text{flex:1}
-  .tr-choice.selected{border-color:var(--accent);background:#f2f7ec}
-  .tr-choice.selected .key{background:var(--accent);color:#fff}
-  .tr-choice.correct{border-color:var(--good);background:#eef7f0}
-  .tr-choice.correct .key{background:var(--good);color:#fff}
-  .tr-choice.wrong{border-color:var(--bad);background:#faeae6}
-  .tr-choice.wrong .key{background:var(--bad);color:#fff}
-  .tr-choice:disabled{cursor:default}
-  .tr-feedback{margin-top:20px;padding:16px 20px;border-radius:var(--radius-md);font-family:'Segoe UI',sans-serif;font-size:14px;display:none;animation:trIn .25s ease}
-  .tr-feedback.show{display:block}
-  .tr-feedback.good{background:#eef7f0;border-left:4px solid var(--good);color:#2d5a3a}
-  .tr-feedback.bad{background:#faeae6;border-left:4px solid var(--bad);color:#7a2e22}
-  @keyframes trIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
-  .tr-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
-  .tr-btn{padding:12px 24px;border:1.5px solid var(--line);background:var(--card);border-radius:var(--radius-md);color:var(--ink);font-size:14px;font-weight:600;transition:all .15s;display:inline-flex;align-items:center;gap:8px}
-  .tr-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent);transform:translateY(-1px)}
-  .tr-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
-  .tr-btn.primary:hover:not(:disabled){background:#4a6040;border-color:#4a6040;color:#fff}
-  .tr-btn.ghost{background:transparent;border-color:transparent;color:var(--ink-3)}
-  .tr-btn.ghost:hover:not(:disabled){background:var(--paper-2);color:var(--ink-2);transform:none}
-  .tr-btn:disabled{opacity:.4;cursor:not-allowed}
-  .tr-empty,.tr-loading{max-width:500px;margin:100px auto;text-align:center;color:var(--ink-3);font-size:15px}
-  .tr-empty i,.tr-loading i{font-size:40px;color:var(--accent-3);opacity:.6;display:block;margin-bottom:18px}
-  .tr-empty h2{font-family:'Georgia',serif;font-size:26px;color:var(--ink);margin-bottom:10px;font-weight:700}
-  .tr-spinner{display:inline-block;width:22px;height:22px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .tr-lightbox{position:fixed;inset:0;background:rgba(30,20,10,.85);z-index:100;display:none;align-items:center;justify-content:center;padding:40px;cursor:zoom-out}
-  .tr-lightbox.show{display:flex;animation:trIn .2s ease}
-  .tr-lightbox img{max-width:95vw;max-height:90vh;border-radius:var(--radius-md);box-shadow:var(--shadow-lg)}
-  /* 圖片載入骨架 */
-  .img-skeleton{display:inline-block;width:200px;height:120px;background:linear-gradient(90deg,#efe7d5 25%,#f7f1e2 50%,#efe7d5 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:8px}
-  @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
-  @media (max-width:900px){
-    .tr-app{grid-template-columns:1fr;grid-template-areas:"head" "main"}
-    .tr-nav{position:fixed;top:62px;left:0;bottom:0;width:280px;background:var(--paper);z-index:30;transform:translateX(-100%);transition:transform .28s ease;box-shadow:var(--shadow-lg)}
-    .tr-nav.open{transform:translateX(0)}
-    .tr-main{padding:24px 16px 60px}
-    .tr-card{padding:26px 22px;border-radius:var(--radius-md)}
-    .tr-statement{font-size:17px}
-    .tr-logo{font-size:18px;letter-spacing:2px}
-    .tr-header-sub{display:none}
-    .tr-progress-mini{font-size:11px;padding:4px 10px}
-    .tr-progress-mini .bar{width:60px}
+  /* ═══════════════ 與 styles.css 一致的變數 ═══════════════ */
+  :root {
+    --accent: #4a90d9;
+    --accent-hover: #3a7bc8;
+    --content-bg: #f0f2f5;
+    --card-bg: #ffffff;
+    --text-primary: #2c3e50;
+    --text-secondary: #6b7d8e;
+    --border-color: #e1e5eb;
+    --hover-bg: #f7f9fb;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.08);
+    --shadow-md: 0 4px 12px rgba(0,0,0,.1);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --good: #2e7d32;
+    --good-bg: #e8f5e9;
+    --bad: #c62828;
+    --bad-bg: #ffebee;
   }
+  :root[data-theme="dark"] {
+    --accent: #58a6ff;
+    --accent-hover: #1f6feb;
+    --content-bg: #0d1117;
+    --card-bg: #161b22;
+    --text-primary: #c9d1d9;
+    --text-secondary: #8b949e;
+    --border-color: #30363d;
+    --hover-bg: #21262d;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.4);
+    --shadow-md: 0 4px 12px rgba(0,0,0,.5);
+    --good: #56d364;
+    --good-bg: #1a3a2a;
+    --bad: #f85149;
+    --bad-bg: #3a1a1a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 14px; }
+  body {
+    font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--content-bg);
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    transition: background .2s ease, color .2s ease;
+  }
+  button { font-family: inherit; cursor: pointer; }
+  img { max-width: 100%; display: block; }
+
+  /* ═══════════════ 主體佈局 ═══════════════ */
+  .tr-wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px 16px 60px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* ── 頂部標題列（非原站 topbar，只是簡單的頁面標題） ── */
+  .tr-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .tr-head h1 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .tr-head h1 i {
+    color: var(--accent);
+    font-size: 1.15rem;
+  }
+  .tr-head-spacer { flex: 1; }
+
+  .tr-theme-btn {
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .15s;
+  }
+  .tr-theme-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* ═══════════════ 過濾器面板 ═══════════════ */
+  .tr-filters {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    box-shadow: var(--shadow-sm);
+  }
+  @media (max-width: 640px) {
+    .tr-filters { grid-template-columns: 1fr 1fr; }
+    .tr-filters .tr-search-wrap { grid-column: 1 / -1; }
+  }
+
+  .tr-search-wrap {
+    position: relative;
+  }
+  .tr-search-wrap i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+    font-size: .85rem;
+    pointer-events: none;
+  }
+
+  .tr-input,
+  .tr-select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    font-size: .9rem;
+    font-family: inherit;
+    transition: border-color .15s;
+  }
+  .tr-search-wrap .tr-input { padding-left: 34px; }
+  .tr-input:focus,
+  .tr-select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(74,144,217,.15);
+  }
+  :root[data-theme="dark"] .tr-input:focus,
+  :root[data-theme="dark"] .tr-select:focus {
+    box-shadow: 0 0 0 3px rgba(88,166,255,.2);
+  }
+
+  /* ═══════════════ 進度條 ═══════════════ */
+  .tr-progress-bar {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: .85rem;
+    color: var(--text-secondary);
+    box-shadow: var(--shadow-sm);
+  }
+  .tr-progress-bar .count {
+    font-family: 'Consolas', monospace;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .tr-progress-bar .track {
+    flex: 1;
+    height: 6px;
+    background: var(--border-color);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .tr-progress-bar .track > i {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), #6ab0f0);
+    border-radius: 3px;
+    transition: width .4s ease;
+  }
+  .tr-progress-bar .accuracy {
+    font-family: 'Consolas', monospace;
+    font-weight: 600;
+    color: var(--accent);
+    min-width: 48px;
+    text-align: right;
+  }
+
+  /* ═══════════════ 題目卡片 ═══════════════ */
+  .tr-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    padding: 28px 32px;
+  }
+  @media (max-width: 640px) {
+    .tr-card { padding: 20px 18px; }
+  }
+
+  .tr-meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .tr-tag {
+    font-size: .72rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 12px;
+    letter-spacing: .3px;
+    text-transform: uppercase;
+  }
+  .tr-tag.id {
+    background: var(--hover-bg);
+    color: var(--text-secondary);
+    font-family: 'Consolas', monospace;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .tr-tag.cat {
+    background: rgba(74,144,217,.12);
+    color: var(--accent);
+  }
+  .tr-tag.lvl {
+    background: rgba(255,193,7,.16);
+    color: #b28500;
+  }
+  :root[data-theme="dark"] .tr-tag.lvl { color: #ffd54f; }
+  .tr-tag.diff.easy {
+    background: rgba(76,175,80,.16);
+    color: #2e7d32;
+  }
+  .tr-tag.diff.medium {
+    background: rgba(74,144,217,.16);
+    color: #2a6cb0;
+  }
+  .tr-tag.diff.hard {
+    background: rgba(198,40,40,.16);
+    color: #c0392b;
+  }
+  :root[data-theme="dark"] .tr-tag.diff.easy { color: #8fdf8f; }
+  :root[data-theme="dark"] .tr-tag.diff.medium { color: #8ec3ff; }
+  :root[data-theme="dark"] .tr-tag.diff.hard { color: #ff9b8f; }
+
+  .tr-statement {
+    font-size: 1.05rem;
+    line-height: 1.75;
+    color: var(--text-primary);
+    margin-bottom: 22px;
+    white-space: pre-wrap;
+  }
+
+  /* ── 圖片 ── */
+  .tr-image {
+    margin-bottom: 22px;
+    text-align: center;
+    background: var(--hover-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+  }
+  .tr-image img {
+    max-height: 340px;
+    margin: 0 auto;
+    border-radius: var(--radius-sm);
+    cursor: zoom-in;
+    transition: opacity .15s;
+  }
+  .tr-image img:hover { opacity: .92; }
+  .tr-image .placeholder {
+    padding: 24px 12px;
+    color: var(--text-secondary);
+    font-size: .85rem;
+  }
+
+  /* ── 選項 ── */
+  .tr-choices {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .tr-choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 13px 16px;
+    background: var(--card-bg);
+    border: 1.5px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    text-align: left;
+    font-size: .95rem;
+    line-height: 1.55;
+    color: var(--text-primary);
+    transition: all .15s;
+    font-family: inherit;
+  }
+  .tr-choice:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: var(--hover-bg);
+  }
+  .tr-choice .key {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--hover-bg);
+    color: var(--text-secondary);
+    font-weight: 700;
+    font-size: .82rem;
+    flex-shrink: 0;
+    transition: all .15s;
+  }
+  .tr-choice .text { flex: 1; }
+
+  .tr-choice.selected {
+    border-color: var(--accent);
+    background: rgba(74,144,217,.06);
+  }
+  .tr-choice.selected .key {
+    background: var(--accent);
+    color: #fff;
+  }
+  .tr-choice.correct {
+    border-color: var(--good);
+    background: var(--good-bg);
+  }
+  .tr-choice.correct .key {
+    background: var(--good);
+    color: #fff;
+  }
+  .tr-choice.wrong {
+    border-color: var(--bad);
+    background: var(--bad-bg);
+  }
+  .tr-choice.wrong .key {
+    background: var(--bad);
+    color: #fff;
+  }
+  .tr-choice:disabled { cursor: default; }
+
+  /* ── 回饋 ── */
+  .tr-feedback {
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    font-size: .9rem;
+    font-weight: 500;
+    margin-bottom: 16px;
+    animation: trIn .2s ease;
+  }
+  .tr-feedback.good {
+    background: var(--good-bg);
+    color: var(--good);
+    border-left: 3px solid var(--good);
+  }
+  .tr-feedback.bad {
+    background: var(--bad-bg);
+    color: var(--bad);
+    border-left: 3px solid var(--bad);
+  }
+  @keyframes trIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── 按鈕 ── */
+  .tr-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color);
+  }
+  .tr-actions .spacer { flex: 1; }
+
+  .tr-btn {
+    padding: 9px 18px;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    font-size: .88rem;
+    font-weight: 600;
+    transition: all .15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: inherit;
+  }
+  .tr-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--hover-bg);
+  }
+  .tr-btn.primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .tr-btn.primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+    color: #fff;
+  }
+  .tr-btn.ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--text-secondary);
+  }
+  .tr-btn.ghost:hover:not(:disabled) {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+  }
+  .tr-btn:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+  }
+
+  /* ── 分頁 ── */
+  .tr-pagination {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: .85rem;
+    color: var(--text-secondary);
+    box-shadow: var(--shadow-sm);
+  }
+  .tr-pagination .info {
+    font-family: 'Consolas', monospace;
+    font-weight: 600;
+    color: var(--text-primary);
+    min-width: 120px;
+    text-align: center;
+  }
+  .tr-pagination .page-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .15s;
+  }
+  .tr-pagination .page-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .tr-pagination .page-btn:disabled {
+    opacity: .35;
+    cursor: not-allowed;
+  }
+
+  /* ═══════════════ 空 / Loading ═══════════════ */
+  .tr-empty,
+  .tr-loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+    font-size: .95rem;
+  }
+  .tr-empty i,
+  .tr-loading i {
+    font-size: 2.2rem;
+    color: var(--accent);
+    opacity: .5;
+    display: block;
+    margin-bottom: 14px;
+  }
+  .tr-empty h2 {
+    font-size: 1.2rem;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
+
+  /* ── Lightbox ── */
+  .tr-lightbox {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.85);
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    cursor: zoom-out;
+  }
+  .tr-lightbox.show {
+    display: flex;
+    animation: trIn .2s ease;
+  }
+  .tr-lightbox img {
+    max-width: 95vw;
+    max-height: 90vh;
+    border-radius: var(--radius-md);
+    box-shadow: 0 20px 60px rgba(0,0,0,.6);
+  }
+
+  /* ── Spinner ── */
+  .tr-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-color);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
 
-<div class="tr-app" id="trApp" style="display:none;">
-  <header class="tr-header">
-    <div class="tr-logo">TR</div>
-    <div class="tr-header-sub">Training Room</div>
-    <div class="tr-spacer"></div>
-    <div class="tr-progress-mini">
-      <span id="trCounter">0 / 0</span>
-      <div class="bar"><i id="trProgressFill"></i></div>
-      <span id="trAccuracy" title="正確率">—</span>
-    </div>
-    <button class="tr-btn-icon" id="trNavToggle" title="Toggle list"><i class="fas fa-list"></i></button>
+<div class="tr-wrap" id="trWrap" style="display:none;">
+
+  <!-- ── 標題列 ── -->
+  <header class="tr-head">
+    <h1><i class="fas fa-graduation-cap"></i> TR Training</h1>
+    <div class="tr-head-spacer"></div>
+    <button class="tr-theme-btn" id="trThemeBtn" title="Toggle theme">
+      <i class="fas fa-moon" id="trThemeIcon"></i>
+    </button>
   </header>
 
-  <aside class="tr-nav" id="trNav">
-    <div class="tr-nav-title">題目</div>
-    <div class="tr-nav-filter">
-      <input type="text" id="trSearch" placeholder="搜尋 id / 內容...">
-      <select id="trFilterCat"><option value="">全部分類</option></select>
-      <select id="trFilterDiff">
-        <option value="">全部難度</option>
-        <option value="easy">Easy</option>
-        <option value="medium">Medium</option>
-        <option value="hard">Hard</option>
-      </select>
+  <!-- ── 過濾器 ── -->
+  <div class="tr-filters">
+    <div class="tr-search-wrap">
+      <i class="fas fa-search"></i>
+      <input class="tr-input" type="text" id="trSearch" placeholder="搜尋 ID 或內容...">
     </div>
-    <div id="trNavList"></div>
-  </aside>
+    <select class="tr-select" id="trFilterLevel">
+      <option value="">All Levels</option>
+    </select>
+    <select class="tr-select" id="trFilterDiff">
+      <option value="">All Difficulties</option>
+      <option value="easy">Easy</option>
+      <option value="medium">Medium</option>
+      <option value="hard">Hard</option>
+    </select>
+    <select class="tr-select" id="trFilterCat" style="grid-column: 1 / -1;">
+      <option value="">All Categories</option>
+    </select>
+  </div>
 
-  <main class="tr-main" id="trMain">
+  <!-- ── 進度條 ── -->
+  <div class="tr-progress-bar">
+    <span class="count" id="trCounter">0 / 0</span>
+    <div class="track"><i id="trProgressFill"></i></div>
+    <span class="accuracy" id="trAccuracy">—</span>
+  </div>
+
+  <!-- ── 題目 ── -->
+  <main id="trMain">
     <div class="tr-loading">
       <i class="fas fa-spinner fa-spin"></i>
       <div>載入題庫中…</div>
     </div>
   </main>
+
+  <!-- ── 分頁 ── -->
+  <div class="tr-pagination" id="trPagination" style="display:none;">
+    <button class="page-btn" id="trPagePrev" title="Previous"><i class="fas fa-chevron-left"></i></button>
+    <span class="info" id="trPageInfo">— / —</span>
+    <button class="page-btn" id="trPageNext" title="Next"><i class="fas fa-chevron-right"></i></button>
+  </div>
+
 </div>
 
+<!-- 存取被拒 -->
 <div id="trDenied" class="tr-empty" style="display:none;">
   <i class="fas fa-lock"></i>
   <h2>404</h2>
@@ -164,35 +618,37 @@
   }
 
   // ═══════════════════════════════════════════════════════════
-  // 🔧 設定：圖片來源
+  // 🔧 設定
   // ═══════════════════════════════════════════════════════════
   const CDN_BASE = 'https://cdn.jsdelivr.net/gh/wyk-math-team/resources@main/tr-images/';
-  const FILEMAP_URL = CDN_BASE + 'filemap.json';           // 小檔，一定載
-  const IMAGES_JSON_URL = CDN_BASE + 'images.json';        // 大檔（11MB），可選 fallback
+  const FILEMAP_URL = CDN_BASE + 'filemap.json';
 
-  // ⭐ 是否載入 images.json（base64 fallback）
-  //   false → 只從 CDN 按需抓圖（推薦，首屏快）
-  //   true  → 一次下載所有圖片 base64（首屏慢，但離線可用）
-  const LOAD_B64_FALLBACK = false;
+  // ⭐ 一次拉多少題（分頁大小）
+  const PAGE_SIZE = 200;
 
   // ═══════════ 狀態 ═══════════
   const STORAGE_KEY = 'tr_progress_v1';
   const FILEMAP_CACHE_KEY = 'tr_filemap_v1';
-  const FILEMAP_CACHE_TTL = 6 * 60 * 60 * 1000;  // 6 小時
+  const THEME_KEY = 'tr_theme';
+  const FILEMAP_CACHE_TTL = 6 * 60 * 60 * 1000;
 
   const state = {
-    items: [],
-    filtered: [],
-    currentIdx: 0,
+    items: [],              // 全部題目（已載入的）
+    filtered: [],           // 過濾後
+    pageItems: [],          // 當前頁顯示的題目
+    pageIdx: 0,             // 當前頁在 pageItems 內的索引
+    currentPage: 1,         // 目前是第幾頁（1-based）
+    totalPages: 1,
+    totalCount: 0,          // 題庫總數（不含過濾）
     currentDetail: null,
     selected: null,
     submitted: false,
     correct: false,
     progress: {},
-    filters: { q: '', cat: '', diff: '' },
-    fileMap: {},        // { id: "AQ-12292.png" }
-    imageMapB64: {},    // { id: "data:..." }  可選
-    imageLoadFailed: new Set(),  // 記錄載入失敗的 id，避免重試
+    filters: { q: '', level: '', diff: '', cat: '' },
+    fileMap: {},
+    imageLoadFailed: new Set(),
+    loading: false,
   };
 
   const $  = (s, r) => (r || document).querySelector(s);
@@ -200,6 +656,31 @@
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, m => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   }[m]));
+
+  // ═══════════ 主題 ═══════════
+  function applyTheme(theme) {
+    if (theme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      $('#trThemeIcon').className = 'fas fa-sun';
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+      $('#trThemeIcon').className = 'fas fa-moon';
+    }
+  }
+  function initTheme() {
+    let t = localStorage.getItem(THEME_KEY);
+    if (!t) {
+      // 跟隨系統或全域設定
+      t = localStorage.getItem('theme') || 'light';
+    }
+    applyTheme(t);
+    $('#trThemeBtn').addEventListener('click', () => {
+      const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+      const next = cur === 'dark' ? 'light' : 'dark';
+      localStorage.setItem(THEME_KEY, next);
+      applyTheme(next);
+    });
+  }
 
   // ═══════════ localStorage 進度 ═══════════
   function loadProgress() {
@@ -212,22 +693,21 @@
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.progress)); } catch {}
   }
 
-  // ═══════════ 圖片映射：載入 filemap.json ═══════════
+  // ═══════════ 圖片映射 ═══════════
   async function loadFileMap() {
-    // 1) 先看 localStorage 快取
+    // 1) 快取
     try {
       const raw = localStorage.getItem(FILEMAP_CACHE_KEY);
       if (raw) {
         const cached = JSON.parse(raw);
         if (cached && cached.ts && Date.now() - cached.ts < FILEMAP_CACHE_TTL && cached.map) {
           state.fileMap = cached.map;
-          console.log(`[TR] filemap loaded from cache: ${Object.keys(state.fileMap).length} entries`);
+          console.log(`[TR] filemap from cache: ${Object.keys(state.fileMap).length}`);
           return;
         }
       }
     } catch {}
-
-    // 2) 從 CDN 下載
+    // 2) CDN
     try {
       const res = await fetch(FILEMAP_URL, { cache: 'force-cache' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -239,44 +719,31 @@
           map: state.fileMap,
         }));
       } catch {}
-      console.log(`[TR] filemap loaded from CDN: ${Object.keys(state.fileMap).length} entries`);
+      console.log(`[TR] filemap from CDN: ${Object.keys(state.fileMap).length}`);
     } catch (e) {
-      console.warn('[TR] filemap load failed:', e.message);
+      console.warn('[TR] filemap failed:', e.message);
       state.fileMap = {};
     }
   }
 
-  // ═══════════ 可選：載入 images.json（base64 fallback）═══════════
-  async function loadImageMapB64() {
-    if (!LOAD_B64_FALLBACK) return;
-    try {
-      console.log('[TR] loading images.json (base64 fallback, this may take a while)...');
-      const res = await fetch(IMAGES_JSON_URL, { cache: 'force-cache' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      state.imageMapB64 = await res.json() || {};
-      console.log(`[TR] imageMapB64 loaded: ${Object.keys(state.imageMapB64).length} entries`);
-    } catch (e) {
-      console.warn('[TR] images.json load failed:', e.message);
-      state.imageMapB64 = {};
-    }
-  }
-
-  // ═══════════ 取得圖片 URL（CDN 優先，base64 fallback）═══════════
   function resolveImageSrc(id) {
-    // 1) CDN（filemap 有檔名）
     const filename = state.fileMap[id];
-    if (filename && !state.imageLoadFailed.has('cdn:' + id)) {
-      return CDN_BASE + encodeURIComponent(filename);
-    }
-    // 2) base64 fallback（若有載入）
-    if (state.imageMapB64[id]) {
-      return state.imageMapB64[id];
-    }
-    // 3) 都沒有
-    return '';
+    if (!filename || state.imageLoadFailed.has(id)) return '';
+    return CDN_BASE + encodeURIComponent(filename);
   }
 
-  // ═══════════ 認證：whoami ═══════════
+  // ═══════════ 圖片錯誤處理 ═══════════
+  window.__trImgError = function(id, imgEl) {
+    state.imageLoadFailed.add(id);
+    const container = imgEl.parentElement;
+    if (container) {
+      container.innerHTML = `<div class="placeholder">
+        <i class="fas fa-image" style="margin-right:6px;opacity:.5;"></i>圖片載入失敗
+      </div>`;
+    }
+  };
+
+  // ═══════════ 認證 ═══════════
   async function checkAccess() {
     try {
       const r = await apiCall('/api/tr-problems?action=whoami');
@@ -286,85 +753,105 @@
     }
   }
 
-  // ═══════════ 載入題目清單 ═══════════
-  async function loadList() {
-    const main = $('#trMain');
+  // ═══════════ 載入題目（分頁） ═══════════
+  async function loadPage(pageNum) {
+    if (state.loading) return false;
+    state.loading = true;
+
     try {
-      const r = await apiCall('/api/tr-problems?action=list-all');
+      const r = await apiCall(
+        `/api/tr-problems?action=list&page=${pageNum}&limit=${PAGE_SIZE}`
+      );
       if (!r.success) throw new Error(r.message || 'load failed');
+
       state.items = r.items || [];
+      state.currentPage = r.page;
+      state.totalPages = r.totalPages;
+      state.totalCount = r.total;
+
+      // 過濾
+      applyFilters();
+
+      // 頁內索引歸零
+      state.pageIdx = 0;
+      state.currentDetail = null;
+      state.selected = null;
+      state.submitted = false;
+
+      return true;
     } catch (e) {
-      console.error(e);
-      main.innerHTML = `<div class="tr-empty"><i class="fas fa-triangle-exclamation"></i>
-        <h2>載入失敗</h2><div>${esc(e.message)}</div></div>`;
+      console.error('[TR] loadPage failed:', e);
+      $('#trMain').innerHTML = `<div class="tr-empty">
+        <i class="fas fa-triangle-exclamation"></i>
+        <h2>載入失敗</h2>
+        <div>${esc(e.message)}</div>
+      </div>`;
       return false;
+    } finally {
+      state.loading = false;
     }
-    return true;
   }
-  // ═══════════ 分類選項 ═══════════
-  function buildCategoryOptions() {
+
+  // ═══════════ 建立過濾選項 ═══════════
+  function buildFilterOptions() {
+    // Level：1-9
+    const levelSel = $('#trFilterLevel');
+    let levelHtml = '<option value="">All Levels</option>';
+    for (let i = 1; i <= 9; i++) {
+      levelHtml += `<option value="${i}">Level ${i}</option>`;
+    }
+    levelSel.innerHTML = levelHtml;
+
+    // Category：動態
     const cats = [...new Set(state.items.map(i => i.category).filter(Boolean))].sort();
-    const sel = $('#trFilterCat');
-    sel.innerHTML = '<option value="">全部分類</option>' +
+    const catSel = $('#trFilterCat');
+    catSel.innerHTML = '<option value="">All Categories</option>' +
       cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
   }
 
   // ═══════════ 過濾 ═══════════
   function applyFilters() {
-    const { q, cat, diff } = state.filters;
+    const { q, level, diff, cat } = state.filters;
     const ql = q.trim().toLowerCase();
+
     state.filtered = state.items.filter(it => {
-      if (cat && it.category !== cat) return false;
+      if (level && String(it.level) !== String(level)) return false;
       if (diff && it.difficulty !== diff) return false;
+      if (cat && it.category !== cat) return false;
       if (ql) {
         const hay = (it.id + ' ' + it.statement).toLowerCase();
         if (!hay.includes(ql)) return false;
       }
       return true;
     });
-    if (state.currentIdx >= state.filtered.length) {
-      state.currentIdx = Math.max(0, state.filtered.length - 1);
+
+    if (state.pageIdx >= state.filtered.length) {
+      state.pageIdx = Math.max(0, state.filtered.length - 1);
     }
   }
 
-  // ═══════════ 側邊清單 ═══════════
-  function renderNavList() {
-    const el = $('#trNavList');
-    if (!state.filtered.length) {
-      el.innerHTML = `<div style="padding:16px;color:var(--ink-3);font-size:13px;text-align:center;">沒有符合的題目</div>`;
-      return;
-    }
-    el.innerHTML = state.filtered.map((it, idx) => {
-      const p = state.progress[it.id];
-      const cls = idx === state.currentIdx ? 'active' : '';
-      const pcls = p ? (p.correct ? 'done' : 'wrong') : '';
-      return `
-        <div class="tr-nav-item ${cls} ${pcls}" data-idx="${idx}">
-          <span class="dot"></span>
-          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(it.id)}</span>
-          <span class="idx">${idx + 1}</span>
-        </div>`;
-    }).join('');
-    $$('.tr-nav-item', el).forEach(node => {
-      node.addEventListener('click', () => {
-        state.currentIdx = parseInt(node.dataset.idx, 10);
-        state.selected = null;
-        state.submitted = false;
-        state.currentDetail = null;
-        $('#trNav').classList.remove('open');
-        render();
-      });
-    });
-  }
-
-  // ═══════════ 進度條 ═══════════
+  // ═══════════ 更新進度 ═══════════
   function updateProgress() {
     const total = state.filtered.length;
     const done = state.filtered.filter(it => state.progress[it.id]).length;
     const correct = state.filtered.filter(it => state.progress[it.id]?.correct).length;
-    $('#trCounter').textContent = `${state.currentIdx + 1} / ${total}`;
+
+    $('#trCounter').textContent = `${state.pageIdx + 1} / ${total}`;
     $('#trProgressFill').style.width = (total ? (done / total) * 100 : 0) + '%';
     $('#trAccuracy').textContent = done ? `${Math.round((correct / done) * 100)}%` : '—';
+  }
+
+  // ═══════════ 更新分頁 ═══════════
+  function updatePagination() {
+    const pag = $('#trPagination');
+    if (state.totalPages <= 1) {
+      pag.style.display = 'none';
+      return;
+    }
+    pag.style.display = 'flex';
+    $('#trPageInfo').textContent = `${state.currentPage} / ${state.totalPages}`;
+    $('#trPagePrev').disabled = state.currentPage <= 1;
+    $('#trPageNext').disabled = state.currentPage >= state.totalPages;
   }
 
   // ═══════════ 載入單題詳情 ═══════════
@@ -376,7 +863,7 @@
       state.currentDetail = r.problem;
       return r.problem;
     } catch (e) {
-      console.error('load detail failed', e);
+      console.error('[TR] loadDetail failed:', e);
       return null;
     }
   }
@@ -384,25 +871,33 @@
   // ═══════════ 渲染主畫面 ═══════════
   async function render() {
     const main = $('#trMain');
+
     if (!state.filtered.length) {
-      main.innerHTML = `<div class="tr-empty"><i class="fas fa-inbox"></i>
-        <h2>沒有題目</h2><div>試著調整搜尋條件，或聯絡管理員匯入題庫。</div></div>`;
+      main.innerHTML = `<div class="tr-card"><div class="tr-empty">
+        <i class="fas fa-inbox"></i>
+        <h2>沒有題目</h2>
+        <div>試著調整搜尋或過濾條件。</div>
+      </div></div>`;
       updateProgress();
+      updatePagination();
       return;
     }
 
-    const meta = state.filtered[state.currentIdx];
-    main.innerHTML = `<div class="tr-loading" style="margin:60px auto;">
+    const meta = state.filtered[state.pageIdx];
+    main.innerHTML = `<div class="tr-card"><div class="tr-loading" style="padding:40px 0;">
       <i class="fas fa-spinner fa-spin"></i><div>載入中…</div>
-    </div>`;
+    </div></div>`;
 
     const detail = await loadDetail(meta.id);
     if (!detail) {
-      main.innerHTML = `<div class="tr-empty"><i class="fas fa-triangle-exclamation"></i>
-        <h2>載入失敗</h2></div>`;
+      main.innerHTML = `<div class="tr-card"><div class="tr-empty">
+        <i class="fas fa-triangle-exclamation"></i>
+        <h2>載入失敗</h2>
+      </div></div>`;
       return;
     }
 
+    // 已答過帶入
     const p = state.progress[detail.id];
     if (p && !state.submitted) {
       state.selected = p.selected;
@@ -412,22 +907,18 @@
 
     const diffLabel = { easy: 'Easy', medium: 'Medium', hard: 'Hard' }[detail.difficulty] || detail.difficulty;
 
-    // ⭐ 用 fileMap / imageMapB64 解析圖片
+    // 圖片
     const imgSrc = resolveImageSrc(detail.id);
     let imageHtml = '';
     if (imgSrc) {
       imageHtml = `
-        <div class="tr-image" data-img-id="${esc(detail.id)}">
+        <div class="tr-image">
           <img src="${esc(imgSrc)}" alt="題目圖" id="trProblemImg"
-               onload="this.parentElement.classList.add('loaded')"
-               onerror="window.__trImgError && window.__trImgError('${esc(detail.id)}', this)">
+               onerror="window.__trImgError('${esc(detail.id)}', this)">
         </div>`;
-    } else if (state.fileMap[detail.id] || state.imageMapB64[detail.id]) {
-      // 有記錄但解析不出來 → 顯示錯誤
-      imageHtml = `<div class="tr-image"><div class="placeholder">圖片載入失敗</div></div>`;
     }
-    // 若都沒有圖片記錄 → 什麼都不顯示
 
+    // 選項
     const choicesHtml = Object.keys(detail.choice).sort().map(k => {
       let cls = 'tr-choice';
       if (state.submitted) {
@@ -443,11 +934,12 @@
         </button>`;
     }).join('');
 
+    // 回饋
     let feedbackHtml = '';
     if (state.submitted) {
       const isCorrect = state.selected === detail.ans;
       feedbackHtml = `
-        <div class="tr-feedback show ${isCorrect ? 'good' : 'bad'}">
+        <div class="tr-feedback ${isCorrect ? 'good' : 'bad'}">
           <strong>${isCorrect ? '✓ 正確' : '✗ 錯誤'}</strong>
           ${isCorrect ? '' : `　正確答案：<b>${esc(detail.ans)}</b>`}
         </div>`;
@@ -459,7 +951,7 @@
           <span class="tr-tag id">${esc(detail.id)}</span>
           ${detail.category ? `<span class="tr-tag cat">${esc(detail.category)}</span>` : ''}
           <span class="tr-tag lvl">Lv.${detail.level}</span>
-          <span class="tr-tag diff">${esc(diffLabel)}</span>
+          <span class="tr-tag diff ${esc(detail.difficulty)}">${esc(diffLabel)}</span>
         </div>
 
         <div class="tr-statement">${esc(detail.statement)}</div>
@@ -471,17 +963,17 @@
         ${feedbackHtml}
 
         <div class="tr-actions">
-          <button class="tr-btn ghost" id="trPrev" ${state.currentIdx <= 0 ? 'disabled' : ''}>
+          <button class="tr-btn ghost" id="trPrev" ${state.pageIdx <= 0 ? 'disabled' : ''}>
             <i class="fas fa-arrow-left"></i> 上一題
           </button>
-          <div style="flex:1;"></div>
-          <button class="tr-btn" id="trClear" ${state.submitted ? 'disabled' : ''}>
+          <div class="spacer"></div>
+          <button class="tr-btn ghost" id="trClear" ${state.submitted ? 'disabled' : ''}>
             <i class="fas fa-eraser"></i> 清除
           </button>
           <button class="tr-btn primary" id="trSubmit" ${!state.selected || state.submitted ? 'disabled' : ''}>
             <i class="fas fa-check"></i> 提交
           </button>
-          <button class="tr-btn primary" id="trNext" ${state.currentIdx >= state.filtered.length - 1 ? 'disabled' : ''}>
+          <button class="tr-btn primary" id="trNext" ${state.pageIdx >= state.filtered.length - 1 ? 'disabled' : ''}>
             下一題 <i class="fas fa-arrow-right"></i>
           </button>
         </div>
@@ -490,29 +982,8 @@
 
     bindMainEvents();
     updateProgress();
-    renderNavList();
+    updatePagination();
   }
-
-  // ═══════════ 圖片錯誤處理（全域）═══════════
-  window.__trImgError = function(id, imgEl) {
-    // CDN 失敗 → 標記 + 試 base64 fallback
-    if (imgEl.src.startsWith(CDN_BASE)) {
-      state.imageLoadFailed.add('cdn:' + id);
-      const fallback = state.imageMapB64[id];
-      if (fallback) {
-        console.log(`[TR] CDN failed for ${id}, using base64 fallback`);
-        imgEl.src = fallback;
-        return;
-      }
-    }
-    // 都失敗 → 顯示佔位
-    const container = imgEl.parentElement;
-    if (container) {
-      container.innerHTML = `<div class="placeholder">
-        <i class="fas fa-image" style="margin-right:6px;opacity:.5;"></i>圖片載入失敗
-      </div>`;
-    }
-  };
 
   // ═══════════ 主畫面事件 ═══════════
   function bindMainEvents() {
@@ -532,8 +1003,8 @@
       $$('.tr-choice').forEach(x => x.classList.remove('selected'));
       $('#trSubmit').disabled = true;
     });
-    $('#trPrev')?.addEventListener('click', () => goTo(state.currentIdx - 1));
-    $('#trNext')?.addEventListener('click', () => goTo(state.currentIdx + 1));
+    $('#trPrev')?.addEventListener('click', () => goTo(state.pageIdx - 1));
+    $('#trNext')?.addEventListener('click', () => goTo(state.pageIdx + 1));
 
     $('#trProblemImg')?.addEventListener('click', (e) => {
       $('#trLightboxImg').src = e.target.src;
@@ -558,11 +1029,12 @@
 
   function goTo(idx) {
     if (idx < 0 || idx >= state.filtered.length) return;
-    state.currentIdx = idx;
+    state.pageIdx = idx;
     state.selected = null;
     state.submitted = false;
     state.currentDetail = null;
     render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   // ═══════════ Lightbox ═══════════
@@ -577,6 +1049,7 @@
     if (!detail) return;
 
     const key = e.key.toUpperCase();
+
     if (/^[A-Z]$/.test(key) && detail.choice[key]) {
       if (state.submitted) return;
       state.selected = key;
@@ -588,12 +1061,12 @@
     }
     if (e.key === 'Enter') {
       if (!state.submitted && state.selected) submitAnswer();
-      else if (state.submitted) goTo(state.currentIdx + 1);
+      else if (state.submitted) goTo(state.pageIdx + 1);
       e.preventDefault();
       return;
     }
-    if (e.key === 'ArrowLeft') { goTo(state.currentIdx - 1); e.preventDefault(); }
-    else if (e.key === 'ArrowRight') { goTo(state.currentIdx + 1); e.preventDefault(); }
+    if (e.key === 'ArrowLeft') { goTo(state.pageIdx - 1); e.preventDefault(); }
+    else if (e.key === 'ArrowRight') { goTo(state.pageIdx + 1); e.preventDefault(); }
     if (e.key === 'Escape' && !state.submitted) {
       state.selected = null;
       $$('.tr-choice').forEach(x => x.classList.remove('selected'));
@@ -602,10 +1075,28 @@
     }
   });
 
-  // ═══════════ 側邊欄切換 ═══════════
-  $('#trNavToggle')?.addEventListener('click', () => {
-    $('#trNav').classList.toggle('open');
+  // ═══════════ 分頁事件 ═══════════
+  $('#trPagePrev')?.addEventListener('click', async () => {
+    if (state.currentPage <= 1) return;
+    await changePage(state.currentPage - 1);
   });
+  $('#trPageNext')?.addEventListener('click', async () => {
+    if (state.currentPage >= state.totalPages) return;
+    await changePage(state.currentPage + 1);
+  });
+
+  async function changePage(n) {
+    const ok = await loadPage(n);
+    if (!ok) return;
+    buildFilterOptions();
+    // 保留過濾（若新頁面沒該分類，filtered 會變空）
+    // 重新綁定 select 值
+    $('#trFilterLevel').value = state.filters.level;
+    $('#trFilterDiff').value = state.filters.diff;
+    $('#trFilterCat').value = state.filters.cat;
+    render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 
   // ═══════════ 過濾事件 ═══════════
   let _filterTimer = null;
@@ -613,17 +1104,19 @@
     clearTimeout(_filterTimer);
     _filterTimer = setTimeout(() => {
       state.filters.q = $('#trSearch').value;
-      state.filters.cat = $('#trFilterCat').value;
+      state.filters.level = $('#trFilterLevel').value;
       state.filters.diff = $('#trFilterDiff').value;
+      state.filters.cat = $('#trFilterCat').value;
+
       applyFilters();
-      state.currentIdx = 0;
+      state.pageIdx = 0;
       state.selected = null;
       state.submitted = false;
       state.currentDetail = null;
       render();
-    }, 220);
+    }, 200);
   }
-  ['#trSearch', '#trFilterCat', '#trFilterDiff'].forEach(sel => {
+  ['#trSearch', '#trFilterLevel', '#trFilterDiff', '#trFilterCat'].forEach(sel => {
     const el = $(sel);
     if (el) {
       el.addEventListener('input', onFilterChange);
@@ -633,6 +1126,8 @@
 
   // ═══════════ 啟動 ═══════════
   (async function init() {
+    initTheme();
+
     const ok = await checkAccess();
     if (!ok) {
       $('#trDenied').style.display = 'block';
@@ -641,25 +1136,23 @@
 
     loadProgress();
 
-    // ⭐ 平行：載入 filemap + 題目清單
-    //   （filemap 很小，通常比題目清單先回來）
+    // 平行載入
     await Promise.all([
       loadFileMap(),
-      loadList(),
+      loadPage(1),
     ]);
 
-    // ⭐ 可選：背景載入 images.json（不阻塞首屏）
-    if (LOAD_B64_FALLBACK) {
-      // 不 await，讓它背景跑
-      loadImageMapB64();
+    if (!state.items.length) {
+      $('#trWrap').style.display = 'block';
+      $('#trMain').innerHTML = `<div class="tr-card"><div class="tr-empty">
+        <i class="fas fa-inbox"></i>
+        <h2>題庫為空</h2>
+      </div></div>`;
+      return;
     }
 
-    if (!state.items.length) return;
-
-    buildCategoryOptions();
-    applyFilters();
-
-    $('#trApp').style.display = 'grid';
+    buildFilterOptions();
+    $('#trWrap').style.display = 'flex';
     render();
   })();
 })();
