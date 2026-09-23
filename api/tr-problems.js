@@ -103,7 +103,42 @@ export default async function handler(req, res) {
   const db = await connectToDatabase();
   const col = db.collection('tr-problems');
   const action = req.query.action || 'list';
+    // ═══════════ LIST-ALL（一次拿完，給 TR 系統用）═══════════
+  if (action === 'list-all') {
+    if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
+    try {
+      const items = await col.aggregate([
+        { $sort: { id: 1 } },
+        {
+          $project: {
+            _id: 0,
+            id: 1,
+            statement: 1,
+            choice: 1,
+            ans: 1,
+            level: 1,
+            difficulty: 1,
+            category: 1,
+            private: 1,
+            hasImage: {
+              $gt: [{ $strLenCP: { $ifNull: ['$imageurl', ''] } }, 0]
+            },
+          },
+        },
+      ]).toArray();
+
+      res.setHeader('Cache-Control', 'private, max-age=120');
+      return res.status(200).json({
+        success: true,
+        items,
+        total: items.length,
+      });
+    } catch (err) {
+      console.error('tr-problems list-all error:', err);
+      return res.status(500).json({ success: false, message: 'Internal error' });
+    }
+  }
   // ═══════════ LIST（不含 imageurl 資料）═══════════
   if (action === 'list') {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
