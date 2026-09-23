@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-HK" data-theme="">
+<html lang="zh-HK">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
@@ -7,7 +7,7 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 <style>
-  /* ═══════════════ 與 styles.css 一致的變數 ═══════════════ */
+  /* ═══════════════ 對齊 styles.css 的變數 ═══════════════ */
   :root {
     --accent: #4a90d9;
     --accent-hover: #3a7bc8;
@@ -25,6 +25,7 @@
     --good-bg: #e8f5e9;
     --bad: #c62828;
     --bad-bg: #ffebee;
+    --sidebar-w: 210px;
   }
   :root[data-theme="dark"] {
     --accent: #58a6ff;
@@ -53,46 +54,218 @@
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
     transition: background .2s ease, color .2s ease;
+    overflow: hidden; /* 阻止整頁滾動，由內部區域各自滾動 */
   }
   button { font-family: inherit; cursor: pointer; }
   img { max-width: 100%; display: block; }
 
-  /* ═══════════════ 主體佈局 ═══════════════ */
-  .tr-wrap {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 20px 16px 60px;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+  /* ═══════════════ 主佈局：左側欄 + 主區 ═══════════════ */
+  .tr-layout {
+    display: grid;
+    grid-template-columns: var(--sidebar-w) 1fr;
+    height: 100vh;
+    overflow: hidden;
   }
 
-  /* ── 頂部標題列（非原站 topbar，只是簡單的頁面標題） ── */
+  /* ── 左側欄 ── */
+  .tr-sidebar {
+    background: var(--card-bg);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .tr-sidebar-head {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .tr-sidebar-title {
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    flex: 1;
+  }
+  .tr-refresh-btn {
+    width: 26px;
+    height: 26px;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .72rem;
+    transition: all .15s;
+  }
+  .tr-refresh-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .tr-refresh-btn.spinning i {
+    animation: spin .8s linear infinite;
+  }
+
+  .tr-sidebar-filter {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+  }
+  .tr-sidebar-filter input {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
+    background: var(--content-bg);
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    font-size: .8rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .tr-sidebar-filter input:focus {
+    border-color: var(--accent);
+    background: var(--card-bg);
+  }
+
+  .tr-sidebar-list {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 6px 0;
+  }
+  .tr-sidebar-list::-webkit-scrollbar { width: 6px; }
+  .tr-sidebar-list::-webkit-scrollbar-thumb {
+    background: rgba(150,150,150,.3);
+    border-radius: 3px;
+  }
+  .tr-sidebar-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(150,150,150,.5);
+  }
+
+  /* ── 側邊欄項目 ── */
+  .tr-side-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 12px 5px 14px;
+    font-family: 'Consolas', 'Menlo', monospace;
+    font-size: .72rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: background .1s, border-color .1s, color .1s;
+    user-select: none;
+    overflow: hidden;
+  }
+  .tr-side-item:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+  }
+  .tr-side-item.active {
+    background: rgba(74,144,217,.10);
+    border-left-color: var(--accent);
+    color: var(--accent);
+    font-weight: 700;
+  }
+  :root[data-theme="dark"] .tr-side-item.active {
+    background: rgba(88,166,255,.12);
+  }
+  .tr-side-item.correct {
+    color: var(--good);
+  }
+  .tr-side-item.correct.active {
+    background: rgba(46,125,50,.12);
+    border-left-color: var(--good);
+  }
+  .tr-side-item.wrong {
+    color: var(--bad);
+  }
+  .tr-side-item.wrong.active {
+    background: rgba(198,40,40,.12);
+    border-left-color: var(--bad);
+  }
+  .tr-side-item .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border-color);
+    flex-shrink: 0;
+  }
+  .tr-side-item.correct .dot { background: var(--good); }
+  .tr-side-item.wrong .dot { background: var(--bad); }
+  .tr-side-item.active .dot {
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    box-shadow: 0 0 6px rgba(74,144,217,.6);
+  }
+  .tr-side-item.correct.active .dot { background: var(--good); box-shadow: 0 0 6px rgba(46,125,50,.6); }
+  .tr-side-item.wrong.active .dot { background: var(--bad); box-shadow: 0 0 6px rgba(198,40,40,.6); }
+
+  .tr-side-item .id {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+  }
+
+  /* ── 主區 ── */
+  .tr-main {
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .tr-main::-webkit-scrollbar { width: 8px; }
+  .tr-main::-webkit-scrollbar-thumb {
+    background: rgba(150,150,150,.3);
+    border-radius: 4px;
+  }
+
+  .tr-main-inner {
+    max-width: 820px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 20px 24px 80px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* ── 標題列 ── */
   .tr-head {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding-bottom: 14px;
+    padding-bottom: 12px;
     border-bottom: 1px solid var(--border-color);
   }
   .tr-head h1 {
-    font-size: 1.4rem;
+    font-size: 1.25rem;
     font-weight: 700;
     color: var(--text-primary);
     display: flex;
     align-items: center;
     gap: 10px;
   }
-  .tr-head h1 i {
-    color: var(--accent);
-    font-size: 1.15rem;
-  }
+  .tr-head h1 i { color: var(--accent); font-size: 1rem; }
   .tr-head-spacer { flex: 1; }
+  .tr-head-stat {
+    font-size: .78rem;
+    color: var(--text-secondary);
+    font-family: 'Consolas', monospace;
+  }
 
-  .tr-theme-btn {
-    width: 34px;
-    height: 34px;
+  .tr-icon-btn {
+    width: 32px;
+    height: 32px;
     border: 1px solid var(--border-color);
     background: var(--card-bg);
     border-radius: var(--radius-sm);
@@ -101,91 +274,77 @@
     align-items: center;
     justify-content: center;
     transition: all .15s;
+    font-size: .85rem;
   }
-  .tr-theme-btn:hover {
+  .tr-icon-btn:hover {
     border-color: var(--accent);
     color: var(--accent);
+    background: var(--hover-bg);
   }
 
-  /* ═══════════════ 過濾器面板 ═══════════════ */
+  /* ── 過濾器列 ── */
   .tr-filters {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-    padding: 12px 14px;
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 10px;
+    padding: 10px 12px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
     box-shadow: var(--shadow-sm);
   }
-  @media (max-width: 640px) {
-    .tr-filters { grid-template-columns: 1fr 1fr; }
-    .tr-filters .tr-search-wrap { grid-column: 1 / -1; }
-  }
-
-  .tr-search-wrap {
-    position: relative;
-  }
-  .tr-search-wrap i {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-secondary);
-    font-size: .85rem;
-    pointer-events: none;
-  }
-
-  .tr-input,
-  .tr-select {
-    width: 100%;
-    padding: 8px 12px;
+  .tr-filters select {
+    padding: 6px 10px;
     border: 1px solid var(--border-color);
     background: var(--card-bg);
     color: var(--text-primary);
     border-radius: var(--radius-sm);
-    font-size: .9rem;
+    font-size: .82rem;
     font-family: inherit;
-    transition: border-color .15s;
-  }
-  .tr-search-wrap .tr-input { padding-left: 34px; }
-  .tr-input:focus,
-  .tr-select:focus {
     outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(74,144,217,.15);
+    transition: border-color .15s;
+    min-width: 110px;
   }
-  :root[data-theme="dark"] .tr-input:focus,
-  :root[data-theme="dark"] .tr-select:focus {
-    box-shadow: 0 0 0 3px rgba(88,166,255,.2);
+  .tr-filters select:focus {
+    border-color: var(--accent);
+  }
+  .tr-filters .tr-filter-label {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--text-secondary);
+    font-weight: 700;
   }
 
-  /* ═══════════════ 進度條 ═══════════════ */
-  .tr-progress-bar {
+  /* ── 進度條 ── */
+  .tr-progress {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-    padding: 12px 16px;
+    padding: 10px 16px;
     display: flex;
     align-items: center;
-    gap: 14px;
-    font-size: .85rem;
+    gap: 12px;
+    font-size: .8rem;
     color: var(--text-secondary);
     box-shadow: var(--shadow-sm);
   }
-  .tr-progress-bar .count {
+  .tr-progress .count {
     font-family: 'Consolas', monospace;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--text-primary);
+    min-width: 80px;
   }
-  .tr-progress-bar .track {
+  .tr-progress .track {
     flex: 1;
-    height: 6px;
+    height: 5px;
     background: var(--border-color);
     border-radius: 3px;
     overflow: hidden;
+    min-width: 100px;
   }
-  .tr-progress-bar .track > i {
+  .tr-progress .track > i {
     display: block;
     height: 100%;
     width: 0%;
@@ -193,39 +352,56 @@
     border-radius: 3px;
     transition: width .4s ease;
   }
-  .tr-progress-bar .accuracy {
+  .tr-progress .accuracy {
     font-family: 'Consolas', monospace;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--accent);
-    min-width: 48px;
+    min-width: 52px;
     text-align: right;
   }
+  .tr-progress .legend {
+    display: flex;
+    gap: 10px;
+    font-size: .72rem;
+  }
+  .tr-progress .legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .tr-progress .legend .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+  .tr-progress .legend .dot.g { background: var(--good); }
+  .tr-progress .legend .dot.r { background: var(--bad); }
 
-  /* ═══════════════ 題目卡片 ═══════════════ */
+  /* ── 題目卡片 ── */
   .tr-card {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-md);
-    padding: 28px 32px;
+    padding: 26px 30px;
   }
   @media (max-width: 640px) {
-    .tr-card { padding: 20px 18px; }
+    .tr-card { padding: 18px 16px; }
   }
 
   .tr-meta {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
-    margin-bottom: 20px;
-    padding-bottom: 16px;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
     border-bottom: 1px solid var(--border-color);
   }
   .tr-tag {
-    font-size: .72rem;
+    font-size: .7rem;
     font-weight: 700;
-    padding: 3px 10px;
-    border-radius: 12px;
+    padding: 3px 9px;
+    border-radius: 11px;
     letter-spacing: .3px;
     text-transform: uppercase;
   }
@@ -239,6 +415,8 @@
   .tr-tag.cat {
     background: rgba(74,144,217,.12);
     color: var(--accent);
+    text-transform: none;
+    letter-spacing: 0;
   }
   .tr-tag.lvl {
     background: rgba(255,193,7,.16);
@@ -262,21 +440,21 @@
   :root[data-theme="dark"] .tr-tag.diff.hard { color: #ff9b8f; }
 
   .tr-statement {
-    font-size: 1.05rem;
-    line-height: 1.75;
+    font-size: 1rem;
+    line-height: 1.7;
     color: var(--text-primary);
-    margin-bottom: 22px;
+    margin-bottom: 20px;
     white-space: pre-wrap;
+    word-break: break-word;
   }
 
-  /* ── 圖片 ── */
   .tr-image {
-    margin-bottom: 22px;
+    margin-bottom: 20px;
     text-align: center;
     background: var(--hover-bg);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
-    padding: 14px;
+    padding: 12px;
   }
   .tr-image img {
     max-height: 340px;
@@ -287,28 +465,28 @@
   }
   .tr-image img:hover { opacity: .92; }
   .tr-image .placeholder {
-    padding: 24px 12px;
+    padding: 22px 10px;
     color: var(--text-secondary);
-    font-size: .85rem;
+    font-size: .82rem;
   }
 
   /* ── 選項 ── */
   .tr-choices {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-bottom: 20px;
+    gap: 8px;
+    margin-bottom: 18px;
   }
   .tr-choice {
     display: flex;
     align-items: flex-start;
     gap: 12px;
-    padding: 13px 16px;
+    padding: 12px 15px;
     background: var(--card-bg);
     border: 1.5px solid var(--border-color);
     border-radius: var(--radius-sm);
     text-align: left;
-    font-size: .95rem;
+    font-size: .92rem;
     line-height: 1.55;
     color: var(--text-primary);
     transition: all .15s;
@@ -322,17 +500,17 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 26px;
-    height: 26px;
+    width: 25px;
+    height: 25px;
     border-radius: 50%;
     background: var(--hover-bg);
     color: var(--text-secondary);
     font-weight: 700;
-    font-size: .82rem;
+    font-size: .78rem;
     flex-shrink: 0;
     transition: all .15s;
   }
-  .tr-choice .text { flex: 1; }
+  .tr-choice .text { flex: 1; word-break: break-word; }
 
   .tr-choice.selected {
     border-color: var(--accent);
@@ -362,11 +540,11 @@
 
   /* ── 回饋 ── */
   .tr-feedback {
-    padding: 12px 16px;
+    padding: 11px 15px;
     border-radius: var(--radius-sm);
-    font-size: .9rem;
+    font-size: .88rem;
     font-weight: 500;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
     animation: trIn .2s ease;
   }
   .tr-feedback.good {
@@ -384,30 +562,31 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
-  /* ── 按鈕 ── */
+  /* ── 按鈕列 ── */
   .tr-actions {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
     align-items: center;
-    padding-top: 16px;
+    padding-top: 14px;
     border-top: 1px solid var(--border-color);
   }
   .tr-actions .spacer { flex: 1; }
 
   .tr-btn {
-    padding: 9px 18px;
+    padding: 8px 16px;
     border: 1px solid var(--border-color);
     background: var(--card-bg);
     color: var(--text-primary);
     border-radius: var(--radius-sm);
-    font-size: .88rem;
+    font-size: .85rem;
     font-weight: 600;
     transition: all .15s;
     display: inline-flex;
     align-items: center;
     gap: 6px;
     font-family: inherit;
+    white-space: nowrap;
   }
   .tr-btn:hover:not(:disabled) {
     border-color: var(--accent);
@@ -438,66 +617,24 @@
     cursor: not-allowed;
   }
 
-  /* ── 分頁 ── */
-  .tr-pagination {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    padding: 10px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    font-size: .85rem;
-    color: var(--text-secondary);
-    box-shadow: var(--shadow-sm);
-  }
-  .tr-pagination .info {
-    font-family: 'Consolas', monospace;
-    font-weight: 600;
-    color: var(--text-primary);
-    min-width: 120px;
-    text-align: center;
-  }
-  .tr-pagination .page-btn {
-    width: 32px;
-    height: 32px;
-    border: 1px solid var(--border-color);
-    background: var(--card-bg);
-    border-radius: var(--radius-sm);
-    color: var(--text-primary);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: all .15s;
-  }
-  .tr-pagination .page-btn:hover:not(:disabled) {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-  .tr-pagination .page-btn:disabled {
-    opacity: .35;
-    cursor: not-allowed;
-  }
-
-  /* ═══════════════ 空 / Loading ═══════════════ */
+  /* ── 空 / Loading ── */
   .tr-empty,
   .tr-loading {
     text-align: center;
     padding: 60px 20px;
     color: var(--text-secondary);
-    font-size: .95rem;
+    font-size: .92rem;
   }
   .tr-empty i,
   .tr-loading i {
-    font-size: 2.2rem;
+    font-size: 2rem;
     color: var(--accent);
     opacity: .5;
     display: block;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
   }
   .tr-empty h2 {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     color: var(--text-primary);
     margin-bottom: 6px;
     font-weight: 700;
@@ -525,11 +662,41 @@
     box-shadow: 0 20px 60px rgba(0,0,0,.6);
   }
 
+  /* ── 刷新遮罩 ── */
+  .tr-refresh-mask {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.3);
+    z-index: 9998;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+  .tr-refresh-mask.show { display: flex; }
+  .tr-refresh-mask .box {
+    background: var(--card-bg);
+    padding: 24px 32px;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    text-align: center;
+    font-size: .9rem;
+    color: var(--text-primary);
+    min-width: 200px;
+  }
+  .tr-refresh-mask i {
+    color: var(--accent);
+    font-size: 1.6rem;
+    margin-bottom: 10px;
+    display: inline-block;
+  }
+
   /* ── Spinner ── */
   .tr-spinner {
     display: inline-block;
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     border: 2px solid var(--border-color);
     border-top-color: var(--accent);
     border-radius: 50%;
@@ -537,63 +704,122 @@
     vertical-align: middle;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── 響應式 ── */
+  @media (max-width: 700px) {
+    :root { --sidebar-w: 0px; }
+    .tr-layout {
+      grid-template-columns: 1fr;
+    }
+    .tr-sidebar {
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      width: 240px;
+      z-index: 50;
+      transform: translateX(-100%);
+      transition: transform .25s ease;
+      box-shadow: var(--shadow-md);
+    }
+    .tr-sidebar.open { transform: translateX(0); }
+    .tr-main-inner { padding: 14px 14px 80px; }
+    .tr-mobile-menu-btn {
+      display: inline-flex !important;
+    }
+  }
+
+  .tr-mobile-menu-btn {
+    display: none;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    align-items: center;
+    justify-content: center;
+    font-size: .9rem;
+  }
 </style>
 </head>
 <body>
 
-<div class="tr-wrap" id="trWrap" style="display:none;">
+<div class="tr-layout" id="trLayout" style="display:none;">
 
-  <!-- ── 標題列 ── -->
-  <header class="tr-head">
-    <h1><i class="fas fa-graduation-cap"></i> TR Training</h1>
-    <div class="tr-head-spacer"></div>
-    <button class="tr-theme-btn" id="trThemeBtn" title="Toggle theme">
-      <i class="fas fa-moon" id="trThemeIcon"></i>
-    </button>
-  </header>
-
-  <!-- ── 過濾器 ── -->
-  <div class="tr-filters">
-    <div class="tr-search-wrap">
-      <i class="fas fa-search"></i>
-      <input class="tr-input" type="text" id="trSearch" placeholder="搜尋 ID 或內容...">
+  <!-- ═══ 左側欄：ID 列表 ═══ -->
+  <aside class="tr-sidebar" id="trSidebar">
+    <div class="tr-sidebar-head">
+      <span class="tr-sidebar-title">Problems</span>
+      <button class="tr-refresh-btn" id="trRefreshBtn" title="Refresh from server">
+        <i class="fas fa-sync-alt"></i>
+      </button>
     </div>
-    <select class="tr-select" id="trFilterLevel">
-      <option value="">All Levels</option>
-    </select>
-    <select class="tr-select" id="trFilterDiff">
-      <option value="">All Difficulties</option>
-      <option value="easy">Easy</option>
-      <option value="medium">Medium</option>
-      <option value="hard">Hard</option>
-    </select>
-    <select class="tr-select" id="trFilterCat" style="grid-column: 1 / -1;">
-      <option value="">All Categories</option>
-    </select>
-  </div>
+    <div class="tr-sidebar-filter">
+      <input type="text" id="trSideFilter" placeholder="Filter id..." autocomplete="off">
+    </div>
+    <div class="tr-sidebar-list" id="trSideList">
+      <!-- 動態生成 -->
+    </div>
+  </aside>
 
-  <!-- ── 進度條 ── -->
-  <div class="tr-progress-bar">
-    <span class="count" id="trCounter">0 / 0</span>
-    <div class="track"><i id="trProgressFill"></i></div>
-    <span class="accuracy" id="trAccuracy">—</span>
-  </div>
+  <!-- ═══ 主區 ═══ -->
+  <main class="tr-main" id="trMain">
+    <div class="tr-main-inner">
 
-  <!-- ── 題目 ── -->
-  <main id="trMain">
-    <div class="tr-loading">
-      <i class="fas fa-spinner fa-spin"></i>
-      <div>載入題庫中…</div>
+      <!-- 標題列 -->
+      <header class="tr-head">
+        <button class="tr-mobile-menu-btn" id="trMobileMenuBtn" title="Menu">
+          <i class="fas fa-bars"></i>
+        </button>
+        <h1><i class="fas fa-graduation-cap"></i> TR Training</h1>
+        <div class="tr-head-spacer"></div>
+        <span class="tr-head-stat" id="trHeadStat">—</span>
+        <button class="tr-icon-btn" id="trThemeBtn" title="Toggle theme">
+          <i class="fas fa-moon" id="trThemeIcon"></i>
+        </button>
+      </header>
+
+      <!-- 過濾器 -->
+      <div class="tr-filters">
+        <span class="tr-filter-label">Level</span>
+        <select id="trFilterLevel"><option value="">All</option></select>
+        <span class="tr-filter-label">Diff</span>
+        <select id="trFilterDiff">
+          <option value="">All</option>
+          <option value="easy">Easy</option>
+          <option value="medium">Medium</option>
+          <option value="hard">Hard</option>
+        </select>
+        <span class="tr-filter-label">Category</span>
+        <select id="trFilterCat"><option value="">All</option></select>
+        <select id="trFilterStatus">
+          <option value="">All Status</option>
+          <option value="unanswered">Unanswered</option>
+          <option value="correct">Correct</option>
+          <option value="wrong">Wrong</option>
+        </select>
+      </div>
+
+      <!-- 進度列 -->
+      <div class="tr-progress">
+        <span class="count" id="trCounter">0 / 0</span>
+        <div class="track"><i id="trProgressFill"></i></div>
+        <span class="accuracy" id="trAccuracy">—</span>
+        <div class="legend">
+          <span><span class="dot g"></span><b id="trLegGood">0</b></span>
+          <span><span class="dot r"></span><b id="trLegBad">0</b></span>
+        </div>
+      </div>
+
+      <!-- 題目卡片 -->
+      <div id="trCardWrap">
+        <div class="tr-loading">
+          <i class="fas fa-spinner fa-spin"></i>
+          <div>載入題庫中…</div>
+        </div>
+      </div>
+
     </div>
   </main>
-
-  <!-- ── 分頁 ── -->
-  <div class="tr-pagination" id="trPagination" style="display:none;">
-    <button class="page-btn" id="trPagePrev" title="Previous"><i class="fas fa-chevron-left"></i></button>
-    <span class="info" id="trPageInfo">— / —</span>
-    <button class="page-btn" id="trPageNext" title="Next"><i class="fas fa-chevron-right"></i></button>
-  </div>
-
 </div>
 
 <!-- 存取被拒 -->
@@ -603,8 +829,17 @@
   <div>Page not found.</div>
 </div>
 
+<!-- Lightbox -->
 <div class="tr-lightbox" id="trLightbox">
   <img id="trLightboxImg" src="" alt="">
+</div>
+
+<!-- 刷新遮罩 -->
+<div class="tr-refresh-mask" id="trRefreshMask">
+  <div class="box">
+    <i class="fas fa-spinner fa-spin"></i>
+    <div id="trRefreshMsg">Refreshing from server...</div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
@@ -623,29 +858,27 @@
   const CDN_BASE = 'https://cdn.jsdelivr.net/gh/wyk-math-team/resources@main/tr-images/';
   const FILEMAP_URL = CDN_BASE + 'filemap.json';
 
-  // ⭐ 一次拉多少題（分頁大小）
-  const PAGE_SIZE = 200;
+  const CACHE_KEY_ITEMS     = 'tr_items_v1';
+  const CACHE_KEY_FILEMAP   = 'tr_filemap_v1';
+  const CACHE_KEY_PROGRESS  = 'tr_progress_v1';
+  const CACHE_KEY_STATE     = 'tr_state_v1';         // 當前題 id / 過濾器
+  const CACHE_KEY_SCROLL    = 'tr_scroll_v1';        // 主區 & 側欄滾動位置
+  const CACHE_KEY_THEME     = 'tr_theme';
+
+  const ITEMS_TTL     = 24 * 60 * 60 * 1000;   // 題庫快取 24h
+  const FILEMAP_TTL   = 6 * 60 * 60 * 1000;    // filemap 快取 6h
 
   // ═══════════ 狀態 ═══════════
-  const STORAGE_KEY = 'tr_progress_v1';
-  const FILEMAP_CACHE_KEY = 'tr_filemap_v1';
-  const THEME_KEY = 'tr_theme';
-  const FILEMAP_CACHE_TTL = 6 * 60 * 60 * 1000;
-
   const state = {
-    items: [],              // 全部題目（已載入的）
-    filtered: [],           // 過濾後
-    pageItems: [],          // 當前頁顯示的題目
-    pageIdx: 0,             // 當前頁在 pageItems 內的索引
-    currentPage: 1,         // 目前是第幾頁（1-based）
-    totalPages: 1,
-    totalCount: 0,          // 題庫總數（不含過濾）
+    items: [],
+    filtered: [],
+    currentId: null,
     currentDetail: null,
     selected: null,
     submitted: false,
     correct: false,
-    progress: {},
-    filters: { q: '', level: '', diff: '', cat: '' },
+    progress: {},         // { id: { selected, correct, ts } }
+    filters: { level: '', diff: '', cat: '', status: '', side: '' },
     fileMap: {},
     imageLoadFailed: new Set(),
     loading: false,
@@ -668,57 +901,115 @@
     }
   }
   function initTheme() {
-    let t = localStorage.getItem(THEME_KEY);
-    if (!t) {
-      // 跟隨系統或全域設定
-      t = localStorage.getItem('theme') || 'light';
-    }
+    let t = localStorage.getItem(CACHE_KEY_THEME) || localStorage.getItem('theme') || 'light';
     applyTheme(t);
     $('#trThemeBtn').addEventListener('click', () => {
       const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
       const next = cur === 'dark' ? 'light' : 'dark';
-      localStorage.setItem(THEME_KEY, next);
+      localStorage.setItem(CACHE_KEY_THEME, next);
       applyTheme(next);
     });
   }
 
-  // ═══════════ localStorage 進度 ═══════════
-  function loadProgress() {
+  // ═══════════ localStorage 工具 ═══════════
+  function lsGet(key, fallback) {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      state.progress = raw ? JSON.parse(raw) : {};
-    } catch { state.progress = {}; }
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch { return fallback; }
   }
-  function saveProgress() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.progress)); } catch {}
+  function lsSet(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); return true; }
+    catch (e) {
+      console.warn(`[TR] localStorage.setItem failed for ${key}:`, e.message);
+      return false;
+    }
+  }
+  function lsDel(key) {
+    try { localStorage.removeItem(key); } catch {}
   }
 
-  // ═══════════ 圖片映射 ═══════════
+  // ═══════════ 進度 ═══════════
+  function loadProgress() {
+    state.progress = lsGet(CACHE_KEY_PROGRESS, {}) || {};
+  }
+  function saveProgress() {
+    lsSet(CACHE_KEY_PROGRESS, state.progress);
+  }
+
+  // ═══════════ 狀態（當前題 + 過濾器）═══════════
+  function loadState() {
+    const s = lsGet(CACHE_KEY_STATE, {});
+    if (s.filters) state.filters = { ...state.filters, ...s.filters, side: '' };
+    if (s.currentId) state.currentId = s.currentId;
+  }
+  function saveState() {
+    lsSet(CACHE_KEY_STATE, {
+      currentId: state.currentId,
+      filters: {
+        level: state.filters.level,
+        diff: state.filters.diff,
+        cat: state.filters.cat,
+        status: state.filters.status,
+      },
+    });
+  }
+
+  // ═══════════ 滾動位置 ═══════════
+  let _scrollSaveTimer = null;
+  function saveScroll() {
+    if (_scrollSaveTimer) clearTimeout(_scrollSaveTimer);
+    _scrollSaveTimer = setTimeout(() => {
+      lsSet(CACHE_KEY_SCROLL, {
+        main: $('#trMain')?.scrollTop || 0,
+        side: $('#trSideList')?.scrollTop || 0,
+        ts: Date.now(),
+      });
+    }, 150);
+  }
+  function restoreScroll() {
+    const s = lsGet(CACHE_KEY_SCROLL, null);
+    if (!s) return;
+    // 滾動位置只在 5 分鐘內有效
+    if (Date.now() - (s.ts || 0) > 5 * 60 * 1000) return;
+    requestAnimationFrame(() => {
+      if (s.main) $('#trMain').scrollTop = s.main;
+      if (s.side) $('#trSideList').scrollTop = s.side;
+    });
+  }
+
+  // ═══════════ 題庫快取 ═══════════
+  function loadItemsCache() {
+    const c = lsGet(CACHE_KEY_ITEMS, null);
+    if (!c || !Array.isArray(c.items)) return null;
+    if (Date.now() - (c.ts || 0) > ITEMS_TTL) return null;
+    return c.items;
+  }
+  function saveItemsCache(items) {
+    const ok = lsSet(CACHE_KEY_ITEMS, { ts: Date.now(), items });
+    if (!ok) console.warn('[TR] items cache save failed (may be too large)');
+    return ok;
+  }
+  function clearItemsCache() {
+    lsDel(CACHE_KEY_ITEMS);
+  }
+
+  // ═══════════ filemap ═══════════
   async function loadFileMap() {
     // 1) 快取
-    try {
-      const raw = localStorage.getItem(FILEMAP_CACHE_KEY);
-      if (raw) {
-        const cached = JSON.parse(raw);
-        if (cached && cached.ts && Date.now() - cached.ts < FILEMAP_CACHE_TTL && cached.map) {
-          state.fileMap = cached.map;
-          console.log(`[TR] filemap from cache: ${Object.keys(state.fileMap).length}`);
-          return;
-        }
-      }
-    } catch {}
+    const cached = lsGet(CACHE_KEY_FILEMAP, null);
+    if (cached && cached.map && Date.now() - (cached.ts || 0) < FILEMAP_TTL) {
+      state.fileMap = cached.map;
+      console.log(`[TR] filemap from cache: ${Object.keys(state.fileMap).length}`);
+      return;
+    }
     // 2) CDN
     try {
       const res = await fetch(FILEMAP_URL, { cache: 'force-cache' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const map = await res.json();
       state.fileMap = map || {};
-      try {
-        localStorage.setItem(FILEMAP_CACHE_KEY, JSON.stringify({
-          ts: Date.now(),
-          map: state.fileMap,
-        }));
-      } catch {}
+      lsSet(CACHE_KEY_FILEMAP, { ts: Date.now(), map: state.fileMap });
       console.log(`[TR] filemap from CDN: ${Object.keys(state.fileMap).length}`);
     } catch (e) {
       console.warn('[TR] filemap failed:', e.message);
@@ -732,7 +1023,6 @@
     return CDN_BASE + encodeURIComponent(filename);
   }
 
-  // ═══════════ 圖片錯誤處理 ═══════════
   window.__trImgError = function(id, imgEl) {
     state.imageLoadFailed.add(id);
     const container = imgEl.parentElement;
@@ -748,110 +1038,164 @@
     try {
       const r = await apiCall('/api/tr-problems?action=whoami');
       return !!(r && r.canView);
-    } catch {
-      return false;
-    }
+    } catch { return false; }
   }
 
-  // ═══════════ 載入題目（分頁） ═══════════
-  async function loadPage(pageNum) {
-    if (state.loading) return false;
-    state.loading = true;
+  // ═══════════ 從伺服器拉題庫 ═══════════
+  async function fetchItemsFromServer() {
+    const r = await apiCall('/api/tr-problems?action=list-all');
+    if (!r.success) throw new Error(r.message || 'load failed');
+    return r.items || [];
+  }
+
+  // ═══════════ 載入題庫（優先快取）═══════════
+  async function loadItems(force = false) {
+    if (force) {
+      clearItemsCache();
+    } else {
+      const cached = loadItemsCache();
+      if (cached) {
+        state.items = cached;
+        console.log(`[TR] items from cache: ${cached.length}`);
+        return true;
+      }
+    }
+
+    // 顯示載入
+    $('#trCardWrap').innerHTML = `<div class="tr-loading">
+      <i class="fas fa-spinner fa-spin"></i>
+      <div>從伺服器載入題庫…</div>
+    </div>`;
 
     try {
-      const r = await apiCall(
-        `/api/tr-problems?action=list&page=${pageNum}&limit=${PAGE_SIZE}`
-      );
-      if (!r.success) throw new Error(r.message || 'load failed');
-
-      state.items = r.items || [];
-      state.currentPage = r.page;
-      state.totalPages = r.totalPages;
-      state.totalCount = r.total;
-
-      // 過濾
-      applyFilters();
-
-      // 頁內索引歸零
-      state.pageIdx = 0;
-      state.currentDetail = null;
-      state.selected = null;
-      state.submitted = false;
-
+      const items = await fetchItemsFromServer();
+      state.items = items;
+      saveItemsCache(items);
+      console.log(`[TR] items from server: ${items.length}`);
       return true;
     } catch (e) {
-      console.error('[TR] loadPage failed:', e);
-      $('#trMain').innerHTML = `<div class="tr-empty">
+      console.error('[TR] loadItems failed:', e);
+      $('#trCardWrap').innerHTML = `<div class="tr-empty">
         <i class="fas fa-triangle-exclamation"></i>
         <h2>載入失敗</h2>
         <div>${esc(e.message)}</div>
       </div>`;
       return false;
-    } finally {
-      state.loading = false;
     }
   }
 
   // ═══════════ 建立過濾選項 ═══════════
   function buildFilterOptions() {
-    // Level：1-9
+    // Level
     const levelSel = $('#trFilterLevel');
-    let levelHtml = '<option value="">All Levels</option>';
-    for (let i = 1; i <= 9; i++) {
-      levelHtml += `<option value="${i}">Level ${i}</option>`;
-    }
+    const curLevel = levelSel.value;
+    let levelHtml = '<option value="">All</option>';
+    for (let i = 1; i <= 9; i++) levelHtml += `<option value="${i}">Lv.${i}</option>`;
     levelSel.innerHTML = levelHtml;
+    levelSel.value = curLevel;
 
-    // Category：動態
-    const cats = [...new Set(state.items.map(i => i.category).filter(Boolean))].sort();
+    // Category
     const catSel = $('#trFilterCat');
-    catSel.innerHTML = '<option value="">All Categories</option>' +
+    const curCat = catSel.value;
+    const cats = [...new Set(state.items.map(i => i.category).filter(Boolean))].sort();
+    catSel.innerHTML = '<option value="">All</option>' +
       cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    catSel.value = curCat;
   }
 
   // ═══════════ 過濾 ═══════════
   function applyFilters() {
-    const { q, level, diff, cat } = state.filters;
-    const ql = q.trim().toLowerCase();
-
+    const { level, diff, cat, status } = state.filters;
     state.filtered = state.items.filter(it => {
       if (level && String(it.level) !== String(level)) return false;
       if (diff && it.difficulty !== diff) return false;
       if (cat && it.category !== cat) return false;
-      if (ql) {
-        const hay = (it.id + ' ' + it.statement).toLowerCase();
-        if (!hay.includes(ql)) return false;
+
+      if (status) {
+        const p = state.progress[it.id];
+        if (status === 'unanswered' && p) return false;
+        if (status === 'correct'   && !(p && p.correct)) return false;
+        if (status === 'wrong'     && !(p && !p.correct)) return false;
       }
       return true;
     });
-
-    if (state.pageIdx >= state.filtered.length) {
-      state.pageIdx = Math.max(0, state.filtered.length - 1);
-    }
   }
 
-  // ═══════════ 更新進度 ═══════════
-  function updateProgress() {
-    const total = state.filtered.length;
-    const done = state.filtered.filter(it => state.progress[it.id]).length;
-    const correct = state.filtered.filter(it => state.progress[it.id]?.correct).length;
-
-    $('#trCounter').textContent = `${state.pageIdx + 1} / ${total}`;
-    $('#trProgressFill').style.width = (total ? (done / total) * 100 : 0) + '%';
-    $('#trAccuracy').textContent = done ? `${Math.round((correct / done) * 100)}%` : '—';
+  // ═══════════ 側邊列表過濾 ═══════════
+  function applySideFilter() {
+    const q = (state.filters.side || '').trim().toLowerCase();
+    if (!q) return state.filtered;
+    return state.filtered.filter(it => it.id.toLowerCase().includes(q));
   }
 
-  // ═══════════ 更新分頁 ═══════════
-  function updatePagination() {
-    const pag = $('#trPagination');
-    if (state.totalPages <= 1) {
-      pag.style.display = 'none';
+  // ═══════════ 渲染側邊列表 ═══════════
+  function renderSideList() {
+    const el = $('#trSideList');
+    const list = applySideFilter();
+
+    if (!list.length) {
+      el.innerHTML = `<div style="padding:16px;color:var(--text-secondary);font-size:.75rem;text-align:center;">
+        No problems
+      </div>`;
       return;
     }
-    pag.style.display = 'flex';
-    $('#trPageInfo').textContent = `${state.currentPage} / ${state.totalPages}`;
-    $('#trPagePrev').disabled = state.currentPage <= 1;
-    $('#trPageNext').disabled = state.currentPage >= state.totalPages;
+
+    // 用 DocumentFragment 提升效能
+    const frag = document.createDocumentFragment();
+    for (const it of list) {
+      const p = state.progress[it.id];
+      const isActive = it.id === state.currentId;
+      const cls = [
+        'tr-side-item',
+        isActive ? 'active' : '',
+        p ? (p.correct ? 'correct' : 'wrong') : '',
+      ].filter(Boolean).join(' ');
+
+      const node = document.createElement('div');
+      node.className = cls;
+      node.dataset.id = it.id;
+      node.title = it.id;
+      node.innerHTML = `<span class="dot"></span><span class="id">${esc(it.id)}</span>`;
+      frag.appendChild(node);
+    }
+
+    el.innerHTML = '';
+    el.appendChild(frag);
+
+    // 事件委派
+    el.querySelectorAll('.tr-side-item').forEach(node => {
+      node.addEventListener('click', () => {
+        goToId(node.dataset.id);
+      });
+    });
+
+    // 滾動到當前題（僅當選中項不在視窗內時）
+    if (state.currentId) {
+      const active = el.querySelector('.tr-side-item.active');
+      if (active) {
+        const rect = active.getBoundingClientRect();
+        const listRect = el.getBoundingClientRect();
+        if (rect.top < listRect.top || rect.bottom > listRect.bottom) {
+          active.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      }
+    }
+  }
+
+  // ═══════════ 更新統計 ═══════════
+  function updateStats() {
+    const list = state.filtered;
+    const total = list.length;
+    const done = list.filter(it => state.progress[it.id]).length;
+    const correct = list.filter(it => state.progress[it.id]?.correct).length;
+    const wrong = done - correct;
+
+    $('#trCounter').textContent = `${done} / ${total}`;
+    $('#trProgressFill').style.width = (total ? (done / total) * 100 : 0) + '%';
+    $('#trAccuracy').textContent = done ? `${Math.round((correct / done) * 100)}%` : '—';
+    $('#trLegGood').textContent = correct;
+    $('#trLegBad').textContent = wrong;
+    $('#trHeadStat').textContent = `${state.items.length} problems`;
   }
 
   // ═══════════ 載入單題詳情 ═══════════
@@ -868,41 +1212,51 @@
     }
   }
 
-  // ═══════════ 渲染主畫面 ═══════════
-  async function render() {
-    const main = $('#trMain');
+  // ═══════════ 渲染題目 ═══════════
+  async function renderCard() {
+    const wrap = $('#trCardWrap');
 
     if (!state.filtered.length) {
-      main.innerHTML = `<div class="tr-card"><div class="tr-empty">
+      wrap.innerHTML = `<div class="tr-card"><div class="tr-empty">
         <i class="fas fa-inbox"></i>
         <h2>沒有題目</h2>
-        <div>試著調整搜尋或過濾條件。</div>
+        <div>試著調整過濾條件。</div>
       </div></div>`;
-      updateProgress();
-      updatePagination();
+      updateStats();
       return;
     }
 
-    const meta = state.filtered[state.pageIdx];
-    main.innerHTML = `<div class="tr-card"><div class="tr-loading" style="padding:40px 0;">
+    // 找當前題
+    let meta = state.filtered.find(it => it.id === state.currentId);
+    if (!meta) {
+      meta = state.filtered[0];
+      state.currentId = meta.id;
+    }
+
+    // 載入詳情
+    wrap.innerHTML = `<div class="tr-card"><div class="tr-loading" style="padding:40px 0;">
       <i class="fas fa-spinner fa-spin"></i><div>載入中…</div>
     </div></div>`;
 
     const detail = await loadDetail(meta.id);
     if (!detail) {
-      main.innerHTML = `<div class="tr-card"><div class="tr-empty">
+      wrap.innerHTML = `<div class="tr-card"><div class="tr-empty">
         <i class="fas fa-triangle-exclamation"></i>
         <h2>載入失敗</h2>
       </div></div>`;
       return;
     }
 
-    // 已答過帶入
+    // 若已答過 → 帶入
     const p = state.progress[detail.id];
-    if (p && !state.submitted) {
+    if (p) {
       state.selected = p.selected;
       state.submitted = true;
       state.correct = p.correct;
+    } else {
+      state.selected = null;
+      state.submitted = false;
+      state.correct = false;
     }
 
     const diffLabel = { easy: 'Easy', medium: 'Medium', hard: 'Hard' }[detail.difficulty] || detail.difficulty;
@@ -945,7 +1299,11 @@
         </div>`;
     }
 
-    main.innerHTML = `
+    const idx = state.filtered.findIndex(it => it.id === detail.id);
+    const isFirst = idx <= 0;
+    const isLast = idx >= state.filtered.length - 1;
+
+    wrap.innerHTML = `
       <article class="tr-card">
         <div class="tr-meta">
           <span class="tr-tag id">${esc(detail.id)}</span>
@@ -963,7 +1321,7 @@
         ${feedbackHtml}
 
         <div class="tr-actions">
-          <button class="tr-btn ghost" id="trPrev" ${state.pageIdx <= 0 ? 'disabled' : ''}>
+          <button class="tr-btn ghost" id="trPrev" ${isFirst ? 'disabled' : ''}>
             <i class="fas fa-arrow-left"></i> 上一題
           </button>
           <div class="spacer"></div>
@@ -973,20 +1331,21 @@
           <button class="tr-btn primary" id="trSubmit" ${!state.selected || state.submitted ? 'disabled' : ''}>
             <i class="fas fa-check"></i> 提交
           </button>
-          <button class="tr-btn primary" id="trNext" ${state.pageIdx >= state.filtered.length - 1 ? 'disabled' : ''}>
+          <button class="tr-btn primary" id="trNext" ${isLast ? 'disabled' : ''}>
             下一題 <i class="fas fa-arrow-right"></i>
           </button>
         </div>
       </article>
     `;
 
-    bindMainEvents();
-    updateProgress();
-    updatePagination();
+    bindCardEvents();
+    updateStats();
+    renderSideList();
+    saveState();
   }
 
-  // ═══════════ 主畫面事件 ═══════════
-  function bindMainEvents() {
+  // ═══════════ 卡片事件 ═══════════
+  function bindCardEvents() {
     $$('.tr-choice').forEach(btn => {
       btn.addEventListener('click', () => {
         if (state.submitted) return;
@@ -1003,8 +1362,8 @@
       $$('.tr-choice').forEach(x => x.classList.remove('selected'));
       $('#trSubmit').disabled = true;
     });
-    $('#trPrev')?.addEventListener('click', () => goTo(state.pageIdx - 1));
-    $('#trNext')?.addEventListener('click', () => goTo(state.pageIdx + 1));
+    $('#trPrev')?.addEventListener('click', () => goPrev());
+    $('#trNext')?.addEventListener('click', () => goNext());
 
     $('#trProblemImg')?.addEventListener('click', (e) => {
       $('#trLightboxImg').src = e.target.src;
@@ -1024,17 +1383,32 @@
       ts: Date.now(),
     };
     saveProgress();
-    render();
+    renderCard();
   }
 
-  function goTo(idx) {
-    if (idx < 0 || idx >= state.filtered.length) return;
-    state.pageIdx = idx;
+  // ═══════════ 導航 ═══════════
+  function goPrev() {
+    const idx = state.filtered.findIndex(it => it.id === state.currentId);
+    if (idx <= 0) return;
+    goToId(state.filtered[idx - 1].id);
+  }
+  function goNext() {
+    const idx = state.filtered.findIndex(it => it.id === state.currentId);
+    if (idx < 0 || idx >= state.filtered.length - 1) return;
+    goToId(state.filtered[idx + 1].id);
+  }
+  function goToId(id) {
+    if (state.currentId === id && state.currentDetail?.id === id) return;
+    state.currentId = id;
+    state.currentDetail = null;
     state.selected = null;
     state.submitted = false;
-    state.currentDetail = null;
-    render();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    $('#trMain').scrollTop = 0;
+    // 手機：點 sidebar 項目後收起
+    if (window.innerWidth <= 700) {
+      $('#trSidebar').classList.remove('open');
+    }
+    renderCard();
   }
 
   // ═══════════ Lightbox ═══════════
@@ -1061,12 +1435,12 @@
     }
     if (e.key === 'Enter') {
       if (!state.submitted && state.selected) submitAnswer();
-      else if (state.submitted) goTo(state.pageIdx + 1);
+      else if (state.submitted) goNext();
       e.preventDefault();
       return;
     }
-    if (e.key === 'ArrowLeft') { goTo(state.pageIdx - 1); e.preventDefault(); }
-    else if (e.key === 'ArrowRight') { goTo(state.pageIdx + 1); e.preventDefault(); }
+    if (e.key === 'ArrowLeft') { goPrev(); e.preventDefault(); }
+    else if (e.key === 'ArrowRight') { goNext(); e.preventDefault(); }
     if (e.key === 'Escape' && !state.submitted) {
       state.selected = null;
       $$('.tr-choice').forEach(x => x.classList.remove('selected'));
@@ -1075,54 +1449,95 @@
     }
   });
 
-  // ═══════════ 分頁事件 ═══════════
-  $('#trPagePrev')?.addEventListener('click', async () => {
-    if (state.currentPage <= 1) return;
-    await changePage(state.currentPage - 1);
-  });
-  $('#trPageNext')?.addEventListener('click', async () => {
-    if (state.currentPage >= state.totalPages) return;
-    await changePage(state.currentPage + 1);
-  });
+  // ═══════════ 過濾器事件 ═══════════
+  function bindFilterEvents() {
+    ['#trFilterLevel', '#trFilterDiff', '#trFilterCat', '#trFilterStatus'].forEach(sel => {
+      $(sel)?.addEventListener('change', () => {
+        state.filters.level  = $('#trFilterLevel').value;
+        state.filters.diff   = $('#trFilterDiff').value;
+        state.filters.cat    = $('#trFilterCat').value;
+        state.filters.status = $('#trFilterStatus').value;
+        applyFilters();
+        // 若當前題被過濾掉 → 跳到第一篇
+        if (!state.filtered.find(it => it.id === state.currentId)) {
+          state.currentId = state.filtered[0]?.id || null;
+          state.currentDetail = null;
+          state.selected = null;
+          state.submitted = false;
+        }
+        renderCard();
+        saveState();
+      });
+    });
 
-  async function changePage(n) {
-    const ok = await loadPage(n);
-    if (!ok) return;
-    buildFilterOptions();
-    // 保留過濾（若新頁面沒該分類，filtered 會變空）
-    // 重新綁定 select 值
-    $('#trFilterLevel').value = state.filters.level;
-    $('#trFilterDiff').value = state.filters.diff;
-    $('#trFilterCat').value = state.filters.cat;
-    render();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // 側邊搜尋
+    let _sideTimer = null;
+    $('#trSideFilter')?.addEventListener('input', () => {
+      clearTimeout(_sideTimer);
+      _sideTimer = setTimeout(() => {
+        state.filters.side = $('#trSideFilter').value;
+        renderSideList();
+      }, 150);
+    });
   }
 
-  // ═══════════ 過濾事件 ═══════════
-  let _filterTimer = null;
-  function onFilterChange() {
-    clearTimeout(_filterTimer);
-    _filterTimer = setTimeout(() => {
-      state.filters.q = $('#trSearch').value;
-      state.filters.level = $('#trFilterLevel').value;
-      state.filters.diff = $('#trFilterDiff').value;
-      state.filters.cat = $('#trFilterCat').value;
+  // ═══════════ 滾動保存 ═══════════
+  function bindScrollListeners() {
+    $('#trMain')?.addEventListener('scroll', saveScroll, { passive: true });
+    $('#trSideList')?.addEventListener('scroll', saveScroll, { passive: true });
+  }
 
+  // ═══════════ 刷新按鈕 ═══════════
+  async function handleRefresh() {
+    const btn = $('#trRefreshBtn');
+    const mask = $('#trRefreshMask');
+    if (btn.classList.contains('spinning')) return;
+
+    btn.classList.add('spinning');
+    mask.classList.add('show');
+    $('#trRefreshMsg').textContent = 'Refreshing from server...';
+
+    try {
+      const ok = await loadItems(true);
+      if (!ok) return;
+      // 重建過濾選項
+      buildFilterOptions();
       applyFilters();
-      state.pageIdx = 0;
-      state.selected = null;
-      state.submitted = false;
-      state.currentDetail = null;
-      render();
-    }, 200);
-  }
-  ['#trSearch', '#trFilterLevel', '#trFilterDiff', '#trFilterCat'].forEach(sel => {
-    const el = $(sel);
-    if (el) {
-      el.addEventListener('input', onFilterChange);
-      el.addEventListener('change', onFilterChange);
+      // 若當前題不在新題庫，跳到第一篇
+      if (!state.filtered.find(it => it.id === state.currentId)) {
+        state.currentId = state.filtered[0]?.id || null;
+        state.currentDetail = null;
+        state.selected = null;
+        state.submitted = false;
+      }
+      await renderCard();
+      $('#trRefreshMsg').textContent = 'Done!';
+      setTimeout(() => mask.classList.remove('show'), 400);
+    } catch (e) {
+      $('#trRefreshMsg').textContent = 'Refresh failed: ' + e.message;
+      setTimeout(() => mask.classList.remove('show'), 1500);
+    } finally {
+      btn.classList.remove('spinning');
     }
-  });
+  }
+
+  // ═══════════ 手機側欄 ═══════════
+  function bindMobileMenu() {
+    $('#trMobileMenuBtn')?.addEventListener('click', () => {
+      $('#trSidebar').classList.toggle('open');
+    });
+    // 點主區關閉側欄
+    $('#trMain')?.addEventListener('click', (e) => {
+      if (window.innerWidth > 700) return;
+      const sb = $('#trSidebar');
+      if (sb.classList.contains('open')) {
+        // 若點擊的是 sidebar 內部則不關
+        if (!$('#trSidebar').contains(e.target)) {
+          sb.classList.remove('open');
+        }
+      }
+    });
+  }
 
   // ═══════════ 啟動 ═══════════
   (async function init() {
@@ -1134,26 +1549,57 @@
       return;
     }
 
+    // 載入進度 & 狀態
     loadProgress();
+    loadState();
 
-    // 平行載入
+    // 顯示布局
+    $('#trLayout').style.display = 'grid';
+
+    // 平行載入 filemap + 題庫（若快取有直接讀）
     await Promise.all([
       loadFileMap(),
-      loadPage(1),
+      loadItems(false),
     ]);
 
     if (!state.items.length) {
-      $('#trWrap').style.display = 'block';
-      $('#trMain').innerHTML = `<div class="tr-card"><div class="tr-empty">
+      $('#trCardWrap').innerHTML = `<div class="tr-card"><div class="tr-empty">
         <i class="fas fa-inbox"></i>
         <h2>題庫為空</h2>
       </div></div>`;
       return;
     }
 
+    // 建立過濾選項
     buildFilterOptions();
-    $('#trWrap').style.display = 'flex';
-    render();
+
+    // 還原過濾器 UI 值
+    $('#trFilterLevel').value = state.filters.level || '';
+    $('#trFilterDiff').value = state.filters.diff || '';
+    $('#trFilterCat').value = state.filters.cat || '';
+    $('#trFilterStatus').value = state.filters.status || '';
+
+    // 過濾
+    applyFilters();
+
+    // 若無當前題（首次）→ 選第一篇
+    if (!state.currentId || !state.filtered.find(it => it.id === state.currentId)) {
+      state.currentId = state.filtered[0]?.id || null;
+    }
+
+    // 綁定事件
+    bindFilterEvents();
+    bindScrollListeners();
+    bindMobileMenu();
+    $('#trRefreshBtn').addEventListener('click', handleRefresh);
+
+    // 渲染
+    renderSideList();
+    await renderCard();
+    updateStats();
+
+    // 恢復滾動位置
+    restoreScroll();
   })();
 })();
 </script>

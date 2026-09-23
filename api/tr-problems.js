@@ -4,8 +4,6 @@ import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 
 // ── 權限設定（環境變數）──
-// TR_ALLOWED_USERS = "alice,bob,charlie"     可以看題 / 答題
-// TR_ADMIN_USERS   = "charlie,dave"          可以管理（必須同時在 ALLOWED 內）
 function allowedUsers() {
   return String(process.env.TR_ALLOWED_USERS || '')
     .split(',').map(s => s.trim()).filter(Boolean);
@@ -14,7 +12,6 @@ function adminUsers() {
   return String(process.env.TR_ADMIN_USERS || '')
     .split(',').map(s => s.trim()).filter(Boolean);
 }
-
 function canView(decoded) {
   if (!decoded) return false;
   if (decoded.role === 'root') return true;
@@ -27,7 +24,6 @@ function canManage(decoded) {
          allowedUsers().includes(decoded.username);
 }
 
-// 驗證題目 payload
 function validateProblem(body, { partial = false } = {}) {
   const errors = [];
   const out = {};
@@ -50,7 +46,7 @@ function validateProblem(body, { partial = false } = {}) {
     } else {
       const cleaned = {};
       for (const k of Object.keys(c)) {
-        if (!/^[A-Z]$/.test(k)) continue;    // 只留 A-Z
+        if (!/^[A-Z]$/.test(k)) continue;
         const v = String(c[k] || '').trim();
         if (v) cleaned[k] = v;
       }
@@ -60,11 +56,11 @@ function validateProblem(body, { partial = false } = {}) {
   }
   if (body.ans !== undefined || !partial) {
     const a = String(body.ans || '').toUpperCase().trim();
-    if (!/^[A-Z]$/.test(a)) errors.push('ans must be a single letter A-Z');
+    if (!/^[A-Z]$/.test(a)) errors.push('ans must be A-Z');
     out.ans = a;
   }
   if (body.level !== undefined || !partial) {
-    let lv = parseInt(body.level, 10);
+    const lv = parseInt(body.level, 10);
     if (!Number.isFinite(lv) || lv < 1 || lv > 9) errors.push('level must be 1-9');
     out.level = lv;
   }
@@ -81,13 +77,25 @@ function validateProblem(body, { partial = false } = {}) {
     out.private = !!out.imageurl;
   }
 
-  // 檢查 ans 是否在 choice 內
   if (out.choice && out.ans && !out.choice[out.ans]) {
     errors.push(`ans "${out.ans}" not in choice`);
   }
-
   return { errors, value: out };
 }
+
+// 列表用的投影（不含 imageurl，只留 hasImage 標記）
+const LIST_PROJECTION = {
+  _id: 0,
+  id: 1,
+  statement: 1,
+  choice: 1,
+  ans: 1,
+  level: 1,
+  difficulty: 1,
+  category: 1,
+  private: 1,
+  hasImage: { $gt: [{ $strLenCP: { $ifNull: ['$imageurl', ''] } }, 0] },
+};
 
 export default async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
@@ -95,57 +103,58 @@ export default async function handler(req, res) {
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
-  // 非受邀用戶一律 404，不洩漏系統存在
+  const action = req.query.action || 'list';
+
+  // ⭐ whoami 放在最前（讓無權限者也能查詢）
+  if (action === 'whoami') {
+    return res.status(200).json({
+      success: true,
+      username: decoded.username,
+      role: decoded.role,
+      canView: canView(decoded),
+      canManage: canManage(decoded),
+    });
+  }
+
+  // 非受邀用戶 → 404（不洩漏系統存在）
   if (!canView(decoded)) {
     return res.status(404).json({ success: false, message: 'Not found' });
   }
 
   const db = await connectToDatabase();
   const col = db.collection('tr-problems');
-  const action = req.query.action || 'list';
-    // ═══════════ LIST-ALL（一次拿完，給 TR 系統用）═══════════
+
+  // ═══════════ LIST-ALL（一次性拉全部）═══════════
   if (action === 'list-all') {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
     try {
       const items = await col.aggregate([
         { $sort: { id: 1 } },
-        {
-          $project: {
-            _id: 0,
-            id: 1,
-            statement: 1,
-            choice: 1,
-            ans: 1,
-            level: 1,
-            difficulty: 1,
-            category: 1,
-            private: 1,
-            hasImage: {
-              $gt: [{ $strLenCP: { $ifNull: ['$imageurl', ''] } }, 0]
-            },
-          },
-        },
+        { $project: LIST_PROJECTION },
       ]).toArray();
 
-      res.setHeader('Cache-Control', 'private, max-age=120');
+      // 邊緣快取 5 分鐘、瀏覽器快取 5 分鐘
+      res.setHeader('Cache-Control', 'private, max-age=300');
       return res.status(200).json({
         success: true,
         items,
         total: items.length,
+        fetchedAt: Date.now(),
       });
     } catch (err) {
       console.error('tr-problems list-all error:', err);
       return res.status(500).json({ success: false, message: 'Internal error' });
     }
   }
-  // ═══════════ LIST（不含 imageurl 資料）═══════════
+
+  // ═══════════ LIST（分頁，保留相容）═══════════
   if (action === 'list') {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
     const { page = '1', limit = '50', category, difficulty, level, q } = req.query;
     const pageNum = Math.max(1, parseInt(page) || 1);
-    const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 50));
+    const limitNum = Math.min(2000, Math.max(1, parseInt(limit) || 50));
 
     const filter = {};
     if (category) filter.category = category;
@@ -166,22 +175,7 @@ export default async function handler(req, res) {
         { $sort: { id: 1 } },
         { $skip: (pageNum - 1) * limitNum },
         { $limit: limitNum },
-        {
-          $project: {
-            _id: 0,
-            id: 1,
-            statement: 1,
-            choice: 1,
-            ans: 1,
-            level: 1,
-            difficulty: 1,
-            category: 1,
-            private: 1,
-            hasImage: {
-              $gt: [{ $strLenCP: { $ifNull: ['$imageurl', ''] } }, 0]
-            },
-          },
-        },
+        { $project: LIST_PROJECTION },
       ]).toArray(),
     ]);
 
@@ -204,14 +198,16 @@ export default async function handler(req, res) {
     const doc = await col.findOne({ id }, { projection: { _id: 0 } });
     if (!doc) return res.status(404).json({ success: false, message: 'Not found' });
 
+    // 有圖的題目短快取
+    res.setHeader('Cache-Control', 'private, max-age=60');
     return res.status(200).json({ success: true, problem: doc });
   }
 
-  // ═══════════ STATS（快速總覽）═══════════
+  // ═══════════ STATS ═══════════
   if (action === 'stats') {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-    const pipeline = [
+    const [result] = await col.aggregate([
       {
         $facet: {
           total: [{ $count: 'n' }],
@@ -221,12 +217,12 @@ export default async function handler(req, res) {
             { $match: { category: { $ne: '' } } },
             { $group: { _id: '$category', count: { $sum: 1 } } },
             { $sort: { count: -1 } },
-            { $limit: 50 },
+            { $limit: 100 },
           ],
         },
       },
-    ];
-    const [result] = await col.aggregate(pipeline).toArray();
+    ]).toArray();
+
     return res.status(200).json({
       success: true,
       total: result.total[0]?.n || 0,
@@ -236,7 +232,7 @@ export default async function handler(req, res) {
     });
   }
 
-  // ═══════════ CREATE / UPDATE / DELETE（管理員）═══════════
+  // ═══════════ 以下需管理員 ═══════════
   if (!canManage(decoded)) {
     return res.status(403).json({ success: false, message: 'Admin only' });
   }
@@ -268,7 +264,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ success: false, message: 'No fields to update' });
     }
 
-    // 若只改 ans，要檢查 choice 兼容性
     if (value.ans && !value.choice) {
       const cur = await col.findOne({ id }, { projection: { choice: 1 } });
       if (!cur) return res.status(404).json({ success: false, message: 'Not found' });
@@ -295,17 +290,6 @@ export default async function handler(req, res) {
     if (result.deletedCount === 0) return res.status(404).json({ success: false, message: 'Not found' });
 
     return res.status(200).json({ success: true, message: 'Deleted' });
-  }
-
-  // ═══════════ WHOAMI（前端確認權限）═══════════
-  if (action === 'whoami') {
-    return res.status(200).json({
-      success: true,
-      username: decoded.username,
-      role: decoded.role,
-      canView: canView(decoded),
-      canManage: canManage(decoded),
-    });
   }
 
   return res.status(400).json({ success: false, message: 'Invalid action' });
