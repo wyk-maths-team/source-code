@@ -1585,7 +1585,7 @@
 
     const ok = await checkAccess();
     if (!ok) {
-      $('#trDenied').style.display = 'block';
+      window.location.replace('/404.html');
       return;
     }
 
