@@ -1,13 +1,84 @@
 <!DOCTYPE html>
-<html lang="zh-HK">
+<html lang="zh-HK" translate="no" class="notranslate">
 <head>
 <meta charset="UTF-8">
+<!-- ⭐ 反翻譯聲明 -->
+<meta name="google" content="notranslate">
+<meta name="microsoft" content="notranslate">
+<meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 <title>TR Training</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
 <style>
+    /* ═══════════════ 反選取 ═══════════════ */
+  *,
+  *::before,
+  *::after {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    -webkit-touch-callout: none;   /* iOS 長按菜單 */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* 允許 input / textarea 正常輸入 */
+  input,
+  textarea,
+  [contenteditable="true"] {
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+  }
+
+  /* 禁止圖片拖拽 */
+  img {
+    -webkit-user-drag: none;
+    user-drag: none;
+    pointer-events: auto;   /* 保留點擊放大功能 */
+  }
+
+  /* ═══════════════ 反翻譯 ═══════════════ */
+  /* 隱藏 Google Translate 頂部工具條 */
+  .skiptranslate,
+  .goog-te-banner-frame,
+  #goog-gt-tt,
+  .goog-te-balloon-frame,
+  .goog-tooltip,
+  .goog-tooltip:hover {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  /* Google Translate 會把 body 往下推，強制歸零 */
+  body {
+    top: 0 !important;
+  }
+  /* Google Translate 翻譯後會把 <font> 包在文字外面，讓它繼承樣式 */
+  font {
+    background: transparent !important;
+    box-shadow: none !important;
+    color: inherit !important;
+    font: inherit !important;
+  }
+
+  /* ═══════════════ 禁止列印 / 另存 ═══════════════ */
+  @media print {
+    body * {
+      display: none !important;
+      visibility: hidden !important;
+    }
+    body::after {
+      content: 'Printing is disabled on this page.';
+      display: block !important;
+      visibility: visible !important;
+      font-size: 18px;
+      padding: 40px;
+      color: #666;
+    }
+  }
   /* ═══════════════ 對齊 styles.css 的變數 ═══════════════ */
   :root {
     --accent: #4a90d9;
@@ -867,7 +938,185 @@
     window.location.href = '/index.html';
     return;
   }
+    // ═══════════════ 反選取 / 反翻譯 保護 ═══════════════
+  (function guard() {
+    // ── 1. 阻止 Ctrl+A 全選（除非在 input / textarea）──
+    document.addEventListener('keydown', (e) => {
+      const tag = (e.target && e.target.tagName) || '';
+      const inField = ['INPUT', 'TEXTAREA'].includes(tag) ||
+                      (e.target && e.target.isContentEditable);
+      if (inField) return;
 
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && (e.key === 'a' || e.key === 'A')) {
+        e.preventDefault();
+      }
+      // ── 阻止 Ctrl+C 複製 ──
+      if (mod && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault();
+      }
+      // ── 阻止 Ctrl+X 剪下 ──
+      if (mod && (e.key === 'x' || e.key === 'X')) {
+        e.preventDefault();
+      }
+      // ── 阻止 Ctrl+P 列印（另存 PDF）──
+      if (mod && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+      }
+      // ── 阻止 Ctrl+S 儲存頁面 ──
+      if (mod && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+      }
+    }, true);
+
+    // ── 2. 阻止 copy 事件 ──
+    document.addEventListener('copy', (e) => {
+      const tag = (e.target && e.target.tagName) || '';
+      if (!['INPUT', 'TEXTAREA'].includes(tag)) {
+        e.preventDefault();
+      }
+    }, true);
+
+    // ── 3. 阻止拖拽選取 ──
+    document.addEventListener('dragstart', (e) => {
+      const tag = (e.target && e.target.tagName) || '';
+      if (!['INPUT', 'TEXTAREA'].includes(tag)) {
+        e.preventDefault();
+      }
+    }, true);
+
+    // ── 4. 阻止 iframe 包裹（有人會用 iframe 嵌入後翻譯）──
+    try {
+      if (window.self !== window.top) {
+        // 被嵌入 → 清空頁面 + 跳出去
+        document.documentElement.innerHTML = '';
+        window.top.location = window.self.location.href;
+        return;
+      }
+    } catch (e) { /* 跨域 iframe 會拋錯，代表被嵌入 */ }
+
+    // ── 5. 檢測翻譯注入 ──
+    const TRANSLATE_SIGNS = [
+      'translated-ltr',     // Google Translate / Chrome 內建
+      'translated-rtl',
+    ];
+    const TRANSLATE_SELECTORS = [
+      '#goog-gt-tt',
+      '.goog-te-banner-frame',
+      '.goog-te-balloon-frame',
+      '.skiptranslate',
+      'body > .skiptranslate',
+      'iframe.goog-te-banner-frame',
+    ];
+
+    let _translationWarned = false;
+
+    function detectTranslation() {
+      const html = document.documentElement;
+      let detected = false;
+
+      // 檢查 class
+      for (const cls of TRANSLATE_SIGNS) {
+        if (html.classList.contains(cls)) {
+          html.classList.remove(cls);
+          detected = true;
+        }
+      }
+
+      // 檢查 DOM 元素
+      for (const sel of TRANSLATE_SELECTORS) {
+        const el = document.querySelector(sel);
+        if (el && el.parentNode) {
+          try { el.remove(); } catch {}
+          detected = true;
+        }
+      }
+
+      // Chrome 翻譯會把 body 往下推
+      const top = parseInt(getComputedStyle(document.body).top, 10);
+      if (top > 0) {
+        document.body.style.setProperty('top', '0', 'important');
+        detected = true;
+      }
+
+      // 偵測到翻譯 → 顯示警告（只顯示一次）
+      if (detected && !_translationWarned) {
+        _translationWarned = true;
+        showTranslateWarning();
+        setTimeout(() => { _translationWarned = false; }, 5000);
+      }
+
+      return detected;
+    }
+
+    function showTranslateWarning() {
+      // 建立警告浮層
+      const warn = document.createElement('div');
+      warn.id = 'tr-translate-warning';
+      warn.innerHTML = `
+        <div style="
+          position:fixed;inset:0;z-index:999999;
+          background:rgba(0,0,0,.75);
+          display:flex;align-items:center;justify-content:center;
+          padding:24px;backdrop-filter:blur(4px);
+          font-family:'Segoe UI',system-ui,sans-serif;
+        ">
+          <div style="
+            background:#fff;color:#2c3e50;
+            padding:28px 32px;border-radius:12px;
+            max-width:420px;text-align:center;
+            box-shadow:0 20px 60px rgba(0,0,0,.4);
+          ">
+            <div style="font-size:2rem;color:#e67e22;margin-bottom:12px;">
+              <i class="fas fa-language"></i>
+            </div>
+            <h2 style="margin:0 0 8px;font-size:1.1rem;">Auto-Translate Detected</h2>
+            <p style="font-size:.88rem;color:#666;line-height:1.6;margin:0 0 18px;">
+              This page cannot be translated.<br>
+              Please disable browser translation and refresh.
+            </p>
+            <button id="tr-tw-close" style="
+              padding:8px 24px;border:none;border-radius:6px;
+              background:#4a90d9;color:#fff;font-size:.88rem;
+              font-weight:600;cursor:pointer;font-family:inherit;
+            ">OK</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(warn);
+      warn.querySelector('#tr-tw-close').addEventListener('click', () => {
+        warn.remove();
+      });
+    }
+
+    // ── 6. 用 MutationObserver 監測 DOM class 變化 ──
+    const observer = new MutationObserver(() => {
+      detectTranslation();
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class', 'style'],
+      childList: false,
+      subtree: false,
+    });
+    // 也監測 body 的子節點（翻譯工具會插入元素）
+    observer.observe(document.body, {
+      childList: true,
+      subtree: false,
+    });
+
+    // ── 7. 週期性檢查（有些翻譯工具不加 class）──
+    setInterval(detectTranslation, 800);
+
+    // ── 8. 攔截 contextmenu（右鍵）中的翻譯選項 ──
+    // 不阻止右鍵完全（會影響用戶體驗），但移除 Google 翻譯選項
+    document.addEventListener('contextmenu', (e) => {
+      const tag = (e.target && e.target.tagName) || '';
+      if (['INPUT', 'TEXTAREA'].includes(tag)) return;
+      // 不 preventDefault，保留一般右鍵菜單
+    }, false);
+
+  })();
   // ═══════════════════════════════════════════════════════════
   // 🔧 設定
   // ═══════════════════════════════════════════════════════════
