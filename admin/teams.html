@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manage Teams - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<style>
+  .admin-container { background: var(--card-bg); border-radius: 4px; padding: 1.5rem; max-width: 1100px; margin: 0 auto; }
+  .filter-bar { display: flex; gap: .6rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .filter-bar input, .filter-bar select { padding: .4rem .7rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--card-bg); color: var(--text-primary); font-size: .9rem; }
+  .teams-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+  .teams-table th, .teams-table td { padding: .6rem .5rem; border-bottom: 1px solid var(--border-color); text-align: left; }
+  .teams-table th { background: #e9ecef; font-weight: 700; font-size: .8rem; text-transform: uppercase; letter-spacing: .3px; color: #333; }
+  [data-theme="dark"] .teams-table th { background: #2d2d2d; color: #ddd; }
+  .teams-table tr:hover td { background: rgba(0,0,0,.02); }
+  [data-theme="dark"] .teams-table tr:hover td { background: rgba(255,255,255,.04); }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: .72rem; font-weight: 700; }
+  .badge.team { background: rgba(74,144,217,.15); color: #2a6cb0; }
+  .badge.locked { background: rgba(220,53,69,.15); color: #c82333; }
+  .badge.mode1 { background: rgba(251,191,36,.2); color: #b28500; }
+  .badge.mode2 { background: rgba(74,222,128,.15); color: #2e7d32; }
+  .btn { padding: .35rem .8rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--card-bg); color: var(--text-primary); cursor: pointer; font-size: .82rem; font-weight: 600; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.danger { color: var(--danger); border-color: var(--danger); }
+  .btn.danger:hover { background: var(--danger); color: #fff; }
+  .team-id-code { font-family: 'Consolas', monospace; color: var(--accent); font-weight: 700; }
+  .loading-msg { text-align: center; padding: 2rem; color: var(--text-secondary); }
+  .empty-msg { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); }
+</style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="admin-container">
+        <h2><i class="fas fa-users-gear"></i> Manage Teams</h2>
+
+        <div class="filter-bar">
+          <select id="filterContest"><option value="">All Contests</option></select>
+          <input type="text" id="filterSearch" placeholder="Search team name / captain...">
+          <button class="btn" id="reloadBtn"><i class="fas fa-sync-alt"></i> Reload</button>
+        </div>
+
+        <div id="teamsList"><div class="loading-msg"><i class="fas fa-spinner fa-spin"></i> Loading...</div></div>
+        <div id="message" style="margin-top:1rem;font-size:.9rem;"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+    if (!isLoggedIn() || (getCurrentUser()?.role !== 'admin' && getCurrentUser()?.role !== 'root')) {
+      window.location.href = '/index.html';
+    }
+
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+    let allTeams = [];
+    let contestsMap = {};
+
+    async function loadContests() {
+      try {
+        const r = await apiCall('/api/contests?action=list&limit=50');
+        if (r.success) {
+          const sel = document.getElementById('filterContest');
+          r.contests.forEach(c => {
+            contestsMap[c.id] = c.name;
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = `#${c.id} ${c.name}`;
+            sel.appendChild(opt);
+          });
+        }
+      } catch (e) { console.error(e); }
+    }
+
+    async function loadTeams() {
+      const list = document.getElementById('teamsList');
+      list.innerHTML = '<div class="loading-msg"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+      try {
+        const contestId = document.getElementById('filterContest').value;
+        const url = '/api/teams?action=adminList' + (contestId ? `&contestId=${contestId}` : '');
+        const r = await apiCall(url);
+        if (!r.success) throw new Error(r.message || 'Load failed');
+        allTeams = r.teams || [];
+        render();
+      } catch (e) {
+        list.innerHTML = `<div class="empty-msg" style="color:var(--danger)">Error: ${esc(e.message)}</div>`;
+      }
+    }
+
+    function render() {
+      const q = document.getElementById('filterSearch').value.trim().toLowerCase();
+      const filtered = allTeams.filter(t => {
+        if (!q) return true;
+        const hay = (t.name + ' ' + t.captain + ' ' + (t.members || []).join(' ')).toLowerCase();
+        return hay.includes(q);
+      });
+
+      const list = document.getElementById('teamsList');
+      if (filtered.length === 0) {
+        list.innerHTML = '<div class="empty-msg">No teams found.</div>';
+        return;
+      }
+
+      list.innerHTML = `
+        <table class="teams-table">
+          <thead><tr>
+            <th>Team ID</th>
+            <th>Name</th>
+            <th>Contest</th>
+            <th>Captain</th>
+            <th>Members</th>
+            <th>Mode</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr></thead>
+          <tbody>
+            ${filtered.map(t => `
+              <tr data-team-id="${t.id}">
+                <td><span class="team-id-code">#${t.id}</span></td>
+                <td><a href="/teams/${t.id}" target="_blank">${esc(t.name)}</a></td>
+                <td>${contestsMap[t.contestId] ? `#${t.contestId} ${esc(contestsMap[t.contestId])}` : `#${t.contestId}`}</td>
+                <td>${esc(t.captain)}</td>
+                <td>
+                  ${(t.members || []).map(m => `<span style="font-family:monospace;font-size:.82rem;${m === t.captain ? 'color:var(--accent);font-weight:700;' : ''}">${esc(m)}</span>`).join(', ')}
+                  ${(t.formerMembers || []).length ? `<br><span style="font-size:.75rem;color:var(--text-secondary);text-decoration:line-through;">${t.formerMembers.map(esc).join(', ')}</span>` : ''}
+                </td>
+                <td><span class="badge mode${t.mode}">Mode ${t.mode}</span></td>
+                <td>${t.locked ? '<span class="badge locked">LOCKED</span>' : '<span class="badge team">OPEN</span>'}</td>
+                <td>
+                  <button class="btn" data-action="rename">Rename</button>
+                  <button class="btn danger" data-action="delete">Delete</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+
+      list.querySelectorAll('[data-action="rename"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tr = btn.closest('tr');
+          const teamId = Number(tr.dataset.teamId);
+          const team = allTeams.find(t => t.id === teamId);
+          if (!team) return;
+          const name = prompt('New team name (≤30 chars):', team.name);
+          if (name === null) return;
+          doRename(teamId, name);
+        });
+      });
+
+      list.querySelectorAll('[data-action="delete"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tr = btn.closest('tr');
+          const teamId = Number(tr.dataset.teamId);
+          const team = allTeams.find(t => t.id === teamId);
+          if (!team) return;
+          if (!confirm(`Delete team "${team.name}" (#${teamId})?\nThis will remove all submissions and contest results for this team.`)) return;
+          doDelete(teamId);
+        });
+      });
+    }
+
+    async function doRename(teamId, name) {
+      const clean = String(name).trim();
+      if (!clean || clean.length > 30) {
+        showMsg('Name must be 1-30 characters', 'error');
+        return;
+      }
+      try {
+        const r = await apiCall('/api/teams?action=adminRename', 'POST', { teamId, name: clean });
+        if (!r.success) throw new Error(r.message);
+        showMsg('Renamed', 'success');
+        loadTeams();
+      } catch (e) {
+        showMsg(e.message, 'error');
+      }
+    }
+
+    async function doDelete(teamId) {
+      try {
+        const r = await apiCall('/api/teams?action=adminDelete', 'POST', { teamId });
+        if (!r.success) throw new Error(r.message);
+        showMsg('Deleted', 'success');
+        loadTeams();
+      } catch (e) {
+        showMsg(e.message, 'error');
+      }
+    }
+
+    function showMsg(msg, type) {
+      const el = document.getElementById('message');
+      el.textContent = msg;
+      el.style.color = type === 'error' ? 'var(--danger)' : '#2e7d32';
+      setTimeout(() => el.textContent = '', 4000);
+    }
+
+    document.getElementById('reloadBtn').addEventListener('click', loadTeams);
+    document.getElementById('filterContest').addEventListener('change', loadTeams);
+
+    let _searchTimer;
+    document.getElementById('filterSearch').addEventListener('input', () => {
+      clearTimeout(_searchTimer);
+      _searchTimer = setTimeout(render, 150);
+    });
+
+    (async function init() {
+      await loadContests();
+      await loadTeams();
+    })();
+  </script>
+</body>
+</html>

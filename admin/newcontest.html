@@ -197,6 +197,14 @@
               <input type="checkbox" id="isPublic" checked> Public (visible to students)
             </label>
           </div>
+                    <div class="form-group">
+            <label>
+              <input type="checkbox" id="isSpecial"> <strong>Special Contest (Team Mode)</strong>
+            </label>
+            <small style="color: var(--text-secondary); display:block; margin-top: 4px;">
+              Warning: Testing 
+            </small>
+          </div>
 
           <div class="form-group">
             <button type="submit" class="btn btn-primary">Create Contest</button>
@@ -298,13 +306,14 @@
 
       const participants = participantsInput.split(',').map(u => u.trim()).filter(u => u);
 
-      const body = {
+            const body = {
         name,
         startTime: new Date(startTime).toISOString(),
         duration,
         problems,
         participants,
-        public: isPublic
+        public: isPublic,
+        special: document.getElementById('isSpecial').checked
       };
 
       try {

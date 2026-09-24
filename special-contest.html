@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Special Contest</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<style>
+  :root {
+    --bg: #0f1420;
+    --card: #161b28;
+    --card-2: #1e2536;
+    --line: #2d3446;
+    --text: #e0e6ed;
+    --text-2: #8b96ab;
+    --accent: #6b8fff;
+    --accent-h: #5578f0;
+    --good: #4ade80;
+    --bad: #f87171;
+    --warn: #fbbf24;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .sc-wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
+  .sc-hd { display: flex; align-items: center; gap: 16px; padding-bottom: 20px; margin-bottom: 24px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .sc-hd h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px; }
+  .sc-hd .badge { font-size: 0.7rem; padding: 3px 10px; border-radius: 12px; background: rgba(107,143,255,0.15); color: var(--accent); font-weight: 700; letter-spacing: 0.5px; }
+  .sc-hd .spacer { flex: 1; }
+
+  .sc-btn { padding: 9px 20px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); font-family: inherit; font-size: 0.88rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all .15s; }
+  .sc-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .sc-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .sc-btn.primary:hover:not(:disabled) { background: var(--accent-h); }
+  .sc-btn.danger { color: var(--bad); border-color: var(--bad); background: transparent; }
+  .sc-btn.danger:hover:not(:disabled) { background: var(--bad); color: #fff; }
+  .sc-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .sc-btn.sm { padding: 5px 12px; font-size: 0.78rem; }
+
+  .sc-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+  .sc-card h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .sc-card h2 i { color: var(--accent); }
+
+  .sc-intro { color: var(--text-2); font-size: 0.9rem; line-height: 1.7; margin-bottom: 20px; padding: 14px 18px; background: var(--card-2); border-left: 3px solid var(--accent); border-radius: 6px; }
+
+  .sc-lobby { display: flex; gap: 20px; flex-wrap: wrap; }
+  .sc-lobby-btn { flex: 1; min-width: 220px; padding: 32px 24px; background: var(--card-2); border: 1px dashed var(--line); border-radius: 12px; cursor: pointer; transition: all .2s; text-align: center; }
+  .sc-lobby-btn:hover { border-color: var(--accent); border-style: solid; transform: translateY(-2px); }
+  .sc-lobby-btn i { font-size: 2rem; color: var(--accent); display: block; margin-bottom: 12px; }
+  .sc-lobby-btn strong { display: block; font-size: 1.05rem; margin-bottom: 4px; }
+  .sc-lobby-btn span { color: var(--text-2); font-size: 0.82rem; }
+
+  .sc-team-hd { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; }
+  .sc-team-hd h2 { font-size: 1.4rem; font-weight: 800; }
+  .sc-code { font-family: 'Consolas', monospace; font-size: 1.4rem; font-weight: 800; letter-spacing: 4px; padding: 6px 14px; background: var(--card-2); border-radius: 8px; border: 1px solid var(--accent); color: var(--accent); cursor: pointer; }
+  .sc-code:hover { background: rgba(107,143,255,0.1); }
+
+  .sc-members { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  .sc-member { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 20px; background: var(--card-2); font-size: 0.85rem; border: 1px solid var(--line); }
+  .sc-member.captain { border-color: var(--warn); color: var(--warn); }
+  .sc-member.former { opacity: 0.5; text-decoration: line-through; }
+  .sc-member .kick-btn { background: none; border: none; color: var(--bad); cursor: pointer; padding: 0 2px; font-size: 0.9rem; }
+
+  .sc-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  .sc-table th, .sc-table td { padding: 9px 12px; border-bottom: 1px solid var(--line); text-align: left; }
+  .sc-table th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-2); font-weight: 700; }
+  .sc-table tr:hover td { background: var(--card-2); }
+  .sc-input { width: 100%; padding: 7px 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; color: var(--text); font-family: inherit; font-size: 0.9rem; outline: none; }
+  .sc-input:focus { border-color: var(--accent); }
+  .sc-input:disabled { background: #1a1f2e; color: var(--text-2); cursor: not-allowed; }
+
+  .sc-status { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; }
+  .sc-status.ac { background: rgba(74,222,128,0.15); color: var(--good); }
+  .sc-status.wa { background: rgba(248,113,113,0.15); color: var(--bad); }
+  .sc-status.locked { background: rgba(248,113,113,0.25); color: #ffa8a8; }
+  .sc-status.pending { background: rgba(251,191,36,0.15); color: var(--warn); }
+  .sc-status.none { color: var(--text-2); }
+
+  .sc-suggestions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .sc-sug { padding: 2px 10px; border-radius: 10px; background: rgba(107,143,255,0.1); color: var(--accent); font-size: 0.78rem; font-family: 'Consolas', monospace; }
+
+  .sc-modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+  .sc-modal-bg.show { display: flex; }
+  .sc-modal { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 28px; max-width: 440px; width: 100%; }
+  .sc-modal h3 { font-size: 1.2rem; margin-bottom: 18px; font-weight: 700; }
+  .sc-modal label { display: block; font-size: 0.85rem; color: var(--text-2); margin-bottom: 6px; font-weight: 600; }
+  .sc-modal input, .sc-modal select { width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.95rem; margin-bottom: 16px; outline: none; }
+  .sc-modal input:focus, .sc-modal select:focus { border-color: var(--accent); }
+  .sc-modal .row { display: flex; gap: 8px; justify-content: flex-end; }
+  .sc-modal .hint { font-size: 0.78rem; color: var(--text-2); margin-top: -10px; margin-bottom: 16px; }
+  .sc-modal .mode-opt { display: flex; gap: 8px; margin-bottom: 16px; }
+  .sc-modal .mode-opt label { flex: 1; padding: 12px; border: 2px solid var(--line); border-radius: 8px; cursor: pointer; text-align: center; color: var(--text-2); font-weight: 500; margin: 0; }
+  .sc-modal .mode-opt input { display: none; }
+  .sc-modal .mode-opt input:checked + span { color: var(--accent); font-weight: 700; }
+  .sc-modal .mode-opt label:has(input:checked) { border-color: var(--accent); color: var(--accent); }
+
+  .sc-empty { text-align: center; padding: 60px 20px; color: var(--text-2); }
+  .sc-empty i { font-size: 3rem; opacity: 0.3; display: block; margin-bottom: 16px; }
+  .sc-toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: var(--card); border: 1px solid var(--line); padding: 12px 24px; border-radius: 8px; font-size: 0.9rem; opacity: 0; pointer-events: none; transition: all .25s; z-index: 2000; }
+  .sc-toast.show { opacity: 1; transform: translateX(-50%) translateY(-8px); }
+  .sc-toast.good { border-color: var(--good); color: var(--good); }
+  .sc-toast.bad { border-color: var(--bad); color: var(--bad); }
+</style>
+</head>
+<body>
+
+<div class="sc-wrap" id="scRoot"></div>
+
+<div class="sc-modal-bg" id="scModal"></div>
+<div class="sc-toast" id="scToast"></div>
+
+<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  if (!isLoggedIn()) { location.href = '/index.html'; return; }
+
+  // ═══ Config ═══
+  const contestId = (() => {
+    const p = new URLSearchParams(location.search);
+    const m = location.pathname.match(/\/contest\/(\d+)/);
+    return p.get('id') || (m && m[1]) || null;
+  })();
+
+  if (!contestId) {
+    document.getElementById('scRoot').innerHTML = '<div class="sc-empty"><i class="fas fa-triangle-exclamation"></i><h2>Invalid Contest</h2></div>';
+    return;
+  }
+
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+  let toastTimer;
+  function toast(msg, kind = '') {
+    const t = $('#scToast');
+    t.textContent = msg;
+    t.className = 'sc-toast show ' + kind;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.className = 'sc-toast ' + kind, 2200);
+  }
+
+  let STATE = { contest: null, team: null, problems: [], results: [] };
+
+  // ═══ Load ═══
+  async function load() {
+    const [contestRes, mineRes] = await Promise.all([
+      apiCall(`/api/contests?action=page&id=${contestId}`),
+      apiCall(`/api/teams?action=mine&contestId=${contestId}`),
+    ]);
+
+    if (!contestRes.success || !contestRes.contest) {
+      $('#scRoot').innerHTML = '<div class="sc-empty"><i class="fas fa-circle-question"></i><h2>Contest not found</h2></div>';
+      return;
+    }
+    STATE.contest = contestRes.contest;
+    STATE.team = mineRes.team || null;
+    STATE.problems = mineRes.problems || [];
+    STATE.results = mineRes.results || [];
+    render();
+  }
+
+  // ═══ Render ═══
+  function render() {
+    const c = STATE.contest;
+    const t = STATE.team;
+
+    let html = `
+      <div class="sc-hd">
+        <h1>${esc(c.name || ('Contest #' + c.id))}</h1>
+        <span class="badge">SPECIAL</span>
+        <span class="spacer"></span>
+        <a href="/contestresults.html?id=${c.id}" class="sc-btn sm"><i class="fas fa-trophy"></i> Results</a>
+      </div>
+      <div class="sc-intro">
+        <strong>Rules:</strong> Max 4 members per team. Once contest starts, no member changes allowed.
+        Submissions are made under the team's name. A wrong answer locks the problem at 0 pts permanently (even if later solved).
+        Mode 1: suggestions go to captain for manual entry. Mode 2: any member can submit directly.
+      </div>
+    `;
+
+    if (!t) {
+      html += renderLobby();
+    } else {
+      html += renderTeamView();
+    }
+
+    $('#scRoot').innerHTML = html;
+    bind();
+  }
+
+  function renderLobby() {
+    return `
+      <div class="sc-card">
+        <h2><i class="fas fa-users"></i> Join a Team</h2>
+        <div class="sc-lobby">
+          <div class="sc-lobby-btn" data-act="create">
+            <i class="fas fa-plus-circle"></i>
+            <strong>Create Team</strong>
+            <span>You'll be the captain and receive an invite code</span>
+          </div>
+          <div class="sc-lobby-btn" data-act="join">
+            <i class="fas fa-right-to-bracket"></i>
+            <strong>Join Team</strong>
+            <span>Enter a 6-digit invite code</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderTeamView() {
+    const t = STATE.team;
+    const isCaptain = t.isCaptain;
+    const started = t.started;
+    const ended = t.ended;
+
+    let html = `
+      <div class="sc-card">
+        <div class="sc-team-hd">
+          <h2>${esc(t.name)}</h2>
+          ${t.locked ? '<span class="sc-status locked"><i class="fas fa-lock"></i> Locked</span>' : '<span class="sc-status pending">Open</span>'}
+          <span class="spacer"></span>
+          ${isCaptain && !started ? `
+            <span class="sc-code" data-act="copy-code" title="Click to copy">${esc(t.inviteCode || '------')}</span>
+            <button class="sc-btn sm primary" data-act="lock"><i class="fas fa-lock"></i> Finalize</button>
+          ` : ''}
+          ${isCaptain && !started ? `
+            <button class="sc-btn sm danger" data-act="disband"><i class="fas fa-trash"></i> Disband</button>
+          ` : ''}
+        </div>
+
+        <div style="color: var(--text-2); font-size: 0.85rem; margin-bottom: 8px;">
+          Mode ${t.mode}: ${t.mode === 1 ? 'Captain approves (members suggest)' : 'Any member can submit'}
+        </div>
+
+        <div class="sc-members">
+          ${t.members.map(m => `
+            <span class="sc-member ${m === t.captain ? 'captain' : ''}">
+              <i class="fas ${m === t.captain ? 'fa-crown' : 'fa-user'}"></i>
+              ${esc(m)}
+              ${isCaptain && !started && m !== t.captain ? `
+                <button class="kick-btn" data-act="kick" data-user="${esc(m)}" title="Kick"><i class="fas fa-times"></i></button>
+                <button class="kick-btn" data-act="transfer" data-user="${esc(m)}" title="Make captain" style="color: var(--warn);"><i class="fas fa-crown"></i></button>
+              ` : ''}
+            </span>
+          `).join('')}
+          ${(t.formerMembers || []).map(m => `
+            <span class="sc-member former"><i class="fas fa-user-slash"></i> ${esc(m)}</span>
+          `).join('')}
+        </div>
+      </div>
+    `;
+
+    // 未开始
+    if (!started) {
+      html += `
+        <div class="sc-card">
+          <h2><i class="fas fa-hourglass-half"></i> Waiting</h2>
+          <p style="color: var(--text-2);">Contest will start at ${new Date(STATE.contest.startTime).toLocaleString()}. Prepare your team.</p>
+        </div>
+      `;
+    } else {
+      // 已开始：显示题目
+      html += renderProblems();
+    }
+
+    return html;
+  }
+
+  function renderProblems() {
+    const t = STATE.team;
+    const isCaptain = t.isCaptain;
+    const started = t.started;
+    const ended = t.ended;
+    const canAct = started && !ended;
+    const mode = t.mode;
+
+    // 结果映射
+    const resultMap = {};
+    for (const r of STATE.results) resultMap[r.problemId] = r;
+
+    // 建议映射：{ problemId: [{username, answer}] }
+    const sugMap = {};
+    for (const s of (STATE.suggestions || [])) {
+      if (!sugMap[s.problemId]) sugMap[s.problemId] = [];
+      sugMap[s.problemId].push(s);
+    }
+
+    let html = `
+      <div class="sc-card">
+        <h2><i class="fas fa-list-check"></i> Problems</h2>
+        <table class="sc-table">
+          <thead><tr>
+            <th>ID</th>
+            <th>Name</th>
+            ${mode === 1 && isCaptain ? '<th>Suggestions</th>' : ''}
+            <th>Status</th>
+            <th style="width: 30%;">${mode === 1 && !isCaptain ? 'Your Suggestion' : 'Your Answer'}</th>
+          </tr></thead>
+          <tbody>
+    `;
+
+    for (const p of STATE.problems) {
+      const r = resultMap[p.id] || {};
+      const locked = r.locked === true;
+      const ac = r.score === 100 && !locked;
+      const wa = locked || (r.score === 0 && r.lastSubmissionTime);
+      const pending = !locked && !ac && r.score > 0;
+
+      let statusBadge = '<span class="sc-status none">—</span>';
+      if (ac) statusBadge = '<span class="sc-status ac">AC</span>';
+      else if (wa) statusBadge = '<span class="sc-status wa">WA</span>';
+      else if (pending) statusBadge = '<span class="sc-status pending">' + r.score + '</span>';
+
+      const sugs = sugMap[p.id] || [];
+      const sugHtml = sugs.length
+        ? `<div class="sc-suggestions">${sugs.map(s => `<span class="sc-sug">${esc(s.username)}: ${esc(s.answer)}</span>`).join('')}</div>`
+        : '<span style="color:var(--text-2);font-size:0.8rem;">—</span>';
+
+      const inputDisabled = !canAct || ac || locked || (mode === 1 && !isCaptain);
+      const placeholder = mode === 1 && !isCaptain ? 'Suggest answer...' : 'Answer...';
+
+      const btnLabel = mode === 1 && !isCaptain ? 'Suggest' : 'Submit';
+      const btnDisabled = inputDisabled;
+
+      html += `
+        <tr data-pid="${esc(p.id)}">
+          <td><code style="color:var(--accent);">${esc(p.id)}</code></td>
+          <td>${esc(p.name)}</td>
+          ${mode === 1 && isCaptain ? `<td>${sugHtml}</td>` : ''}
+          <td>${statusBadge}</td>
+          <td>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <input class="sc-input" type="text" data-pid="${esc(p.id)}" placeholder="${placeholder}" ${inputDisabled ? 'disabled' : ''}>
+              <button class="sc-btn sm primary" data-act="submit-one" data-pid="${esc(p.id)}" ${btnDisabled ? 'disabled' : ''}>
+                ${btnLabel}
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    html += `</tbody></table></div>`;
+    return html;
+  }
+
+  // ═══ Bind ═══
+  function bind() {
+    $('#scRoot').querySelectorAll('[data-act]').forEach(el => {
+      el.addEventListener('click', onAction);
+    });
+    // Enter 提交
+    $('#scRoot').querySelectorAll('.sc-input').forEach(inp => {
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.isComposing) {
+          e.preventDefault();
+          const btn = e.target.parentElement.querySelector('[data-act="submit-one"]');
+          if (btn && !btn.disabled) btn.click();
+        }
+      });
+    });
+  }
+
+  async function onAction(e) {
+    const el = e.currentTarget;
+    const act = el.dataset.act;
+    if (act === 'create') return openCreateModal();
+    if (act === 'join') return openJoinModal();
+    if (act === 'copy-code') {
+      try { await navigator.clipboard.writeText(STATE.team.inviteCode); toast('Copied!', 'good'); } catch {}
+      return;
+    }
+    if (act === 'lock') return doLock();
+    if (act === 'disband') return doDisband();
+    if (act === 'kick') return doKick(el.dataset.user);
+    if (act === 'transfer') return doTransfer(el.dataset.user);
+    if (act === 'submit-one') return doSubmitOne(el.dataset.pid, el);
+  }
+
+  // ═══ Actions ═══
+  function openCreateModal() {
+    const modal = $('#scModal');
+    modal.innerHTML = `
+      <div class="sc-modal">
+        <h3>Create Team</h3>
+        <label>Team Name (≤30 chars)</label>
+        <input type="text" id="scTeamName" maxlength="30" placeholder="e.g. Alpha Squad">
+        <label>Mode</label>
+        <div class="mode-opt">
+          <label><input type="radio" name="scMode" value="1" checked><span><i class="fas fa-clipboard-check"></i><br>Mode 1<br><small>Captain approves</small></span></label>
+          <label><input type="radio" name="scMode" value="2"><span><i class="fas fa-bolt"></i><br>Mode 2<br><small>Any member submits</small></span></label>
+        </div>
+        <div class="row">
+          <button class="sc-btn" data-modal-close>Cancel</button>
+          <button class="sc-btn primary" id="scCreateGo">Create</button>
+        </div>
+      </div>
+    `;
+    modal.classList.add('show');
+
+    modal.querySelector('[data-modal-close]').onclick = () => modal.classList.remove('show');
+    modal.querySelector('#scCreateGo').onclick = async () => {
+      const name = modal.querySelector('#scTeamName').value.trim();
+      const mode = Number(modal.querySelector('input[name="scMode"]:checked').value);
+      if (!name) return toast('Enter team name', 'bad');
+      try {
+        const res = await apiCall('/api/teams?action=create', 'POST', { contestId: Number(contestId), name, mode });
+        if (!res.success) throw new Error(res.message);
+        toast('Team created!', 'good');
+        modal.classList.remove('show');
+        load();
+      } catch (err) { toast(err.message, 'bad'); }
+    };
+  }
+
+  function openJoinModal() {
+    const modal = $('#scModal');
+    modal.innerHTML = `
+      <div class="sc-modal">
+        <h3>Join Team</h3>
+        <label>Invite Code</label>
+        <input type="text" id="scCode" maxlength="6" placeholder="6 digits" style="font-family: monospace; font-size: 1.2rem; letter-spacing: 4px; text-align: center;">
+        <div class="row">
+          <button class="sc-btn" data-modal-close>Cancel</button>
+          <button class="sc-btn primary" id="scJoinGo">Join</button>
+        </div>
+      </div>
+    `;
+    modal.classList.add('show');
+    modal.querySelector('[data-modal-close]').onclick = () => modal.classList.remove('show');
+    modal.querySelector('#scJoinGo').onclick = async () => {
+      const code = modal.querySelector('#scCode').value.trim();
+      if (!code) return toast('Enter code', 'bad');
+      try {
+        const res = await apiCall('/api/teams?action=join', 'POST', { contestId: Number(contestId), code });
+        if (!res.success) throw new Error(res.message);
+        toast('Joined!', 'good');
+        modal.classList.remove('show');
+        load();
+      } catch (err) { toast(err.message, 'bad'); }
+    };
+  }
+
+  async function doLock() {
+    if (!confirm('Finalize team? No new members can join afterwards. This cannot be undone.')) return;
+    try {
+      const res = await apiCall('/api/teams?action=lock', 'POST', { contestId: Number(contestId) });
+      if (!res.success) throw new Error(res.message);
+      toast('Team locked', 'good'); load();
+    } catch (err) { toast(err.message, 'bad'); }
+  }
+
+  async function doDisband() {
+    if (!confirm('Disband team? All records will be deleted. This cannot be undone.')) return;
+    try {
+      const res = await apiCall('/api/teams?action=disband', 'POST', { contestId: Number(contestId) });
+      if (!res.success) throw new Error(res.message);
+      toast('Disbanded'); setTimeout(() => load(), 500);
+    } catch (err) { toast(err.message, 'bad'); }
+  }
+
+  async function doKick(user) {
+    if (!confirm(`Kick ${user}?`)) return;
+    try {
+      const res = await apiCall('/api/teams?action=kick', 'POST', { contestId: Number(contestId), target: user });
+      if (!res.success) throw new Error(res.message);
+      toast('Kicked'); load();
+    } catch (err) { toast(err.message, 'bad'); }
+  }
+
+  async function doTransfer(user) {
+    if (!confirm(`Transfer captain to ${user}?`)) return;
+    try {
+      const res = await apiCall('/api/teams?action=transfer', 'POST', { contestId: Number(contestId), newCaptain: user });
+      if (!res.success) throw new Error(res.message);
+      toast('Transferred'); load();
+    } catch (err) { toast(err.message, 'bad'); }
+  }
+
+  async function doSubmitOne(pid, btn) {
+    const row = btn.closest('tr');
+    const inp = row.querySelector('.sc-input');
+    if (!inp) return;
+    const answer = inp.value.trim();
+    if (!answer) return toast('Enter answer', 'bad');
+
+    const isMode1Member = STATE.team.mode === 1 && !STATE.team.isCaptain;
+
+    btn.disabled = true;
+    const old = btn.textContent;
+    btn.textContent = '...';
+
+    try {
+      if (isMode1Member) {
+        const res = await apiCall('/api/teams?action=suggest', 'POST', {
+          contestId: Number(contestId), problemId: pid, answer
+        });
+        if (!res.success) throw new Error(res.message);
+        toast('Suggestion sent', 'good');
+        btn.textContent = 'Sent';
+        setTimeout(() => { btn.textContent = old; btn.disabled = false; }, 1500);
+      } else {
+        const res = await apiCall('/api/submit', 'POST', {
+          problemId: pid, answer, type: 'text', image: ''
+        });
+        if (!res.success) throw new Error(res.message);
+        if (res.correct || res.score === 100) toast('AC', 'good');
+        else toast('WA (locked)', 'bad');
+        setTimeout(() => load(), 400);
+      }
+    } catch (err) {
+      toast(err.message, 'bad');
+      btn.textContent = old; btn.disabled = false;
+    }
+  }
+
+  // ═══ Start ═══
+  load();
+})();
+</script>
+</body>
+</html>

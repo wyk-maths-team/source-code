@@ -95,7 +95,27 @@ export default async function handler(req, res) {
         return res.status(404).json({ success: false, message: 'Contest not found' });
       }
 
-      const isParticipant = Array.isArray(contest.participants) && contest.participants.includes(username);
+      let isParticipant = Array.isArray(contest.participants) && contest.participants.includes(username);
+
+      // ⭐ 特殊竞赛：检查是否属于某 team
+      let teamInfo = null;
+      if (contest.special) {
+        const team = await db.collection('teams').findOne({
+          contestId: contest.id,
+          members: username
+        });
+        if (team) {
+          isParticipant = true;
+          teamInfo = {
+            id: team.id,
+            name: team.name,
+            captain: team.captain,
+            members: team.members,
+            mode: team.mode,
+            locked: team.locked,
+          };
+        }
+      }
       const status = deriveStatus(contest);
 
       let normProblems = normalizeProblems(contest.problems);
@@ -141,6 +161,8 @@ export default async function handler(req, res) {
         userScores: {},
         userContestStates: {},
         userWrongAttempts: {},
+        team: teamInfo, 
+        special: !!contest.special,
         globalStates: {}
       };
 
@@ -170,29 +192,34 @@ export default async function handler(req, res) {
         );
       }
 
-      // 2) 當前用戶分數 / 狀態 / wrongAttempts（⭐ 唯一一個讀 contest_results 的地方）
+            // 2) 當前用戶分數 / 狀態 / wrongAttempts（⭐ 唯一一個讀 contest_results 的地方）
+      const scoreUsername = teamInfo ? String(teamInfo.id) : username;
       tasks.push(
         db.collection('contest_results')
           .find(
-            { contestId: contest.id, username },
-            { projection: { problemId: 1, score: 1, solved: 1, wrongAttempts: 1, _id: 0 } }
+            { contestId: contest.id, username: scoreUsername },
+            { projection: { problemId: 1, score: 1, solved: 1, wrongAttempts: 1, locked: 1, _id: 0 } }
           )
           .toArray()
-          .then(results => {
+                    .then(results => {
             const scores = {};
             const states = {};
             const attempts = {};
+            const locked = {};
             for (const r of results) {
               scores[r.problemId] = r.score;
               attempts[r.problemId] = Number(r.wrongAttempts) || 0;
-              // ⭐ 用 solved 判斷，而非 score
-              if (r.solved === true) states[r.problemId] = 'passed';
+              locked[r.problemId] = r.locked === true;
+              // ⭐ WA 锁定 → 状态永远 failed
+              if (r.locked === true) states[r.problemId] = 'failed';
+              else if (r.solved === true) states[r.problemId] = 'passed';
               else if (r.score > 0) states[r.problemId] = 'partial';
               else states[r.problemId] = 'failed';
             }
             result.userScores = scores;
             result.userContestStates = states;
             result.userWrongAttempts = attempts;
+            result.userLocked = locked;
           })
       );
 
@@ -322,7 +349,7 @@ export default async function handler(req, res) {
 
     if (action === 'adminCreate') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-      const { name, problems, participants, startTime, duration, public: isPublic } = req.body || {};
+      const { name, problems, participants, startTime, duration, public: isPublic, special: isSpecial } = req.body || {};
       if (!name || !startTime || !duration) {
         return res.status(400).json({ success: false, message: 'Missing required fields (name, startTime, duration)' });
       }
@@ -334,7 +361,7 @@ export default async function handler(req, res) {
         .toArray();
       const nextId = (lastContest.length > 0 ? lastContest[0].id : 0) + 1;
 
-      const newContest = {
+            const newContest = {
         id: nextId,
         name,
         startTime: new Date(startTime),
@@ -342,6 +369,7 @@ export default async function handler(req, res) {
         problems: Array.isArray(problems) ? problems : [],
         participants: Array.isArray(participants) ? participants : [],
         public: isPublic !== false,
+        special: isSpecial === true,
         createdBy: username
       };
 
@@ -366,7 +394,7 @@ export default async function handler(req, res) {
       }
       if (req.body.problems !== undefined) upd.problems = Array.isArray(req.body.problems) ? req.body.problems : [];
       if (req.body.participants !== undefined) upd.participants = Array.isArray(req.body.participants) ? req.body.participants : [];
-      if (req.body.public !== undefined) upd.public = !!req.body.public;
+            if (req.body.special !== undefined) upd.special = !!req.body.special;
 
       if (Object.keys(upd).length === 0) {
         return res.status(400).json({ success: false, message: 'No fields to update' });
@@ -484,8 +512,36 @@ async function calculateContestStats(db, contest) {
     };
   });
 
+  // ⭐ Special contest：用队伍名替代
+  let finalParticipants = enriched;
+  if (contest.special) {
+    const teamIds = sorted
+      .map(p => p.username)
+      .filter(u => /^\d+$/.test(u))
+      .map(Number);
+    if (teamIds.length > 0) {
+      const teams = await db.collection('teams')
+        .find({ id: { $in: teamIds } },
+              { projection: { id: 1, name: 1, captain: 1, members: 1, _id: 0 } })
+        .toArray();
+      const teamMap = Object.fromEntries(teams.map(t => [String(t.id), t]));
+      finalParticipants = enriched.map(p => {
+        const t = teamMap[String(p.username)];
+        if (!t) return p;
+        return {
+          ...p,
+          displayName: t.name,
+          isTeam: true,
+          teamId: t.id,
+          captain: t.captain,
+          memberCount: Array.isArray(t.members) ? t.members.length : 0,
+        };
+      });
+    }
+  }
+
   return {
-    participants: enriched,
+    participants: finalParticipants,
     problems: (contest.problems || []).map(p => {
       if (typeof p === 'object' && p.problemId) return p.problemId;
       if (typeof p === 'string') return p;

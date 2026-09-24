@@ -48,22 +48,22 @@ function compareNumeric(ansStr, userAnswer) {
   return { correct: Math.abs(user - ans) < 1e-6, systemError: false };
 }
 
-function executeCustomLogic(logicStr, ans, userAnswer) {
-  try {
-    const result = vm.runInNewContext(
-      `(${logicStr})(${JSON.stringify(ans)}, ${JSON.stringify(userAnswer)})`
-    );
-    if (typeof result === 'number') {
-      return { score: Math.min(100, Math.max(0, result)), comment: '', systemError: false };
-    }
-    if (result && typeof result === 'object' && typeof result.score === 'number') {
-      return { score: Math.min(100, Math.max(0, result.score)), comment: result.comment || '', systemError: false };
-    }
-    return { score: 0, comment: 'Invalid logic return value', systemError: true };
-  } catch (err) {
-    return { score: 0, comment: 'Logic error: ' + err.message, systemError: true };
-  }
-}
+// function executeCustomLogic(logicStr, ans, userAnswer) {
+//   try {
+//     const result = vm.runInNewContext(
+//       `(${logicStr})(${JSON.stringify(ans)}, ${JSON.stringify(userAnswer)})`
+//     );
+//     if (typeof result === 'number') {
+//       return { score: Math.min(100, Math.max(0, result)), comment: '', systemError: false };
+//     }
+//     if (result && typeof result === 'object' && typeof result.score === 'number') {
+//       return { score: Math.min(100, Math.max(0, result.score)), comment: result.comment || '', systemError: false };
+//     }
+//     return { score: 0, comment: 'Invalid logic return value', systemError: true };
+//   } catch (err) {
+//     return { score: 0, comment: 'Logic error: ' + err.message, systemError: true };
+//   }
+// }
 
 async function updateUserStats(db, username, pid, correct) {
   const statsCol = db.collection('userstats');
@@ -93,7 +93,91 @@ export default async function handler(req, res) {
   if (!decoded) {
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
-  const { username, role } = decoded;
+  // const { username, role } = decoded;
+    // ⭐ 检测是否在特殊竞赛的队伍中
+  const db = await connectToDatabase();
+  const now = new Date();
+  let teamContext = null;
+
+  // 找所有进行中的 special contest
+  const activeSpecials = await db.collection('contests').find({
+    special: true,
+    startTime: { $lte: now },
+    $expr: { $gte: [{ $add: ['$startTime', { $multiply: ['$duration', 60000] }] }, now] }
+  }, { projection: { id: 1, problems: 1, _id: 0 } }).toArray();
+
+  for (const c of activeSpecials) {
+    const t = await db.collection('teams').findOne({
+      contestId: c.id,
+      members: username
+    });
+    if (t) {
+      const inContest = (c.problems || []).some(p => {
+        const pid = (typeof p === 'object' && p.problemId) ? String(p.problemId) : String(p);
+        return pid === String(req.body.problemId).trim();
+      });
+      teamContext = { team: t, contest: c, inContest };
+      break;
+    }
+  }
+
+  // 在特殊竞赛队伍中
+  if (teamContext) {
+    // 若在竞赛期间但提交的是非竞赛题 → 拒绝
+    if (!teamContext.inContest) {
+      return res.status(403).json({ success: false, message: 'You cannot submit other problems during a special contest' });
+    }
+
+    const team = teamContext.team;
+    const contest = teamContext.contest;
+    const teamUsername = String(team.id);
+    const pid = String(req.body.problemId).trim();
+
+    // 检查是否已锁定
+    const locked = await db.collection('contest_results').findOne({
+      contestId: contest.id, username: teamUsername, problemId: pid
+    });
+    if (locked && locked.locked) {
+      return res.status(400).json({ success: false, message: 'Problem is WA-locked (0 pts permanent)' });
+    }
+
+    // Mode 1：成员提交建议，不入库
+    if (team.mode === 1) {
+      const answer = String(req.body.answer || '').trim();
+      if (!answer) return res.status(400).json({ success: false, message: 'Empty answer' });
+
+      const existing = (team.suggestions || []).findIndex(
+        s => s.username === username && s.problemId === pid
+      );
+      const suggestion = { username, problemId: pid, answer, ts: now };
+      if (existing >= 0) {
+        await db.collection('teams').updateOne(
+          { id: team.id },
+          { $set: { [`suggestions.${existing}`]: suggestion } }
+        );
+      } else {
+        await db.collection('teams').updateOne(
+          { id: team.id },
+          { $push: { suggestions: suggestion } }
+        );
+      }
+      return res.status(200).json({ success: true, suggested: true, message: 'Suggestion sent' });
+    }
+
+    // Mode 2：直接以 team 名义提交
+    // 队长本人可以直接提交（不论 mode）
+    if (username !== team.captain) {
+      // 队员在 mode 2 也直接提交
+    }
+    // 用 teamUsername 覆盖 username，继续走原有逻辑
+    // 把 req.body 改一下然后走下面的流程
+    req.body._teamContext = {
+      teamUsername,
+      contestId: contest.id,
+      submittedBy: username,
+    };
+    // 覆盖 decoded.username（在下面用局部变量控制）
+  }
 
   if (!['student', 'admin', 'root'].includes(role)) {
     return res.status(403).json({ success: false, message: 'Only students can submit' });
@@ -168,7 +252,7 @@ export default async function handler(req, res) {
         let comment = '';
 
         if (hasLogic) {
-          const r = executeCustomLogic(prob.logic, prob.ans, userAnswer);
+          const r = runCustomLogic(prob.logic, prob.ans, userAnswer);
           correct = !r.systemError && r.score === 100;
           systemError = r.systemError;
           score = r.score;
@@ -264,10 +348,17 @@ export default async function handler(req, res) {
   const pid = String(problemId).trim();
   if (!pid) return res.status(400).json({ success: false, message: 'Invalid problemId' });
 
-  const now = new Date();
+  // const now = new Date();
 
   try {
-    const db = await connectToDatabase();
+    // const db = await connectToDatabase();
+      let { username, role } = decoded;
+      // ⭐ 队伍上下文覆盖
+      let teamSubmissionMeta = null;
+      if (req.body._teamContext) {
+        teamSubmissionMeta = req.body._teamContext;
+        username = teamSubmissionMeta.teamUsername;  // 提交以 team 名义
+      }
 
     // ========== 並行查詢：題目 + 活躍競賽 ==========
     const [problem, activeContests] = await Promise.all([
@@ -326,6 +417,10 @@ export default async function handler(req, res) {
       answer: type === 'text' ? String(answer) : '',
       image: '',
     };
+        if (teamSubmissionMeta) {
+      submissionData.submittedBy = teamSubmissionMeta.submittedBy;
+      submissionData.approvedBy = teamSubmissionMeta.submittedBy;  // Mode 2 直接提交
+    }
 
     if (type === 'image') {
       try {
@@ -340,6 +435,7 @@ export default async function handler(req, res) {
       typeof problem.logic === 'string' && problem.logic.trim() !== '';
 
         if (inContest) {
+          const isSpecial = !!activeContest.special;
           // ---------- 競賽判分 ----------
           const evalType = contestProblem.evalType || 'numeric';
 
@@ -353,12 +449,16 @@ export default async function handler(req, res) {
           submissionData.contestId = activeContest.id;
 
           // 讀取現況（含 solved）
-          const resultDoc = await db
+                    const resultDoc = await db
             .collection('contest_results')
             .findOne(
               { contestId: activeContest.id, username, problemId: pid },
-              { projection: { wrongAttempts: 1, score: 1, solved: 1 } }
+              { projection: { wrongAttempts: 1, score: 1, solved: 1, locked: 1 } }
             );
+                  // ⭐ WA 锁定检查（特殊竞赛）
+            if (resultDoc && resultDoc.locked === true) {
+              return res.status(400).json({ success: false, message: 'Problem is WA-locked' });
+            }
 
           const alreadySolved = resultDoc?.solved === true;
           let currentScore = resultDoc?.score || 0;
@@ -424,11 +524,11 @@ export default async function handler(req, res) {
               await db.collection('submissions').insertOne(submissionData);
               await db.collection('contest_results').updateOne(
                 { contestId: activeContest.id, username, problemId: pid },
-                {
+                
                   $inc: { wrongAttempts: 1 },
                   $set: { lastSubmissionTime: now, solved: false },
                   $setOnInsert: { score: 0 },
-                },
+                
                 { upsert: true }
               );
             }
@@ -471,13 +571,18 @@ export default async function handler(req, res) {
               } else {
                 // ⭐ WA
                 currentScore = resultDoc?.score || 0;
+                const upd = {
+                  $inc: { wrongAttempts: 1 },
+                  $set: { solved: false, lastSubmissionTime: now },
+                  $setOnInsert: { score: 0 },
+                };
+                if (isSpecial) {
+                  upd.$set.score = 0;
+                  upd.$set.locked = true;
+                }
                 await db.collection('contest_results').updateOne(
                   { contestId: activeContest.id, username, problemId: pid },
-                  {
-                    $inc: { wrongAttempts: 1 },
-                    $set: { lastSubmissionTime: now, solved: false },
-                    $setOnInsert: { score: 0 },
-                  },
+                  upd,
                   { upsert: true }
                 );
               }

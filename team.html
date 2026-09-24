@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<style>
+  :root { --bg: #0f1420; --card: #161b28; --card-2: #1e2536; --line: #2d3446; --text: #e0e6ed; --text-2: #8b96ab; --accent: #6b8fff; --good: #4ade80; --bad: #f87171; --warn: #fbbf24; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter','Segoe UI',system-ui,sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.6; }
+  .tw { max-width: 1000px; margin: 0 auto; padding: 24px; }
+  .tw-hd { display: flex; align-items: center; gap: 16px; padding-bottom: 20px; margin-bottom: 24px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .tw-hd h1 { font-size: 1.5rem; font-weight: 800; }
+  .tw-hd .sub { color: var(--text-2); font-size: 0.85rem; }
+  .tw-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+  .tw-card h2 { font-size: 1rem; font-weight: 700; margin-bottom: 14px; color: var(--accent); }
+  .tw-members { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tw-member { padding: 6px 14px; border-radius: 20px; background: var(--card-2); font-size: 0.85rem; border: 1px solid var(--line); }
+  .tw-member.captain { border-color: var(--warn); color: var(--warn); }
+  .tw-member.former { opacity: 0.5; text-decoration: line-through; }
+  .tw-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  .tw-table th, .tw-table td { padding: 9px 12px; border-bottom: 1px solid var(--line); text-align: left; }
+  .tw-table th { font-size: 0.72rem; text-transform: uppercase; color: var(--text-2); }
+  .tw-status { padding: 2px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; }
+  .tw-status.ac { background: rgba(74,222,128,0.15); color: var(--good); }
+  .tw-status.wa { background: rgba(248,113,113,0.15); color: var(--bad); }
+  .tw-empty { text-align: center; padding: 80px 20px; color: var(--text-2); }
+  .tw-empty i { font-size: 3rem; opacity: 0.3; display: block; margin-bottom: 16px; }
+  .tw-back { color: var(--accent); text-decoration: none; font-size: 0.88rem; }
+  .tw-back:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="tw" id="twRoot"></div>
+<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+<script>
+(function () {
+  'use strict';
+  if (!isLoggedIn()) { location.href = '/index.html'; return; }
+  const m = location.pathname.match(/^\/teams?\/(\d+)$/);
+  if (!m) {
+    document.getElementById('twRoot').innerHTML = '<div class="tw-empty"><i class="fas fa-triangle-exclamation"></i><h2>Invalid URL</h2></div>';
+    return;
+  }
+  const teamId = m[1];
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, x => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[x]));
+
+  async function load() {
+    try {
+      const res = await apiCall(`/api/teams?action=get&id=${teamId}`);
+      if (!res.success) throw new Error(res.message || 'Not found');
+      render(res);
+    } catch (e) {
+      document.getElementById('twRoot').innerHTML = `<div class="tw-empty"><i class="fas fa-circle-question"></i><h2>Team not found</h2></div>`;
+    }
+  }
+
+  function render(data) {
+    const { team, contest, submissions, results } = data;
+
+    const resultMap = {};
+    for (const r of (results || [])) resultMap[r.problemId] = r;
+
+    let subsHtml = '';
+    if (submissions && submissions.length) {
+      subsHtml = `
+        <table class="tw-table">
+          <thead><tr>
+            <th>Problem</th>
+            <th>Answer</th>
+            <th>By</th>
+            <th>Status</th>
+            <th>Time</th>
+          </tr></thead>
+          <tbody>
+            ${submissions.map(s => {
+              const r = resultMap[s.problemId] || {};
+              const locked = r.locked === true;
+              let st = '—';
+              if (locked) st = '<span class="tw-status wa">WA (locked)</span>';
+              else if (s.correct || s.score === 100) st = '<span class="tw-status ac">AC</span>';
+              else if (s.systemError) st = '<span class="tw-status wa">SysErr</span>';
+              else st = '<span class="tw-status wa">' + (s.score || 0) + '</span>';
+              return `<tr>
+                <td><code style="color:var(--accent);">${esc(s.problemId)}</code></td>
+                <td>${esc(s.answer || '[image]')}</td>
+                <td>${esc(s.submittedBy || team.captain)}</td>
+                <td>${st}</td>
+                <td>${new Date(s.timestamp).toLocaleString()}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      `;
+    } else {
+      subsHtml = '<p style="color:var(--text-2);">No submissions yet.</p>';
+    }
+
+    document.getElementById('twRoot').innerHTML = `
+      <div class="tw-hd">
+        <h1>${esc(team.name)}</h1>
+        <span class="sub">Team #${team.id}</span>
+        ${team.locked ? '<span class="tw-status wa">LOCKED</span>' : ''}
+        <span style="flex:1;"></span>
+        ${contest ? `<a class="tw-back" href="/special-contest?id=${contest.id}">→ ${esc(contest.name || 'Contest')}</a>` : ''}
+      </div>
+
+      <div class="tw-card">
+        <h2><i class="fas fa-users"></i> Members</h2>
+        <div class="tw-members">
+          ${(team.members || []).map(m => `
+            <span class="tw-member ${m === team.captain ? 'captain' : ''}">
+              <i class="fas ${m === team.captain ? 'fa-crown' : 'fa-user'}"></i> ${esc(m)}
+            </span>
+          `).join('')}
+          ${(team.formerMembers || []).map(m => `
+            <span class="tw-member former"><i class="fas fa-user-slash"></i> ${esc(m)} (left)</span>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="tw-card">
+        <h2><i class="fas fa-paper-plane"></i> Submissions</h2>
+        ${subsHtml}
+      </div>
+    `;
+  }
+
+  load();
+})();
+</script>
+</body>
+</html>

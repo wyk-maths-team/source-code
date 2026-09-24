@@ -394,6 +394,7 @@ export default async function handler(req, res) {
         .filter(entry => {
           const u = userMap[entry.username];
           if (u && u.banned === true) return false;
+          if (u && u.role === 'team') return false;   // ⭐ 新增
           return true;
         })
         .map((entry, idx) => {

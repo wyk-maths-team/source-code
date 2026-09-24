@@ -1545,6 +1545,14 @@ async function submitPaperBatch(paperState, floating) {
 // ============ 主流程 ============
 async function initPage() {
   try {
+    // ⭐ 检测是否是特殊竞赛题目
+    let SPECIAL_CONTEXT = null;   // { contestId, teamId, mode, isCaptain }
+    try {
+      const activeRes = await apiCall('/api/teams?action=active');
+      if (activeRes.success && activeRes.active) {
+        SPECIAL_CONTEXT = activeRes.active;
+      }
+    } catch (e) { /* ignore */ }
     mainContainer.innerHTML = '';
 
     const pageData = await loadPageData();
@@ -2042,6 +2050,21 @@ function bindSubmitEvent() {
     try {
       if (type !== 'image') {
         saveAnswerNow(problemId, answer);
+      }
+      // 在 bindSubmitEvent 里
+      if (SPECIAL_CONTEXT && SPECIAL_CONTEXT.contestProblemIds?.includes(problemId)) {
+        if (SPECIAL_CONTEXT.mode === 1 && !SPECIAL_CONTEXT.isCaptain) {
+          // 建议模式
+          try {
+            const r = await apiCall('/api/submit', 'POST', { problemId, answer, type: 'text', image });
+            if (r.suggested) {
+              fb.textContent = '✓ Suggestion sent to captain';
+              fb.className = 'feedback';
+              return;
+            }
+          } catch (e) { /* fall through */ }
+        }
+        // 队长/mode 2 走正常提交（后端会自动以 team 身份）
       }
       const result = await apiCall('/api/submit', 'POST', { problemId, answer, type, image: image || '' });
       spinner.style.display = 'none';
