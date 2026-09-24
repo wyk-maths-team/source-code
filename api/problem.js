@@ -260,7 +260,105 @@ export default async function handler(req, res) {
         pagination
       });
     }
+        // ----- 試卷：讀取所有子題（含 ans）-----
+    if (action === 'adminPaperQuestions') {
+      if (req.method === 'GET') {
+        const paperId = String(req.query.paperId || '').trim();
+        if (!paperId) return res.status(400).json({ success: false, message: 'Missing paperId' });
 
+        const paper = await db.collection('problems').findOne({ id: paperId });
+        if (!paper) return res.status(404).json({ success: false, message: 'Paper not found' });
+
+        const stmt = String(paper.statement || '');
+        const m = stmt.match(/<div[^>]*class=["'][^"']*paper-mount[^"']*["'][^>]*>/i);
+        if (!m) return res.status(400).json({ success: false, message: 'Not a paper' });
+
+        const tag = m[0];
+        const pdfUrl = (tag.match(/data-pdf=["']([^"']+)["']/) || [])[1] || '';
+        const total = parseInt((tag.match(/data-total=["']?(\d+)/) || [])[1], 10);
+        if (!Number.isFinite(total) || total < 1 || total > 100) {
+          return res.status(400).json({ success: false, message: 'Invalid data-total' });
+        }
+
+        const prefix = paperId.slice(0, -2);
+        const ids = [];
+        for (let i = 1; i <= total; i++) ids.push(prefix + String(i).padStart(2, '0'));
+
+        const existing = await db.collection('problems')
+          .find({ id: { $in: ids } },
+                { projection: { id: 1, ans: 1, difficulty: 1, tags: 1, public: 1, _id: 0 } })
+          .toArray();
+        const map = Object.fromEntries(existing.map(q => [q.id, q]));
+
+        const questions = ids.map(qid => ({
+          id: qid,
+          exists: !!map[qid],
+          ans: map[qid]?.ans || '',
+          difficulty: map[qid]?.difficulty ?? 5,
+          tags: map[qid]?.tags || [],
+          public: map[qid]?.public !== false,
+        }));
+
+        return res.status(200).json({ success: true, paperId, pdfUrl, total, questions });
+      }
+
+      if (req.method === 'PUT') {
+        const { paperId, questions } = req.body || {};
+        if (!paperId || !Array.isArray(questions)) {
+          return res.status(400).json({ success: false, message: 'Missing paperId or questions' });
+        }
+
+        const paper = await db.collection('problems').findOne({ id: paperId });
+        if (!paper) return res.status(404).json({ success: false, message: 'Paper not found' });
+
+        const prefix = paperId.slice(0, -2);
+        const col = db.collection('problems');
+        let created = 0, updated = 0;
+        const errors = [];
+
+        for (const q of questions) {
+          const qid = String(q.id || '').trim();
+          if (!qid || qid === paperId) continue;
+          if (!qid.startsWith(prefix)) {
+            errors.push(`${qid}: prefix mismatch (expected ${prefix}XX)`);
+            continue;
+          }
+
+          const setObj = {};
+          if (q.ans !== undefined) setObj.ans = String(q.ans);
+          if (q.difficulty !== undefined) setObj.difficulty = Number(q.difficulty) || 0;
+          if (Array.isArray(q.tags)) setObj.tags = q.tags;
+          if (q.public !== undefined) setObj.public = q.public !== false;
+
+          const exist = await col.findOne({ id: qid }, { projection: { _id: 1 } });
+          if (exist) {
+            await col.updateOne({ id: qid }, { $set: setObj });
+            updated++;
+          } else {
+            await col.insertOne({
+              id: qid,
+              name: qid,
+              statement: '',
+              ans: String(q.ans || ''),
+              difficulty: Number(q.difficulty) || 5,
+              tags: Array.isArray(q.tags) ? q.tags : [],
+              public: q.public !== false,
+              logic: '',
+            });
+            created++;
+          }
+        }
+
+        await db.collection('metadata').updateOne(
+          { _key: 'problemsVersion' },
+          { $set: { version: Date.now() } }
+        );
+
+        return res.status(200).json({ success: true, created, updated, errors });
+      }
+
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
     // ----- 圖片上傳 -----
     if (action === 'adminUploadImage') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });

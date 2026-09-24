@@ -576,7 +576,14 @@
       textarea.value = rawStatement;
       initCodeEditor(textarea, lineNumbers, highlightPre, toolbar);
       document.getElementById('editLogic').value = problem.logic || '';
-
+            // ⭐ 檢測 paper-mount → 渲染答案表格
+      (function detectPaper() {
+        const m = String(rawStatement || '').match(/<div[^>]*class=["'][^"']*paper-mount[^"']*["'][^>]*>/i);
+        if (!m) return;
+        const total = parseInt((m[0].match(/data-total=["']?(\d+)/) || [])[1], 10);
+        if (!Number.isFinite(total) || total < 1) return;
+        renderPaperAnswersTable(m[0], total);
+      })();
       // 首次渲染討論（用 adminEditProblem 帶回的資料，不再打第二次 API）
       renderDiscussionList(document.getElementById('discussionListAdmin'), discussions);
 
@@ -857,7 +864,179 @@
         }
       });
     }
+        // ═══════════════ 試卷答案批量編輯 ═══════════════
+    async function renderPaperAnswersTable(tagHtml, total) {
+      // 找到 statement 那個 .form-group
+      const stmtTextarea = document.getElementById('editStatement');
+      if (!stmtTextarea) return;
+      const stmtGroup = stmtTextarea.closest('.form-group');
 
+      const prefix = problemId.slice(0, -2);
+      const lastId = prefix + String(total).padStart(2, '0');
+
+      const wrap = document.createElement('div');
+      wrap.id = 'paperAnswersWrap';
+      wrap.style.cssText = 'margin:1rem 0; border:1px solid var(--border-color); border-radius:8px; padding:1rem; background:var(--card-bg);';
+      wrap.innerHTML = `
+        <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.8rem;flex-wrap:wrap;">
+          <i class="fas fa-file-pen" style="color:var(--accent);"></i>
+          <strong>Paper Answers (${total} questions)</strong>
+          <span style="color:var(--text-secondary);font-size:.82rem;">
+            <code>${escapeHtml(prefix)}01</code> ~ <code>${escapeHtml(lastId)}</code>
+          </span>
+          <span style="flex:1;"></span>
+          <button type="button" class="btn btn-primary btn-sm" id="paperSaveBtn" style="padding:.35rem 1rem;">
+            <i class="fas fa-save"></i> Save All
+          </button>
+        </div>
+        <div id="paperTableBody">
+          <div style="text-align:center;padding:1rem;color:var(--text-secondary);">
+            <i class="fas fa-spinner fa-spin"></i> Loading sub-problems...
+          </div>
+        </div>
+        <div id="paperTableMsg" style="margin-top:.5rem;font-size:.85rem;min-height:1.2em;"></div>
+      `;
+
+      // 插在 statement .form-group 之後
+      stmtGroup.parentNode.insertBefore(wrap, stmtGroup.nextSibling);
+
+      try {
+        const res = await apiCall(
+          `/api/problem?action=adminPaperQuestions&paperId=${encodeURIComponent(problemId)}`
+        );
+        if (!res.success) throw new Error(res.message || 'Load failed');
+        renderPaperTable(res.questions || [], prefix);
+      } catch (err) {
+        document.getElementById('paperTableBody').innerHTML =
+          `<div style="color:var(--danger);padding:1rem;">Error: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    function renderPaperTable(questions, prefix) {
+      const body = document.getElementById('paperTableBody');
+      if (!questions.length) {
+        body.innerHTML = '<div style="color:var(--text-secondary);padding:1rem;">No questions.</div>';
+        return;
+      }
+
+      const inputStyle = `width:100%;padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;font-family:Consolas,monospace;font-size:.85rem;background:var(--card-bg);color:var(--text-primary);outline:none;`;
+      const numStyle = `width:72px;padding:4px 6px;border:1px solid var(--border-color);border-radius:4px;font-family:Consolas,monospace;font-size:.85rem;text-align:center;background:var(--card-bg);color:var(--text-primary);outline:none;`;
+
+      const rows = questions.map(q => {
+        const shortId = q.id.slice(-2);
+        return `
+          <tr data-qid="${escapeHtml(q.id)}" style="border-bottom:1px solid var(--border-color);">
+            <td style="padding:6px 8px;text-align:center;font-family:Consolas,monospace;font-weight:700;color:var(--accent);width:40px;">
+              ${escapeHtml(shortId)}
+            </td>
+            <td style="padding:6px 8px;font-family:Consolas,monospace;font-size:.78rem;color:var(--text-secondary);width:90px;">
+              ${escapeHtml(q.id)}
+            </td>
+            <td style="padding:6px 8px;">
+              <input type="text" class="paper-ans-input" data-qid="${escapeHtml(q.id)}"
+                     value="${escapeHtml(q.ans || '')}" style="${inputStyle}" placeholder="answer">
+            </td>
+            <td style="padding:6px 8px;width:90px;">
+              <input type="number" step="0.01" class="paper-diff-input" data-qid="${escapeHtml(q.id)}"
+                     value="${q.difficulty ?? 5}" style="${numStyle}">
+            </td>
+            <td style="padding:6px 8px;text-align:center;width:60px;">
+              <input type="checkbox" class="paper-public-input" data-qid="${escapeHtml(q.id)}"
+                     ${q.public ? 'checked' : ''}>
+            </td>
+            <td style="padding:6px 8px;text-align:center;width:60px;">
+              <span class="paper-exists-badge ${q.exists ? 'ok' : 'new'}"
+                    style="font-size:.7rem;font-weight:700;padding:2px 7px;border-radius:8px;">
+                ${q.exists ? 'edit' : 'new'}
+              </span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      body.innerHTML = `
+        <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
+          <thead>
+            <tr style="border-bottom:2px solid var(--border-color);background:rgba(0,0,0,.02);">
+              <th style="padding:7px 8px;text-align:center;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-secondary);">#</th>
+              <th style="padding:7px 8px;text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-secondary);">ID</th>
+              <th style="padding:7px 8px;text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-secondary);">Answer</th>
+              <th style="padding:7px 8px;text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-secondary);">Diff</th>
+              <th style="padding:7px 8px;text-align:center;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-secondary);">Public</th>
+              <th style="padding:7px 8px;text-align:center;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-secondary);">Status</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div style="margin-top:.6rem;font-size:.78rem;color:var(--text-secondary);">
+          <i class="fas fa-info-circle"></i>
+          「<b>new</b>」表示此子題尚未建立；按 Save All 會一併建立。
+        </div>
+        <style>
+          .paper-exists-badge.ok  { background:rgba(74,144,217,.15); color:#2a6cb0; }
+          .paper-exists-badge.new { background:rgba(255,193,7,.2);  color:#b28500; }
+          [data-theme="dark"] .paper-exists-badge.ok  { color:#8ec3ff; }
+          [data-theme="dark"] .paper-exists-badge.new { color:#ffd54f; }
+          .paper-ans-input:focus, .paper-diff-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(74,144,217,.15);
+          }
+        </style>
+      `;
+
+      // 綁定 Save All
+      document.getElementById('paperSaveBtn').addEventListener('click', async () => {
+        const btn = document.getElementById('paperSaveBtn');
+        const msg = document.getElementById('paperTableMsg');
+        if (btn.disabled) return;
+
+        btn.disabled = true;
+        const oldHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        msg.textContent = '';
+
+        const list = Array.from(document.querySelectorAll('#paperTableBody tbody tr')).map(tr => {
+          const qid = tr.dataset.qid;
+          const ans = tr.querySelector('.paper-ans-input').value;
+          const difficulty = parseFloat(tr.querySelector('.paper-diff-input').value) || 0;
+          const isPublic = tr.querySelector('.paper-public-input').checked;
+          return { id: qid, ans, difficulty, public: isPublic };
+        });
+
+        try {
+          const res = await apiCall('/api/problem?action=adminPaperQuestions', 'PUT', {
+            paperId: problemId,
+            questions: list,
+          });
+
+          if (res.success) {
+            msg.style.color = '#2e7d32';
+            msg.textContent = `✓ Saved — ${res.created} created, ${res.updated} updated` +
+              (res.errors && res.errors.length ? `, ${res.errors.length} errors` : '');
+
+            // 更新 badge：new → edit
+            document.querySelectorAll('#paperTableBody tbody tr').forEach(tr => {
+              const badge = tr.querySelector('.paper-exists-badge');
+              if (badge && badge.classList.contains('new')) {
+                badge.classList.remove('new');
+                badge.classList.add('ok');
+                badge.textContent = 'edit';
+              }
+            });
+          } else {
+            msg.style.color = 'var(--danger)';
+            msg.textContent = '✗ ' + (res.message || 'Save failed');
+          }
+        } catch (err) {
+          msg.style.color = 'var(--danger)';
+          msg.textContent = '✗ ' + err.message;
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = oldHtml;
+          setTimeout(() => { msg.textContent = ''; }, 6000);
+        }
+      });
+    }
     (async function init() {
       const data = await loadProblemAndDiscussions();
       if (!data) {

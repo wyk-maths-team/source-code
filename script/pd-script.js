@@ -872,9 +872,14 @@ function mountMcQuiz() {
   s.id = 'paper-mode-style';
   s.textContent = `
 .paper-page{max-width:1200px;margin:0 auto;padding:1rem}
-.paper-header{display:flex;align-items:center;gap:1rem;margin-bottom:1rem;padding-bottom:.8rem;border-bottom:1px solid var(--border-color)}
-.paper-title{font-weight:700;font-size:1.05rem;color:var(--text-primary)}
-.paper-progress{margin-left:auto;font-family:'Consolas',monospace;color:var(--accent);font-weight:700;font-size:.9rem}
+.paper-header{display:flex;align-items:center;gap:1rem;margin-bottom:1rem;padding-bottom:.8rem;border-bottom:1px solid var(--border-color);flex-wrap:wrap}
+.paper-title{font-weight:700;font-size:1.05rem;color:var(--text-primary);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.paper-progress{font-family:'Consolas',monospace;color:var(--accent);font-weight:700;font-size:.9rem;flex-shrink:0}
+.paper-hdr-btn{background:var(--card-bg);border:1px solid var(--border-color);color:var(--text-primary);border-radius:6px;padding:5px 12px;font-family:inherit;font-size:.82rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none;transition:border-color .15s,color .15s;flex-shrink:0}
+.paper-hdr-btn:hover{border-color:var(--accent);color:var(--accent)}
+.paper-hdr-btn.accent{color:var(--accent);border-color:rgba(74,144,217,.4)}
+.paper-hdr-btn.accent:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.paper-hdr-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 .paper-pdf-stage{border:1px solid var(--border-color);border-radius:6px;overflow:hidden;background:var(--card-bg)}
 .paper-pdf-header{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#f0f2f5;border-bottom:1px solid var(--border-color);font-size:.85rem;flex-shrink:0}
 [data-theme="dark"] .paper-pdf-header{background:#21262d}
@@ -966,11 +971,23 @@ async function initPaperPage(problem, tagHtml) {
   document.title = `${problem.name || problem.id} - WYK Maths Team`;
   currentProblemName = problem.name || problem.id;
 
+  const isAdmin = (getCurrentUser()?.role === 'admin' || getCurrentUser()?.role === 'root');
+
   mainContainer.innerHTML = `
     <div class="paper-page">
       <div class="paper-header">
         <button class="back-btn" id="paperBackBtn">← Back</button>
         <span class="paper-title">${escapeHtml(problem.id)} - ${escapeHtml(problem.name || '')}</span>
+        ${isAdmin ? `
+          <a href="/admin/problems/${encodeURIComponent(problem.id)}"
+             class="paper-hdr-btn accent" title="Edit this paper">
+            <i class="fas fa-pen-to-square"></i> Edit
+          </a>
+        ` : ''}
+        <button class="paper-hdr-btn" id="paperShowAnswerBtn" title="Show answer sheet">
+          <i class="fas fa-clipboard-list"></i>
+          <span id="paperShowAnswerLabel">Answer Sheet</span>
+        </button>
         <span class="paper-progress" id="paperProgress">0 / ${paperData.total} AC</span>
       </div>
       <div class="paper-pdf-stage">
@@ -992,8 +1009,41 @@ async function initPaperPage(problem, tagHtml) {
 
   // 浮動窗
   buildPaperFloatingWindow(paperState);
+
+  // ⭐ 重新顯示答案表按鈕
+  document.getElementById('paperShowAnswerBtn').addEventListener('click', () => {
+    togglePaperAnswerWindow(paperState);
+  });
+}
+// ⭐ 同步「Answer Sheet」按鈕的狀態
+function syncPaperAnswerBtn() {
+  const win = document.getElementById('paper-floating-window');
+  const btn = document.getElementById('paperShowAnswerBtn');
+  const label = document.getElementById('paperShowAnswerLabel');
+  if (!btn || !label) return;
+
+  const visible = win && win.style.display !== 'none';
+  if (visible) {
+    btn.classList.add('active');
+    label.textContent = 'Hide Answer';
+  } else {
+    btn.classList.remove('active');
+    label.textContent = 'Answer Sheet';
+  }
 }
 
+// ⭐ 切換答案浮動窗顯示
+function togglePaperAnswerWindow(paperState) {
+  const win = document.getElementById('paper-floating-window');
+  if (!win) {
+    // 若之前被整個移除（極少情況）→ 重建
+    buildPaperFloatingWindow(paperState);
+    return;
+  }
+  const isHidden = win.style.display === 'none';
+  win.style.display = isHidden ? 'flex' : 'none';
+  syncPaperAnswerBtn();
+}
 function buildPaperFloatingWindow(paperState) {
   const WIN_ID = 'paper-floating-window';
   const existing = document.getElementById(WIN_ID);
@@ -1061,7 +1111,7 @@ function buildPaperFloatingWindow(paperState) {
 
   makeDraggable(floating, header);
   makeResizable(floating, resizeHandle, 280, 220);
-
+  syncPaperAnswerBtn();
   // 綁定事件
   bindPaperEvents(paperState, floating);
 
@@ -1131,6 +1181,7 @@ function bindPaperEvents(paperState, floating) {
   const closeBtn = floating.querySelector('#paperCloseBtn');
   closeBtn.addEventListener('click', () => {
     floating.style.display = 'none';
+    syncPaperAnswerBtn();
   });
 
   // 每 500ms 更新冷卻按鈕狀態
