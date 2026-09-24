@@ -84,6 +84,23 @@ function saveAnswerNow(pid, ans) {
 
 // ============ 工具 ============
 const escapeHtml = s => (s ?? '').toString().replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
+// ⭐ Paper 用：判断字符串是否为纯数字
+function isNumericStr(s) {
+  if (typeof s !== 'string') return false;
+  const t = s.trim();
+  if (!t) return false;
+  // 支持 123 / -1.5 / .5 / 1e-3 / +3
+  return /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/.test(t);
+}
+
+// ⭐ Paper 用：格式化数字（去尾零、去多余的 .）
+function formatPaperNumber(n) {
+  if (!Number.isFinite(n)) return String(n);
+  if (Number.isInteger(n)) return String(n);
+  let s = n.toFixed(12);
+  s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
+}
 const getTopbarHeight = () => {
   const n = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--topbar-height'), 10);
   return Number.isFinite(n) ? n : 60;
@@ -1153,6 +1170,71 @@ function bindPaperEvents(paperState, floating) {
         btn.textContent = 'Submit';
       }
     }
+  });
+  function flashPaperInput(input, color) {
+    const prevBg = input.style.background;
+    input.style.transition = 'background .15s';
+    input.style.background = color === 'green'
+      ? 'rgba(40,167,69,.18)'
+      : 'rgba(220,53,69,.15)';
+    setTimeout(() => {
+      input.style.background = prevBg || '';
+      input.style.transition = '';
+    }, 420);
+  }
+    // ⭐ Enter 键：纯数字 → 提交；表达式 → 求值后填回
+  body.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const input = e.target.closest('.paper-row-input');
+    if (!input) return;
+    if (input.disabled) return;
+
+    const qid = input.dataset.qid;
+    const st = paperState.answers[qid];
+    if (!st) return;
+    if (st.state === 'ac' || st.state === 'submitting') return;
+    if (st.cooldownUntil > Date.now()) return;
+
+    const raw = String(input.value || '').trim();
+    if (!raw) return;
+
+    e.preventDefault();
+
+    // 情况 1：已经是纯数字 → 直接提交
+    if (isNumericStr(raw)) {
+      submitPaperQuestion(paperState, qid, floating);
+      return;
+    }
+
+    // 情况 2：尝试用 math.js 求值
+    if (typeof math === 'undefined') {
+      flashPaperInput(input, 'red');
+      return;
+    }
+
+    let numResult;
+    try {
+      const node = math.parse(raw);
+      const result = node.evaluate();
+      numResult = (result && typeof result === 'object' && result.isBigNumber)
+        ? result.toNumber()
+        : result;
+      if (typeof numResult !== 'number' || !Number.isFinite(numResult)) {
+        throw new Error('Not finite');
+      }
+    } catch (err) {
+      // 求值失败 → 红色闪一下
+      flashPaperInput(input, 'red');
+      return;
+    }
+
+    // 求值成功 → 格式化后填回输入框
+    const formatted = formatPaperNumber(numResult);
+    input.value = formatted;
+    // 触发 input 事件，让现有逻辑同步 state / 清 WA
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+
+    flashPaperInput(input, 'green');
   });
 
   body.addEventListener('blur', (e) => {
