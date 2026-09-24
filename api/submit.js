@@ -121,8 +121,8 @@ export default async function handler(req, res) {
     }
   }
 
-  // 在特殊竞赛队伍中
-  if (teamContext) {
+    // 在特殊竞赛队伍中
+  if (teamContext && req.query.action !== 'batch' && req.body.problemId) {
     // 若在竞赛期间但提交的是非竞赛题 → 拒绝
     if (!teamContext.inContest) {
       return res.status(403).json({ success: false, message: 'You cannot submit other problems during a special contest' });
