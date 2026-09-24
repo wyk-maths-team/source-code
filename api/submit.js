@@ -98,7 +98,153 @@ export default async function handler(req, res) {
   if (!['student', 'admin', 'root'].includes(role)) {
     return res.status(403).json({ success: false, message: 'Only students can submit' });
   }
+    // ⭐ Batch 提交（試卷）
+  if (req.query.action === 'batch') {
+    const { paperId, answers } = req.body || {};
+    if (!paperId || !answers || typeof answers !== 'object' || Array.isArray(answers)) {
+      return res.status(400).json({ success: false, message: 'Missing paperId or answers' });
+    }
 
+    const answerIds = Object.keys(answers).slice(0, 100);
+    if (answerIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'No answers' });
+    }
+
+    try {
+      const db = await connectToDatabase();
+
+      // 確認主試卷存在
+      const paper = await db.collection('problems').findOne(
+        { id: String(paperId) },
+        { projection: { id: 1, _id: 0 } }
+      );
+      if (!paper) {
+        return res.status(404).json({ success: false, message: 'Paper not found' });
+      }
+
+      // 拿子題
+      const problems = await db.collection('problems')
+        .find({ id: { $in: answerIds } })
+        .toArray();
+      const problemMap = Object.fromEntries(problems.map(p => [p.id, p]));
+
+      // 用戶狀態
+      const userStatsDoc = await db.collection('userstats').findOne(
+        { username },
+        { projection: { states: 1, _id: 0 } }
+      );
+      const userStates = userStatsDoc?.states || {};
+
+      const results = [];
+      const inserts = [];
+      const setObj = {};
+      let submittedCount = 0;
+      const now = new Date();
+
+      for (const pid of answerIds) {
+        const prob = problemMap[pid];
+        if (!prob) {
+          results.push({ problemId: pid, error: 'Problem not found', skipped: true });
+          continue;
+        }
+
+        // 已 AC 不可重複交
+        if (userStates[pid] === 'passed') {
+          results.push({ problemId: pid, alreadyAC: true, skipped: true });
+          continue;
+        }
+
+        const userAnswer = String(answers[pid] ?? '').trim();
+        if (!userAnswer) {
+          results.push({ problemId: pid, error: 'Empty answer', skipped: true });
+          continue;
+        }
+
+        // 判分
+        const hasLogic = typeof prob.logic === 'string' && prob.logic.trim() !== '';
+        let correct = false;
+        let systemError = false;
+        let score = 0;
+        let comment = '';
+
+        if (hasLogic) {
+          const r = executeCustomLogic(prob.logic, prob.ans, userAnswer);
+          correct = !r.systemError && r.score === 100;
+          systemError = r.systemError;
+          score = r.score;
+          comment = r.comment;
+        } else {
+          const ansStr = String(prob.ans ?? '').trim();
+          if (!isValidNumericAnswer(ansStr)) {
+            systemError = true;
+          } else {
+            const cmp = compareNumeric(ansStr, userAnswer);
+            correct = cmp.correct;
+            systemError = cmp.systemError;
+            score = correct ? 100 : 0;
+          }
+        }
+
+        const subid = generateSubid();
+        inserts.push({
+          username,
+          problemId: pid,
+          type: 'text',
+          timestamp: now,
+          correct,
+          systemError,
+          marked: true,
+          score,
+          comment,
+          subid,
+          answer: userAnswer,
+          image: '',
+          paperId: String(paperId),
+        });
+
+        if (!systemError) {
+          if (correct) {
+            setObj[`states.${pid}`] = 'passed';
+          } else if (userStates[pid] !== 'passed') {
+            setObj[`states.${pid}`] = 'failed';
+          }
+        }
+
+        results.push({
+          problemId: pid,
+          subid,
+          correct,
+          systemError,
+          score,
+          comment,
+        });
+        submittedCount++;
+      }
+
+      // 寫入
+      if (inserts.length > 0) {
+        await db.collection('submissions').insertMany(inserts, { ordered: false });
+      }
+      if (Object.keys(setObj).length > 0) {
+        const statsCol = db.collection('userstats');
+        await statsCol.updateOne(
+          { username },
+          { $setOnInsert: { username, states: {} } },
+          { upsert: true }
+        );
+        await statsCol.updateOne({ username }, { $set: setObj });
+      }
+
+      return res.status(200).json({
+        success: true,
+        results,
+        submittedCount,
+      });
+    } catch (err) {
+      console.error('Batch submit error:', err);
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
   if (!checkUserRateLimit(username)) {
     return res.status(429).json({
       success: false,

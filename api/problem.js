@@ -504,7 +504,80 @@ export default async function handler(req, res) {
 
     return res.status(405).json({ error: 'Method not allowed' });
   }
+    // ==================== 試卷：一次拿 PDF + 所有子題 AC 狀態 ====================
+  if (action === 'paper') {
+    if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+    const id = String(req.query.id || '').trim();
+    if (!id) return res.status(400).json({ success: false, message: 'Missing id' });
 
+    try {
+      const adminUser = isAdminUser(req.user);
+
+      const paper = await db.collection('problems').findOne({ id });
+      if (!paper) return res.status(404).json({ success: false, message: 'Paper not found' });
+      if (!adminUser && paper.public === false) {
+        return res.status(404).json({ success: false, message: 'Paper not found' });
+      }
+
+      // 解析 paper-mount HTML
+      const stmt = String(paper.statement || '');
+      const paperMatch = stmt.match(/<div[^>]*class=["'][^"']*paper-mount[^"']*["'][^>]*>/i);
+      if (!paperMatch) {
+        return res.status(400).json({ success: false, message: 'Not a paper' });
+      }
+      const tag = paperMatch[0];
+      const pdfUrl = (tag.match(/data-pdf=["']([^"']+)["']/) || [])[1] || '';
+      const total = parseInt((tag.match(/data-total=["']?(\d+)/) || [])[1], 10);
+
+      if (!pdfUrl || !Number.isFinite(total) || total < 1 || total > 100) {
+        return res.status(400).json({ success: false, message: 'Invalid paper config' });
+      }
+
+      // 子題 ID：主 ID 前綴 + 補零 2 位題號
+      const prefix = id.slice(0, -2);
+      const questionIds = [];
+      for (let i = 1; i <= total; i++) {
+        questionIds.push(prefix + String(i).padStart(2, '0'));
+      }
+
+      // 檢查子題存在 + 拿用戶狀態
+      const [questions, userStats] = await Promise.all([
+        db.collection('problems')
+          .find(
+            { id: { $in: questionIds } },
+            { projection: { id: 1, _id: 0 } }
+          )
+          .toArray(),
+        db.collection('userstats').findOne(
+          { username: req.user.username },
+          { projection: { states: 1, _id: 0 } }
+        ),
+      ]);
+
+      const existing = new Set(questions.map(q => q.id));
+      const states = userStats?.states || {};
+
+      const enriched = questionIds
+        .filter(qid => existing.has(qid))
+        .map(qid => ({
+          id: qid,
+          ac: states[qid] === 'passed',
+        }));
+
+      return res.status(200).json({
+        success: true,
+        paper: {
+          id,
+          pdfUrl,
+          total: enriched.length,
+          questions: enriched,
+        },
+      });
+    } catch (err) {
+      console.error('Error in /api/problem?action=paper:', err);
+      return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  }
     // ==================== 單題頁面：一次拿 problem + states + favorites ====================
   if (action === 'page') {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });

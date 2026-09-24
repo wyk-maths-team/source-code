@@ -9,6 +9,18 @@ if (!pathMatch) {
 const problemId = decodeURIComponent(pathMatch[1]);
 document.title = `Problem ${problemId} - WYK Maths Team`;
 
+// ⭐ 傀儡題目 redirect：HKMO / MH 系列，尾數非 '00' → 跳主試卷
+const PAPER_PREFIXES = ['HKMO', 'MH'];
+(function maybeRedirect() {
+  const m = problemId.match(/^(.*?)(\d{2})$/);
+  if (!m) return;
+  if (m[2] === '00') return;   // 是主試卷
+  if (!PAPER_PREFIXES.some(p => problemId.startsWith(p))) return;
+  const paperId = m[1] + '00';
+  window.location.replace('/problems/' + encodeURIComponent(paperId));
+  throw new Error('redirecting-to-paper');
+})();
+
 const mainContainer = document.getElementById('mainContent');
 let userStates = {};
 let imageData = '';
@@ -191,8 +203,7 @@ function statusBoxHtml(subid, text, cls) {
   return `<a href="/submissions/${encodeURIComponent(subid)}/detail" class="feedback-box ${cls}">${escapeHtml(text)}</a>`;
 }
 
-// ============ 題目 + 用戶資料載入（並行 race：API 為準，CDN 為 fallback）============
-// ============ 題目 + 用戶資料載入（全部走 API）============
+// ============ 題目 + 用戶資料載入 ============
 async function loadPageData() {
   const apiData = await apiCall(`/api/problem?action=page&id=${encodeURIComponent(problemId)}`)
     .catch(() => null);
@@ -208,7 +219,7 @@ async function loadPageData() {
 
 const domPurifyConfig = {
   ALLOWED_TAGS: ['b','i','u','strong','em','a','p','br','ul','ol','li','span','div','code','pre','svg','g','defs','clipPath','foreignObject','path','circle','line','polyline','polygon','rect','text','tspan','linearGradient','radialGradient','stop','image','use','img'],
-  ALLOWED_ATTR: ['href','target','rel','class','id','style','xmlns','viewBox','width','height','d','cx','cy','r','x','y','x1','x2','y1','y2','points','fill','stroke','stroke-width','stroke-linecap','stroke-linejoin','fill-opacity','stroke-opacity','opacity','font-size','text-anchor','dominant-baseline','transform','src'],
+  ALLOWED_ATTR: ['href','target','rel','class','id','style','xmlns','viewBox','width','height','d','cx','cy','r','x','y','x1','x2','y1','y2','points','fill','stroke','stroke-width','stroke-linecap','stroke-linejoin','fill-opacity','stroke-opacity','opacity','font-size','text-anchor','dominant-baseline','transform','src','data-pdf','data-total'],
   ALLOW_DATA_ATTR: true
 };
 
@@ -433,7 +444,7 @@ function toGooglePreviewUrl(url) {
   return null;
 }
 
-// ============ 可拖動 / 可縮放（pointer 事件，兼容滑鼠與觸控）============
+// ============ 可拖動 / 可縮放 ============
 function makeDraggable(el, handle) {
   let startX = 0, startY = 0, origX = 0, origY = 0, dragging = false;
 
@@ -519,7 +530,7 @@ function applyFloatingInitialLayout(el) {
   }
 }
 
-// ============ PDF + Quiz 掛載（全屏 PDF + 浮動答題卡）============
+// ============ PDF + Quiz 掛載（舊有邏輯）============
 function mountPdfQuizSplit() {
   const pdfMount = document.getElementById('pdf-quiz-split');
   if (!pdfMount) return;
@@ -850,19 +861,514 @@ function mountMcQuiz() {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+// ⭐ 試卷模式（Paper Mode）
+// ═══════════════════════════════════════════════════════════
+
+// 一次性注入 paper mode CSS
+(function injectPaperCSS() {
+  if (document.getElementById('paper-mode-style')) return;
+  const s = document.createElement('style');
+  s.id = 'paper-mode-style';
+  s.textContent = `
+.paper-page{max-width:1200px;margin:0 auto;padding:1rem}
+.paper-header{display:flex;align-items:center;gap:1rem;margin-bottom:1rem;padding-bottom:.8rem;border-bottom:1px solid var(--border-color)}
+.paper-title{font-weight:700;font-size:1.05rem;color:var(--text-primary)}
+.paper-progress{margin-left:auto;font-family:'Consolas',monospace;color:var(--accent);font-weight:700;font-size:.9rem}
+.paper-pdf-stage{border:1px solid var(--border-color);border-radius:6px;overflow:hidden;background:var(--card-bg)}
+.paper-pdf-header{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#f0f2f5;border-bottom:1px solid var(--border-color);font-size:.85rem;flex-shrink:0}
+[data-theme="dark"] .paper-pdf-header{background:#21262d}
+.paper-pdf-scroll{height:88vh;overflow-y:auto;background:#525659;padding:8px 0}
+.paper-pdf-scroll .pdf-page-canvas{display:block;margin:0 auto 8px;box-shadow:0 1px 4px rgba(0,0,0,.3);background:#fff}
+.paper-pdf-scroll .pdf-loading,.paper-pdf-scroll .pdf-error{display:flex;flex-direction:column;align-items:center;justify-content:center;color:#ddd;padding:3rem 1rem;gap:.5rem;text-align:center}
+.paper-pdf-scroll .pdf-loading .spinner{width:24px;height:24px;border:3px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:pdfSpin .8s linear infinite}
+
+.paper-floating-window{position:fixed;top:100px;right:40px;width:380px;max-height:75vh;background:var(--card-bg);border:1px solid var(--border-color);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.2);z-index:9000;display:flex;flex-direction:column;overflow:hidden;font-size:.9rem}
+.paper-float-header{padding:8px 12px;background:#f0f2f5;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;cursor:move;user-select:none;font-weight:600;font-size:.82rem;touch-action:none;flex-shrink:0;gap:8px}
+[data-theme="dark"] .paper-float-header{background:#21262d}
+.paper-close-btn,.paper-batch-btn{border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-primary);border-radius:4px;font-family:inherit;cursor:pointer;font-size:.72rem;padding:3px 10px;font-weight:600;white-space:nowrap}
+.paper-batch-btn{background:var(--accent);color:#fff;border-color:var(--accent)}
+.paper-batch-btn:hover:not(:disabled){background:var(--accent-hover)}
+.paper-batch-btn:disabled{opacity:.5;cursor:not-allowed}
+.paper-close-btn:hover{background:var(--danger);color:#fff;border-color:var(--danger)}
+
+.paper-float-body{flex:1 1 auto;overflow-y:auto;padding:8px;min-height:0}
+.paper-row{display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px dashed var(--border-color)}
+.paper-row:last-child{border-bottom:none}
+.paper-row-num{font-family:'Consolas',monospace;font-weight:700;color:var(--text-secondary);min-width:36px;font-size:.8rem;flex-shrink:0}
+.paper-row-input{flex:1;min-width:0;padding:5px 8px;border:1px solid var(--border-color);border-radius:4px;font-family:inherit;font-size:.85rem;background:var(--card-bg);color:var(--text-primary);outline:none;transition:border-color .15s}
+.paper-row-input:focus{border-color:var(--accent)}
+.paper-row-input:disabled{background:var(--hover-bg);color:var(--text-secondary);cursor:not-allowed}
+.paper-row-btn{padding:5px 10px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:4px;font-family:inherit;font-size:.72rem;font-weight:700;cursor:pointer;min-width:62px;white-space:nowrap;transition:background .15s,border-color .15s}
+.paper-row-btn:hover:not(:disabled){background:var(--accent-hover);border-color:var(--accent-hover)}
+.paper-row-btn:disabled{cursor:not-allowed;opacity:.7}
+.paper-row-btn.ac{background:#28a745;border-color:#28a745;opacity:1;cursor:default}
+.paper-row-btn.wa{background:#dc3545;border-color:#dc3545}
+.paper-row-btn.wa:hover:not(:disabled){background:#c82333;border-color:#c82333}
+.paper-row-btn.submitting{background:#6c757d;border-color:#6c757d;opacity:1}
+.paper-row-btn.cooldown{background:#adb5bd;border-color:#adb5bd;opacity:1}
+
+.paper-resize-handle{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;background:linear-gradient(135deg,transparent 45%,rgba(100,150,210,.4) 45%,rgba(100,150,210,.7) 100%);border-bottom-right-radius:8px}
+
+@media (max-width:768px){
+  .paper-floating-window{width:calc(100vw - 16px)!important;max-width:360px;right:8px!important;left:auto!important;max-height:55vh}
+  .paper-pdf-scroll{height:70vh}
+}
+`;
+  document.head.appendChild(s);
+})();
+
+// 冷卻常量
+const PAPER_COOLDOWN_SINGLE_MS = 5000;    // 單題 5 秒
+const PAPER_COOLDOWN_BATCH_MS  = 30000;   // Batch 30 秒
+
+async function initPaperPage(problem, tagHtml) {
+  // 解析 paper-mount
+  const pdfUrl = (tagHtml.match(/data-pdf=["']([^"']+)["']/) || [])[1] || '';
+  const total = parseInt((tagHtml.match(/data-total=["']?(\d+)/) || [])[1], 10);
+
+  if (!pdfUrl || !Number.isFinite(total) || total < 1 || total > 100) {
+    mainContainer.innerHTML = '<div class="error-msg">Invalid paper config.</div>';
+    return;
+  }
+
+  // 拿試卷狀態
+  let paperData;
+  try {
+    const res = await apiCall(`/api/problem?action=paper&id=${encodeURIComponent(problem.id)}`);
+    if (!res.success) throw new Error(res.message || 'Failed to load paper');
+    paperData = res.paper;
+  } catch (e) {
+    mainContainer.innerHTML = `<div class="error-msg">Failed to load paper: ${escapeHtml(e.message)}</div>`;
+    return;
+  }
+
+  // 前端 state
+  const paperState = {
+    id: problem.id,
+    pdfUrl: paperData.pdfUrl || pdfUrl,
+    total: paperData.total,
+    questions: paperData.questions || [],       // [{ id, ac }]
+    answers: {},                                // { qid: { value, state, cooldownUntil } }
+    batchCooldownUntil: 0,
+  };
+
+  for (const q of paperData.questions) {
+    const saved = getUserAnswer(q.id) || '';
+    paperState.answers[q.id] = {
+      value: saved,
+      state: q.ac ? 'ac' : (saved ? 'unsubmitted' : 'unsubmitted'),
+      cooldownUntil: 0,
+    };
+  }
+
+  // DOM
+  document.title = `${problem.name || problem.id} - WYK Maths Team`;
+  currentProblemName = problem.name || problem.id;
+
+  mainContainer.innerHTML = `
+    <div class="paper-page">
+      <div class="paper-header">
+        <button class="back-btn" id="paperBackBtn">← Back</button>
+        <span class="paper-title">${escapeHtml(problem.id)} - ${escapeHtml(problem.name || '')}</span>
+        <span class="paper-progress" id="paperProgress">0 / ${paperData.total} AC</span>
+      </div>
+      <div class="paper-pdf-stage">
+        <div class="paper-pdf-header">
+          <span>📄 ${escapeHtml(problem.name || problem.id)}</span>
+          <a href="${escapeHtml(paperData.pdfUrl || pdfUrl)}" target="_blank" rel="noopener" class="pdf-open-btn">
+            <i class="fas fa-external-link-alt"></i> Open PDF
+          </a>
+        </div>
+        <div class="paper-pdf-scroll" id="paperPdfScroll"></div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('paperBackBtn').addEventListener('click', () => history.back());
+
+  // 渲染 PDF
+  renderPdfWithPdfJs(document.getElementById('paperPdfScroll'), paperData.pdfUrl || pdfUrl);
+
+  // 浮動窗
+  buildPaperFloatingWindow(paperState);
+}
+
+function buildPaperFloatingWindow(paperState) {
+  const WIN_ID = 'paper-floating-window';
+  const existing = document.getElementById(WIN_ID);
+  if (existing) existing.remove();
+
+  const floating = document.createElement('div');
+  floating.id = WIN_ID;
+  floating.className = 'paper-floating-window';
+
+  // 標題
+  const header = document.createElement('div');
+  header.className = 'paper-float-header';
+  header.innerHTML = `
+    <span style="display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden;">
+      <i class="fas fa-grip-vertical" style="opacity:.5;flex-shrink:0;"></i>
+      <i class="fas fa-file-pen" style="flex-shrink:0;"></i>
+      <span style="white-space:nowrap;">Answer Sheet</span>
+    </span>
+    <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+      <button class="paper-batch-btn" id="paperBatchBtn" title="Submit all">Batch</button>
+      <button class="paper-close-btn" id="paperCloseBtn" title="Close">✕</button>
+    </div>
+  `;
+
+  // Body
+  const body = document.createElement('div');
+  body.className = 'paper-float-body';
+
+  for (const q of paperState.questions) {
+    const shortId = q.id.slice(-2);
+    const ansState = paperState.answers[q.id];
+    const row = document.createElement('div');
+    row.className = 'paper-row';
+    row.dataset.qid = q.id;
+
+    const isAC = ansState.state === 'ac';
+    row.innerHTML = `
+      <span class="paper-row-num">#${escapeHtml(shortId)}</span>
+      <input type="text" class="paper-row-input"
+             data-qid="${escapeHtml(q.id)}"
+             value="${escapeHtml(ansState.value)}"
+             ${isAC ? 'disabled' : ''}
+             placeholder="answer">
+      <button class="paper-row-btn ${isAC ? 'ac' : ''}"
+              data-qid="${escapeHtml(q.id)}"
+              ${isAC ? 'disabled' : ''}>
+        ${isAC ? 'AC' : 'Submit'}
+      </button>
+    `;
+    body.appendChild(row);
+  }
+
+  floating.appendChild(header);
+  floating.appendChild(body);
+
+  const resizeHandle = document.createElement('div');
+  resizeHandle.className = 'paper-resize-handle';
+  resizeHandle.title = 'Drag to resize';
+  floating.appendChild(resizeHandle);
+
+  document.body.appendChild(floating);
+
+  // 初始位置（沿用 mcq 的）
+  applyFloatingInitialLayout(floating);
+
+  makeDraggable(floating, header);
+  makeResizable(floating, resizeHandle, 280, 220);
+
+  // 綁定事件
+  bindPaperEvents(paperState, floating);
+
+  // 初始化進度
+  updatePaperProgress(paperState);
+}
+
+function updatePaperProgress(paperState) {
+  const total = paperState.total;
+  let acCount = 0;
+  for (const qid of Object.keys(paperState.answers)) {
+    if (paperState.answers[qid].state === 'ac') acCount++;
+  }
+  const el = document.getElementById('paperProgress');
+  if (el) el.textContent = `${acCount} / ${total} AC`;
+}
+
+function bindPaperEvents(paperState, floating) {
+  const body = floating.querySelector('.paper-float-body');
+
+  // 事件委派
+  body.addEventListener('input', (e) => {
+    const input = e.target.closest('.paper-row-input');
+    if (!input) return;
+    const qid = input.dataset.qid;
+    const st = paperState.answers[qid];
+    if (!st || st.state === 'ac') return;
+
+    st.value = input.value;
+    // 用戶保存到 localStorage
+    saveUserAnswerDebounced(qid, input.value);
+
+    // 若當前是 WA，用戶修改了 → 取消 WA，出現綠色 Submit
+    if (st.state === 'wa') {
+      st.state = 'unsubmitted';
+      const btn = body.querySelector(`.paper-row-btn[data-qid="${CSS.escape(qid)}"]`);
+      if (btn) {
+        btn.classList.remove('wa');
+        btn.textContent = 'Submit';
+      }
+    }
+  });
+
+  body.addEventListener('blur', (e) => {
+    const input = e.target.closest('.paper-row-input');
+    if (!input) return;
+    const qid = input.dataset.qid;
+    const st = paperState.answers[qid];
+    if (st) saveUserAnswer(qid, input.value);
+  }, true);
+
+  body.addEventListener('click', (e) => {
+    const btn = e.target.closest('.paper-row-btn');
+    if (!btn) return;
+    const qid = btn.dataset.qid;
+    if (!qid) return;
+    submitPaperQuestion(paperState, qid, floating);
+  });
+
+  // Batch Submit
+  const batchBtn = floating.querySelector('#paperBatchBtn');
+  batchBtn.addEventListener('click', () => {
+    submitPaperBatch(paperState, floating);
+  });
+
+  // Close
+  const closeBtn = floating.querySelector('#paperCloseBtn');
+  closeBtn.addEventListener('click', () => {
+    floating.style.display = 'none';
+  });
+
+  // 每 500ms 更新冷卻按鈕狀態
+  if (window.__paperCooldownTimer) clearInterval(window.__paperCooldownTimer);
+  window.__paperCooldownTimer = setInterval(() => {
+    const now = Date.now();
+    // 各題
+    for (const qid of Object.keys(paperState.answers)) {
+      const st = paperState.answers[qid];
+      const btn = body.querySelector(`.paper-row-btn[data-qid="${CSS.escape(qid)}"]`);
+      if (!btn) continue;
+      if (st.state === 'ac' || st.state === 'submitting') continue;
+      if (st.cooldownUntil > now) {
+        const remain = Math.ceil((st.cooldownUntil - now) / 1000);
+        btn.disabled = true;
+        btn.classList.add('cooldown');
+        btn.textContent = `${remain}s`;
+      } else if (st.cooldownUntil > 0) {
+        st.cooldownUntil = 0;
+        btn.disabled = false;
+        btn.classList.remove('cooldown');
+        btn.textContent = 'Submit';
+        btn.classList.remove('wa');
+      }
+    }
+    // Batch
+    if (paperState.batchCooldownUntil > now) {
+      const remain = Math.ceil((paperState.batchCooldownUntil - now) / 1000);
+      batchBtn.disabled = true;
+      batchBtn.textContent = `${remain}s`;
+    } else if (paperState.batchCooldownUntil > 0) {
+      paperState.batchCooldownUntil = 0;
+      batchBtn.disabled = false;
+      batchBtn.textContent = 'Batch';
+    }
+  }, 500);
+}
+
+async function submitPaperQuestion(paperState, qid, floating) {
+  const st = paperState.answers[qid];
+  if (!st) return;
+  if (st.state === 'ac') return;
+  if (st.cooldownUntil > Date.now()) return;
+
+  const body = floating.querySelector('.paper-float-body');
+  const btn = body.querySelector(`.paper-row-btn[data-qid="${CSS.escape(qid)}"]`);
+  const input = body.querySelector(`.paper-row-input[data-qid="${CSS.escape(qid)}"]`);
+  if (!btn || !input) return;
+
+  const answer = String(input.value || '').trim();
+  if (!answer) {
+    btn.classList.add('wa');
+    btn.textContent = 'WA';
+    st.state = 'wa';
+    return;
+  }
+
+  // 標記 submitting
+  st.state = 'submitting';
+  btn.disabled = true;
+  btn.classList.add('submitting');
+  btn.classList.remove('wa');
+  btn.textContent = '...';
+
+  try {
+    saveUserAnswer(qid, answer);
+    const res = await apiCall('/api/submit', 'POST', {
+      problemId: qid,
+      answer,
+      type: 'text',
+      image: '',
+    });
+
+    if (!res.success) {
+      // 失敗
+      st.state = 'unsubmitted';
+      btn.classList.remove('submitting');
+      btn.disabled = false;
+      btn.textContent = 'Submit';
+      return;
+    }
+
+    const correct = res.correct === true || res.score === 100;
+    if (correct) {
+      st.state = 'ac';
+      btn.classList.remove('submitting');
+      btn.classList.add('ac');
+      btn.textContent = 'AC';
+      btn.disabled = true;
+      input.disabled = true;
+      updatePaperProgress(paperState);
+    } else {
+      st.state = 'wa';
+      btn.classList.remove('submitting');
+      btn.classList.add('wa');
+      btn.textContent = 'WA';
+      btn.disabled = false;
+      st.cooldownUntil = Date.now() + PAPER_COOLDOWN_SINGLE_MS;
+    }
+  } catch (err) {
+    st.state = 'unsubmitted';
+    btn.classList.remove('submitting');
+    btn.disabled = false;
+    btn.textContent = 'Submit';
+  }
+}
+
+async function submitPaperBatch(paperState, floating) {
+  const now = Date.now();
+  if (paperState.batchCooldownUntil > now) return;
+
+  const body = floating.querySelector('.paper-float-body');
+  const batchBtn = floating.querySelector('#paperBatchBtn');
+
+  // 收集要提交的
+  const answers = {};
+  for (const qid of Object.keys(paperState.answers)) {
+    const st = paperState.answers[qid];
+    if (st.state === 'ac') continue;
+    const input = body.querySelector(`.paper-row-input[data-qid="${CSS.escape(qid)}"]`);
+    const val = String(input?.value || '').trim();
+    if (!val) continue;
+    answers[qid] = val;
+  }
+
+  const keys = Object.keys(answers);
+  if (keys.length === 0) {
+    // 沒有可提交的
+    batchBtn.textContent = 'Nothing';
+    setTimeout(() => { batchBtn.textContent = 'Batch'; }, 1200);
+    return;
+  }
+
+  // 鎖定
+  paperState.batchCooldownUntil = now + PAPER_COOLDOWN_BATCH_MS;
+  batchBtn.disabled = true;
+  batchBtn.textContent = '...';
+
+  // 標記所有按鈕為 submitting
+  for (const qid of keys) {
+    const st = paperState.answers[qid];
+    st.state = 'submitting';
+    const btn = body.querySelector(`.paper-row-btn[data-qid="${CSS.escape(qid)}"]`);
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.remove('wa');
+      btn.classList.add('submitting');
+      btn.textContent = '...';
+    }
+  }
+
+  try {
+    const res = await apiCall('/api/submit?action=batch', 'POST', {
+      paperId: paperState.id,
+      answers,
+    });
+
+    if (!res.success) throw new Error(res.message || 'Batch submit failed');
+
+    // 處理結果
+    for (const r of res.results || []) {
+      const qid = r.problemId;
+      const st = paperState.answers[qid];
+      if (!st) continue;
+      const btn = body.querySelector(`.paper-row-btn[data-qid="${CSS.escape(qid)}"]`);
+      const input = body.querySelector(`.paper-row-input[data-qid="${CSS.escape(qid)}"]`);
+
+      if (r.alreadyAC) {
+        st.state = 'ac';
+        if (btn) { btn.classList.remove('submitting','wa'); btn.classList.add('ac'); btn.textContent = 'AC'; btn.disabled = true; }
+        if (input) input.disabled = true;
+      } else if (r.correct) {
+        st.state = 'ac';
+        if (btn) { btn.classList.remove('submitting','wa'); btn.classList.add('ac'); btn.textContent = 'AC'; btn.disabled = true; }
+        if (input) input.disabled = true;
+        saveUserAnswer(qid, st.value);
+      } else {
+        st.state = 'wa';
+        if (btn) { btn.classList.remove('submitting','ac'); btn.classList.add('wa'); btn.textContent = 'WA'; btn.disabled = true; }
+        st.cooldownUntil = Date.now() + PAPER_COOLDOWN_SINGLE_MS;
+      }
+    }
+
+    // 未在結果中的（例如空答案被跳過）
+    for (const qid of Object.keys(paperState.answers)) {
+      const st = paperState.answers[qid];
+      if (st.state === 'submitting') {
+        st.state = 'unsubmitted';
+        const btn = body.querySelector(`.paper-row-btn[data-qid="${CSS.escape(qid)}"]`);
+        if (btn) {
+          btn.classList.remove('submitting');
+          btn.disabled = false;
+          btn.textContent = 'Submit';
+        }
+      }
+    }
+
+    updatePaperProgress(paperState);
+  } catch (err) {
+    console.error('Batch submit error:', err);
+    // 復原
+    for (const qid of keys) {
+      const st = paperState.answers[qid];
+      st.state = 'unsubmitted';
+      const btn = body.querySelector(`.paper-row-btn[data-qid="${CSS.escape(qid)}"]`);
+      if (btn) {
+        btn.classList.remove('submitting');
+        btn.disabled = false;
+        btn.textContent = 'Submit';
+      }
+    }
+    paperState.batchCooldownUntil = 0;
+    batchBtn.disabled = false;
+    batchBtn.textContent = 'Batch';
+    alert('Batch submit failed: ' + (err.message || 'Unknown error'));
+  }
+}
+
 // ============ 主流程 ============
 async function initPage() {
   try {
     mainContainer.innerHTML = '';
 
-    // ⭐ 一次拿 problem + states + favorites（CDN 並行 fallback）
     const pageData = await loadPageData();
     if (!pageData || !pageData.problem) {
       mainContainer.innerHTML = '<div class="error-msg">Problem not found. Please try again later.</div>';
       return;
     }
 
-        const problem = pageData.problem;
+    const problem = pageData.problem;
+
+    // ⭐ 偵測 paper-mount → 走試卷模式
+    const paperMatch = String(problem.statement || '')
+      .match(/<div[^>]*class=["'][^"']*paper-mount[^"']*["'][^>]*>/i);
+    if (paperMatch) {
+      return initPaperPage(problem, paperMatch[0]);
+    }
+
     // 只記錄當前題的狀態
     userStates = {};
     if (pageData.state && pageData.state !== 'not_started') {
@@ -1270,7 +1776,6 @@ function bindStaticEvents() {
     answerInputEl.addEventListener('input', () => {
       saveAnswerDebounced(problemId, answerInputEl.value);
     });
-    // 失焦時立刻保存
     answerInputEl.addEventListener('blur', () => {
       saveAnswerNow(problemId, answerInputEl.value);
     });
@@ -1500,9 +2005,12 @@ window.addEventListener('pagehide', () => {
     try { window.__pdfResizeObserver.disconnect(); } catch (e) {}
     window.__pdfResizeObserver = null;
   }
+  if (window.__paperCooldownTimer) {
+    clearInterval(window.__paperCooldownTimer);
+    window.__paperCooldownTimer = null;
+  }
   cooldown = false;
 });
-// ⭐ 頁面隱藏/卸載時，強制把當前輸入保存
 window.addEventListener('pagehide', () => {
   const ansEl = document.getElementById('answerInput');
   const expEl = document.getElementById('exprInput');
@@ -1510,7 +2018,6 @@ window.addEventListener('pagehide', () => {
   if (expEl && expEl.value) saveAnswerNow(problemId, expEl.value);
 });
 
-// 切到後台（手機）時也保存
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') {
     const ansEl = document.getElementById('answerInput');
