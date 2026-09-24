@@ -93,7 +93,7 @@ export default async function handler(req, res) {
   if (!decoded) {
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
-  const { username, role } = decoded;
+  let { username, role } = decoded;
     // ⭐ 检测是否在特殊竞赛的队伍中
   const db = await connectToDatabase();
   const now = new Date();
