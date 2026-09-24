@@ -158,56 +158,62 @@
   }
   .rs-table tbody tr:last-child td { border-bottom: none; }
 
-  /* ═══ Sticky Columns ═══ */
+  /* ═══ Column Widths ═══ */
   .col-rank  { width: 64px;  min-width: 64px; }
   .col-user  { width: 240px; min-width: 240px; text-align: left; }
   .col-prob  { width: 80px;  min-width: 80px; }
-  .col-total { width: 110px; min-width: 110px; }
-  .col-time  { width: 170px; min-width: 170px; }
+  .col-total { width: 100px; min-width: 100px; }
 
-  /* 左側 sticky：Rank + User */
+  /* ═══════════════════════════════════════════════════════════
+     Sticky 欄位
+     ⚠️ 不要在這裡宣告 background 簡寫，否則會蓋掉
+        .rs-table tbody td 的「不透明底 + tint」規則
+        thead th 需要單獨給 background（因為 thead 沒有 tint 邏輯）
+     ═══════════════════════════════════════════════════════════ */
+
+  /* 左側 sticky：Rank */
   .rs-table thead th.col-rank,
   .rs-table tbody td.cell-rank {
     position: sticky;
     left: 0;
     z-index: 4;
-    background: var(--row-bg, var(--card-bg));
+    /* 注意：不寫 background */
   }
-  .rs-table thead th.col-rank { z-index: 6; background: var(--card-bg); }
+  .rs-table thead th.col-rank {
+    z-index: 6;
+    background: var(--card-bg);
+  }
   [data-theme="dark"] .rs-table thead th.col-rank { background: #161b22; }
 
+  /* 左側 sticky：User */
   .rs-table thead th.col-user,
   .rs-table tbody td.cell-user {
     position: sticky;
     left: 64px;
     z-index: 4;
-    background: var(--row-bg, var(--card-bg));
     box-shadow: 2px 0 0 var(--border-color);
+    /* 注意：不寫 background */
   }
-  .rs-table thead th.col-user { z-index: 6; background: var(--card-bg); }
+  .rs-table thead th.col-user {
+    z-index: 6;
+    background: var(--card-bg);
+  }
   [data-theme="dark"] .rs-table thead th.col-user { background: #161b22; }
 
-  /* 右側 sticky：Total + Last Submission */
+  /* 右側 sticky：Total（現在是最右邊，right: 0） */
   .rs-table thead th.col-total,
   .rs-table tbody td.cell-total {
     position: sticky;
-    right: 170px;
-    z-index: 4;
-    background: var(--row-bg, var(--card-bg));
-    box-shadow: -2px 0 0 var(--border-color);
-  }
-  .rs-table thead th.col-total { z-index: 6; background: var(--card-bg); }
-  [data-theme="dark"] .rs-table thead th.col-total { background: #161b22; }
-
-  .rs-table thead th.col-time,
-  .rs-table tbody td.cell-time {
-    position: sticky;
     right: 0;
     z-index: 4;
-    background: var(--row-bg, var(--card-bg));
+    box-shadow: -2px 0 0 var(--border-color);
+    /* 注意：不寫 background */
   }
-  .rs-table thead th.col-time { z-index: 6; background: var(--card-bg); }
-  [data-theme="dark"] .rs-table thead th.col-time { background: #161b22; }
+  .rs-table thead th.col-total {
+    z-index: 6;
+    background: var(--card-bg);
+  }
+  [data-theme="dark"] .rs-table thead th.col-total { background: #161b22; }
 
   /* ── 分數方塊 ── */
   .rs-table tbody td.cell {
@@ -312,15 +318,6 @@
     font-weight: 800; color: var(--accent);
     font-size: .95rem; white-space: nowrap;
   }
-  .rs-table tbody td.cell-total .max {
-    font-size: .72rem; color: var(--text-secondary); font-weight: 600;
-  }
-
-  /* ── Time cell ── */
-  .rs-time {
-    font-family: 'Fira Code', 'Consolas', monospace;
-    font-size: .78rem; color: var(--text-secondary); white-space: nowrap;
-  }
 
   /* ── Legend ── */
   .rs-legend {
@@ -420,9 +417,6 @@
     .rs-table thead th.col-user,
     .rs-table tbody td.cell-user { left: 52px; }
     .col-total { width: 90px;  min-width: 90px; }
-    .col-time  { width: 140px; min-width: 140px; }
-    .rs-table thead th.col-total,
-    .rs-table tbody td.cell-total { right: 140px; }
   }
 </style>
 
@@ -485,16 +479,6 @@
       if (rank === 2) return 'silver';
       if (rank === 3) return 'bronze';
       return '';
-    }
-
-    function fmtTime(ts) {
-      if (!ts) return '—';
-      const d = new Date(ts);
-      if (isNaN(d.getTime())) return '—';
-      const pad = n => String(n).padStart(2, '0');
-      const local = new Date(d.getTime() + 8 * 3600000);
-      return `${local.getUTCFullYear()}-${pad(local.getUTCMonth() + 1)}-${pad(local.getUTCDate())} ` +
-             `${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}`;
     }
 
     function fmtScore(n) {
@@ -641,7 +625,6 @@
         <div class="rs-section">
           <div class="rs-section-header">
             <h3><i class="fas fa-ranking-star"></i> Leaderboard</h3>
-            
           </div>
           <div class="rs-table-scroll">
             <table class="rs-table">
@@ -657,12 +640,10 @@
 
       html += `
                   <th class="col-total">Total</th>
-                  
                 </tr>
               </thead>
               <tbody>
       `;
-      //<th class="col-time">Last Submission</th>
 
       participants.forEach((p, idx) => {
         const rank = idx + 1;
@@ -688,7 +669,7 @@
               <span class="rs-user-avatar ${rClass}">${avatarContent}</span>
               <span class="rs-user-info">
                 <span class="rs-user-name">${escapeHtml(p.username)}</span>
-                
+                ${showDisplay ? `<span class="rs-user-dash">—</span><span class="rs-user-display">${escapeHtml(display)}</span>` : ''}
               </span>
             </a>
           </td>`;
@@ -717,17 +698,21 @@
         });
 
         html += `
-          <td class="cell-total">${fmtScore(p.total ?? 0)} <span class="max">/ ${maxTotal.toFixed(2)}</span></td>
-          
+          <td class="cell-total">${fmtScore(p.total ?? 0)}</td>
         </tr>`;
-        //<td class="cell-time"><span class="rs-time">${escapeHtml(fmtTime(p.lastTime))}</span></td>
       });
 
       html += `
               </tbody>
             </table>
           </div>
-          
+          <div class="rs-legend">
+            <span class="rs-legend-item"><span class="rs-legend-swatch ac-first"></span> First-try AC</span>
+            <span class="rs-legend-item"><span class="rs-legend-swatch ac"></span> AC (after tries)</span>
+            <span class="rs-legend-item"><span class="rs-legend-swatch wa"></span> Wrong Answer</span>
+            <span class="rs-legend-item"><span class="rs-legend-swatch partial"></span> Partial</span>
+            <span class="rs-legend-item"><span class="rs-legend-swatch empty"></span> Not attempted</span>
+          </div>
         </div>
       `;
 
