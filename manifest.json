@@ -2,7 +2,7 @@
   "name": "WYK Maths Team",
   "short_name": "WYK Maths Team",
   "description": "WYK Maths Team Online Judge",
-  "start_url": "/",
+  "start_url": "/os",
   "id": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
