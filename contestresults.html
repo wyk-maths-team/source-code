@@ -641,7 +641,7 @@
         <div class="rs-section">
           <div class="rs-section-header">
             <h3><i class="fas fa-ranking-star"></i> Leaderboard</h3>
-            <span class="hint">Click a username · hover for details</span>
+            
           </div>
           <div class="rs-table-scroll">
             <table class="rs-table">
@@ -687,7 +687,7 @@
               <span class="rs-user-avatar ${rClass}">${avatarContent}</span>
               <span class="rs-user-info">
                 <span class="rs-user-name">${escapeHtml(p.username)}</span>
-                ${showDisplay ? `<span class="rs-user-dash">—</span><span class="rs-user-display">${escapeHtml(display)}</span>` : ''}
+                
               </span>
             </a>
           </td>`;
@@ -717,21 +717,16 @@
 
         html += `
           <td class="cell-total">${fmtScore(p.total ?? 0)} <span class="max">/ ${maxTotal.toFixed(2)}</span></td>
-          <td class="cell-time"><span class="rs-time">${escapeHtml(fmtTime(p.lastTime))}</span></td>
+          
         </tr>`;
+        //<td class="cell-time"><span class="rs-time">${escapeHtml(fmtTime(p.lastTime))}</span></td>
       });
 
       html += `
               </tbody>
             </table>
           </div>
-          <div class="rs-legend">
-            <span class="rs-legend-item"><span class="rs-legend-swatch ac-first"></span> First-try AC</span>
-            <span class="rs-legend-item"><span class="rs-legend-swatch ac"></span> AC (after tries)</span>
-            <span class="rs-legend-item"><span class="rs-legend-swatch wa"></span> Wrong Answer</span>
-            <span class="rs-legend-item"><span class="rs-legend-swatch partial"></span> Partial</span>
-            <span class="rs-legend-item"><span class="rs-legend-swatch empty"></span> Not attempted</span>
-          </div>
+          
         </div>
       `;
 
