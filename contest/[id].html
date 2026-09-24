@@ -477,7 +477,14 @@
     async function loadPage() {
       try {
         const data = await apiCall(`/api/contests?action=page&id=${contestId}`);
-        if (data.success && data.contest) return data.contest;
+        if (data.success && data.contest) {
+          // ⭐ 特殊竞赛 → 重定向
+          if (data.contest.special === true) {
+            location.replace(`/tcontest/${contestId}`);
+            return null;
+          }
+          return data.contest;
+        }
       } catch (err) { console.error(err); }
       return null;
     }

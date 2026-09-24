@@ -93,6 +93,9 @@
     { "source": "/submissions/:id/detail", "destination": "/submissions/detail.html" },
     { "source": "/submissions", "destination": "/submissions.html" },
 
+    { "source": "/tcontest/:id", "destination": "/special-contest.html" },
+    { "source": "/teams/:id", "destination": "/team.html" },
+
     { "source": "/users/edit", "destination": "/editpassword.html" },
     { "source": "/users/:username", "destination": "/user.html" },
     { "source": "/leaderboard", "destination": "/ranklist.html" },
