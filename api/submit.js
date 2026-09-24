@@ -93,7 +93,7 @@ export default async function handler(req, res) {
   if (!decoded) {
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
-  // const { username, role } = decoded;
+  const { username, role } = decoded;
     // ⭐ 检测是否在特殊竞赛的队伍中
   const db = await connectToDatabase();
   const now = new Date();
@@ -252,7 +252,7 @@ export default async function handler(req, res) {
         let comment = '';
 
         if (hasLogic) {
-          const r = runCustomLogic(prob.logic, prob.ans, userAnswer);
+          const r = await runCustomLogic(prob.logic, prob.ans, userAnswer);
           correct = !r.systemError && r.score === 100;
           systemError = r.systemError;
           score = r.score;
@@ -352,7 +352,7 @@ export default async function handler(req, res) {
 
   try {
     // const db = await connectToDatabase();
-      let { username, role } = decoded;
+      // let { username, role } = decoded;
       // ⭐ 队伍上下文覆盖
       let teamSubmissionMeta = null;
       if (req.body._teamContext) {
@@ -517,18 +517,23 @@ export default async function handler(req, res) {
                 { $set: { score: currentScore, solved: false, lastSubmissionTime: now } },
                 { upsert: true }
               );
-            } else {
+                        } else {
               // ⭐ WA
               currentScore = resultDoc?.score || 0;
               submissionData.score = currentScore;
               await db.collection('submissions').insertOne(submissionData);
+              const upd = {
+                $inc: { wrongAttempts: 1 },
+                $set: { lastSubmissionTime: now, solved: false },
+                $setOnInsert: { score: 0 },
+              };
+              if (isSpecial) {
+                upd.$set.score = 0;
+                upd.$set.locked = true;
+              }
               await db.collection('contest_results').updateOne(
                 { contestId: activeContest.id, username, problemId: pid },
-                
-                  $inc: { wrongAttempts: 1 },
-                  $set: { lastSubmissionTime: now, solved: false },
-                  $setOnInsert: { score: 0 },
-                
+                upd,
                 { upsert: true }
               );
             }
