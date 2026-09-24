@@ -1171,7 +1171,7 @@ function bindPaperEvents(paperState, floating) {
       }
     }
   });
-  function flashPaperInput(input, color) {
+    function flashPaperInput(input, color) {
     const prevBg = input.style.background;
     input.style.transition = 'background .15s';
     input.style.background = color === 'green'
@@ -1182,6 +1182,66 @@ function bindPaperEvents(paperState, floating) {
       input.style.transition = '';
     }, 420);
   }
+
+  // ⭐ Enter 键：直接绑定到每个 input 上（比事件委托可靠）
+  body.querySelectorAll('.paper-row-input').forEach((input) => {
+    input.addEventListener('keydown', (e) => {
+      // 过滤：只处理 Enter；IME 组合中跳过
+      if (e.key !== 'Enter' && e.keyCode !== 13) return;
+      if (e.isComposing || e.keyCode === 229) return;
+      if (input.disabled) return;
+
+      const qid = input.dataset.qid;
+      const st = paperState.answers[qid];
+      if (!st) return;
+      if (st.state === 'ac' || st.state === 'submitting') return;
+      if (st.cooldownUntil > Date.now()) return;
+
+      const raw = String(input.value || '').trim();
+      if (!raw) return;
+
+      // 关键：阻止默认行为 + 防止冒泡
+      e.preventDefault();
+      e.stopPropagation();
+
+      // 情况 1：已经是纯数字 → 直接提交
+      if (isNumericStr(raw)) {
+        console.log('[Paper] numeric, submit:', qid, raw);
+        submitPaperQuestion(paperState, qid, floating);
+        return;
+      }
+
+      // 情况 2：尝试求值
+      if (typeof math === 'undefined') {
+        console.warn('[Paper] math.js not loaded');
+        flashPaperInput(input, 'red');
+        return;
+      }
+
+      let numResult;
+      try {
+        const node = math.parse(raw);
+        const result = node.evaluate();
+        numResult = (result && typeof result === 'object' && result.isBigNumber)
+          ? result.toNumber()
+          : result;
+        if (typeof numResult !== 'number' || !Number.isFinite(numResult)) {
+          throw new Error('Not finite');
+        }
+      } catch (err) {
+        console.log('[Paper] eval failed:', raw, err.message);
+        flashPaperInput(input, 'red');
+        return;
+      }
+
+      // 求值成功 → 填入
+      const formatted = formatPaperNumber(numResult);
+      console.log('[Paper] eval ok:', raw, '→', formatted);
+      input.value = formatted;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      flashPaperInput(input, 'green');
+    });
+  });
     // ⭐ Enter 键：纯数字 → 提交；表达式 → 求值后填回
   body.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
