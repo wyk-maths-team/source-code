@@ -702,26 +702,57 @@ export default async function handler(req, res) {
         return res.status(404).json({ success: false, message: 'Problem not found' });
       }
 
-      // 非管理員：public + 活躍競賽檢查
-      if (!adminUser) {
+            if (!adminUser) {
         let canView = problem.public;
         if (!canView) {
           const now = new Date();
-          const contest = await db.collection('contests').findOne(
-            {
-              participants: req.user.username,
+          // ⭐ 检查是否属于某个进行中的 special contest 的队伍
+          const team = await db.collection('teams').findOne({
+            members: req.user.username,
+            startTime: { $lte: now }   // 用 contests 的关联条件
+          });
+          
+          // 常规检查
+          const contest = await db.collection('contests').findOne({
+            participants: req.user.username,
+            startTime: { $lte: now },
+            $expr: {
+              $gte: [
+                { $add: ['$startTime', { $multiply: ['$duration', 60000] }] },
+                now
+              ]
+            },
+            'problems.problemId': id
+          });
+          if (contest) canView = true;
+          
+          // ⭐ Team 检查
+          if (!canView) {
+            const activeSpecials = await db.collection('contests').find({
+              special: true,
               startTime: { $lte: now },
               $expr: {
                 $gte: [
                   { $add: ['$startTime', { $multiply: ['$duration', 60000] }] },
                   now
                 ]
-              },
-              'problems.problemId': id
-            },
-            { projection: { _id: 1 } }
-          );
-          if (contest) canView = true;
+              }
+            }, { projection: { id: 1, problems: 1 } }).toArray();
+            
+            for (const c of activeSpecials) {
+              const hasProblem = (c.problems || []).some(p => {
+                const pid = (typeof p === 'object' && p.problemId) ? String(p.problemId) : String(p);
+                return pid === id;
+              });
+              if (!hasProblem) continue;
+              
+              const t = await db.collection('teams').findOne({
+                contestId: c.id,
+                members: req.user.username
+              });
+              if (t) { canView = true; break; }
+            }
+          }
         }
         if (!canView) {
           return res.status(404).json({ success: false, message: 'Problem not found' });

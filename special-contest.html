@@ -3,528 +3,829 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Special Contest</title>
+<title>Special Contest - WYK Maths Team</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css">
 <style>
-  :root {
-    --bg: #0f1420;
-    --card: #161b28;
-    --card-2: #1e2536;
-    --line: #2d3446;
-    --text: #e0e6ed;
-    --text-2: #8b96ab;
-    --accent: #6b8fff;
-    --accent-h: #5578f0;
-    --good: #4ade80;
-    --bad: #f87171;
-    --warn: #fbbf24;
+  /* ═══════════════ Contest Detail（对齐 [id].html） ═══════════════ */
+  .contest-detail {
+    max-width: 1000px; margin: 0 auto;
+    display: flex; flex-direction: column; gap: 1.25rem;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
+
+  /* ── Hero ── */
+  .cd-hero {
+    position: relative; overflow: hidden; border-radius: 16px;
+    padding: 2rem 2.2rem 1.8rem;
+    background: linear-gradient(135deg, #4a90d9 0%, #2e5fa0 55%, #1a1a2e 100%);
+    color: #fff;
+    box-shadow: 0 12px 40px rgba(74,144,217,.22), 0 0 0 1px rgba(255,255,255,.08) inset;
   }
-  .sc-wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
-  .sc-hd { display: flex; align-items: center; gap: 16px; padding-bottom: 20px; margin-bottom: 24px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-  .sc-hd h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px; }
-  .sc-hd .badge { font-size: 0.7rem; padding: 3px 10px; border-radius: 12px; background: rgba(107,143,255,0.15); color: var(--accent); font-weight: 700; letter-spacing: 0.5px; }
-  .sc-hd .spacer { flex: 1; }
+  .cd-hero::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 12% 25%, rgba(255,255,255,.85), transparent),
+      radial-gradient(1px 1px at 35% 65%, rgba(255,255,255,.6), transparent),
+      radial-gradient(2px 2px at 58% 20%, rgba(255,255,255,.9), transparent),
+      radial-gradient(1px 1px at 78% 78%, rgba(255,255,255,.7), transparent),
+      radial-gradient(2px 2px at 90% 35%, rgba(255,255,255,.85), transparent);
+    background-size: 400px 400px; opacity: .55;
+    pointer-events: none; animation: cdDrift 60s linear infinite;
+  }
+  @keyframes cdDrift { from { background-position: 0 0; } to { background-position: 400px 300px; } }
+  .cd-hero::after {
+    content: ''; position: absolute; top: -80px; right: -80px;
+    width: 340px; height: 340px;
+    background: radial-gradient(circle, rgba(255,255,255,.22) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .cd-hero-inner { position: relative; z-index: 1; }
+  .cd-hero-top {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 1rem; flex-wrap: wrap; margin-bottom: .6rem;
+  }
+  .cd-hero-name {
+    font-size: 1.9rem; font-weight: 800; letter-spacing: -.5px;
+    margin: 0; color: #fff; line-height: 1.2; flex: 1; min-width: 200px;
+  }
+  .cd-status {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 16px; border-radius: 20px;
+    font-size: .85rem; font-weight: 700; letter-spacing: .3px; text-transform: uppercase;
+    flex-shrink: 0;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    background: rgba(255,255,255,.15); color: #fff; border: 1px solid rgba(255,255,255,.3);
+  }
+  .cd-status .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .cd-status.ongoing { background: rgba(76,175,80,.28); color: #a5f0a5; border: 1px solid rgba(76,175,80,.45); }
+  .cd-status.ended { background: rgba(255,255,255,.15); color: #d0d0d0; border: 1px solid rgba(255,255,255,.25); }
 
-  .sc-btn { padding: 9px 20px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); font-family: inherit; font-size: 0.88rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all .15s; }
-  .sc-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
-  .sc-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .sc-btn.primary:hover:not(:disabled) { background: var(--accent-h); }
-  .sc-btn.danger { color: var(--bad); border-color: var(--bad); background: transparent; }
-  .sc-btn.danger:hover:not(:disabled) { background: var(--bad); color: #fff; }
-  .sc-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  .sc-btn.sm { padding: 5px 12px; font-size: 0.78rem; }
+  .cd-hero-meta {
+    display: flex; gap: 1.4rem; flex-wrap: wrap; font-size: .9rem; opacity: .92;
+  }
+  .cd-hero-meta .item { display: inline-flex; align-items: center; gap: 6px; }
+  .cd-hero-meta i { opacity: .85; font-size: .85rem; }
 
-  .sc-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
-  .sc-card h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-  .sc-card h2 i { color: var(--accent); }
+  /* ── Action bar ── */
+  .cd-actions { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
 
-  .sc-intro { color: var(--text-2); font-size: 0.9rem; line-height: 1.7; margin-bottom: 20px; padding: 14px 18px; background: var(--card-2); border-left: 3px solid var(--accent); border-radius: 6px; }
+  /* ── Buttons ── */
+  .cd-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: .55rem 1.2rem; border-radius: 9px;
+    font-size: .88rem; font-weight: 600; font-family: inherit;
+    cursor: pointer; border: 1px solid transparent;
+    transition: all .15s ease; text-decoration: none; white-space: nowrap;
+  }
+  .cd-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,.12); }
+  .cd-btn:disabled { opacity: .5; cursor: not-allowed; }
+  .cd-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .cd-btn.primary:hover:not(:disabled) { background: var(--accent-hover); }
+  .cd-btn.success { background: #2e7d32; color: #fff; border-color: #2e7d32; }
+  .cd-btn.success:hover:not(:disabled) { background: #256428; }
+  .cd-btn.danger { background: transparent; color: var(--danger); border-color: var(--danger); }
+  .cd-btn.danger:hover:not(:disabled) { background: var(--danger); color: #fff; }
+  .cd-btn.secondary { background: var(--card-bg); color: var(--text-primary); border-color: var(--border-color); }
+  .cd-btn.secondary:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .cd-btn.sm { padding: .35rem .8rem; font-size: .78rem; }
 
-  .sc-lobby { display: flex; gap: 20px; flex-wrap: wrap; }
-  .sc-lobby-btn { flex: 1; min-width: 220px; padding: 32px 24px; background: var(--card-2); border: 1px dashed var(--line); border-radius: 12px; cursor: pointer; transition: all .2s; text-align: center; }
-  .sc-lobby-btn:hover { border-color: var(--accent); border-style: solid; transform: translateY(-2px); }
-  .sc-lobby-btn i { font-size: 2rem; color: var(--accent); display: block; margin-bottom: 12px; }
-  .sc-lobby-btn strong { display: block; font-size: 1.05rem; margin-bottom: 4px; }
-  .sc-lobby-btn span { color: var(--text-2); font-size: 0.82rem; }
+  /* ── Section card ── */
+  .cd-section {
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-radius: 14px; overflow: hidden; box-shadow: var(--shadow-sm);
+  }
+  .cd-section-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: .9rem 1.3rem; border-bottom: 1px solid var(--border-color);
+    background: rgba(0,0,0,.015); gap: .5rem; flex-wrap: wrap;
+  }
+  [data-theme="dark"] .cd-section-header { background: rgba(255,255,255,.02); }
+  .cd-section-header h3 {
+    margin: 0; font-size: 1rem; font-weight: 700;
+    display: flex; align-items: center; gap: 8px; color: var(--text-primary);
+  }
+  .cd-section-header h3 i { color: var(--accent); font-size: .9rem; }
+  .cd-section-header .count { font-size: .8rem; color: var(--text-secondary); font-weight: 500; }
+  .cd-section-body { padding: 1.1rem 1.3rem; }
 
-  .sc-team-hd { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; }
-  .sc-team-hd h2 { font-size: 1.4rem; font-weight: 800; }
-  .sc-code { font-family: 'Consolas', monospace; font-size: 1.4rem; font-weight: 800; letter-spacing: 4px; padding: 6px 14px; background: var(--card-2); border-radius: 8px; border: 1px solid var(--accent); color: var(--accent); cursor: pointer; }
-  .sc-code:hover { background: rgba(107,143,255,0.1); }
+  /* ── Team info block ── */
+  .cd-team-head {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .cd-team-name { font-size: 1.4rem; font-weight: 800; color: var(--text-primary); }
+  .cd-invite-code {
+    font-family: 'Consolas', monospace; font-size: 1.2rem; font-weight: 800;
+    letter-spacing: 3px; padding: 6px 14px;
+    background: var(--hover-bg); border-radius: 8px;
+    border: 1px solid var(--accent); color: var(--accent);
+    cursor: pointer; transition: background .15s;
+  }
+  .cd-invite-code:hover { background: rgba(74,144,217,.1); }
+  .cd-mode-info {
+    font-size: .85rem; color: var(--text-secondary);
+    padding: 6px 12px; background: var(--hover-bg); border-radius: 6px; display: inline-block;
+  }
+  .cd-badge-locked {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 10px;
+    background: rgba(76,175,80,.15); color: #2e7d32;
+    font-size: .75rem; font-weight: 700;
+  }
+  [data-theme="dark"] .cd-badge-locked { color: #8fdf8f; }
+  .cd-badge-open {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 10px;
+    background: rgba(255,193,7,.18); color: #b28500;
+    font-size: .75rem; font-weight: 700;
+  }
+  [data-theme="dark"] .cd-badge-open { color: #ffd54f; }
 
-  .sc-members { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
-  .sc-member { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 20px; background: var(--card-2); font-size: 0.85rem; border: 1px solid var(--line); }
-  .sc-member.captain { border-color: var(--warn); color: var(--warn); }
-  .sc-member.former { opacity: 0.5; text-decoration: line-through; }
-  .sc-member .kick-btn { background: none; border: none; color: var(--bad); cursor: pointer; padding: 0 2px; font-size: 0.9rem; }
+  /* ── Member chips ── */
+  .cd-members { display: flex; flex-wrap: wrap; gap: 8px; }
+  .cd-member {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 5px 14px; border-radius: 20px;
+    background: var(--hover-bg); border: 1px solid var(--border-color);
+    font-size: .85rem; color: var(--text-primary);
+    transition: all .15s;
+  }
+  .cd-member.captain { border-color: #fbc02d; color: #b28500; }
+  [data-theme="dark"] .cd-member.captain { color: #ffd54f; }
+  .cd-member.former { opacity: .5; text-decoration: line-through; }
+  .cd-member .kick-btn {
+    background: none; border: none; cursor: pointer; padding: 0 2px;
+    color: var(--danger); font-size: .85rem;
+  }
+  .cd-member .kick-btn:hover { opacity: .7; }
 
-  .sc-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
-  .sc-table th, .sc-table td { padding: 9px 12px; border-bottom: 1px solid var(--line); text-align: left; }
-  .sc-table th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-2); font-weight: 700; }
-  .sc-table tr:hover td { background: var(--card-2); }
-  .sc-input { width: 100%; padding: 7px 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; color: var(--text); font-family: inherit; font-size: 0.9rem; outline: none; }
-  .sc-input:focus { border-color: var(--accent); }
-  .sc-input:disabled { background: #1a1f2e; color: var(--text-2); cursor: not-allowed; }
+  /* ── Problem table ── */
+  .cd-problem-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  .cd-problem-table thead th {
+    padding: .7rem .9rem; text-align: left;
+    font-size: .72rem; text-transform: uppercase; letter-spacing: .5px;
+    color: var(--text-secondary); font-weight: 700;
+    border-bottom: 1px solid var(--border-color); white-space: nowrap;
+    background: rgba(0,0,0,.015);
+  }
+  [data-theme="dark"] .cd-problem-table thead th { background: rgba(255,255,255,.02); }
+  .cd-problem-table tbody tr {
+    transition: background .15s;
+    cursor: pointer;
+  }
+  .cd-problem-table tbody tr:hover { background: var(--hover-bg); }
+  .cd-problem-table tbody td {
+    padding: .7rem .9rem; border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+  }
+  .cd-problem-table tbody tr:last-child td { border-bottom: none; }
 
-  .sc-status { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; }
-  .sc-status.ac { background: rgba(74,222,128,0.15); color: var(--good); }
-  .sc-status.wa { background: rgba(248,113,113,0.15); color: var(--bad); }
-  .sc-status.locked { background: rgba(248,113,113,0.25); color: #ffa8a8; }
-  .sc-status.pending { background: rgba(251,191,36,0.15); color: var(--warn); }
-  .sc-status.none { color: var(--text-2); }
+  .cd-pid {
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-weight: 700; color: var(--accent); font-size: .85rem;
+  }
+  .cd-pname { font-weight: 500; color: var(--text-primary); }
 
-  .sc-suggestions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
-  .sc-sug { padding: 2px 10px; border-radius: 10px; background: rgba(107,143,255,0.1); color: var(--accent); font-size: 0.78rem; font-family: 'Consolas', monospace; }
+  /* ── Status badges ── */
+  .cd-status-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: .78rem; font-weight: 700;
+    padding: 4px 11px; border-radius: 12px; white-space: nowrap;
+  }
+  .cd-status-badge.ac { background: rgba(76,175,80,.18); color: #2e7d32; }
+  .cd-status-badge.wa { background: rgba(198,40,40,.18); color: #c0392b; }
+  .cd-status-badge.locked { background: rgba(198,40,40,.25); color: #c0392b; }
+  .cd-status-badge.partial { background: rgba(255,193,7,.2); color: #b28500; }
+  .cd-status-badge.none { background: rgba(0,0,0,.06); color: var(--text-secondary); }
+  [data-theme="dark"] .cd-status-badge.ac { color: #8fdf8f; }
+  [data-theme="dark"] .cd-status-badge.wa,
+  [data-theme="dark"] .cd-status-badge.locked { color: #ff9b8f; }
+  [data-theme="dark"] .cd-status-badge.partial { color: #ffd54f; }
+  [data-theme="dark"] .cd-status-badge.none { background: rgba(255,255,255,.08); }
 
-  .sc-modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
-  .sc-modal-bg.show { display: flex; }
-  .sc-modal { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 28px; max-width: 440px; width: 100%; }
-  .sc-modal h3 { font-size: 1.2rem; margin-bottom: 18px; font-weight: 700; }
-  .sc-modal label { display: block; font-size: 0.85rem; color: var(--text-2); margin-bottom: 6px; font-weight: 600; }
-  .sc-modal input, .sc-modal select { width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.95rem; margin-bottom: 16px; outline: none; }
-  .sc-modal input:focus, .sc-modal select:focus { border-color: var(--accent); }
-  .sc-modal .row { display: flex; gap: 8px; justify-content: flex-end; }
-  .sc-modal .hint { font-size: 0.78rem; color: var(--text-2); margin-top: -10px; margin-bottom: 16px; }
-  .sc-modal .mode-opt { display: flex; gap: 8px; margin-bottom: 16px; }
-  .sc-modal .mode-opt label { flex: 1; padding: 12px; border: 2px solid var(--line); border-radius: 8px; cursor: pointer; text-align: center; color: var(--text-2); font-weight: 500; margin: 0; }
-  .sc-modal .mode-opt input { display: none; }
-  .sc-modal .mode-opt input:checked + span { color: var(--accent); font-weight: 700; }
-  .sc-modal .mode-opt label:has(input:checked) { border-color: var(--accent); color: var(--accent); }
+  /* ── Suggestion chips ── */
+  .cd-suggestions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cd-sug {
+    font-size: .76rem; font-family: 'Consolas', monospace;
+    padding: 2px 9px; border-radius: 10px;
+    background: rgba(74,144,217,.1); color: var(--accent);
+  }
 
-  .sc-empty { text-align: center; padding: 60px 20px; color: var(--text-2); }
-  .sc-empty i { font-size: 3rem; opacity: 0.3; display: block; margin-bottom: 16px; }
-  .sc-toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: var(--card); border: 1px solid var(--line); padding: 12px 24px; border-radius: 8px; font-size: 0.9rem; opacity: 0; pointer-events: none; transition: all .25s; z-index: 2000; }
-  .sc-toast.show { opacity: 1; transform: translateX(-50%) translateY(-8px); }
-  .sc-toast.good { border-color: var(--good); color: var(--good); }
-  .sc-toast.bad { border-color: var(--bad); color: var(--bad); }
+  /* ── Inline input + button ── */
+  .cd-answer-cell { display: flex; gap: 6px; align-items: center; }
+  .cd-answer-input {
+    flex: 1; min-width: 0;
+    padding: 6px 10px; border: 1px solid var(--border-color);
+    border-radius: 6px; font-family: inherit; font-size: .88rem;
+    background: var(--card-bg); color: var(--text-primary); outline: none;
+    transition: border-color .15s;
+  }
+  .cd-answer-input:focus { border-color: var(--accent); }
+  .cd-answer-input:disabled { background: var(--hover-bg); color: var(--text-secondary); cursor: not-allowed; }
+
+  /* ── Lobby ── */
+  .cd-lobby { display: flex; gap: 20px; flex-wrap: wrap; }
+  .cd-lobby-btn {
+    flex: 1; min-width: 220px;
+    padding: 32px 24px;
+    background: var(--hover-bg);
+    border: 2px dashed var(--border-color);
+    border-radius: 12px; cursor: pointer;
+    transition: all .2s; text-align: center;
+    font-family: inherit;
+    color: var(--text-primary);
+  }
+  .cd-lobby-btn:hover {
+    border-color: var(--accent); border-style: solid;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(74,144,217,.15);
+  }
+  .cd-lobby-btn i { font-size: 2rem; color: var(--accent); display: block; margin-bottom: 12px; }
+  .cd-lobby-btn strong { display: block; font-size: 1.05rem; margin-bottom: 4px; color: var(--text-primary); }
+  .cd-lobby-btn span { color: var(--text-secondary); font-size: .82rem; }
+
+  /* ── Modal ── */
+  .cd-modal-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,.6);
+    display: none; align-items: center; justify-content: center;
+    z-index: 1000; padding: 20px;
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  }
+  .cd-modal-bg.show { display: flex; }
+  .cd-modal {
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-radius: 12px; padding: 26px; max-width: 440px; width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+  }
+  .cd-modal h3 { font-size: 1.15rem; margin-bottom: 18px; font-weight: 700; color: var(--text-primary); }
+  .cd-modal label {
+    display: block; font-size: .82rem; color: var(--text-secondary);
+    margin-bottom: 6px; font-weight: 600;
+  }
+  .cd-modal input[type="text"] {
+    width: 100%; padding: 10px 12px;
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-radius: 8px; color: var(--text-primary); font-family: inherit;
+    font-size: .95rem; margin-bottom: 16px; outline: none;
+    transition: border-color .15s;
+  }
+  .cd-modal input[type="text"]:focus { border-color: var(--accent); }
+  .cd-modal .row { display: flex; gap: 8px; justify-content: flex-end; }
+  .cd-modal .mode-opt { display: flex; gap: 8px; margin-bottom: 16px; }
+  .cd-modal .mode-opt label {
+    flex: 1; padding: 12px; border: 2px solid var(--border-color);
+    border-radius: 8px; cursor: pointer; text-align: center;
+    color: var(--text-secondary); font-weight: 500; margin: 0;
+    transition: all .15s;
+  }
+  .cd-modal .mode-opt input { display: none; }
+  .cd-modal .mode-opt label:has(input:checked) {
+    border-color: var(--accent); color: var(--accent);
+    background: rgba(74,144,217,.06);
+  }
+  .cd-modal .mode-opt small { display: block; font-size: .72rem; margin-top: 4px; opacity: .8; }
+
+  /* ── Empty / Toast ── */
+  .cd-empty {
+    text-align: center; padding: 60px 20px; color: var(--text-secondary);
+  }
+  .cd-empty i { font-size: 3rem; opacity: .3; display: block; margin-bottom: 16px; }
+  .cd-toast {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    padding: 12px 24px; border-radius: 8px; font-size: .9rem;
+    opacity: 0; pointer-events: none; transition: all .25s; z-index: 2000;
+    color: var(--text-primary); box-shadow: 0 8px 24px rgba(0,0,0,.15);
+  }
+  .cd-toast.show { opacity: 1; transform: translateX(-50%) translateY(-8px); }
+  .cd-toast.good { border-color: #2e7d32; color: #2e7d32; }
+  .cd-toast.bad { border-color: var(--danger); color: var(--danger); }
+
+  /* ── Waiting block ── */
+  .cd-waiting {
+    padding: 40px 20px; text-align: center;
+    color: var(--text-secondary); font-size: .95rem;
+  }
+  .cd-waiting i { font-size: 2rem; color: var(--accent); opacity: .5; display: block; margin-bottom: 12px; }
+
+  @media (max-width: 700px) {
+    .cd-hero { padding: 1.4rem 1.2rem 1.2rem; border-radius: 12px; }
+    .cd-hero-name { font-size: 1.4rem; }
+    .cd-problem-table thead th,
+    .cd-problem-table tbody td { padding: .55rem .6rem; font-size: .82rem; }
+    .cd-section-body { padding: .8rem .9rem; }
+    .cd-section-header { padding: .75rem 1rem; }
+    .cd-problem-table .hide-mobile { display: none; }
+  }
 </style>
 </head>
-<body>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div id="scRoot">
+        <div class="cd-empty"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+      </div>
+    </main>
+  </div>
 
-<div class="sc-wrap" id="scRoot"></div>
+  <div class="cd-modal-bg" id="scModal"></div>
+  <div class="cd-toast" id="scToast"></div>
 
-<div class="sc-modal-bg" id="scModal"></div>
-<div class="sc-toast" id="scToast"></div>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
 
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
-<script>
-(function () {
-  'use strict';
+  <script>
+  (function () {
+    'use strict';
 
-  if (!isLoggedIn()) { location.href = '/index.html'; return; }
+    if (!isLoggedIn()) { location.href = '/index.html'; return; }
 
-  // ═══ Config ═══
-  const contestId = (() => {
-    const p = new URLSearchParams(location.search);
-    const m = location.pathname.match(/\/contest\/(\d+)/);
-    return p.get('id') || (m && m[1]) || null;
-  })();
+    // ═══ Contest ID ═══
+    const contestId = (() => {
+      const p = new URLSearchParams(location.search);
+      const m1 = location.pathname.match(/\/tcontest\/(\d+)/);
+      const m2 = location.pathname.match(/\/contest\/(\d+)/);
+      const m3 = location.pathname.match(/\/special-contest\/(\d+)/);
+      return p.get('id') || (m1 && m1[1]) || (m2 && m2[1]) || (m3 && m3[1]) || null;
+    })();
 
-  if (!contestId) {
-    document.getElementById('scRoot').innerHTML = '<div class="sc-empty"><i class="fas fa-triangle-exclamation"></i><h2>Invalid Contest</h2></div>';
-    return;
-  }
-
-  const $ = s => document.querySelector(s);
-  const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
-  let toastTimer;
-  function toast(msg, kind = '') {
-    const t = $('#scToast');
-    t.textContent = msg;
-    t.className = 'sc-toast show ' + kind;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.className = 'sc-toast ' + kind, 2200);
-  }
-
-  let STATE = { contest: null, team: null, problems: [], results: [] };
-
-  // ═══ Load ═══
-  async function load() {
-    const [contestRes, mineRes] = await Promise.all([
-      apiCall(`/api/contests?action=page&id=${contestId}`),
-      apiCall(`/api/teams?action=mine&contestId=${contestId}`),
-    ]);
-
-    if (!contestRes.success || !contestRes.contest) {
-      $('#scRoot').innerHTML = '<div class="sc-empty"><i class="fas fa-circle-question"></i><h2>Contest not found</h2></div>';
+    if (!contestId) {
+      document.getElementById('scRoot').innerHTML =
+        '<div class="cd-empty"><i class="fas fa-triangle-exclamation"></i><h2>Invalid Contest</h2></div>';
       return;
     }
-    STATE.contest = contestRes.contest;
-    STATE.team = mineRes.team || null;
-    STATE.problems = mineRes.problems || [];
-    STATE.results = mineRes.results || [];
-    render();
-  }
 
-  // ═══ Render ═══
-  function render() {
-    const c = STATE.contest;
-    const t = STATE.team;
+    const $ = s => document.querySelector(s);
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[m]));
 
-    let html = `
-      <div class="sc-hd">
-        <h1>${esc(c.name || ('Contest #' + c.id))}</h1>
-        <span class="badge">SPECIAL</span>
-        <span class="spacer"></span>
-        <a href="/contestresults.html?id=${c.id}" class="sc-btn sm"><i class="fas fa-trophy"></i> Results</a>
-      </div>
-      <div class="sc-intro">
-        <strong>Rules:</strong> Max 4 members per team. Once contest starts, no member changes allowed.
-        Submissions are made under the team's name. A wrong answer locks the problem at 0 pts permanently (even if later solved).
-        Mode 1: suggestions go to captain for manual entry. Mode 2: any member can submit directly.
-      </div>
-    `;
-
-    if (!t) {
-      html += renderLobby();
-    } else {
-      html += renderTeamView();
+    let toastTimer;
+    function toast(msg, kind = '') {
+      const t = $('#scToast');
+      t.textContent = msg;
+      t.className = 'cd-toast show ' + kind;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.className = 'cd-toast ' + kind, 2200);
     }
 
-    $('#scRoot').innerHTML = html;
-    bind();
-  }
+    const STATE = { contest: null, team: null, problems: [], results: [], suggestions: [] };
 
-  function renderLobby() {
-    return `
-      <div class="sc-card">
-        <h2><i class="fas fa-users"></i> Join a Team</h2>
-        <div class="sc-lobby">
-          <div class="sc-lobby-btn" data-act="create">
-            <i class="fas fa-plus-circle"></i>
-            <strong>Create Team</strong>
-            <span>You'll be the captain and receive an invite code</span>
+    // ═══ Load ═══
+    async function load() {
+      try {
+        const [contestRes, mineRes] = await Promise.all([
+          apiCall(`/api/contests?action=page&id=${contestId}`),
+          apiCall(`/api/teams?action=mine&contestId=${contestId}`),
+        ]);
+
+        if (!contestRes.success || !contestRes.contest) {
+          $('#scRoot').innerHTML =
+            '<div class="cd-empty"><i class="fas fa-circle-question"></i><h2>Contest not found</h2></div>';
+          return;
+        }
+        STATE.contest = contestRes.contest;
+        STATE.team = mineRes.team || null;
+        STATE.problems = mineRes.problems || [];
+        STATE.results = mineRes.results || [];
+        STATE.suggestions = mineRes.suggestions || mineRes.mySuggestions || [];
+        render();
+      } catch (e) {
+        console.error(e);
+        $('#scRoot').innerHTML =
+          `<div class="cd-empty" style="color:var(--danger)"><i class="fas fa-triangle-exclamation"></i><h2>Load Failed</h2><p>${esc(e.message)}</p></div>`;
+      }
+    }
+
+    // ═══ Render ═══
+    function render() {
+      const c = STATE.contest;
+      const t = STATE.team;
+
+      let html = `
+        <div class="contest-detail">
+          <div class="cd-hero">
+            <div class="cd-hero-inner">
+              <div class="cd-hero-top">
+                <h1 class="cd-hero-name">${esc(c.name || ('Contest #' + c.id))}</h1>
+                <span class="cd-status ${c.status}">
+                  <span class="dot"></span>
+                  ${c.status === 'ongoing' ? 'LIVE' : (c.status || '').toUpperCase()}
+                </span>
+              </div>
+              <div class="cd-hero-meta">
+                <span class="item"><i class="fas fa-tag"></i> SPECIAL · TEAM</span>
+                <span class="item"><i class="fas fa-play"></i> ${esc(new Date(c.startTime).toLocaleString('zh-HK'))}</span>
+                <span class="item"><i class="fas fa-stopwatch"></i> ${Math.floor((Number(c.duration) || 0) / 60)} min</span>
+                <span class="item"><i class="fas fa-users"></i> Max 4 per team</span>
+              </div>
+            </div>
           </div>
-          <div class="sc-lobby-btn" data-act="join">
-            <i class="fas fa-right-to-bracket"></i>
-            <strong>Join Team</strong>
-            <span>Enter a 6-digit invite code</span>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  function renderTeamView() {
-    const t = STATE.team;
-    const isCaptain = t.isCaptain;
-    const started = t.started;
-    const ended = t.ended;
-
-    let html = `
-      <div class="sc-card">
-        <div class="sc-team-hd">
-          <h2>${esc(t.name)}</h2>
-          ${t.locked ? '<span class="sc-status locked"><i class="fas fa-lock"></i> Locked</span>' : '<span class="sc-status pending">Open</span>'}
-          <span class="spacer"></span>
-          ${isCaptain && !started ? `
-            <span class="sc-code" data-act="copy-code" title="Click to copy">${esc(t.inviteCode || '------')}</span>
-            <button class="sc-btn sm primary" data-act="lock"><i class="fas fa-lock"></i> Finalize</button>
-          ` : ''}
-          ${isCaptain && !started ? `
-            <button class="sc-btn sm danger" data-act="disband"><i class="fas fa-trash"></i> Disband</button>
-          ` : ''}
-        </div>
-
-        <div style="color: var(--text-2); font-size: 0.85rem; margin-bottom: 8px;">
-          Mode ${t.mode}: ${t.mode === 1 ? 'Captain approves (members suggest)' : 'Any member can submit'}
-        </div>
-
-        <div class="sc-members">
-          ${t.members.map(m => `
-            <span class="sc-member ${m === t.captain ? 'captain' : ''}">
-              <i class="fas ${m === t.captain ? 'fa-crown' : 'fa-user'}"></i>
-              ${esc(m)}
-              ${isCaptain && !started && m !== t.captain ? `
-                <button class="kick-btn" data-act="kick" data-user="${esc(m)}" title="Kick"><i class="fas fa-times"></i></button>
-                <button class="kick-btn" data-act="transfer" data-user="${esc(m)}" title="Make captain" style="color: var(--warn);"><i class="fas fa-crown"></i></button>
-              ` : ''}
-            </span>
-          `).join('')}
-          ${(t.formerMembers || []).map(m => `
-            <span class="sc-member former"><i class="fas fa-user-slash"></i> ${esc(m)}</span>
-          `).join('')}
-        </div>
-      </div>
-    `;
-
-    // 未开始
-    if (!started) {
-      html += `
-        <div class="sc-card">
-          <h2><i class="fas fa-hourglass-half"></i> Waiting</h2>
-          <p style="color: var(--text-2);">Contest will start at ${new Date(STATE.contest.startTime).toLocaleString()}. Prepare your team.</p>
-        </div>
       `;
-    } else {
-      // 已开始：显示题目
-      html += renderProblems();
+
+      if (!t) {
+        html += renderLobby();
+      } else {
+        html += renderTeamView();
+      }
+
+      html += `</div>`;
+      $('#scRoot').innerHTML = html;
+      bind();
     }
 
-    return html;
-  }
+    // ═══ Lobby ═══
+    function renderLobby() {
+      return `
+        <div class="cd-actions">
+          <a href="/contestresults.html?id=${STATE.contest.id}" class="cd-btn secondary">
+            <i class="fas fa-trophy"></i> View Results
+          </a>
+        </div>
 
-  function renderProblems() {
-    const t = STATE.team;
-    const isCaptain = t.isCaptain;
-    const started = t.started;
-    const ended = t.ended;
-    const canAct = started && !ended;
-    const mode = t.mode;
-
-    // 结果映射
-    const resultMap = {};
-    for (const r of STATE.results) resultMap[r.problemId] = r;
-
-    // 建议映射：{ problemId: [{username, answer}] }
-    const sugMap = {};
-    for (const s of (STATE.suggestions || [])) {
-      if (!sugMap[s.problemId]) sugMap[s.problemId] = [];
-      sugMap[s.problemId].push(s);
-    }
-
-    let html = `
-      <div class="sc-card">
-        <h2><i class="fas fa-list-check"></i> Problems</h2>
-        <table class="sc-table">
-          <thead><tr>
-            <th>ID</th>
-            <th>Name</th>
-            ${mode === 1 && isCaptain ? '<th>Suggestions</th>' : ''}
-            <th>Status</th>
-            <th style="width: 30%;">${mode === 1 && !isCaptain ? 'Your Suggestion' : 'Your Answer'}</th>
-          </tr></thead>
-          <tbody>
-    `;
-
-    for (const p of STATE.problems) {
-      const r = resultMap[p.id] || {};
-      const locked = r.locked === true;
-      const ac = r.score === 100 && !locked;
-      const wa = locked || (r.score === 0 && r.lastSubmissionTime);
-      const pending = !locked && !ac && r.score > 0;
-
-      let statusBadge = '<span class="sc-status none">—</span>';
-      if (ac) statusBadge = '<span class="sc-status ac">AC</span>';
-      else if (wa) statusBadge = '<span class="sc-status wa">WA</span>';
-      else if (pending) statusBadge = '<span class="sc-status pending">' + r.score + '</span>';
-
-      const sugs = sugMap[p.id] || [];
-      const sugHtml = sugs.length
-        ? `<div class="sc-suggestions">${sugs.map(s => `<span class="sc-sug">${esc(s.username)}: ${esc(s.answer)}</span>`).join('')}</div>`
-        : '<span style="color:var(--text-2);font-size:0.8rem;">—</span>';
-
-      const inputDisabled = !canAct || ac || locked || (mode === 1 && !isCaptain);
-      const placeholder = mode === 1 && !isCaptain ? 'Suggest answer...' : 'Answer...';
-
-      const btnLabel = mode === 1 && !isCaptain ? 'Suggest' : 'Submit';
-      const btnDisabled = inputDisabled;
-
-      html += `
-        <tr data-pid="${esc(p.id)}">
-          <td><code style="color:var(--accent);">${esc(p.id)}</code></td>
-          <td>${esc(p.name)}</td>
-          ${mode === 1 && isCaptain ? `<td>${sugHtml}</td>` : ''}
-          <td>${statusBadge}</td>
-          <td>
-            <div style="display:flex; gap:6px; align-items:center;">
-              <input class="sc-input" type="text" data-pid="${esc(p.id)}" placeholder="${placeholder}" ${inputDisabled ? 'disabled' : ''}>
-              <button class="sc-btn sm primary" data-act="submit-one" data-pid="${esc(p.id)}" ${btnDisabled ? 'disabled' : ''}>
-                ${btnLabel}
+        <div class="cd-section">
+          <div class="cd-section-header">
+            <h3><i class="fas fa-users"></i> Join a Team</h3>
+          </div>
+          <div class="cd-section-body">
+            <div class="cd-lobby">
+              <button class="cd-lobby-btn" data-act="create" type="button">
+                <i class="fas fa-plus-circle"></i>
+                <strong>Create Team</strong>
+                <span>Be the captain and get an invite code</span>
+              </button>
+              <button class="cd-lobby-btn" data-act="join" type="button">
+                <i class="fas fa-right-to-bracket"></i>
+                <strong>Join Team</strong>
+                <span>Enter a 6-digit invite code</span>
               </button>
             </div>
-          </td>
-        </tr>
+          </div>
+        </div>
       `;
     }
 
-    html += `</tbody></table></div>`;
-    return html;
-  }
+    // ═══ Team View ═══
+    function renderTeamView() {
+      const t = STATE.team;
+      const isCaptain = t.isCaptain;
+      const started = t.started;
+      const canManage = isCaptain && !started;
 
-  // ═══ Bind ═══
-  function bind() {
-    $('#scRoot').querySelectorAll('[data-act]').forEach(el => {
-      el.addEventListener('click', onAction);
-    });
-    // Enter 提交
-    $('#scRoot').querySelectorAll('.sc-input').forEach(inp => {
-      inp.addEventListener('keydown', e => {
-        if (e.key === 'Enter' && !e.isComposing) {
-          e.preventDefault();
-          const btn = e.target.parentElement.querySelector('[data-act="submit-one"]');
-          if (btn && !btn.disabled) btn.click();
-        }
-      });
-    });
-  }
+      let html = `
+        <div class="cd-section">
+          <div class="cd-section-header">
+            <h3><i class="fas fa-users"></i> ${esc(t.name)}</h3>
+            <span class="count">Team #${t.id}</span>
+          </div>
+          <div class="cd-section-body">
+            <div class="cd-team-head">
+              ${t.locked
+                ? '<span class="cd-badge-locked"><i class="fas fa-lock"></i> Locked</span>'
+                : '<span class="cd-badge-open"><i class="fas fa-lock-open"></i> Open</span>'}
+              <span class="cd-mode-info">Mode ${t.mode}: ${t.mode === 1 ? 'Captain approves' : 'Any member submits'}</span>
+              <span style="flex:1;"></span>
+              ${canManage ? `
+                <span class="cd-invite-code" data-act="copy-code" title="Click to copy">${esc(t.inviteCode || '------')}</span>
+                <button class="cd-btn success sm" data-act="lock" type="button">
+                  <i class="fas fa-lock"></i> Finalize
+                </button>
+                <button class="cd-btn danger sm" data-act="disband" type="button">
+                  <i class="fas fa-trash"></i> Disband
+                </button>
+              ` : ''}
+            </div>
 
-  async function onAction(e) {
-    const el = e.currentTarget;
-    const act = el.dataset.act;
-    if (act === 'create') return openCreateModal();
-    if (act === 'join') return openJoinModal();
-    if (act === 'copy-code') {
-      try { await navigator.clipboard.writeText(STATE.team.inviteCode); toast('Copied!', 'good'); } catch {}
-      return;
-    }
-    if (act === 'lock') return doLock();
-    if (act === 'disband') return doDisband();
-    if (act === 'kick') return doKick(el.dataset.user);
-    if (act === 'transfer') return doTransfer(el.dataset.user);
-    if (act === 'submit-one') return doSubmitOne(el.dataset.pid, el);
-  }
-
-  // ═══ Actions ═══
-  function openCreateModal() {
-    const modal = $('#scModal');
-    modal.innerHTML = `
-      <div class="sc-modal">
-        <h3>Create Team</h3>
-        <label>Team Name (≤30 chars)</label>
-        <input type="text" id="scTeamName" maxlength="30" placeholder="e.g. Alpha Squad">
-        <label>Mode</label>
-        <div class="mode-opt">
-          <label><input type="radio" name="scMode" value="1" checked><span><i class="fas fa-clipboard-check"></i><br>Mode 1<br><small>Captain approves</small></span></label>
-          <label><input type="radio" name="scMode" value="2"><span><i class="fas fa-bolt"></i><br>Mode 2<br><small>Any member submits</small></span></label>
+            <div class="cd-members">
+              ${(t.members || []).map(m => `
+                <span class="cd-member ${m === t.captain ? 'captain' : ''}">
+                  <i class="fas ${m === t.captain ? 'fa-crown' : 'fa-user'}"></i>
+                  ${esc(m)}
+                  ${canManage && m !== t.captain ? `
+                    <button class="kick-btn" data-act="transfer" data-user="${esc(m)}" title="Make captain"><i class="fas fa-crown"></i></button>
+                    <button class="kick-btn" data-act="kick" data-user="${esc(m)}" title="Kick"><i class="fas fa-times"></i></button>
+                  ` : ''}
+                </span>
+              `).join('')}
+              ${(t.formerMembers || []).map(m => `
+                <span class="cd-member former"><i class="fas fa-user-slash"></i> ${esc(m)} (left)</span>
+              `).join('')}
+            </div>
+          </div>
         </div>
-        <div class="row">
-          <button class="sc-btn" data-modal-close>Cancel</button>
-          <button class="sc-btn primary" id="scCreateGo">Create</button>
-        </div>
-      </div>
-    `;
-    modal.classList.add('show');
+      `;
 
-    modal.querySelector('[data-modal-close]').onclick = () => modal.classList.remove('show');
-    modal.querySelector('#scCreateGo').onclick = async () => {
-      const name = modal.querySelector('#scTeamName').value.trim();
-      const mode = Number(modal.querySelector('input[name="scMode"]:checked').value);
-      if (!name) return toast('Enter team name', 'bad');
-      try {
-        const res = await apiCall('/api/teams?action=create', 'POST', { contestId: Number(contestId), name, mode });
-        if (!res.success) throw new Error(res.message);
-        toast('Team created!', 'good');
-        modal.classList.remove('show');
-        load();
-      } catch (err) { toast(err.message, 'bad'); }
-    };
-  }
-
-  function openJoinModal() {
-    const modal = $('#scModal');
-    modal.innerHTML = `
-      <div class="sc-modal">
-        <h3>Join Team</h3>
-        <label>Invite Code</label>
-        <input type="text" id="scCode" maxlength="6" placeholder="6 digits" style="font-family: monospace; font-size: 1.2rem; letter-spacing: 4px; text-align: center;">
-        <div class="row">
-          <button class="sc-btn" data-modal-close>Cancel</button>
-          <button class="sc-btn primary" id="scJoinGo">Join</button>
-        </div>
-      </div>
-    `;
-    modal.classList.add('show');
-    modal.querySelector('[data-modal-close]').onclick = () => modal.classList.remove('show');
-    modal.querySelector('#scJoinGo').onclick = async () => {
-      const code = modal.querySelector('#scCode').value.trim();
-      if (!code) return toast('Enter code', 'bad');
-      try {
-        const res = await apiCall('/api/teams?action=join', 'POST', { contestId: Number(contestId), code });
-        if (!res.success) throw new Error(res.message);
-        toast('Joined!', 'good');
-        modal.classList.remove('show');
-        load();
-      } catch (err) { toast(err.message, 'bad'); }
-    };
-  }
-
-  async function doLock() {
-    if (!confirm('Finalize team? No new members can join afterwards. This cannot be undone.')) return;
-    try {
-      const res = await apiCall('/api/teams?action=lock', 'POST', { contestId: Number(contestId) });
-      if (!res.success) throw new Error(res.message);
-      toast('Team locked', 'good'); load();
-    } catch (err) { toast(err.message, 'bad'); }
-  }
-
-  async function doDisband() {
-    if (!confirm('Disband team? All records will be deleted. This cannot be undone.')) return;
-    try {
-      const res = await apiCall('/api/teams?action=disband', 'POST', { contestId: Number(contestId) });
-      if (!res.success) throw new Error(res.message);
-      toast('Disbanded'); setTimeout(() => load(), 500);
-    } catch (err) { toast(err.message, 'bad'); }
-  }
-
-  async function doKick(user) {
-    if (!confirm(`Kick ${user}?`)) return;
-    try {
-      const res = await apiCall('/api/teams?action=kick', 'POST', { contestId: Number(contestId), target: user });
-      if (!res.success) throw new Error(res.message);
-      toast('Kicked'); load();
-    } catch (err) { toast(err.message, 'bad'); }
-  }
-
-  async function doTransfer(user) {
-    if (!confirm(`Transfer captain to ${user}?`)) return;
-    try {
-      const res = await apiCall('/api/teams?action=transfer', 'POST', { contestId: Number(contestId), newCaptain: user });
-      if (!res.success) throw new Error(res.message);
-      toast('Transferred'); load();
-    } catch (err) { toast(err.message, 'bad'); }
-  }
-
-  async function doSubmitOne(pid, btn) {
-    const row = btn.closest('tr');
-    const inp = row.querySelector('.sc-input');
-    if (!inp) return;
-    const answer = inp.value.trim();
-    if (!answer) return toast('Enter answer', 'bad');
-
-    const isMode1Member = STATE.team.mode === 1 && !STATE.team.isCaptain;
-
-    btn.disabled = true;
-    const old = btn.textContent;
-    btn.textContent = '...';
-
-    try {
-      if (isMode1Member) {
-        const res = await apiCall('/api/teams?action=suggest', 'POST', {
-          contestId: Number(contestId), problemId: pid, answer
-        });
-        if (!res.success) throw new Error(res.message);
-        toast('Suggestion sent', 'good');
-        btn.textContent = 'Sent';
-        setTimeout(() => { btn.textContent = old; btn.disabled = false; }, 1500);
+      if (!started) {
+        html += `
+          <div class="cd-section">
+            <div class="cd-section-body">
+              <div class="cd-waiting">
+                <i class="fas fa-hourglass-half"></i>
+                <div>Contest starts at <strong>${esc(new Date(STATE.contest.startTime).toLocaleString('zh-HK'))}</strong></div>
+                <div style="margin-top:6px;font-size:.85rem;">Prepare your team. Member changes allowed until contest starts.</div>
+              </div>
+            </div>
+          </div>
+        `;
       } else {
-        const res = await apiCall('/api/submit', 'POST', {
-          problemId: pid, answer, type: 'text', image: ''
-        });
-        if (!res.success) throw new Error(res.message);
-        if (res.correct || res.score === 100) toast('AC', 'good');
-        else toast('WA (locked)', 'bad');
-        setTimeout(() => load(), 400);
+        html += renderProblems();
       }
-    } catch (err) {
-      toast(err.message, 'bad');
-      btn.textContent = old; btn.disabled = false;
-    }
-  }
 
-  // ═══ Start ═══
-  load();
-})();
-</script>
+      return html;
+    }
+
+    // ═══ Problems table ═══
+    function renderProblems() {
+      const t = STATE.team;
+      const isCaptain = t.isCaptain;
+      const started = t.started;
+      const ended = t.ended;
+      const canAct = started && !ended;
+      const mode = t.mode;
+
+      const resultMap = {};
+      for (const r of STATE.results) resultMap[r.problemId] = r;
+
+      const sugMap = {};
+      for (const s of STATE.suggestions) {
+        if (!sugMap[s.problemId]) sugMap[s.problemId] = [];
+        sugMap[s.problemId].push(s);
+      }
+
+      const isMode1Member = mode === 1 && !isCaptain;
+
+      let html = `
+        <div class="cd-section">
+          <div class="cd-section-header">
+            <h3><i class="fas fa-list-check"></i> Problems</h3>
+            <span class="count">${STATE.problems.length}</span>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="cd-problem-table">
+              <thead>
+                <tr>
+                  <th style="width:90px;">ID</th>
+                  <th>Name</th>
+                  ${mode === 1 && isCaptain ? '<th style="width:180px;">Suggestions</th>' : ''}
+                  <th style="width:130px;">Status</th>
+                  <th style="width:240px;">${isMode1Member ? 'Your Suggestion' : 'Answer'}</th>
+                </tr>
+              </thead>
+              <tbody>
+      `;
+
+      for (const p of STATE.problems) {
+        const r = resultMap[p.id] || {};
+        const locked = r.locked === true;
+        const ac = r.score === 100 && !locked;
+        const wa = locked || (r.score === 0 && r.lastSubmissionTime);
+        const partial = !locked && !ac && r.score > 0;
+
+        let statusBadge = '<span class="cd-status-badge none">— Not attempted</span>';
+        if (ac) statusBadge = '<span class="cd-status-badge ac"><i class="fas fa-check"></i> AC</span>';
+        else if (locked) statusBadge = '<span class="cd-status-badge locked"><i class="fas fa-lock"></i> WA · Locked</span>';
+        else if (wa) statusBadge = '<span class="cd-status-badge wa"><i class="fas fa-times"></i> WA</span>';
+        else if (partial) statusBadge = `<span class="cd-status-badge partial">${r.score}</span>`;
+
+        const sugs = sugMap[p.id] || [];
+        const sugHtml = sugs.length
+          ? `<div class="cd-suggestions">${sugs.map(s => `<span class="cd-sug">${esc(s.username)}: ${esc(s.answer)}</span>`).join('')}</div>`
+          : '<span style="color:var(--text-secondary);font-size:.8rem;">—</span>';
+
+        const inputDisabled = !canAct || ac || locked || isMode1Member;
+        const placeholder = isMode1Member ? 'Suggest answer...' : 'Answer...';
+        const btnLabel = isMode1Member ? 'Suggest' : 'Submit';
+        const btnDisabled = !canAct || ac || locked;
+
+        html += `
+          <tr data-pid="${esc(p.id)}">
+            <td><span class="cd-pid">${esc(p.id)}</span></td>
+            <td><span class="cd-pname">${esc(p.name)}</span></td>
+            ${mode === 1 && isCaptain ? `<td>${sugHtml}</td>` : ''}
+            <td>${statusBadge}</td>
+            <td>
+              <div class="cd-answer-cell" onclick="event.stopPropagation()">
+                <input class="cd-answer-input" type="text" data-pid="${esc(p.id)}"
+                       placeholder="${placeholder}" ${inputDisabled ? 'disabled' : ''}>
+                <button class="cd-btn primary sm" data-act="submit-one" data-pid="${esc(p.id)}"
+                        type="button" ${btnDisabled ? 'disabled' : ''}>
+                  ${btnLabel}
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }
+
+      html += `</tbody></table></div></div>`;
+      return html;
+    }
+
+    // ═══ Bind ═══
+    function bind() {
+      // 所有 data-act 按钮
+      document.querySelectorAll('#scRoot [data-act]').forEach(el => {
+        el.addEventListener('click', e => {
+          e.stopPropagation();
+          onAction(e.currentTarget);
+        });
+      });
+
+      // 题目行点击 → 跳题目详情
+      document.querySelectorAll('#scRoot tr[data-pid]').forEach(tr => {
+        tr.addEventListener('click', e => {
+          if (e.target.closest('input, button, a')) return;
+          const pid = tr.dataset.pid;
+          if (!pid) return;
+          window.location.href = '/problems/' + encodeURIComponent(pid);
+        });
+      });
+
+      // Enter 提交
+      document.querySelectorAll('#scRoot .cd-answer-input').forEach(inp => {
+        inp.addEventListener('keydown', e => {
+          if (e.key === 'Enter' && !e.isComposing) {
+            e.preventDefault();
+            const btn = inp.parentElement.querySelector('[data-act="submit-one"]');
+            if (btn && !btn.disabled) btn.click();
+          }
+        });
+      });
+    }
+
+    function onAction(el) {
+      const act = el.dataset.act;
+      if (act === 'create') return openCreateModal();
+      if (act === 'join') return openJoinModal();
+      if (act === 'copy-code') {
+        navigator.clipboard.writeText(STATE.team.inviteCode || '').then(
+          () => toast('Copied!', 'good'),
+          () => toast('Copy failed', 'bad')
+        );
+        return;
+      }
+      if (act === 'lock') return doLock();
+      if (act === 'disband') return doDisband();
+      if (act === 'kick') return doKick(el.dataset.user);
+      if (act === 'transfer') return doTransfer(el.dataset.user);
+      if (act === 'submit-one') return doSubmitOne(el.dataset.pid, el);
+    }
+
+    // ═══ Modals ═══
+    function openCreateModal() {
+      const modal = $('#scModal');
+      modal.innerHTML = `
+        <div class="cd-modal">
+          <h3>Create Team</h3>
+          <label>Team Name (≤30 chars)</label>
+          <input type="text" id="scTeamName" maxlength="30" placeholder="e.g. Alpha Squad">
+          <label>Mode</label>
+          <div class="mode-opt">
+            <label>
+              <input type="radio" name="scMode" value="1" checked>
+              <div><i class="fas fa-clipboard-check"></i><br>Mode 1<small>Captain approves</small></div>
+            </label>
+            <label>
+              <input type="radio" name="scMode" value="2">
+              <div><i class="fas fa-bolt"></i><br>Mode 2<small>Any member submits</small></div>
+            </label>
+          </div>
+          <div class="row">
+            <button class="cd-btn secondary" data-modal-close type="button">Cancel</button>
+            <button class="cd-btn primary" id="scCreateGo" type="button">Create</button>
+          </div>
+        </div>
+      `;
+      modal.classList.add('show');
+
+      modal.querySelector('[data-modal-close]').onclick = () => modal.classList.remove('show');
+      modal.querySelector('#scCreateGo').onclick = async () => {
+        const name = modal.querySelector('#scTeamName').value.trim();
+        const mode = Number(modal.querySelector('input[name="scMode"]:checked').value);
+        if (!name) return toast('Enter team name', 'bad');
+        try {
+          const res = await apiCall('/api/teams?action=create', 'POST', { contestId: Number(contestId), name, mode });
+          if (!res.success) throw new Error(res.message);
+          toast('Team created!', 'good');
+          modal.classList.remove('show');
+          load();
+        } catch (err) { toast(err.message || 'Failed', 'bad'); }
+      };
+    }
+
+    function openJoinModal() {
+      const modal = $('#scModal');
+      modal.innerHTML = `
+        <div class="cd-modal">
+          <h3>Join Team</h3>
+          <label>Invite Code</label>
+          <input type="text" id="scCode" maxlength="6" placeholder="6 digits"
+                 style="font-family: monospace; font-size: 1.2rem; letter-spacing: 4px; text-align: center;">
+          <div class="row">
+            <button class="cd-btn secondary" data-modal-close type="button">Cancel</button>
+            <button class="cd-btn primary" id="scJoinGo" type="button">Join</button>
+          </div>
+        </div>
+      `;
+      modal.classList.add('show');
+      modal.querySelector('[data-modal-close]').onclick = () => modal.classList.remove('show');
+      modal.querySelector('#scJoinGo').onclick = async () => {
+        const code = modal.querySelector('#scCode').value.trim();
+        if (!code) return toast('Enter code', 'bad');
+        try {
+          const res = await apiCall('/api/teams?action=join', 'POST', { contestId: Number(contestId), code });
+          if (!res.success) throw new Error(res.message);
+          toast('Joined!', 'good');
+          modal.classList.remove('show');
+          load();
+        } catch (err) { toast(err.message || 'Failed', 'bad'); }
+      };
+    }
+
+    // ═══ Actions ═══
+    async function doLock() {
+      if (!confirm('Finalize team? No new members can join afterwards. This cannot be undone.')) return;
+      try {
+        const res = await apiCall('/api/teams?action=lock', 'POST', { contestId: Number(contestId) });
+        if (!res.success) throw new Error(res.message);
+        toast('Team locked', 'good'); load();
+      } catch (err) { toast(err.message || 'Failed', 'bad'); }
+    }
+
+    async function doDisband() {
+      if (!confirm('Disband team? All records will be deleted. This cannot be undone.')) return;
+      try {
+        const res = await apiCall('/api/teams?action=disband', 'POST', { contestId: Number(contestId) });
+        if (!res.success) throw new Error(res.message);
+        toast('Disbanded');
+        setTimeout(() => load(), 400);
+      } catch (err) { toast(err.message || 'Failed', 'bad'); }
+    }
+
+    async function doKick(user) {
+      if (!confirm(`Kick ${user}?`)) return;
+      try {
+        const res = await apiCall('/api/teams?action=kick', 'POST', { contestId: Number(contestId), target: user });
+        if (!res.success) throw new Error(res.message);
+        toast('Kicked'); load();
+      } catch (err) { toast(err.message || 'Failed', 'bad'); }
+    }
+
+    async function doTransfer(user) {
+      if (!confirm(`Transfer captain to ${user}?`)) return;
+      try {
+        const res = await apiCall('/api/teams?action=transfer', 'POST', { contestId: Number(contestId), newCaptain: user });
+        if (!res.success) throw new Error(res.message);
+        toast('Transferred'); load();
+      } catch (err) { toast(err.message || 'Failed', 'bad'); }
+    }
+
+    async function doSubmitOne(pid, btn) {
+      const row = btn.closest('tr');
+      const inp = row.querySelector('.cd-answer-input');
+      if (!inp) return;
+      const answer = inp.value.trim();
+      if (!answer) return toast('Enter answer', 'bad');
+
+      const isMode1Member = STATE.team.mode === 1 && !STATE.team.isCaptain;
+
+      btn.disabled = true;
+      const old = btn.textContent;
+      btn.textContent = '...';
+
+      try {
+        if (isMode1Member) {
+          const res = await apiCall('/api/teams?action=suggest', 'POST', {
+            contestId: Number(contestId), problemId: pid, answer
+          });
+          if (!res.success) throw new Error(res.message);
+          toast('Suggestion sent', 'good');
+          btn.textContent = 'Sent';
+          setTimeout(() => { btn.textContent = old; btn.disabled = false; }, 1500);
+        } else {
+          const res = await apiCall('/api/submit', 'POST', {
+            problemId: pid, answer, type: 'text', image: ''
+          });
+          if (!res.success) throw new Error(res.message);
+          if (res.correct || res.score === 100) toast('AC', 'good');
+          else if (res.suggested) toast('Suggestion sent', 'good');
+          else toast('WA (locked)', 'bad');
+          setTimeout(() => load(), 400);
+        }
+      } catch (err) {
+        toast(err.message || 'Failed', 'bad');
+        btn.textContent = old; btn.disabled = false;
+      }
+    }
+
+    // ═══ Start ═══
+    load();
+  })();
+  </script>
 </body>
 </html>
