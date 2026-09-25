@@ -5,7 +5,7 @@
  * ⚠️ 部署新版本時，把 VERSION 改成 'v2'、'v3'…，
  *    舊快取才會被清掉、新資源才會被預快取。
  * ═══════════════════════════════════════════════════════════ */
-const VERSION = 'v2';
+const VERSION = 'v3';
 const SHELL_CACHE = 'wyk-shell-' + VERSION;
 const CDN_CACHE   = 'wyk-cdn-'   + VERSION;
 const API_CACHE   = 'wyk-api-'   + VERSION;
