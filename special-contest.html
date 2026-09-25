@@ -491,8 +491,11 @@
               : '<span class="cd-badge-open"><i class="fas fa-lock-open"></i> Open</span>'}
             <span class="cd-mode-info">Mode ${t.mode}: ${t.mode === 1 ? 'Captain approves' : 'Any member submits'}</span>
             <span style="flex:1;"></span>
-            ${canManage ? `
+                        ${canManage ? `
               <span class="cd-invite-code" data-act="copy-code" title="Click to copy">${esc(t.inviteCode || '------')}</span>
+              <button class="cd-btn secondary sm" data-act="switch-mode" type="button">
+                <i class="fas fa-arrows-rotate"></i> Mode ${t.mode}
+              </button>
               <button class="cd-btn success sm" data-act="lock" type="button">
                 <i class="fas fa-lock"></i> Finalize
               </button>
@@ -517,6 +520,16 @@
               <span class="cd-member former"><i class="fas fa-user-slash"></i> ${esc(m)} (left)</span>
             `).join('')}
           </div>
+                      ${!isCaptain && !t.locked && !ended ? `
+              <div style="margin-top:12px; padding-top:12px; border-top:1px dashed var(--border-color);">
+                <button class="cd-btn danger sm" data-act="leave" type="button">
+                  <i class="fas fa-right-from-bracket"></i> Leave Team
+                </button>
+                <span style="font-size:.8rem;color:var(--text-secondary);margin-left:10px;">
+                  You can join another team after leaving (but records remain in this team).
+                </span>
+              </div>
+            ` : ''}
         </div>
       </div>
     `;
@@ -689,6 +702,8 @@
       if (act === 'kick') return doKick(el.dataset.user);
       if (act === 'transfer') return doTransfer(el.dataset.user);
       if (act === 'submit-one') return doSubmitOne(el.dataset.pid, el);
+      if (act === 'switch-mode') return openSwitchModeModal();
+      if (act === 'leave') return doLeave();
     }
 
     // ═══ Modals ═══
@@ -797,6 +812,56 @@
         const res = await apiCall('/api/teams?action=transfer', 'POST', { contestId: Number(contestId), newCaptain: user });
         if (!res.success) throw new Error(res.message);
         toast('Transferred'); load();
+      } catch (err) { toast(err.message || 'Failed', 'bad'); }
+    }
+        function openSwitchModeModal() {
+      const t = STATE.team;
+      const modal = $('#scModal');
+      modal.innerHTML = `
+        <div class="cd-modal">
+          <h3>Switch Submission Mode</h3>
+          <label>Mode</label>
+          <div class="mode-opt">
+            <label>
+              <input type="radio" name="swMode" value="1" ${t.mode === 1 ? 'checked' : ''}>
+              <div><i class="fas fa-clipboard-check"></i><br>Mode 1<small>Captain approves</small></div>
+            </label>
+            <label>
+              <input type="radio" name="swMode" value="2" ${t.mode === 2 ? 'checked' : ''}>
+              <div><i class="fas fa-bolt"></i><br>Mode 2<small>Any member submits</small></div>
+            </label>
+          </div>
+          <div class="row">
+            <button class="cd-btn secondary" data-modal-close type="button">Cancel</button>
+            <button class="cd-btn primary" id="scSwitchGo" type="button">Switch</button>
+          </div>
+        </div>
+      `;
+      modal.classList.add('show');
+      modal.querySelector('[data-modal-close]').onclick = () => modal.classList.remove('show');
+      modal.querySelector('#scSwitchGo').onclick = async () => {
+        const newMode = Number(modal.querySelector('input[name="swMode"]:checked').value);
+        if (newMode === t.mode) return modal.classList.remove('show');
+        try {
+          const res = await apiCall('/api/teams?action=update', 'POST', {
+            contestId: Number(contestId),
+            mode: newMode
+          });
+          if (!res.success) throw new Error(res.message);
+          toast('Mode switched', 'good');
+          modal.classList.remove('show');
+          load();
+        } catch (err) { toast(err.message || 'Failed', 'bad'); }
+      };
+    }
+
+    async function doLeave() {
+      if (!confirm('Leave this team? Your records will remain as a former member. You can join another team after.')) return;
+      try {
+        const res = await apiCall('/api/teams?action=leave', 'POST', { contestId: Number(contestId) });
+        if (!res.success) throw new Error(res.message);
+        toast('Left team');
+        setTimeout(() => load(), 400);
       } catch (err) { toast(err.message || 'Failed', 'bad'); }
     }
 

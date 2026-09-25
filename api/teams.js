@@ -392,6 +392,43 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ success: true });
   }
+    // ═══════════ LEAVE（队员主动退出）═══════════
+  if (action === 'leave') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    const { contestId } = req.body || {};
+    if (!contestId) return res.status(400).json({ success: false, message: 'Missing contestId' });
+
+    const contest = await getContest(db, contestId);
+    if (!contest || !contest.special) {
+      return res.status(404).json({ success: false, message: 'Special contest not found' });
+    }
+    if (isContestEnded(contest)) {
+      return res.status(400).json({ success: false, message: 'Contest has ended' });
+    }
+
+    const team = await db.collection('teams').findOne({
+      contestId: Number(contestId),
+      members: username
+    });
+    if (!team) return res.status(404).json({ success: false, message: 'Not in a team' });
+
+    if (team.locked) {
+      return res.status(400).json({ success: false, message: 'Team is finalized. Cannot leave.' });
+    }
+    if (team.captain === username) {
+      return res.status(400).json({ success: false, message: 'Captain cannot leave. Use Disband instead.' });
+    }
+
+    await db.collection('teams').updateOne(
+      { id: team.id },
+      {
+        $pull: { members: username },
+        $addToSet: { formerMembers: username }
+      }
+    );
+
+    return res.status(200).json({ success: true });
+  }
 
   // ═══════════ KICK / TRANSFER / LOCK / DISBAND / UPDATE ═══════════
   if (action === 'kick' || action === 'transfer' || action === 'lock' || action === 'disband' || action === 'update') {
@@ -473,7 +510,11 @@ export default async function handler(req, res) {
         if (String(name).trim().length > 30) return res.status(400).json({ success: false, message: 'Name too long' });
         upd.name = String(name).trim();
       }
-      // mode 创建后锁定，不允许改
+      if (mode !== undefined) {
+        const m = Number(mode);
+        if (![1, 2].includes(m)) return res.status(400).json({ success: false, message: 'Invalid mode' });
+        upd.mode = m;
+      }
       if (Object.keys(upd).length === 0) return res.status(400).json({ success: false, message: 'Nothing to update' });
 
       await db.collection('teams').updateOne({ id: team.id }, { $set: upd });
