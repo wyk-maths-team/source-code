@@ -244,8 +244,8 @@ export default async function handler(req, res) {
     if (!contest || !contest.special) {
       return res.status(404).json({ success: false, message: 'Special contest not found' });
     }
-    if (isContestStarted(contest)) {
-      return res.status(400).json({ success: false, message: 'Contest already started' });
+    if (isContestEnded(contest)) {
+      return res.status(400).json({ success: false, message: 'Contest has ended' });
     }
 
     // 检查用户是否已在其他队伍
@@ -313,8 +313,8 @@ export default async function handler(req, res) {
     if (!contest || !contest.special) {
       return res.status(404).json({ success: false, message: 'Special contest not found' });
     }
-    if (isContestStarted(contest)) {
-      return res.status(400).json({ success: false, message: 'Contest already started' });
+    if (isContestEnded(contest)) {
+      return res.status(400).json({ success: false, message: 'Contest has ended' });
     }
 
     const existing = await findTeamByUser(db, contestId, username);
@@ -410,9 +410,12 @@ export default async function handler(req, res) {
     });
     if (!team) return res.status(403).json({ success: false, message: 'Not a captain' });
 
-    // 比赛开始后禁止所有修改
-    if (isContestStarted(contest)) {
-      return res.status(400).json({ success: false, message: 'Contest already started' });
+    // ⭐ 新的冻结条件：team.locked 或 比赛结束
+    if (action !== 'lock' && team.locked) {
+      return res.status(400).json({ success: false, message: 'Team is finalized. No changes allowed.' });
+    }
+    if (isContestEnded(contest)) {
+      return res.status(400).json({ success: false, message: 'Contest has ended' });
     }
 
     if (action === 'kick') {
@@ -440,6 +443,9 @@ export default async function handler(req, res) {
     }
 
     if (action === 'lock') {
+      if (team.locked) {
+        return res.status(200).json({ success: true, alreadyLocked: true });
+      }
       await db.collection('teams').updateOne(
         { id: team.id },
         { $set: { locked: true } }

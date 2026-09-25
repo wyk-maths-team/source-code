@@ -470,75 +470,90 @@
       `;
     }
 
-    // ═══ Team View ═══
-    function renderTeamView() {
-      const t = STATE.team;
-      const isCaptain = t.isCaptain;
-      const started = t.started;
-      const canManage = isCaptain && !started;
+      function renderTeamView() {
+    const t = STATE.team;
+    const isCaptain = t.isCaptain;
+    const started = t.started;
+    const ended = t.ended;
+    // ⭐ 新规则：只要队伍未锁定且比赛未结束，队长就能管理
+    const canManage = isCaptain && !t.locked && !ended;
 
-      let html = `
-        <div class="cd-section">
-          <div class="cd-section-header">
-            <h3><i class="fas fa-users"></i> ${esc(t.name)}</h3>
-            <span class="count">Team #${t.id}</span>
+    let html = `
+      <div class="cd-section">
+        <div class="cd-section-header">
+          <h3><i class="fas fa-users"></i> ${esc(t.name)}</h3>
+          <span class="count">Team #${t.id}</span>
+        </div>
+        <div class="cd-section-body">
+          <div class="cd-team-head">
+            ${t.locked
+              ? '<span class="cd-badge-locked"><i class="fas fa-lock"></i> Locked</span>'
+              : '<span class="cd-badge-open"><i class="fas fa-lock-open"></i> Open</span>'}
+            <span class="cd-mode-info">Mode ${t.mode}: ${t.mode === 1 ? 'Captain approves' : 'Any member submits'}</span>
+            <span style="flex:1;"></span>
+            ${canManage ? `
+              <span class="cd-invite-code" data-act="copy-code" title="Click to copy">${esc(t.inviteCode || '------')}</span>
+              <button class="cd-btn success sm" data-act="lock" type="button">
+                <i class="fas fa-lock"></i> Finalize
+              </button>
+              <button class="cd-btn danger sm" data-act="disband" type="button">
+                <i class="fas fa-trash"></i> Disband
+              </button>
+            ` : ''}
           </div>
-          <div class="cd-section-body">
-            <div class="cd-team-head">
-              ${t.locked
-                ? '<span class="cd-badge-locked"><i class="fas fa-lock"></i> Locked</span>'
-                : '<span class="cd-badge-open"><i class="fas fa-lock-open"></i> Open</span>'}
-              <span class="cd-mode-info">Mode ${t.mode}: ${t.mode === 1 ? 'Captain approves' : 'Any member submits'}</span>
-              <span style="flex:1;"></span>
-              ${canManage ? `
-                <span class="cd-invite-code" data-act="copy-code" title="Click to copy">${esc(t.inviteCode || '------')}</span>
-                <button class="cd-btn success sm" data-act="lock" type="button">
-                  <i class="fas fa-lock"></i> Finalize
-                </button>
-                <button class="cd-btn danger sm" data-act="disband" type="button">
-                  <i class="fas fa-trash"></i> Disband
-                </button>
-              ` : ''}
-            </div>
 
-            <div class="cd-members">
-              ${(t.members || []).map(m => `
-                <span class="cd-member ${m === t.captain ? 'captain' : ''}">
-                  <i class="fas ${m === t.captain ? 'fa-crown' : 'fa-user'}"></i>
-                  ${esc(m)}
-                  ${canManage && m !== t.captain ? `
-                    <button class="kick-btn" data-act="transfer" data-user="${esc(m)}" title="Make captain"><i class="fas fa-crown"></i></button>
-                    <button class="kick-btn" data-act="kick" data-user="${esc(m)}" title="Kick"><i class="fas fa-times"></i></button>
-                  ` : ''}
-                </span>
-              `).join('')}
-              ${(t.formerMembers || []).map(m => `
-                <span class="cd-member former"><i class="fas fa-user-slash"></i> ${esc(m)} (left)</span>
-              `).join('')}
+          <div class="cd-members">
+            ${(t.members || []).map(m => `
+              <span class="cd-member ${m === t.captain ? 'captain' : ''}">
+                <i class="fas ${m === t.captain ? 'fa-crown' : 'fa-user'}"></i>
+                ${esc(m)}
+                ${canManage && m !== t.captain ? `
+                  <button class="kick-btn" data-act="transfer" data-user="${esc(m)}" title="Make captain"><i class="fas fa-crown"></i></button>
+                  <button class="kick-btn" data-act="kick" data-user="${esc(m)}" title="Kick"><i class="fas fa-times"></i></button>
+                ` : ''}
+              </span>
+            `).join('')}
+            ${(t.formerMembers || []).map(m => `
+              <span class="cd-member former"><i class="fas fa-user-slash"></i> ${esc(m)} (left)</span>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+
+    if (!started) {
+      // 比赛未开始：显示等待提示
+      html += `
+        <div class="cd-section">
+          <div class="cd-section-body">
+            <div class="cd-waiting">
+              <i class="fas fa-hourglass-half"></i>
+              <div>Contest starts at <strong>${esc(new Date(STATE.contest.startTime).toLocaleString('zh-HK'))}</strong></div>
+              <div style="margin-top:6px;font-size:.85rem;">
+                ${t.locked ? 'Your team is finalized. Waiting for the contest to start.' : 'You can still invite members and modify your team until you click <b>Finalize</b>.'}
+              </div>
             </div>
           </div>
         </div>
       `;
-
-      if (!started) {
-        html += `
-          <div class="cd-section">
-            <div class="cd-section-body">
-              <div class="cd-waiting">
-                <i class="fas fa-hourglass-half"></i>
-                <div>Contest starts at <strong>${esc(new Date(STATE.contest.startTime).toLocaleString('zh-HK'))}</strong></div>
-                <div style="margin-top:6px;font-size:.85rem;">Prepare your team. Member changes allowed until contest starts.</div>
-              </div>
+    } else if (ended) {
+      html += renderProblems();
+      html += `
+        <div class="cd-section">
+          <div class="cd-section-body">
+            <div class="cd-waiting">
+              <i class="fas fa-flag-checkered"></i>
+              <div>Contest has ended. Team is now read-only.</div>
             </div>
           </div>
-        `;
-      } else {
-        html += renderProblems();
-      }
-
-      return html;
+        </div>
+      `;
+    } else {
+      html += renderProblems();
     }
 
+    return html;
+  }
     // ═══ Problems table ═══
     function renderProblems() {
       const t = STATE.team;
