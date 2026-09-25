@@ -783,7 +783,6 @@ function renderTabBar() {
 async function prefetchAll() {
   await Promise.allSettled([
     (async () => {
-      if (state._updates) return; 
       try {
         if (loadProblemsCache()) return;
         const d = await apiCall('/api/problem?all=1');
@@ -807,6 +806,7 @@ async function prefetchAll() {
       } catch (e) { console.warn('prefetch preload failed', e); }
     })(),
     (async () => {
+      if (state._updates) return;   // ⭐ 這行才是對的位置
       try {
         const d = await fetch('/api/updates').then(r => r.json());
         if (d && d.success && Array.isArray(d.updates)) state._updates = d.updates;
@@ -1095,11 +1095,25 @@ async function renderProblems() {
     if (probState.idPattern) applyIdFilter();
   }
 
-  if (!state.problemsLoaded) {
+    if (!state.problemsLoaded) {
     const wait = setInterval(() => {
       if (state.problemsLoaded) { clearInterval(wait); apply(); }
     }, 100);
-    setTimeout(() => { clearInterval(wait); if (!state.problemsLoaded) apply(); }, 4000);
+    // ⭐ 4 秒內沒被 prefetch 填上 → 自己拉一次
+    setTimeout(async () => {
+      clearInterval(wait);
+      if (!state.problemsLoaded) {
+        try {
+          const d = await apiCall('/api/problem?all=1');
+          if (d && d.success && Array.isArray(d.problems)) {
+            state.problems = d.problems;
+            state.problemsLoaded = true;
+            saveProblemsCache(d.problems);
+          }
+        } catch (e) { console.warn('problems fallback failed', e); }
+      }
+      apply();
+    }, 4000);
   } else {
     apply();
   }
