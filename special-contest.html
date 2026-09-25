@@ -387,8 +387,7 @@
 
     const STATE = { contest: null, team: null, problems: [], results: [], suggestions: [] };
 
-    // ═══ Load ═══
-    async function load() {
+        async function load() {
       try {
         const [contestRes, mineRes] = await Promise.all([
           apiCall(`/api/contests?action=page&id=${contestId}`),
@@ -405,6 +404,8 @@
         STATE.problems = mineRes.problems || [];
         STATE.results = mineRes.results || [];
         STATE.suggestions = mineRes.suggestions || mineRes.mySuggestions || [];
+        STATE.resultMap = {};
+        for (const r of STATE.results) STATE.resultMap[r.problemId] = r;
         render();
       } catch (e) {
         console.error(e);
@@ -412,7 +413,6 @@
           `<div class="cd-empty" style="color:var(--danger)"><i class="fas fa-triangle-exclamation"></i><h2>Load Failed</h2><p>${esc(e.message)}</p></div>`;
       }
     }
-
     // ═══ Render ═══
     function render() {
       const c = STATE.contest;
@@ -587,8 +587,7 @@
       const canAct = started && !ended;
       const mode = t.mode;
 
-      const resultMap = {};
-      for (const r of STATE.results) resultMap[r.problemId] = r;
+      const resultMap = STATE.resultMap || {};
 
       const sugMap = {};
       for (const s of STATE.suggestions) {
@@ -619,11 +618,12 @@
       `;
 
       for (const p of STATE.problems) {
-        const r = resultMap[p.id] || {};
+                const r = resultMap[p.id] || {};
         const locked = r.locked === true;
-        const ac = r.score === 100 && !locked;
+        const solved = r.solved === true;
+        const ac = (solved || r.score === 100) && !locked;
         const wa = locked || (r.score === 0 && r.lastSubmissionTime);
-        const partial = !locked && !ac && r.score > 0;
+        const partial = !locked && !ac && Number(r.score) > 0;
 
         let statusBadge = '<span class="cd-status-badge none">— Not attempted</span>';
         if (ac) statusBadge = '<span class="cd-status-badge ac"><i class="fas fa-check"></i> AC</span>';
@@ -888,7 +888,7 @@
       } catch (err) { toast(err.message || 'Failed', 'bad'); }
     }
 
-    async function doSubmitOne(pid, btn) {
+        async function doSubmitOne(pid, btn) {
       const row = btn.closest('tr');
       const inp = row.querySelector('.cd-answer-input');
       if (!inp) return;
@@ -903,33 +903,64 @@
 
       try {
         if (isMode1Member) {
+          // ── 队员 Mode 1：发建议 ──
           const res = await apiCall('/api/teams?action=suggest', 'POST', {
             contestId: Number(contestId), problemId: pid, answer
           });
           if (!res.success) throw new Error(res.message);
           toast('Suggestion sent', 'good');
-          // ⭐ 永久显示灰色 Sent
+          // 本地更新建议列表（可选，如果队长看的）
+          STATE.suggestions = STATE.suggestions.filter(s => !(s.username === STATE.team.captain ? false : false));
           btn.classList.remove('primary');
           btn.classList.add('sent');
           btn.textContent = 'Sent';
           btn.disabled = true;
-          // 不重载页面
         } else {
+          // ── Mode 2 / 队长：真提交 ──
           const res = await apiCall('/api/submit', 'POST', {
             problemId: pid, answer, type: 'text', image: ''
           });
           if (!res.success) throw new Error(res.message);
-          if (res.correct || res.score === 100) toast('AC', 'good');
-          else if (res.suggested) toast('Suggestion sent', 'good');
-          else toast('WA (locked)', 'bad');
-          setTimeout(() => load(), 400);
+
+          // ⭐ 乐观更新本地状态（立即反馈）
+          if (res.suggested) {
+            toast('Suggestion sent', 'good');
+          } else {
+            const score = (res.score !== undefined) ? Number(res.score) : (res.correct ? 100 : 0);
+            const isWA = !res.correct && score < 100;
+            STATE.resultMap[pid] = {
+              problemId: pid,
+              score,
+              solved: res.correct === true,
+              locked: isWA,        // 特殊竞赛 WA 必锁
+              lastSubmissionTime: new Date().toISOString(),
+            };
+            // 重新渲染该行
+            render();
+            if (res.correct) toast('AC', 'good');
+            else toast('WA (locked)', 'bad');
+          }
+
+          // ⭐ 后台静默同步（拉服务端真值）
+          setTimeout(async () => {
+            try {
+              const mineRes = await apiCall(`/api/teams?action=mine&contestId=${contestId}`);
+              if (mineRes.success) {
+                STATE.results = mineRes.results || [];
+                STATE.resultMap = {};
+                for (const r of STATE.results) STATE.resultMap[r.problemId] = r;
+                // 不 re-render，避免打断用户（除了 state 变化）
+                // 但要更新可能是其他地方变化
+                render();
+              }
+            } catch (e) { /* ignore */ }
+          }, 800);
         }
       } catch (err) {
         toast(err.message || 'Failed', 'bad');
         btn.textContent = old; btn.disabled = false;
       }
     }
-
     // ═══ Start ═══
     load();
   })();

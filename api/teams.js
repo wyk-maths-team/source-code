@@ -191,11 +191,13 @@ export default async function handler(req, res) {
       const contestProblems = await getContestProblems(db, contest);
       resp.problems = contestProblems;
 
-      // contest_results
+      // contest_results（含 locked / solved / wrongAttempts）
       const teamUsername = String(team.id);
       const results = await db.collection('contest_results')
-        .find({ contestId: team.contestId, username: teamUsername },
-              { projection: { problemId: 1, score: 1, locked: 1, lastSubmissionTime: 1, _id: 0 } })
+        .find(
+          { contestId: team.contestId, username: teamUsername },
+          { projection: { problemId: 1, score: 1, solved: 1, locked: 1, wrongAttempts: 1, lastSubmissionTime: 1, _id: 0 } }
+        )
         .toArray();
       resp.results = results;
     }

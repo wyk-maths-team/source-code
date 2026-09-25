@@ -4,17 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 <title>Contest Results - WYK Maths Team</title>
-<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
 <style>
-  /* ═══════════════ Results ═══════════════ */
   .results-wrap { max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.25rem; }
 
   .rs-hero {
@@ -107,39 +106,19 @@
     font-size: .88rem;
   }
 
-  /* ⭐ 每行的色調（tint）疊在不透明的 card-bg 上面 */
-  .rs-table tbody tr {
-    --row-tint: transparent;
-  }
-  .rs-table tbody tr:hover {
-    --row-tint: rgba(74,144,217,.08);
-  }
-  .rs-table tbody tr.me {
-    --row-tint: rgba(74,144,217,.14);
-  }
-  .rs-table tbody tr.me:hover {
-    --row-tint: rgba(74,144,217,.22);
-  }
-  [data-theme="dark"] .rs-table tbody tr:hover {
-    --row-tint: rgba(74,144,217,.16);
-  }
-  [data-theme="dark"] .rs-table tbody tr.me {
-    --row-tint: rgba(74,144,217,.22);
-  }
-  [data-theme="dark"] .rs-table tbody tr.me:hover {
-    --row-tint: rgba(74,144,217,.32);
-  }
+  .rs-table tbody tr { --row-tint: transparent; }
+  .rs-table tbody tr:hover { --row-tint: rgba(74,144,217,.08); }
+  .rs-table tbody tr.me { --row-tint: rgba(74,144,217,.14); }
+  .rs-table tbody tr.me:hover { --row-tint: rgba(74,144,217,.22); }
+  [data-theme="dark"] .rs-table tbody tr:hover { --row-tint: rgba(74,144,217,.16); }
+  [data-theme="dark"] .rs-table tbody tr.me { --row-tint: rgba(74,144,217,.22); }
+  [data-theme="dark"] .rs-table tbody tr.me:hover { --row-tint: rgba(74,144,217,.32); }
 
-  /* ⭐ 所有 tbody 單元格：不透明底 + 色調疊加（防穿透） */
   table.rs-table tbody tr td {
     background-color: var(--card-bg) !important;
-    background-image: linear-gradient(
-      var(--row-tint, transparent),
-      var(--row-tint, transparent)
-    );
+    background-image: linear-gradient(var(--row-tint, transparent), var(--row-tint, transparent));
   }
 
-  /* ── Header ── */
   .rs-table thead th {
     position: sticky; top: 0; z-index: 5;
     padding: .75rem .8rem; text-align: center;
@@ -150,7 +129,6 @@
   }
   [data-theme="dark"] .rs-table thead th { background: #161b22; }
 
-  /* ── Body ── */
   .rs-table tbody td {
     padding: .55rem .7rem; text-align: center;
     border-bottom: 1px solid var(--border-color);
@@ -158,64 +136,32 @@
   }
   .rs-table tbody tr:last-child td { border-bottom: none; }
 
-  /* ═══ Column Widths ═══ */
   .col-rank  { width: 64px;  min-width: 64px; }
   .col-user  { width: 240px; min-width: 240px; text-align: left; }
   .col-prob  { width: 80px;  min-width: 80px; }
   .col-total { width: 100px; min-width: 100px; }
 
-  /* ═══════════════════════════════════════════════════════════
-     Sticky 欄位
-     ⚠️ 不要在這裡宣告 background 簡寫，否則會蓋掉
-        .rs-table tbody td 的「不透明底 + tint」規則
-        thead th 需要單獨給 background（因為 thead 沒有 tint 邏輯）
-     ═══════════════════════════════════════════════════════════ */
-
-  /* 左側 sticky：Rank */
   .rs-table thead th.col-rank,
-  .rs-table tbody td.cell-rank {
-    position: sticky;
-    left: 0;
-    z-index: 4;
-    /* 注意：不寫 background */
-  }
-  .rs-table thead th.col-rank {
-    z-index: 6;
-    background: var(--card-bg);
-  }
+  .rs-table tbody td.cell-rank { position: sticky; left: 0; z-index: 4; }
+  .rs-table thead th.col-rank { z-index: 6; background: var(--card-bg); }
   [data-theme="dark"] .rs-table thead th.col-rank { background: #161b22; }
 
-  /* 左側 sticky：User */
   .rs-table thead th.col-user,
   .rs-table tbody td.cell-user {
-    position: sticky;
-    left: 64px;
-    z-index: 4;
+    position: sticky; left: 64px; z-index: 4;
     box-shadow: 2px 0 0 var(--border-color);
-    /* 注意：不寫 background */
   }
-  .rs-table thead th.col-user {
-    z-index: 6;
-    background: var(--card-bg);
-  }
+  .rs-table thead th.col-user { z-index: 6; background: var(--card-bg); }
   [data-theme="dark"] .rs-table thead th.col-user { background: #161b22; }
 
-  /* 右側 sticky：Total（現在是最右邊，right: 0） */
   .rs-table thead th.col-total,
   .rs-table tbody td.cell-total {
-    position: sticky;
-    right: 0;
-    z-index: 4;
+    position: sticky; right: 0; z-index: 4;
     box-shadow: -2px 0 0 var(--border-color);
-    /* 注意：不寫 background */
   }
-  .rs-table thead th.col-total {
-    z-index: 6;
-    background: var(--card-bg);
-  }
+  .rs-table thead th.col-total { z-index: 6; background: var(--card-bg); }
   [data-theme="dark"] .rs-table thead th.col-total { background: #161b22; }
 
-  /* ── 分數方塊 ── */
   .rs-table tbody td.cell {
     padding: 0;
     font-family: 'Fira Code', 'Consolas', monospace;
@@ -235,23 +181,12 @@
     font-weight: 800; letter-spacing: .3px;
     box-shadow: inset 0 0 0 1px rgba(0,0,0,.08);
   }
-  .rs-table tbody td.cell.cell-ac > span {
-    background: #4caf50; color: #ffffff; font-weight: 500;
-  }
-  .rs-table tbody td.cell.cell-wa > span {
-    background: #c62828; color: #ffcdd2; font-weight: 700;
-  }
-  .rs-table tbody td.cell.cell-partial > span {
-    background: #fbc02d; color: #4e342e; font-weight: 700;
-  }
-  .rs-table tbody td.cell.cell-empty > span {
-    background: rgba(0,0,0,.03); color: #b8b8b8; font-weight: 400;
-  }
-  [data-theme="dark"] .rs-table tbody td.cell.cell-empty > span {
-    background: rgba(255,255,255,.04); color: #666;
-  }
+  .rs-table tbody td.cell.cell-ac > span { background: #4caf50; color: #ffffff; font-weight: 500; }
+  .rs-table tbody td.cell.cell-wa > span { background: #c62828; color: #ffcdd2; font-weight: 700; }
+  .rs-table tbody td.cell.cell-partial > span { background: #fbc02d; color: #4e342e; font-weight: 700; }
+  .rs-table tbody td.cell.cell-empty > span { background: rgba(0,0,0,.03); color: #b8b8b8; font-weight: 400; }
+  [data-theme="dark"] .rs-table tbody td.cell.cell-empty > span { background: rgba(255,255,255,.04); color: #666; }
 
-  /* ── Rank badge ── */
   .rs-rank {
     display: inline-flex; align-items: center; justify-content: center;
     width: 32px; height: 32px; border-radius: 50%;
@@ -264,7 +199,6 @@
   .rs-rank.silver { background: linear-gradient(135deg, #e8e8e8, #a8a8a8); color: #333; box-shadow: 0 2px 10px rgba(180,180,180,.5); }
   .rs-rank.bronze { background: linear-gradient(135deg, #e8a87c, #a86a3d); color: #fff; box-shadow: 0 2px 10px rgba(200,130,80,.5); }
 
-  /* ── User cell ── */
   .rs-user {
     display: flex; align-items: center; gap: 10px;
     text-decoration: none; color: var(--text-primary); text-align: left; min-width: 0;
@@ -277,49 +211,50 @@
     text-transform: uppercase; box-shadow: 0 2px 6px rgba(74,144,217,.25);
     overflow: hidden;
   }
-  .rs-user-avatar img {
-    width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
-  }
+  .rs-user-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
   .rs-user-avatar.gold   { background: linear-gradient(135deg, #ffd700, #d4a017); box-shadow: 0 2px 8px rgba(255,193,7,.4); }
   .rs-user-avatar.silver { background: linear-gradient(135deg, #d8d8d8, #a8a8a8); box-shadow: 0 2px 8px rgba(180,180,180,.4); }
   .rs-user-avatar.bronze { background: linear-gradient(135deg, #e8a87c, #a86a3d); box-shadow: 0 2px 8px rgba(200,130,80,.4); }
 
+  /* ⭐ Team 头像：用队徽样式 */
+  .rs-user-avatar.team {
+    background: linear-gradient(135deg, #6b8fff, #3a5ecf);
+    box-shadow: 0 2px 8px rgba(107,143,255,.4);
+  }
+  .rs-user-avatar.team.gold   { background: linear-gradient(135deg, #ffd700, #d4a017); }
+  .rs-user-avatar.team.silver { background: linear-gradient(135deg, #d8d8d8, #a8a8a8); }
+  .rs-user-avatar.team.bronze { background: linear-gradient(135deg, #e8a87c, #a86a3d); }
+
   .rs-user-info {
     min-width: 0;
     display: flex;
-    align-items: baseline;
-    gap: 6px;
+    flex-direction: column;
+    gap: 2px;
     overflow: hidden;
   }
   .rs-user-name {
     font-weight: 700; font-size: .9rem;
     color: var(--text-primary);
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .rs-user-name:hover { color: var(--accent); }
-  .rs-user-dash {
+  .rs-user-sub {
+    font-size: .72rem;
     color: var(--text-secondary);
-    font-weight: 400;
-    flex-shrink: 0;
-  }
-  .rs-user-display {
-    color: var(--text-secondary);
-    font-weight: 400;
-    font-size: .82rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    min-width: 0;
+    font-family: 'Consolas', monospace;
   }
 
-  /* ── Total cell ── */
   .rs-table tbody td.cell-total {
     font-family: 'Fira Code', 'Consolas', monospace;
     font-weight: 800; color: var(--accent);
     font-size: .95rem; white-space: nowrap;
   }
 
-  /* ── Legend ── */
   .rs-legend {
     display: flex; gap: 1.2rem; flex-wrap: wrap;
     padding: .8rem 1.3rem;
@@ -329,9 +264,7 @@
   }
   [data-theme="dark"] .rs-legend { background: rgba(255,255,255,.02); }
   .rs-legend-item { display: inline-flex; align-items: center; gap: 7px; }
-  .rs-legend-swatch {
-    display: inline-block; width: 16px; height: 16px; border-radius: 3px;
-  }
+  .rs-legend-swatch { display: inline-block; width: 16px; height: 16px; border-radius: 3px; }
   .rs-legend-swatch.ac-first { background: #1b5e20; }
   .rs-legend-swatch.ac       { background: #4caf50; }
   .rs-legend-swatch.wa       { background: #c62828; }
@@ -356,7 +289,6 @@
   .rs-back i { transition: transform .15s; }
   .rs-back:hover i { transform: translateX(-3px); }
 
-  /* ── Tooltip ── */
   #userTooltip {
     position: fixed; top: 0; left: 0;
     z-index: 10000;
@@ -408,10 +340,7 @@
     .rs-table tbody td.cell > span { min-height: 32px; padding: 7px 4px; font-size: .76rem; }
     .rs-user-avatar { width: 28px; height: 28px; font-size: .72rem; }
     .rs-user-name { font-size: .82rem; }
-    .rs-user-display { font-size: .72rem; }
     .rs-legend { font-size: .72rem; gap: .8rem; }
-
-    /* 手機：縮小 sticky 寬度避免擠壓 */
     .col-rank  { width: 52px;  min-width: 52px; }
     .col-user  { width: 180px; min-width: 180px; }
     .rs-table thead th.col-user,
@@ -449,12 +378,14 @@
     if (!isLoggedIn()) window.location.href = '/index.html';
 
     const pathMatch = window.location.pathname.match(/^\/contest\/(\d+)\/results$/);
-    if (!pathMatch) {
+    const queryId = new URLSearchParams(location.search).get('id');
+    const contestId = pathMatch ? parseInt(pathMatch[1], 10) : (queryId ? parseInt(queryId, 10) : null);
+
+    if (!contestId) {
       document.getElementById('mainContent').innerHTML =
         '<div class="rs-empty"><i class="fas fa-triangle-exclamation"></i>Invalid URL.</div>';
       throw new Error('No ID');
     }
-    const contestId = parseInt(pathMatch[1], 10);
     document.title = `Results for Contest #${contestId} - WYK Maths Team`;
 
     const mainContainer = document.getElementById('mainContent');
@@ -487,6 +418,12 @@
       return v.toFixed(2);
     }
 
+    // ⭐ 判断是否 team（username 纯数字 = team）
+    function isTeamUser(username, meta) {
+      if (meta && meta.isTeam) return true;
+      return /^\d+$/.test(String(username));
+    }
+
     // ═══════════ Tooltip ═══════════
     const tooltip = document.createElement('div');
     tooltip.id = 'userTooltip';
@@ -497,13 +434,16 @@
     function showTooltip(user) {
       const avatar = user.pfp
         ? `<img class="tip-avatar" src="${escapeHtml(user.pfp)}" alt="">`
-        : `<div class="tip-avatar placeholder">👤</div>`;
+        : `<div class="tip-avatar placeholder">${user.isTeam ? '👥' : '👤'}</div>`;
+
       tooltip.innerHTML = `
         ${avatar}
         <div class="tip-info">
           <div class="tip-display">${escapeHtml(user.displayName || user.username)}</div>
-          <div class="tip-username">@${escapeHtml(user.username)}</div>
-          ${user.realName ? `<div class="tip-realname">${escapeHtml(user.realName)}</div>` : ''}
+          <div class="tip-username">${user.isTeam ? 'Team #' : '@'}${escapeHtml(user.username)}</div>
+          ${user.realName && !user.isTeam ? `<div class="tip-realname">${escapeHtml(user.realName)}</div>` : ''}
+          ${user.isTeam && user.captain ? `<div class="tip-realname">Captain: ${escapeHtml(user.captain)}</div>` : ''}
+          ${user.isTeam && user.memberCount ? `<div class="tip-realname">${user.memberCount} member${user.memberCount > 1 ? 's' : ''}</div>` : ''}
         </div>
       `;
       tooltip.style.display = 'flex';
@@ -568,7 +508,6 @@
 
       let html = `<div class="results-wrap">`;
 
-      // Hero
       html += `
         <div class="rs-hero">
           <div class="rs-hero-inner">
@@ -585,7 +524,6 @@
         </div>
       `;
 
-      // Stats
       html += `
         <div class="rs-stats">
           <div class="rs-stat">
@@ -620,7 +558,6 @@
         </div>
       `;
 
-      // Table
       html += `
         <div class="rs-section">
           <div class="rs-section-header">
@@ -651,12 +588,33 @@
         const isMe = p.username === currentUsername;
         const problems = p.problems || {};
         const display = p.displayName || '';
-        const showDisplay = display && display !== p.username;
+        const team = isTeamUser(p.username, p);
 
-        // 頭像
-        const avatarContent = p.pfp
-          ? `<img src="${escapeHtml(p.pfp)}" alt="" loading="lazy" decoding="async">`
-          : escapeHtml((p.username[0] || '?').toUpperCase());
+        // 头像内容
+        let avatarContent;
+        if (team) {
+          avatarContent = '<i class="fas fa-users"></i>';
+        } else if (p.pfp) {
+          avatarContent = `<img src="${escapeHtml(p.pfp)}" alt="" loading="lazy" decoding="async">`;
+        } else {
+          avatarContent = escapeHtml((p.username[0] || '?').toUpperCase());
+        }
+
+        // ⭐ 链接：team 跳 /teams/1，普通用户跳 /users/xxx
+        const href = team
+          ? `/teams/${encodeURIComponent(p.username)}`
+          : `/users/${encodeURIComponent(p.username)}`;
+
+        // 主名称显示
+        const mainName = team ? (display || `Team #${p.username}`) : p.username;
+        // 副名称（team 显示 members 数，user 显示 realName）
+        let subText = '';
+        if (team) {
+          const mc = p.memberCount || 0;
+          subText = `Team #${p.username}${mc ? ' · ' + mc + ' member' + (mc > 1 ? 's' : '') : ''}`;
+        } else if (display && display !== p.username) {
+          subText = display;
+        }
 
         html += `<tr class="${isMe ? 'me' : ''}">
           <td class="cell-rank">
@@ -664,12 +622,12 @@
           </td>
           <td class="cell-user" style="text-align:left;">
             <a class="rs-user user-link"
-               href="/users/${encodeURIComponent(p.username)}"
+               href="${href}"
                data-username="${escapeHtml(p.username)}">
-              <span class="rs-user-avatar ${rClass}">${avatarContent}</span>
+              <span class="rs-user-avatar ${rClass} ${team ? 'team' : ''}">${avatarContent}</span>
               <span class="rs-user-info">
-                <span class="rs-user-name">${escapeHtml(p.username)}</span>
-                ${showDisplay ? `<span class="rs-user-dash">—</span><span class="rs-user-display">${escapeHtml(display)}</span>` : ''}
+                <span class="rs-user-name">${escapeHtml(mainName)}</span>
+                ${subText ? `<span class="rs-user-sub">${escapeHtml(subText)}</span>` : ''}
               </span>
             </a>
           </td>`;
@@ -682,11 +640,18 @@
           }
           const score = Number(info.score) || 0;
           const wrongAttempts = Number(info.wrongAttempts) || 0;
-          const solved = info.solved === true;
+          const solved = info.solved === true || score >= 100;
+          const locked = info.locked === true;
 
-          if (solved) {
+          // ⭐ WA 锁定：显示红色
+          if (locked) {
+            html += `<td class="cell cell-wa"><span>${fmtScore(score)}</span></td>`;
+            return;
+          }
+
+          if (solved && score >= 100) {
             if (wrongAttempts === 0) {
-              html += `<td class="cell cell-ac-first"><span>${fmtScore(score)}</span></td>`;
+              html += `<td class="cell cell-ac-first"><span>100.00</span></td>`;
             } else {
               html += `<td class="cell cell-ac"><span>${fmtScore(score)}</span></td>`;
             }
@@ -725,12 +690,14 @@
       html += `</div>`;
       mainContainer.innerHTML = html;
 
-      // ⭐ 綁定 tooltip
+      // Tooltip 绑定
       const userMap = Object.fromEntries(participants.map(p => [p.username, p]));
       mainContainer.querySelectorAll('.user-link').forEach(link => {
         link.addEventListener('mouseenter', (e) => {
           const u = userMap[link.dataset.username];
           if (!u) return;
+          // 补充 isTeam 用于 tooltip
+          u.isTeam = isTeamUser(u.username, u);
           tooltipTargetEl = link;
           showTooltip(u);
           moveTooltip(e);
