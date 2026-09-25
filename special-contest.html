@@ -66,7 +66,22 @@
   }
   .cd-hero-meta .item { display: inline-flex; align-items: center; gap: 6px; }
   .cd-hero-meta i { opacity: .85; font-size: .85rem; }
-
+    /* ── Hero 内按钮（浅色玻璃效果） ── */
+  .cd-hero-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: .5rem 1.1rem; border-radius: 9px;
+    font-size: .85rem; font-weight: 600;
+    cursor: pointer; border: 1px solid rgba(255,255,255,.3);
+    background: rgba(255,255,255,.15); color: #fff;
+    text-decoration: none; white-space: nowrap;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    transition: all .15s;
+  }
+  .cd-hero-btn:hover {
+    background: rgba(255,255,255,.28);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(0,0,0,.15);
+  }
   /* ── Action bar ── */
   .cd-actions { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
 
@@ -435,6 +450,11 @@
                 <span class="item"><i class="fas fa-stopwatch"></i> ${Math.floor((Number(c.duration) || 0) / 60)} min</span>
                 <span class="item"><i class="fas fa-users"></i> Max 4 per team</span>
               </div>
+              <div style="margin-top:1.2rem; display:flex; gap:.6rem; flex-wrap:wrap;">
+                <a href="/contest/${c.id}/results" class="cd-hero-btn">
+                  <i class="fas fa-trophy"></i> View Results
+                </a>
+              </div>
             </div>
           </div>
       `;
@@ -453,12 +473,6 @@
     // ═══ Lobby ═══
     function renderLobby() {
       return `
-        <div class="cd-actions">
-          <a href="/contestresults.html?id=${STATE.contest.id}" class="cd-btn secondary">
-            <i class="fas fa-trophy"></i> View Results
-          </a>
-        </div>
-
         <div class="cd-section">
           <div class="cd-section-header">
             <h3><i class="fas fa-users"></i> Join a Team</h3>

@@ -3,133 +3,374 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Team</title>
+<title>Team - WYK Maths Team</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css">
 <style>
-  :root { --bg: #0f1420; --card: #161b28; --card-2: #1e2536; --line: #2d3446; --text: #e0e6ed; --text-2: #8b96ab; --accent: #6b8fff; --good: #4ade80; --bad: #f87171; --warn: #fbbf24; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Inter','Segoe UI',system-ui,sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.6; }
-  .tw { max-width: 1000px; margin: 0 auto; padding: 24px; }
-  .tw-hd { display: flex; align-items: center; gap: 16px; padding-bottom: 20px; margin-bottom: 24px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-  .tw-hd h1 { font-size: 1.5rem; font-weight: 800; }
-  .tw-hd .sub { color: var(--text-2); font-size: 0.85rem; }
-  .tw-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
-  .tw-card h2 { font-size: 1rem; font-weight: 700; margin-bottom: 14px; color: var(--accent); }
-  .tw-members { display: flex; gap: 8px; flex-wrap: wrap; }
-  .tw-member { padding: 6px 14px; border-radius: 20px; background: var(--card-2); font-size: 0.85rem; border: 1px solid var(--line); }
-  .tw-member.captain { border-color: var(--warn); color: var(--warn); }
-  .tw-member.former { opacity: 0.5; text-decoration: line-through; }
-  .tw-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
-  .tw-table th, .tw-table td { padding: 9px 12px; border-bottom: 1px solid var(--line); text-align: left; }
-  .tw-table th { font-size: 0.72rem; text-transform: uppercase; color: var(--text-2); }
-  .tw-status { padding: 2px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; }
-  .tw-status.ac { background: rgba(74,222,128,0.15); color: var(--good); }
-  .tw-status.wa { background: rgba(248,113,113,0.15); color: var(--bad); }
-  .tw-empty { text-align: center; padding: 80px 20px; color: var(--text-2); }
-  .tw-empty i { font-size: 3rem; opacity: 0.3; display: block; margin-bottom: 16px; }
-  .tw-back { color: var(--accent); text-decoration: none; font-size: 0.88rem; }
-  .tw-back:hover { text-decoration: underline; }
+  /* ═══════════════ Team Page ═══════════════ */
+  .tm-wrap {
+    max-width: 1000px; margin: 0 auto;
+    display: flex; flex-direction: column; gap: 1.25rem;
+  }
+
+  /* ── Hero ── */
+  .tm-hero {
+    position: relative; overflow: hidden; border-radius: 16px;
+    padding: 2rem 2.2rem 1.8rem;
+    background: linear-gradient(135deg, #4a90d9 0%, #2e5fa0 55%, #1a1a2e 100%);
+    color: #fff;
+    box-shadow: 0 12px 40px rgba(74,144,217,.22), 0 0 0 1px rgba(255,255,255,.08) inset;
+  }
+  .tm-hero::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 12% 25%, rgba(255,255,255,.85), transparent),
+      radial-gradient(1px 1px at 35% 65%, rgba(255,255,255,.6), transparent),
+      radial-gradient(2px 2px at 58% 20%, rgba(255,255,255,.9), transparent),
+      radial-gradient(1px 1px at 78% 78%, rgba(255,255,255,.7), transparent),
+      radial-gradient(2px 2px at 90% 35%, rgba(255,255,255,.85), transparent);
+    background-size: 400px 400px; opacity: .55;
+    pointer-events: none; animation: tmDrift 60s linear infinite;
+  }
+  @keyframes tmDrift { from { background-position: 0 0; } to { background-position: 400px 300px; } }
+  .tm-hero::after {
+    content: ''; position: absolute; top: -80px; right: -80px;
+    width: 340px; height: 340px;
+    background: radial-gradient(circle, rgba(255,255,255,.22) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .tm-hero-inner { position: relative; z-index: 1; }
+  .tm-hero-top {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 1rem; flex-wrap: wrap; margin-bottom: .6rem;
+  }
+  .tm-hero-name {
+    font-size: 1.9rem; font-weight: 800; letter-spacing: -.5px;
+    margin: 0; color: #fff; line-height: 1.2;
+    flex: 1; min-width: 200px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .tm-hero-name i { font-size: 1.4rem; color: #ffd54f; filter: drop-shadow(0 2px 8px rgba(255,213,79,.5)); }
+  .tm-hero-meta {
+    display: flex; gap: 1.4rem; flex-wrap: wrap;
+    font-size: .9rem; opacity: .92;
+  }
+  .tm-hero-meta .item { display: inline-flex; align-items: center; gap: 6px; }
+  .tm-hero-meta i { opacity: .85; font-size: .85rem; }
+
+  .tm-status {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 14px; border-radius: 20px;
+    font-size: .8rem; font-weight: 700; letter-spacing: .3px; text-transform: uppercase;
+    flex-shrink: 0;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  }
+  .tm-status.locked { background: rgba(198,40,40,.35); color: #ffcdd2; border: 1px solid rgba(198,40,40,.5); }
+  .tm-status.open   { background: rgba(76,175,80,.28); color: #a5f0a5; border: 1px solid rgba(76,175,80,.45); }
+
+  /* ── Hero actions ── */
+  .tm-hero-actions {
+    display: flex; gap: .6rem; flex-wrap: wrap; margin-top: 1.2rem;
+  }
+  .tm-hero-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: .5rem 1.1rem; border-radius: 9px;
+    font-size: .85rem; font-weight: 600;
+    cursor: pointer; border: 1px solid rgba(255,255,255,.3);
+    background: rgba(255,255,255,.15); color: #fff;
+    text-decoration: none; white-space: nowrap;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    transition: all .15s;
+  }
+  .tm-hero-btn:hover {
+    background: rgba(255,255,255,.28);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(0,0,0,.15);
+  }
+  .tm-hero-btn.primary { background: #fff; color: #2e5fa0; border-color: #fff; }
+  .tm-hero-btn.primary:hover { box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+
+  /* ── Section card ── */
+  .tm-section {
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-radius: 14px; overflow: hidden; box-shadow: var(--shadow-sm);
+  }
+  .tm-section-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: .9rem 1.3rem; border-bottom: 1px solid var(--border-color);
+    background: rgba(0,0,0,.015); gap: .5rem; flex-wrap: wrap;
+  }
+  [data-theme="dark"] .tm-section-header { background: rgba(255,255,255,.02); }
+  .tm-section-header h3 {
+    margin: 0; font-size: 1rem; font-weight: 700;
+    display: flex; align-items: center; gap: 8px; color: var(--text-primary);
+  }
+  .tm-section-header h3 i { color: var(--accent); font-size: .9rem; }
+  .tm-section-header .count { font-size: .8rem; color: var(--text-secondary); font-weight: 500; }
+  .tm-section-body { padding: 1.1rem 1.3rem; }
+
+  /* ── Member chips ── */
+  .tm-members { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tm-member {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 5px 14px; border-radius: 20px;
+    background: var(--hover-bg); border: 1px solid var(--border-color);
+    font-size: .85rem; color: var(--text-primary);
+    transition: all .15s;
+  }
+  .tm-member.captain { border-color: #fbc02d; color: #b28500; }
+  [data-theme="dark"] .tm-member.captain { color: #ffd54f; }
+  .tm-member.former { opacity: .5; text-decoration: line-through; }
+
+  /* ── Submissions table ── */
+  .tm-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  .tm-table thead th {
+    padding: .7rem .9rem; text-align: left;
+    font-size: .72rem; text-transform: uppercase; letter-spacing: .5px;
+    color: var(--text-secondary); font-weight: 700;
+    border-bottom: 1px solid var(--border-color); white-space: nowrap;
+    background: rgba(0,0,0,.015);
+  }
+  [data-theme="dark"] .tm-table thead th { background: rgba(255,255,255,.02); }
+  .tm-table tbody td {
+    padding: .7rem .9rem; border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+  }
+  .tm-table tbody tr:last-child td { border-bottom: none; }
+  .tm-table tbody tr:hover td { background: var(--hover-bg); }
+
+  .tm-pid {
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-weight: 700; color: var(--accent); font-size: .85rem;
+  }
+
+  /* ── Status badge ── */
+  .tm-status-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: .78rem; font-weight: 700;
+    padding: 4px 11px; border-radius: 12px; white-space: nowrap;
+  }
+  .tm-status-badge.ac { background: rgba(76,175,80,.18); color: #2e7d32; }
+  .tm-status-badge.wa { background: rgba(198,40,40,.18); color: #c0392b; }
+  .tm-status-badge.locked { background: rgba(198,40,40,.25); color: #c0392b; }
+  .tm-status-badge.partial { background: rgba(255,193,7,.2); color: #b28500; }
+  .tm-status-badge.none { background: rgba(0,0,0,.06); color: var(--text-secondary); }
+  [data-theme="dark"] .tm-status-badge.ac { color: #8fdf8f; }
+  [data-theme="dark"] .tm-status-badge.wa,
+  [data-theme="dark"] .tm-status-badge.locked { color: #ff9b8f; }
+  [data-theme="dark"] .tm-status-badge.partial { color: #ffd54f; }
+  [data-theme="dark"] .tm-status-badge.none { background: rgba(255,255,255,.08); }
+
+  /* ── By chip ── */
+  .tm-by {
+    font-family: 'Consolas', monospace;
+    font-size: .8rem; color: var(--text-secondary);
+  }
+
+  /* ── Empty ── */
+  .tm-empty {
+    text-align: center; padding: 60px 20px;
+    color: var(--text-secondary); font-size: .95rem;
+  }
+  .tm-empty i { font-size: 3rem; opacity: .3; display: block; margin-bottom: 16px; }
+
+  .tm-loading {
+    text-align: center; padding: 80px 20px;
+    color: var(--text-secondary); font-size: .95rem;
+  }
+  .tm-loading i { font-size: 2.2rem; color: var(--accent); opacity: .6; display: block; margin-bottom: 14px; }
+
+  @media (max-width: 700px) {
+    .tm-hero { padding: 1.4rem 1.2rem 1.2rem; border-radius: 12px; }
+    .tm-hero-name { font-size: 1.4rem; }
+    .tm-hero-name i { font-size: 1.1rem; }
+    .tm-section-body { padding: .8rem .9rem; }
+    .tm-section-header { padding: .75rem 1rem; }
+    .tm-table thead th,
+    .tm-table tbody td { padding: .55rem .6rem; font-size: .82rem; }
+    .tm-table .hide-mobile { display: none; }
+  }
 </style>
 </head>
-<body>
-<div class="tw" id="twRoot"></div>
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
-<script>
-(function () {
-  'use strict';
-  if (!isLoggedIn()) { location.href = '/index.html'; return; }
-  const m = location.pathname.match(/^\/teams?\/(\d+)$/);
-  if (!m) {
-    document.getElementById('twRoot').innerHTML = '<div class="tw-empty"><i class="fas fa-triangle-exclamation"></i><h2>Invalid URL</h2></div>';
-    return;
-  }
-  const teamId = m[1];
-  const esc = s => String(s ?? '').replace(/[&<>"']/g, x => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[x]));
-
-  async function load() {
-    try {
-      const res = await apiCall(`/api/teams?action=get&id=${teamId}`);
-      if (!res.success) throw new Error(res.message || 'Not found');
-      render(res);
-    } catch (e) {
-      document.getElementById('twRoot').innerHTML = `<div class="tw-empty"><i class="fas fa-circle-question"></i><h2>Team not found</h2></div>`;
-    }
-  }
-
-  function render(data) {
-    const { team, contest, submissions, results } = data;
-
-    const resultMap = {};
-    for (const r of (results || [])) resultMap[r.problemId] = r;
-
-    let subsHtml = '';
-    if (submissions && submissions.length) {
-      subsHtml = `
-        <table class="tw-table">
-          <thead><tr>
-            <th>Problem</th>
-            <th>Answer</th>
-            <th>By</th>
-            <th>Status</th>
-            <th>Time</th>
-          </tr></thead>
-          <tbody>
-            ${submissions.map(s => {
-              const r = resultMap[s.problemId] || {};
-              const locked = r.locked === true;
-              let st = '—';
-              if (locked) st = '<span class="tw-status wa">WA (locked)</span>';
-              else if (s.correct || s.score === 100) st = '<span class="tw-status ac">AC</span>';
-              else if (s.systemError) st = '<span class="tw-status wa">SysErr</span>';
-              else st = '<span class="tw-status wa">' + (s.score || 0) + '</span>';
-              return `<tr>
-                <td><code style="color:var(--accent);">${esc(s.problemId)}</code></td>
-                <td>${esc(s.answer || '[image]')}</td>
-                <td>${esc(s.submittedBy || team.captain)}</td>
-                <td>${st}</td>
-                <td>${new Date(s.timestamp).toLocaleString()}</td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      `;
-    } else {
-      subsHtml = '<p style="color:var(--text-2);">No submissions yet.</p>';
-    }
-
-    document.getElementById('twRoot').innerHTML = `
-      <div class="tw-hd">
-        <h1>${esc(team.name)}</h1>
-        <span class="sub">Team #${team.id}</span>
-        ${team.locked ? '<span class="tw-status wa">LOCKED</span>' : ''}
-        <span style="flex:1;"></span>
-        ${contest ? `<a class="tw-back" href="/special-contest?id=${contest.id}">→ ${esc(contest.name || 'Contest')}</a>` : ''}
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="tm-loading">
+        <i class="fas fa-spinner fa-spin"></i>
+        <div>Loading team…</div>
       </div>
+    </main>
+  </div>
 
-      <div class="tw-card">
-        <h2><i class="fas fa-users"></i> Members</h2>
-        <div class="tw-members">
-          ${(team.members || []).map(m => `
-            <span class="tw-member ${m === team.captain ? 'captain' : ''}">
-              <i class="fas ${m === team.captain ? 'fa-crown' : 'fa-user'}"></i> ${esc(m)}
-            </span>
-          `).join('')}
-          ${(team.formerMembers || []).map(m => `
-            <span class="tw-member former"><i class="fas fa-user-slash"></i> ${esc(m)} (left)</span>
-          `).join('')}
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+  (function () {
+    'use strict';
+    if (!isLoggedIn()) { location.href = '/index.html'; return; }
+
+    const m = location.pathname.match(/^\/teams?\/(\d+)/);
+    if (!m) {
+      document.getElementById('mainContent').innerHTML =
+        '<div class="tm-empty"><i class="fas fa-triangle-exclamation"></i><h2>Invalid URL</h2></div>';
+      return;
+    }
+    const teamId = m[1];
+    document.title = `Team #${teamId} - WYK Maths Team`;
+
+    const mainContainer = document.getElementById('mainContent');
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, x => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[x]));
+
+    async function load() {
+      try {
+        const res = await apiCall(`/api/teams?action=get&id=${teamId}`);
+        if (!res.success) throw new Error(res.message || 'Not found');
+        render(res);
+      } catch (e) {
+        console.error(e);
+        mainContainer.innerHTML =
+          '<div class="tm-empty"><i class="fas fa-circle-question"></i><h2>Team not found</h2></div>';
+      }
+    }
+
+    function render(data) {
+      const { team, contest, submissions, results } = data;
+
+      const resultMap = {};
+      for (const r of (results || [])) resultMap[r.problemId] = r;
+
+      // ── 提交列表 ──
+      let subsHtml;
+      if (submissions && submissions.length) {
+        subsHtml = `
+          <table class="tm-table">
+            <thead><tr>
+              <th style="width:90px;">Problem</th>
+              <th>Answer</th>
+              <th class="hide-mobile" style="width:130px;">By</th>
+              <th style="width:130px;">Status</th>
+              <th class="hide-mobile" style="width:170px;">Time</th>
+            </tr></thead>
+            <tbody>
+              ${submissions.map(s => {
+                const r = resultMap[s.problemId] || {};
+                const locked = r.locked === true;
+                let statusHtml = '<span class="tm-status-badge none">—</span>';
+                if (locked) {
+                  statusHtml = '<span class="tm-status-badge locked"><i class="fas fa-lock"></i> WA · Locked</span>';
+                } else if (s.correct || s.score === 100) {
+                  statusHtml = '<span class="tm-status-badge ac"><i class="fas fa-check"></i> AC</span>';
+                } else if (s.systemError) {
+                  statusHtml = '<span class="tm-status-badge wa">SysErr</span>';
+                } else {
+                  statusHtml = `<span class="tm-status-badge wa">${(s.score || 0)}</span>`;
+                }
+
+                // 显示提交人（Mode 2 或队长）
+                const byText = s.submittedBy || team.captain;
+                // Answer 显示（图片提交）
+                let answerDisplay;
+                if (s.type === 'image') {
+                  answerDisplay = '<span style="color:var(--text-secondary);font-style:italic;">[Image]</span>';
+                } else {
+                  answerDisplay = `<code style="font-family:'Consolas',monospace;">${esc(s.answer || '')}</code>`;
+                }
+
+                return `<tr>
+                  <td><span class="tm-pid">${esc(s.problemId)}</span></td>
+                  <td>${answerDisplay}</td>
+                  <td class="hide-mobile"><span class="tm-by">${esc(byText)}</span></td>
+                  <td>${statusHtml}</td>
+                  <td class="hide-mobile" style="font-size:.82rem;color:var(--text-secondary);">${new Date(s.timestamp).toLocaleString('zh-HK')}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        `;
+      } else {
+        subsHtml = '<div style="padding:30px;text-align:center;color:var(--text-secondary);">No submissions yet.</div>';
+      }
+
+      // ── Hero actions ──
+      let heroActions = '';
+      if (contest) {
+        heroActions += `<a class="tm-hero-btn" href="/tcontest/${contest.id}">
+          <i class="fas fa-arrow-left"></i> Back to Contest
+        </a>`;
+        heroActions += `<a class="tm-hero-btn primary" href="/contest/${contest.id}/results">
+          <i class="fas fa-trophy"></i> View Results
+        </a>`;
+      }
+
+      mainContainer.innerHTML = `
+        <div class="tm-wrap">
+          <div class="tm-hero">
+            <div class="tm-hero-inner">
+              <div class="tm-hero-top">
+                <h1 class="tm-hero-name">
+                  <i class="fas fa-users"></i>
+                  ${esc(team.name)}
+                </h1>
+                ${team.locked
+                  ? '<span class="tm-status locked"><i class="fas fa-lock"></i> Locked</span>'
+                  : '<span class="tm-status open"><i class="fas fa-lock-open"></i> Open</span>'}
+              </div>
+              <div class="tm-hero-meta">
+                <span class="item"><i class="fas fa-hashtag"></i> Team #${team.id}</span>
+                ${contest ? `<span class="item"><i class="fas fa-trophy"></i> ${esc(contest.name || 'Contest')}</span>` : ''}
+                <span class="item"><i class="fas fa-users"></i> ${(team.members || []).length} member${(team.members || []).length !== 1 ? 's' : ''}</span>
+                <span class="item"><i class="fas fa-cog"></i> Mode ${team.mode}: ${team.mode === 1 ? 'Captain approves' : 'Any member submits'}</span>
+              </div>
+              ${heroActions ? `<div class="tm-hero-actions">${heroActions}</div>` : ''}
+            </div>
+          </div>
+
+          <div class="tm-section">
+            <div class="tm-section-header">
+              <h3><i class="fas fa-users"></i> Members</h3>
+              <span class="count">${(team.members || []).length + (team.formerMembers || []).length}</span>
+            </div>
+            <div class="tm-section-body">
+              <div class="tm-members">
+                ${(team.members || []).map(m => `
+                  <span class="tm-member ${m === team.captain ? 'captain' : ''}">
+                    <i class="fas ${m === team.captain ? 'fa-crown' : 'fa-user'}"></i>
+                    ${esc(m)}
+                    ${m === team.captain ? ' <span style="font-size:.72rem;opacity:.75;">(captain)</span>' : ''}
+                  </span>
+                `).join('')}
+                ${(team.formerMembers || []).map(m => `
+                  <span class="tm-member former">
+                    <i class="fas fa-user-slash"></i> ${esc(m)}
+                  </span>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+
+          <div class="tm-section">
+            <div class="tm-section-header">
+              <h3><i class="fas fa-paper-plane"></i> Submissions</h3>
+              <span class="count">${(submissions || []).length}</span>
+            </div>
+            <div style="overflow-x:auto;">
+              ${subsHtml}
+            </div>
+          </div>
         </div>
-      </div>
+      `;
+    }
 
-      <div class="tw-card">
-        <h2><i class="fas fa-paper-plane"></i> Submissions</h2>
-        ${subsHtml}
-      </div>
-    `;
-  }
-
-  load();
-})();
-</script>
+    load();
+  })();
+  </script>
 </body>
 </html>
