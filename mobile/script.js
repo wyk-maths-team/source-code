@@ -977,7 +977,7 @@ function stripHtml(html) {
 // ═══════════════════════════════════════════════════════════
 // 14. Problems 列表
 // ═══════════════════════════════════════════════════════════
-const probState = { filter: 'all', sort: 'default', page: 1 };
+const probState = { filter: 'all', sort: 'default', page: 1, idPattern: '' };
 
 async function renderProblems() {
   const content = $('#ml-content');
@@ -1000,6 +1000,16 @@ async function renderProblems() {
         <button class="ml-chip small" data-s="difficulty"><i class="fas fa-gauge-high"></i> Difficulty</button>
         <button class="ml-chip small" data-s="solves"><i class="fas fa-user-check"></i> Solves</button>
       </div>
+      <div class="ml-id-filter">
+        <i class="fas fa-filter"></i>
+        <input type="text" id="ml-id-input" class="ml-input"
+               placeholder="Filter ID · regex (e.g. ^HA25, \\d{4}$)"
+               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <button class="ml-id-clear" id="ml-id-clear" aria-label="Clear" style="display:none">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="ml-id-hint" id="ml-id-hint"></div>
       <div id="ml-prob-list">${renderProblemsSkeleton()}</div>
     </div>`;
 
@@ -1021,6 +1031,69 @@ async function renderProblems() {
     probState.page = 1;
     apply();
   });
+  // ── ID Regex 篩選 ──
+  const idInput = $('#ml-id-input');
+  const idClear = $('#ml-id-clear');
+  const idHint  = $('#ml-id-hint');
+
+  if (idInput) {
+    // 還原先前輸入
+    idInput.value = probState.idPattern || '';
+    idClear.style.display = idInput.value ? '' : 'none';
+
+    let _idDebounce = null;
+    const applyIdFilter = () => {
+      probState.idPattern = idInput.value.trim();
+      probState.page = 1;
+
+      // 語法檢查
+      if (probState.idPattern) {
+        try {
+          new RegExp(probState.idPattern);
+          idHint.textContent = '';
+          idHint.className = 'ml-id-hint';
+          idInput.classList.remove('error');
+        } catch (err) {
+          idHint.textContent = 'Invalid regex: ' + (err.message || 'syntax error');
+          idHint.className = 'ml-id-hint error';
+          idInput.classList.add('error');
+          // 語法錯誤時不過濾（保留上一狀態），直接返回
+          return;
+        }
+      } else {
+        idHint.textContent = '';
+        idHint.className = 'ml-id-hint';
+        idInput.classList.remove('error');
+      }
+
+      idClear.style.display = probState.idPattern ? '' : 'none';
+      renderProbList();
+    };
+
+    idInput.addEventListener('input', () => {
+      clearTimeout(_idDebounce);
+      _idDebounce = setTimeout(applyIdFilter, 250);
+    });
+    idInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        clearTimeout(_idDebounce);
+        applyIdFilter();
+        idInput.blur();
+      }
+    });
+
+    idClear.onclick = () => {
+      idInput.value = '';
+      idClear.style.display = 'none';
+      haptic(6);
+      applyIdFilter();
+      idInput.focus();
+    };
+
+    // 進入頁面先顯示提示
+    if (probState.idPattern) applyIdFilter();
+  }
 
   if (!state.problemsLoaded) {
     const wait = setInterval(() => {
@@ -1055,6 +1128,15 @@ function renderProbList() {
   const sort = probState.sort;
 
   let items = all.slice();
+
+  // ── Regex 篩選 ID ──
+  if (probState.idPattern) {
+    let re = null;
+    try { re = new RegExp(probState.idPattern); } catch { re = null; }
+    if (re) items = items.filter(p => re.test(String(p.id)));
+  }
+
+  // ── 狀態篩選 ──
   if (filter === 'unsolved') items = items.filter(p => states[p.id] !== 'passed');
   else if (filter === 'solved') items = items.filter(p => states[p.id] === 'passed');
   else if (filter === 'fav') items = items.filter(p => favs.has(p.id));
@@ -1094,16 +1176,23 @@ function probCardHtml(p, s, states, favs) {
   const diff = p.difficulty;
   const diffText = !diff ? '∞' : diff.toFixed(2);
 
+  // ⭐ AC 時在名稱後面加綠色 tick
+  const tick = st === 'passed'
+    ? `<i class="fas fa-circle-check ml-prob-tick" aria-label="Solved"></i>`
+    : '';
+
   let statusHtml = '';
-  if (st === 'passed') statusHtml = `<span class="ml-prob-status passed"><i class="fas fa-check"></i> AC</span>`;
-  else if (st === 'failed') statusHtml = `<span class="ml-prob-status failed"><i class="fas fa-times"></i> WA</span>`;
+  if (st === 'failed') statusHtml = `<span class="ml-prob-status failed"><i class="fas fa-times"></i> WA</span>`;
 
   return `
     <div class="ml-prob ${cls}" data-id="${escAttr(p.id)}">
       <div class="ml-prob-main">
         <div class="ml-prob-top">
           <span class="ml-prob-id">${esc(p.id)}</span>
-          <span class="ml-prob-name">${esc(p.name || '')}</span>
+          <span class="ml-prob-name">
+            <span class="ml-prob-name-text">${esc(p.name || '')}</span>
+            ${tick}
+          </span>
           ${statusHtml}
         </div>
         <div class="ml-prob-meta">
@@ -1385,6 +1474,11 @@ async function renderProblemDetail(id) {
             // ⭐ 保存 AC 答案，以便下次自動填入
             saveAcAnswer(id, ans);
 
+            // ⭐ 首次 AC → 掛載討論區（若還沒掛載）
+            if (!document.getElementById('ml-pd-discussions')) {
+              setTimeout(() => { mountDiscussion(id); }, 120);
+            }
+
             // 短暫顯示 Solved（2 秒）後恢復可提交
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<i class="fas fa-circle-check"></i> Solved';
@@ -1468,6 +1562,11 @@ async function renderProblemDetail(id) {
 
     loadProblemSubmissions(id);
 
+    // ⭐ 若已 AC → 掛載討論區
+    if (state.states && state.states[id] === 'passed') {
+      mountDiscussion(id);
+    }
+
   } catch (e) {
     content.innerHTML = `<div class="ml-page"><div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Problem not found</div></div>`;
   }
@@ -1522,6 +1621,230 @@ function prependLocalSubmission(sub) {
     }
   }
   return true;
+}
+// ═══════════════════════════════════════════════════════════
+// 討論區
+// ═══════════════════════════════════════════════════════════
+const discState = { page: 1, total: 0, totalPages: 1, loading: false };
+
+function renderDiscussionsSection(problemId) {
+  return `
+    <div class="ml-pd-discussions" id="ml-pd-discussions">
+      <div class="ml-section-title">
+        <i class="fas fa-comments" style="margin-right:5px;opacity:.7"></i>Discussion
+        <span class="ml-disc-count" id="ml-disc-count"></span>
+      </div>
+
+      <div class="ml-disc-compose">
+        <textarea class="ml-input ml-disc-input" id="ml-disc-input"
+                  placeholder="Share your thoughts… (LaTeX supported)"
+                  rows="2" maxlength="5000" autocorrect="off" autocapitalize="sentences" spellcheck="true"></textarea>
+        <button class="ml-btn ml-disc-post" id="ml-disc-post" disabled aria-label="Post">
+          <i class="fas fa-paper-plane"></i>
+        </button>
+      </div>
+
+      <div id="ml-disc-list">
+        <div class="ml-loading-center" style="padding:20px 0"><span class="ml-spinner"></span></div>
+      </div>
+
+      <button class="ml-btn ghost full" id="ml-disc-more" style="display:none;margin-top:8px">
+        <i class="fas fa-arrow-down"></i> Load more
+      </button>
+    </div>`;
+}
+
+function discItemHtml(d) {
+  const dt = fmtDateTime(d.createdAt);
+  const liked = d.liked === true
+    || (Array.isArray(d.likedBy) && state.user && d.likedBy.includes(state.user.username));
+  return `<div class="ml-disc-item" data-id="${escAttr(d._id || '')}">
+    <div class="ml-disc-header">
+      <div class="ml-disc-user">
+        <i class="fas fa-user-circle"></i>
+        <span>${esc(d.username || '')}</span>
+      </div>
+      <div class="ml-disc-time">${esc(dt.short)}</div>
+    </div>
+    <div class="ml-disc-body">${window.DOMPurify ? DOMPurify.sanitize(d.content || '') : esc(d.content || '')}</div>
+    <div class="ml-disc-actions">
+      <button class="ml-disc-like${liked ? ' liked' : ''}" data-id="${escAttr(d._id || '')}">
+        <i class="fas fa-heart"></i>
+        <span>${d.likes || 0}</span>
+      </button>
+    </div>
+  </div>`;
+}
+
+function mountDiscussion(problemId) {
+  if (document.getElementById('ml-pd-discussions')) return;
+  const subs = document.getElementById('ml-pd-subs');
+  if (!subs) return;
+  subs.insertAdjacentHTML('afterend', renderDiscussionsSection(problemId));
+  bindDiscussionEvents(problemId);
+  loadDiscussions(problemId, 1);
+}
+
+async function loadDiscussions(problemId, page = 1, append = false) {
+  const wrap = $('#ml-disc-list');
+  if (!wrap) return;
+  if (discState.loading) return;
+  discState.loading = true;
+
+  if (!append) {
+    wrap.innerHTML = `<div class="ml-loading-center" style="padding:20px 0"><span class="ml-spinner"></span></div>`;
+  }
+
+  try {
+    const d = await apiCall(
+      '/api/problem?action=discussions&problemId=' + encodeURIComponent(problemId)
+      + '&page=' + page + '&limit=20'
+    );
+    if (!d || !d.success) throw new Error(d && d.message || 'Failed');
+
+    const list = d.discussions || [];
+    const pg = d.pagination || {};
+    discState.page = page;
+    discState.total = pg.total || list.length;
+    discState.totalPages = pg.totalPages || 1;
+
+    const countEl = $('#ml-disc-count');
+    if (countEl) countEl.textContent = discState.total ? `(${discState.total})` : '';
+
+    if (page === 1) {
+      if (!list.length) {
+        wrap.innerHTML = `<div class="ml-empty" style="padding:24px 16px"><i class="fas fa-comments"></i>No discussions yet. Be the first!</div>`;
+        const moreBtn = $('#ml-disc-more');
+        if (moreBtn) moreBtn.style.display = 'none';
+        return;
+      }
+      wrap.innerHTML = list.map(discItemHtml).join('');
+    } else {
+      wrap.insertAdjacentHTML('beforeend', list.map(discItemHtml).join(''));
+    }
+
+    // KaTeX 渲染（非阻塞）
+    ensureKatex().then(ready => {
+      if (ready && typeof window.renderMathInElement === 'function' && document.body.contains(wrap)) {
+        try {
+          window.renderMathInElement(wrap, {
+            delimiters: [
+              { left: '$$', right: '$$', display: true },
+              { left: '\\[', right: '\\]', display: true },
+              { left: '$', right: '$', display: false },
+              { left: '\\(', right: '\\)', display: false },
+            ],
+            throwOnError: false,
+          });
+        } catch {}
+      }
+    });
+
+    const moreBtn = $('#ml-disc-more');
+    if (moreBtn) {
+      moreBtn.style.display = discState.page < discState.totalPages ? '' : 'none';
+    }
+  } catch (e) {
+    if (page === 1) {
+      wrap.innerHTML = `<div class="ml-empty" style="padding:20px 16px"><i class="fas fa-triangle-exclamation"></i>Failed to load discussions</div>`;
+    }
+  } finally {
+    discState.loading = false;
+  }
+}
+
+function bindDiscussionEvents(problemId) {
+  const input = $('#ml-disc-input');
+  const postBtn = $('#ml-disc-post');
+  const moreBtn = $('#ml-disc-more');
+  const listEl = $('#ml-disc-list');
+
+  // 輸入 → 啟用/禁用發送按鈕
+  if (input) {
+    input.addEventListener('input', () => {
+      postBtn.disabled = !input.value.trim();
+    });
+    // 自動增高
+    input.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 180) + 'px';
+    });
+  }
+
+  // 發送
+  if (postBtn) {
+    postBtn.onclick = async () => {
+      const content = (input.value || '').trim();
+      if (!content) return;
+      haptic(10);
+      postBtn.disabled = true;
+      postBtn.innerHTML = '<span class="ml-spinner" style="width:14px;height:14px;border-width:2px"></span>';
+      try {
+        const r = await apiCall('/api/problem?action=discussions', 'POST', { problemId, content });
+        if (r && r.success) {
+          input.value = '';
+          input.style.height = '';
+          postBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
+          postBtn.disabled = true;
+          toast('Posted', 'fa-circle-check');
+          loadDiscussions(problemId, 1);
+        } else {
+          toast((r && r.message) || 'Failed', 'fa-circle-exclamation');
+          postBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
+          postBtn.disabled = false;
+        }
+      } catch (e) {
+        toast('Network error', 'fa-wifi');
+        postBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
+        postBtn.disabled = false;
+      }
+    };
+  }
+
+  // Load more
+  if (moreBtn) {
+    moreBtn.onclick = () => {
+      if (discState.page < discState.totalPages) {
+        loadDiscussions(problemId, discState.page + 1, true);
+      }
+    };
+  }
+
+  // 點讚（事件委託）
+  if (listEl) {
+    listEl.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.ml-disc-like');
+      if (!btn) return;
+      e.stopPropagation();
+      const did = btn.dataset.id;
+      if (!did) return;
+      haptic(6);
+
+      const wasLiked = btn.classList.contains('liked');
+      const countEl = btn.querySelector('span');
+      const curCount = parseInt(countEl.textContent, 10) || 0;
+
+      // 樂觀更新
+      btn.classList.toggle('liked', !wasLiked);
+      countEl.textContent = wasLiked ? Math.max(0, curCount - 1) : curCount + 1;
+
+      try {
+        const r = await apiCall('/api/problem?action=discussions', 'PUT', { discussionId: did });
+        if (r && r.success && r.discussion) {
+          const d = r.discussion;
+          const serverLiked = Array.isArray(d.likedBy) && state.user && d.likedBy.includes(state.user.username);
+          btn.classList.toggle('liked', serverLiked);
+          countEl.textContent = d.likes || 0;
+        } else {
+          btn.classList.toggle('liked', wasLiked);
+          countEl.textContent = curCount;
+        }
+      } catch {
+        btn.classList.toggle('liked', wasLiked);
+        countEl.textContent = curCount;
+      }
+    });
+  }
 }
 async function loadProblemSubmissions(id) {
   const wrap = $('#ml-pd-subs-list');
