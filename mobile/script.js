@@ -1,16 +1,14 @@
 /* ═══════════════════════════════════════════════════════════
  * WYK Maths Team — Mobile App
- * 獨立於桌面版 auth.js / app.js：自己實作 token / apiCall
  * ═══════════════════════════════════════════════════════════ */
 (function () {
 'use strict';
 
 // ═══════════════════════════════════════════════════════════
-// 0. Auth（從 auth.js 照抄簡化版，避免引入桌面版重定向邏輯）
+// 0. Auth
 // ═══════════════════════════════════════════════════════════
 const TOKEN_KEY = 'auth_token';
 
-// 從 URL 拿 token（微軟回調）
 (function () {
   try {
     const p = new URLSearchParams(location.search);
@@ -25,13 +23,8 @@ const TOKEN_KEY = 'auth_token';
 })();
 
 function getToken() { return localStorage.getItem(TOKEN_KEY); }
-function setToken(t) {
-  if (t) localStorage.setItem(TOKEN_KEY, t);
-  else localStorage.removeItem(TOKEN_KEY);
-}
-function parseJwt(t) {
-  try { return JSON.parse(atob(t.split('.')[1])); } catch { return null; }
-}
+function setToken(t) { if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); }
+function parseJwt(t) { try { return JSON.parse(atob(t.split('.')[1])); } catch { return null; } }
 function isLoggedIn() {
   const t = getToken();
   if (!t) return false;
@@ -73,10 +66,7 @@ async function apiCall(endpoint, method = 'GET', body = null) {
   const opts = { method, headers };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(url, opts);
-  if (res.status === 401) {
-    setToken(null);
-    throw new Error('Session expired');
-  }
+  if (res.status === 401) { setToken(null); throw new Error('Session expired'); }
   if (!res.ok) {
     const d = await res.json().catch(() => ({ message: 'HTTP ' + res.status }));
     throw new Error(d.message || ('HTTP ' + res.status));
@@ -124,6 +114,8 @@ const state = {
   problemsLoaded: false,
   lastScrollTop: 0,
   appReady: false,
+  _updates: null,
+  _firstRender: true,
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -149,16 +141,132 @@ function toast(msg) {
 
 function fmtDateTime(ts) {
   const d = new Date(ts);
-  if (isNaN(d.getTime())) return { date: '—', time: '—' };
+  if (isNaN(d.getTime())) return { date: '—', time: '—', short: '—' };
   const pad = n => String(n).padStart(2, '0');
   const local = new Date(d.getTime() + 8 * 3600000);
   return {
     date: `${local.getUTCFullYear()}-${pad(local.getUTCMonth() + 1)}-${pad(local.getUTCDate())}`,
     time: `${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}:${pad(local.getUTCSeconds())}`,
+    short: `${pad(local.getUTCMonth() + 1)}-${pad(local.getUTCDate())} ${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}`,
   };
 }
 function faviconOf(name) {
   return String(name || '?').trim()[0]?.toUpperCase() || '?';
+}
+
+// 通用分頁
+function computePageItems(current, total, maxVisible) {
+  if (total <= maxVisible) return Array.from({ length: total }, (_, i) => i + 1);
+  const inner = maxVisible - 2;
+  const half = Math.floor(inner / 2);
+  let start = Math.max(2, current - half);
+  let end = Math.min(total - 1, start + inner - 1);
+  start = Math.max(2, end - inner + 1);
+  const items = [1];
+  if (start > 2) items.push('…');
+  for (let p = start; p <= end; p++) items.push(p);
+  if (end < total - 1) items.push('…');
+  items.push(total);
+  return items;
+}
+
+function renderPagination(current, total, onNav) {
+  if (total <= 1) return '';
+  const items = computePageItems(current, total, 5);
+  let html = '<div class="ml-pagination">';
+  html += `<button class="ml-page-btn" data-p="${current - 1}" ${current <= 1 ? 'disabled' : ''}>‹</button>`;
+  for (const it of items) {
+    if (it === '…') html += `<span class="ml-page-ellipsis">…</span>`;
+    else html += `<button class="ml-page-btn ${it === current ? 'active' : ''}" data-p="${it}">${it}</button>`;
+  }
+  html += `<button class="ml-page-btn" data-p="${current + 1}" ${current >= total ? 'disabled' : ''}>›</button>`;
+  html += '</div>';
+  return html;
+}
+function bindPagination(root, onNav) {
+  $$('.ml-page-btn[data-p]', root).forEach(btn => {
+    btn.onclick = () => {
+      const p = parseInt(btn.dataset.p, 10);
+      if (p && p >= 1) onNav(p);
+    };
+  });
+}
+// ═══════════════════════════════════════════════════════════
+// 頁面過渡動畫
+// ═══════════════════════════════════════════════════════════
+const TAB_ORDER = ['/', '/problems', '/submissions', '/contests', '/rank', '/me'];
+
+function getTabIdx(path) {
+  for (let i = 0; i < TAB_ORDER.length; i++) {
+    const t = TAB_ORDER[i];
+    if (path === t || path.startsWith(t + '/')) return i;
+  }
+  return -1;
+}
+
+function detectDirection(prevPath, nextPath) {
+  if (!prevPath || !nextPath || prevPath === nextPath) return 'fade';
+  const pParts = prevPath.split('/').filter(Boolean);
+  const nParts = nextPath.split('/').filter(Boolean);
+
+  // 同 Tab 內前進 / 後退（段數不同）
+  if (pParts[0] === nParts[0] && pParts.length !== nParts.length) {
+    return nParts.length > pParts.length ? 'forward' : 'back';
+  }
+  // Tab 切換
+  const pi = getTabIdx(prevPath);
+  const ni = getTabIdx(nextPath);
+  if (pi >= 0 && ni >= 0 && pi !== ni) {
+    return ni > pi ? 'forward' : 'back';
+  }
+  return 'fade';
+}
+
+function animatePageEnter(el, direction) {
+  if (!state.settings.animations || !el || typeof el.animate !== 'function') return;
+  let from;
+  if (direction === 'forward')      from = { opacity: 0, transform: 'translateX(28px)' };
+  else if (direction === 'back')    from = { opacity: 0, transform: 'translateX(-28px)' };
+  else                              from = { opacity: 0, transform: 'translateY(6px)' };
+  try {
+    el.animate(
+      [from, { opacity: 1, transform: 'none' }],
+      { duration: 300, easing: 'cubic-bezier(.32,.72,0,1)' }
+    );
+  } catch (e) {}
+}
+
+const STAGGER_SELECTORS = '.ml-prob, .ml-sub, .ml-update, .ml-quick, .ml-me-stat, .ml-rank-item, .ml-pd-sub, .ml-result-row, .ml-list-item';
+
+function staggerIn(root) {
+  if (!state.settings.animations || !root || typeof Element.prototype.animate !== 'function') return;
+  const items = Array.from(root.querySelectorAll(STAGGER_SELECTORS));
+  const max = 15;
+  items.slice(0, max).forEach((el, i) => {
+    try {
+      el.animate(
+        [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }],
+        {
+          duration: 240,
+          delay: Math.min(i * 22, 320),
+          easing: 'cubic-bezier(.32,.72,0,1)',
+          fill: 'backwards',
+        }
+      );
+    } catch (e) {}
+  });
+}
+
+function animateTitle(el, text) {
+  if (!el) return;
+  el.textContent = text;
+  if (!state.settings.animations || typeof el.animate !== 'function') return;
+  try {
+    el.animate(
+      [{ opacity: 0, transform: 'translateY(3px)' }, { opacity: 1, transform: 'none' }],
+      { duration: 220, easing: 'cubic-bezier(.32,.72,0,1)' }
+    );
+  } catch (e) {}
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -170,7 +278,6 @@ function tickProgress() {
   const pct  = $('#mlPct');
   const wrap = $('#ml-loading');
   if (!fill || !pct || !wrap) return;
-
   let target;
   if (state.appReady) {
     const cur = parseFloat(fill.style.width) || 0;
@@ -178,10 +285,7 @@ function tickProgress() {
     if (target > 99.5) {
       fill.style.width = '100%';
       pct.textContent = '100%';
-      setTimeout(() => {
-        wrap.classList.add('ml-hide');
-        setTimeout(() => wrap.remove(), 400);
-      }, 160);
+      setTimeout(() => { wrap.classList.add('ml-hide'); setTimeout(() => wrap.remove(), 400); }, 160);
       return;
     }
   } else {
@@ -222,16 +326,26 @@ function loadSettings() {
   const c = lsRead(LS.settings);
   if (c && c.v && typeof c.v === 'object') Object.assign(state.settings, c.v);
   applyTheme();
+  applyCompact();
+  applyAnimations();
 }
 function saveSettings() {
   lsWrite(LS.settings, state.settings);
   applyTheme();
+  applyCompact();
+  applyAnimations();
 }
 function applyTheme() {
   const t = state.settings.theme === 'auto'
     ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
     : state.settings.theme;
   document.documentElement.setAttribute('data-theme', t);
+}
+function applyCompact() {
+  document.body.classList.toggle('ml-compact', !!state.settings.compact);
+}
+function applyAnimations() {
+  document.body.classList.toggle('ml-no-anim', !state.settings.animations);
 }
 
 function loadProblemsCache() {
@@ -295,19 +409,41 @@ function renderAppBar(opts) {
   const leftIcon = opts.leftIcon || 'fa-chevron-left';
   const rightIcon = opts.rightIcon || 'fa-chevron-right';
 
-  bar.innerHTML = `
-    <button class="ml-ab-btn" id="ml-ab-back" ${opts.leftDisabled ? 'disabled' : ''}>
-      <i class="fas ${leftIcon}"></i>
-    </button>
-    <div class="ml-ab-title${title ? '' : ' hidden'}">${esc(title)}</div>
-    <button class="ml-ab-btn" id="ml-ab-fwd" ${opts.rightDisabled ? 'disabled' : ''}>
-      <i class="fas ${rightIcon}"></i>
-    </button>`;
+  // 尽量复用现有 DOM，只更新内容 → 更流畅
+  let backBtn = $('#ml-ab-back');
+  let titleEl = $('.ml-ab-title', bar);
+  let fwdBtn  = $('#ml-ab-fwd');
 
-  const back = $('#ml-ab-back');
-  const fwd  = $('#ml-ab-fwd');
-  back.onclick = () => { if (opts.onLeft) opts.onLeft(); else history.back(); };
-  fwd.onclick  = () => { if (opts.onRight) opts.onRight(); else history.forward(); };
+  if (!backBtn || !titleEl || !fwdBtn) {
+    bar.innerHTML = `
+      <button class="ml-ab-btn" id="ml-ab-back">
+        <i class="fas ${leftIcon}"></i>
+      </button>
+      <div class="ml-ab-title"></div>
+      <button class="ml-ab-btn" id="ml-ab-fwd">
+        <i class="fas ${rightIcon}"></i>
+      </button>`;
+    backBtn = $('#ml-ab-back');
+    titleEl = $('.ml-ab-title', bar);
+    fwdBtn  = $('#ml-ab-fwd');
+  } else {
+    const bi = backBtn.querySelector('i');
+    const fi = fwdBtn.querySelector('i');
+    if (bi) bi.className = 'fas ' + leftIcon;
+    if (fi) fi.className = 'fas ' + rightIcon;
+  }
+
+  backBtn.disabled = !!opts.leftDisabled;
+  fwdBtn.disabled  = !!opts.rightDisabled;
+
+  // 標題：內容有變才播動畫
+  if (titleEl.textContent !== title) {
+    titleEl.classList.toggle('hidden', !title);
+    animateTitle(titleEl, title);
+  }
+
+  backBtn.onclick = () => { if (opts.onLeft) opts.onLeft(); else history.back(); };
+  fwdBtn.onclick  = () => { if (opts.onRight) opts.onRight(); else history.forward(); };
 }
 
 function renderTabBar() {
@@ -369,7 +505,7 @@ async function prefetchAll() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 8. 頁面：Home
+// 8. Home
 // ═══════════════════════════════════════════════════════════
 async function renderHome() {
   const content = $('#ml-content');
@@ -492,12 +628,16 @@ function stripHtml(html) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 9. 頁面：Problems 列表
+// 9. Problems 列表
 // ═══════════════════════════════════════════════════════════
+const probState = { filter: 'all', sort: 'default', page: 1 };
+
 async function renderProblems() {
   const content = $('#ml-content');
   const savedFilter = sessionStorage.getItem('ml_prob_filter') || 'all';
   sessionStorage.removeItem('ml_prob_filter');
+  probState.filter = savedFilter;
+  probState.page = 1;
 
   content.innerHTML = `
     <div class="ml-page">
@@ -507,24 +647,39 @@ async function renderProblems() {
         <button class="ml-chip" data-f="solved">Solved</button>
         <button class="ml-chip" data-f="fav">Bookmarks</button>
       </div>
+      <div class="ml-sort-label">Sort by</div>
+      <div class="ml-prob-filters" id="ml-prob-sorts">
+        <button class="ml-chip small" data-s="default">Default</button>
+        <button class="ml-chip small" data-s="difficulty">Difficulty</button>
+        <button class="ml-chip small" data-s="solves">Solves</button>
+      </div>
       <div id="ml-prob-list">${renderProblemsSkeleton()}</div>
     </div>`;
 
-  let filter = savedFilter;
-  const setFilter = (f) => {
-    filter = f;
-    $$('#ml-prob-filters .ml-chip').forEach(b => b.classList.toggle('active', b.dataset.f === f));
-    renderProbList(f);
+  const apply = () => {
+    $$('#ml-prob-filters .ml-chip').forEach(b => b.classList.toggle('active', b.dataset.f === probState.filter));
+    $$('#ml-prob-sorts .ml-chip').forEach(b => b.classList.toggle('active', b.dataset.s === probState.sort));
+    renderProbList();
   };
-  $$('#ml-prob-filters .ml-chip').forEach(b => b.onclick = () => setFilter(b.dataset.f));
+
+  $$('#ml-prob-filters .ml-chip').forEach(b => b.onclick = () => {
+    probState.filter = b.dataset.f;
+    probState.page = 1;
+    apply();
+  });
+  $$('#ml-prob-sorts .ml-chip').forEach(b => b.onclick = () => {
+    probState.sort = b.dataset.s;
+    probState.page = 1;
+    apply();
+  });
 
   if (!state.problemsLoaded) {
     const wait = setInterval(() => {
-      if (state.problemsLoaded) { clearInterval(wait); setFilter(filter); }
+      if (state.problemsLoaded) { clearInterval(wait); apply(); }
     }, 100);
-    setTimeout(() => { clearInterval(wait); if (!state.problemsLoaded) setFilter(filter); }, 4000);
+    setTimeout(() => { clearInterval(wait); if (!state.problemsLoaded) apply(); }, 4000);
   } else {
-    setFilter(filter);
+    apply();
   }
 }
 
@@ -540,18 +695,26 @@ function renderProblemsSkeleton() {
   return h;
 }
 
-function renderProbList(filter) {
+function renderProbList() {
   const wrap = $('#ml-prob-list');
   if (!wrap) return;
   const all = state.problems || [];
   const s = state.settings;
   const states = state.states || {};
   const favs = state.favorites || new Set();
+  const filter = probState.filter;
+  const sort = probState.sort;
 
   let items = all.slice();
   if (filter === 'unsolved') items = items.filter(p => states[p.id] !== 'passed');
   else if (filter === 'solved') items = items.filter(p => states[p.id] === 'passed');
   else if (filter === 'fav') items = items.filter(p => favs.has(p.id));
+
+  if (sort === 'difficulty') {
+    items.sort((a, b) => (a.difficulty || 0) - (b.difficulty || 0));
+  } else if (sort === 'solves') {
+    items.sort((a, b) => (b.solves || 0) - (a.solves || 0));
+  }
 
   if (!items.length) {
     wrap.innerHTML = `<div class="ml-empty"><i class="fas fa-inbox"></i>No problems</div>`;
@@ -559,22 +722,25 @@ function renderProbList(filter) {
   }
 
   const limit = s.pageSize || 30;
-  const shown = items.slice(0, limit);
-  const hasMore = items.length > limit;
+  const total = Math.ceil(items.length / limit);
+  if (probState.page > total) probState.page = total;
+  if (probState.page < 1) probState.page = 1;
+  const start = (probState.page - 1) * limit;
+  const shown = items.slice(start, start + limit);
+
   wrap.innerHTML = shown.map(p => probCardHtml(p, s, states, favs)).join('')
-    + (hasMore ? `<button class="ml-btn ghost full" id="ml-load-more" style="margin-top:8px">Load ${items.length - limit} more</button>` : '');
+    + renderPagination(probState.page, total, (p) => {
+        probState.page = p;
+        renderProbList();
+        $('#ml-content').scrollTop = 0;
+      });
 
   bindProbCards(wrap);
-  if (hasMore) {
-    const btn = $('#ml-load-more');
-    btn.onclick = () => {
-      btn.remove();
-      const rest = items.slice(limit);
-      const html = rest.map(p => probCardHtml(p, s, states, favs)).join('');
-      wrap.insertAdjacentHTML('beforeend', html);
-      bindProbCards(wrap);
-    };
-  }
+  bindPagination(wrap, (p) => {
+    probState.page = p;
+    renderProbList();
+    $('#ml-content').scrollTop = 0;
+  });
 }
 
 function probCardHtml(p, s, states, favs) {
@@ -639,8 +805,19 @@ function bindProbCards(root) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 10. 頁面：Problem Detail
+// 10. Problem Detail
 // ═══════════════════════════════════════════════════════════
+
+// 等待 KaTeX 就緒
+async function ensureKatex() {
+  if (typeof window.renderMathInElement === 'function') return true;
+  for (let i = 0; i < 30; i++) {
+    await new Promise(r => setTimeout(r, 100));
+    if (typeof window.renderMathInElement === 'function') return true;
+  }
+  return false;
+}
+
 async function renderProblemDetail(id) {
   const content = $('#ml-content');
   content.innerHTML = `<div class="ml-page"><div class="ml-loading-center"><span class="ml-spinner"></span></div></div>`;
@@ -690,6 +867,11 @@ async function renderProblemDetail(id) {
           </div>
           <div class="ml-feedback" id="ml-pd-feedback"></div>
         </div>
+
+        <div class="ml-pd-subs" id="ml-pd-subs">
+          <div class="ml-section-title">My Submissions</div>
+          <div id="ml-pd-subs-list"><div class="ml-loading-center" style="padding:20px 0"><span class="ml-spinner"></span></div></div>
+        </div>
       </div>`;
 
     const stmt = $('#ml-pd-statement');
@@ -702,14 +884,22 @@ async function renderProblemDetail(id) {
         });
       }
       stmt.innerHTML = html;
-      if (typeof renderMathInElement === 'function') {
-        renderMathInElement(stmt, {
-          delimiters: [
-            { left: '$$', right: '$$', display: true },
-            { left: '$', right: '$', display: false },
-          ],
-        });
-      }
+      // KaTeX 渲染
+      ensureKatex().then(ready => {
+        if (ready && typeof window.renderMathInElement === 'function') {
+          try {
+            window.renderMathInElement(stmt, {
+              delimiters: [
+                { left: '$$', right: '$$', display: true },
+                { left: '\\[', right: '\\]', display: true },
+                { left: '$', right: '$', display: false },
+                { left: '\\(', right: '\\)', display: false },
+              ],
+              throwOnError: false,
+            });
+          } catch (e) { console.warn('katex render failed', e); }
+        }
+      });
     }
 
     const favBtn = $('[data-fav]', content);
@@ -763,6 +953,8 @@ async function renderProblemDetail(id) {
             if (state.states[id] !== 'passed') state.states[id] = 'failed';
             saveStatesCache(state.states);
           }
+          // 刷新提交列表
+          loadProblemSubmissions(id);
         } else {
           fb.className = 'ml-feedback show wa';
           fb.textContent = r.message || 'Error';
@@ -780,33 +972,135 @@ async function renderProblemDetail(id) {
       if (e.key === 'Enter') { e.preventDefault(); doSubmit(); }
     });
 
+    // 載入提交列表
+    loadProblemSubmissions(id);
+
   } catch (e) {
     content.innerHTML = `<div class="ml-page"><div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Problem not found</div></div>`;
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-// 11. 頁面：Submissions
-// ═══════════════════════════════════════════════════════════
-async function renderSubmissions() {
-  const content = $('#ml-content');
-  content.innerHTML = `<div class="ml-page"><div id="ml-subs-list"><div class="ml-loading-center"><span class="ml-spinner"></span></div></div></div>`;
+async function loadProblemSubmissions(id) {
+  const wrap = $('#ml-pd-subs-list');
+  if (!wrap) return;
   try {
-    const d = await apiCall('/api/submissions?all=1&page=1&limit=50');
+    const d = await apiCall('/api/submissions?problem_id=' + encodeURIComponent(id) + '&limit=20');
     if (!d || !d.success) throw new Error();
     const subs = d.submissions || [];
     if (!subs.length) {
-      $('#ml-subs-list').innerHTML = `<div class="ml-empty"><i class="fas fa-inbox"></i>No submissions</div>`;
+      wrap.innerHTML = `<div class="ml-empty" style="padding:20px"><i class="fas fa-inbox"></i>No submissions yet</div>`;
       return;
     }
-    $('#ml-subs-list').innerHTML = subs.map(subCardHtml).join('');
-    $$('.ml-sub', content).forEach(el => {
+    wrap.innerHTML = subs.map(sub => {
+      const dt = fmtDateTime(sub.timestamp);
+      const cls = statusCls(sub.status);
+      const ansText = sub.type === 'image' ? '[Image]' : (sub.answerHidden ? 'Hidden' : (sub.answer || ''));
+      return `<div class="ml-pd-sub" data-subid="${escAttr(sub.subid || '')}">
+        <span class="ml-pd-sub-time">${esc(dt.short)}</span>
+        <span class="ml-pd-sub-ans">${esc(ansText)}</span>
+        <span class="ml-pd-sub-status ${cls}">${esc(sub.status || 'Pending')}</span>
+      </div>`;
+    }).join('');
+    $$('.ml-pd-sub[data-subid]', wrap).forEach(el => {
       el.onclick = () => {
         if (el.dataset.subid) navigate('/submissions/' + encodeURIComponent(el.dataset.subid));
       };
     });
+  } catch {
+    wrap.innerHTML = `<div class="ml-empty" style="padding:20px"><i class="fas fa-triangle-exclamation"></i>Failed to load</div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// 11. Submissions
+// ═══════════════════════════════════════════════════════════
+const subsState = { filter: 'all', user: '', problem: '', page: 1 };
+
+async function renderSubmissions() {
+  const content = $('#ml-content');
+  content.innerHTML = `
+    <div class="ml-page">
+      <div class="ml-sub-filters">
+        <div class="ml-filter-chips" id="ml-subs-chips">
+          <button class="ml-chip" data-f="all">All</button>
+          <button class="ml-chip" data-f="accepted">Accepted</button>
+          <button class="ml-chip" data-f="wrong">Wrong</button>
+          <button class="ml-chip" data-f="partial">Partial</button>
+          <button class="ml-chip" data-f="pending">Pending</button>
+          <button class="ml-chip" data-f="system">System</button>
+        </div>
+        <div class="ml-filter-inputs">
+          <input type="text" class="ml-input" id="ml-subs-user" placeholder="Username" autocomplete="off" autocapitalize="none" spellcheck="false">
+          <input type="text" class="ml-input" id="ml-subs-prob" placeholder="Problem ID" autocomplete="off" spellcheck="false">
+        </div>
+      </div>
+      <div id="ml-subs-list"><div class="ml-loading-center"><span class="ml-spinner"></span></div></div>
+    </div>`;
+
+  $$('#ml-subs-chips .ml-chip').forEach(b => {
+    b.classList.toggle('active', b.dataset.f === subsState.filter);
+    b.onclick = () => {
+      subsState.filter = b.dataset.f;
+      subsState.page = 1;
+      $$('#ml-subs-chips .ml-chip').forEach(x => x.classList.toggle('active', x === b));
+      loadSubmissions();
+    };
+  });
+
+  const userInp = $('#ml-subs-user');
+  const probInp = $('#ml-subs-prob');
+  userInp.value = subsState.user || '';
+  probInp.value = subsState.problem || '';
+
+  const applyInputs = () => {
+    subsState.user = userInp.value.trim();
+    subsState.problem = probInp.value.trim();
+    subsState.page = 1;
+    loadSubmissions();
+  };
+  userInp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); applyInputs(); userInp.blur(); } });
+  probInp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); applyInputs(); probInp.blur(); } });
+
+  loadSubmissions();
+}
+
+async function loadSubmissions() {
+  const wrap = $('#ml-subs-list');
+  if (!wrap) return;
+  wrap.innerHTML = `<div class="ml-loading-center"><span class="ml-spinner"></span></div>`;
+  const limit = state.settings.pageSize || 30;
+  const params = new URLSearchParams({ all: '1', page: subsState.page, limit });
+  if (subsState.user) params.set('user', subsState.user);
+  if (subsState.problem) params.set('problem', subsState.problem);
+  if (subsState.filter && subsState.filter !== 'all') params.set('result', subsState.filter);
+
+  try {
+    const d = await apiCall('/api/submissions?' + params.toString());
+    if (!d || !d.success) throw new Error();
+    const subs = d.submissions || [];
+    if (!subs.length) {
+      wrap.innerHTML = `<div class="ml-empty"><i class="fas fa-inbox"></i>No submissions</div>`;
+      return;
+    }
+    const total = d.totalPages || 1;
+    wrap.innerHTML = subs.map(subCardHtml).join('')
+      + renderPagination(subsState.page, total, (p) => {
+        subsState.page = p;
+        loadSubmissions();
+        $('#ml-content').scrollTop = 0;
+      });
+    $$('.ml-sub[data-subid]', wrap).forEach(el => {
+      el.onclick = () => {
+        if (el.dataset.subid) navigate('/submissions/' + encodeURIComponent(el.dataset.subid));
+      };
+    });
+    bindPagination(wrap, (p) => {
+      subsState.page = p;
+      loadSubmissions();
+      $('#ml-content').scrollTop = 0;
+    });
   } catch (e) {
-    $('#ml-subs-list').innerHTML = `<div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Failed to load</div>`;
+    wrap.innerHTML = `<div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Failed to load</div>`;
   }
 }
 
@@ -874,7 +1168,7 @@ async function renderSubmissionDetail(subid) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 12. 頁面：Contests
+// 12. Contests
 // ═══════════════════════════════════════════════════════════
 async function renderContests() {
   const content = $('#ml-content');
@@ -946,6 +1240,7 @@ async function renderContestDetail(id) {
         <div style="font-size:12px;color:var(--fg-muted);margin-bottom:16px">
           ${esc(dateStr)} · ${c.duration}m · ${c.participantCount} participants
         </div>
+
         ${canSee ? `
           <div class="ml-section-title">Problems</div>
           ${c.problems.map(p => {
@@ -960,21 +1255,70 @@ async function renderContestDetail(id) {
               </div>
             </div>`;
           }).join('')}
-        ` : `
+        ` : c.status === 'ended' ? '' : `
           <div class="ml-empty"><i class="fas fa-lock"></i>${c.status === 'upcoming' ? 'Contest not started' : 'Problems not available'}</div>
         `}
+
+        <div class="ml-results" id="ml-results">
+          <div class="ml-section-title">Results</div>
+          <div id="ml-results-list"><div class="ml-loading-center" style="padding:20px 0"><span class="ml-spinner"></span></div></div>
+        </div>
       </div>`;
 
     $$('.ml-prob[data-pid]', content).forEach(el => {
       el.onclick = () => navigate('/problems/' + encodeURIComponent(el.dataset.pid));
     });
+
+    // 載入結果（僅已結束或進行中）
+    if (c.status === 'ended' || c.status === 'ongoing') {
+      loadContestResults(id, c.status);
+    } else {
+      const r = $('#ml-results');
+      if (r) r.style.display = 'none';
+    }
+
   } catch (e) {
     content.innerHTML = `<div class="ml-page"><div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Not found</div></div>`;
   }
 }
 
+async function loadContestResults(id, status) {
+  const wrap = $('#ml-results-list');
+  if (!wrap) return;
+  try {
+    const d = await apiCall('/api/contests?action=results&id=' + encodeURIComponent(id));
+    if (!d || !d.success) throw new Error();
+    const parts = (d.stats && d.stats.participants) || [];
+    const problems = (d.stats && d.stats.problems) || [];
+
+    if (!parts.length) {
+      wrap.innerHTML = `<div class="ml-empty" style="padding:20px"><i class="fas fa-inbox"></i>No results yet</div>`;
+      return;
+    }
+    const isEnded = status === 'ended';
+    wrap.innerHTML = parts.map((p, i) => {
+      const rank = i + 1;
+      let rankCls = '';
+      if (isEnded) {
+        if (rank === 1) rankCls = 'gold';
+        else if (rank === 2) rankCls = 'silver';
+        else if (rank === 3) rankCls = 'bronze';
+      }
+      const name = p.displayName || (p.isTeam ? `Team #${p.username}` : p.username);
+      const score = isEnded ? (p.total || 0).toFixed(2) : '—';
+      return `<div class="ml-result-row">
+        <span class="ml-result-rank ${rankCls}">${rank}</span>
+        <span class="ml-result-name">${esc(name)}</span>
+        <span class="ml-result-score">${score}</span>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    wrap.innerHTML = `<div class="ml-empty" style="padding:20px"><i class="fas fa-triangle-exclamation"></i>Failed to load</div>`;
+  }
+}
+
 // ═══════════════════════════════════════════════════════════
-// 13. 頁面：Rank
+// 13. Rank
 // ═══════════════════════════════════════════════════════════
 async function renderRank() {
   const content = $('#ml-content');
@@ -1028,7 +1372,7 @@ function rankItemHtml(u, isSelf) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 14. 頁面：Me
+// 14. Me
 // ═══════════════════════════════════════════════════════════
 async function renderMe() {
   const content = $('#ml-content');
@@ -1097,14 +1441,28 @@ async function renderMe() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 15. 頁面：Settings
+// 15. Settings
 // ═══════════════════════════════════════════════════════════
 async function renderSettings() {
   const content = $('#ml-content');
   const s = state.settings;
+  const u = state.user || {};
+  const avatar = u.pfp ? `<img src="${escAttr(u.pfp)}" alt="">` : '<i class="fas fa-user"></i>';
 
   content.innerHTML = `
     <div class="ml-page">
+      <div class="ml-section-title">Profile</div>
+      <div class="ml-set-group">
+        <div class="ml-pfp-row">
+          <div class="ml-pfp-avatar" id="ml-pfp-avatar">${avatar}</div>
+          <div class="ml-pfp-info">
+            <div class="ml-pfp-name">${esc(u.displayName || u.username || '')}</div>
+            <button class="ml-pfp-btn" id="ml-pfp-pick">Change Picture</button>
+            <input type="file" id="ml-pfp-input" accept="image/*" style="display:none">
+          </div>
+        </div>
+      </div>
+
       <div class="ml-section-title">Appearance</div>
       <div class="ml-set-group">
         <div class="ml-set-item">
@@ -1172,6 +1530,7 @@ async function renderSettings() {
       </div>
     </div>`;
 
+  // 開關
   $$('[data-sw]', content).forEach(el => {
     el.onclick = () => {
       const k = el.dataset.sw;
@@ -1181,6 +1540,7 @@ async function renderSettings() {
       saveSettings();
     };
   });
+  // 分段
   $$('[data-seg]', content).forEach(seg => {
     const k = seg.dataset.seg;
     $$('.ml-seg-btn', seg).forEach(btn => {
@@ -1193,6 +1553,40 @@ async function renderSettings() {
       };
     });
   });
+
+  // PFP 上傳
+  const pfpBtn = $('#ml-pfp-pick');
+  const pfpInput = $('#ml-pfp-input');
+  pfpBtn.onclick = () => pfpInput.click();
+  pfpInput.addEventListener('change', async () => {
+    const file = pfpInput.files && pfpInput.files[0];
+    pfpInput.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast('Not an image'); return; }
+    if (file.size > 2 * 1024 * 1024) { toast('Max 2MB'); return; }
+
+    pfpBtn.disabled = true;
+    pfpBtn.textContent = 'Uploading…';
+    try {
+      const dataUrl = await compressImage(file, 512, 0.85);
+      const r = await apiCall('/api/users?action=pfp', 'POST', { image: dataUrl });
+      if (r && r.success && r.pfp) {
+        state.user.pfp = r.pfp;
+        const el = $('#ml-pfp-avatar');
+        if (el) el.innerHTML = `<img src="${escAttr(r.pfp)}" alt="">`;
+        toast('Updated');
+      } else {
+        toast(r && r.message || 'Upload failed');
+      }
+    } catch (e) {
+      toast('Network error');
+    } finally {
+      pfpBtn.disabled = false;
+      pfpBtn.textContent = 'Change Picture';
+    }
+  });
+
+  // 帳號操作
   $$('[data-act]', content).forEach(el => {
     el.onclick = async () => {
       const a = el.dataset.act;
@@ -1223,17 +1617,50 @@ async function renderSettings() {
   });
 }
 
+// 圖片壓縮
+function compressImage(file, maxDim, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+          else { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => reject(new Error('Load failed'));
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject(new Error('Read failed'));
+    reader.readAsDataURL(file);
+  });
+}
+
 // ═══════════════════════════════════════════════════════════
 // 16. 路由分派
 // ═══════════════════════════════════════════════════════════
 async function renderRoute() {
+  const prevPath = state.route.path;
   state.route = parseRoute();
   const p = state.route.parts;
+  const nextPath = state.route.path;
+  const isFirst = state._firstRender;
+  const direction = isFirst ? 'fade' : detectDirection(prevPath, nextPath);
+
   renderTabBar();
+
   const content = $('#ml-content');
   if (content) content.scrollTop = 0;
+
   renderAppBar({ leftDisabled: p.length <= 1, rightDisabled: true });
 
+  // 內容渲染
   if (p.length === 0) await renderHome();
   else if (p[0] === 'problems') {
     if (p[1]) await renderProblemDetail(decodeURIComponent(p[1]));
@@ -1248,6 +1675,15 @@ async function renderRoute() {
   else if (p[0] === 'me') await renderMe();
   else if (p[0] === 'settings') await renderSettings();
   else await renderHome();
+
+  // 入場動畫（首次不加，避免 loading 消失後又一個動畫）
+  if (!isFirst && state.settings.animations && content) {
+    animatePageEnter(content, direction);
+    // 稍微延遲再做 stagger，避免跟頁面入場打架
+    setTimeout(() => { staggerIn(content); }, 30);
+  }
+
+  state._firstRender = false;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1266,7 +1702,7 @@ function bindScrollBehavior() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 18. Login 頁
+// 18. Login
 // ═══════════════════════════════════════════════════════════
 function renderLogin() {
   const root = $('#ml-root');
@@ -1353,10 +1789,8 @@ function mountApp() {
 
 async function boot() {
   requestAnimationFrame(tickProgress);
-
   loadSettings();
 
-  // 沒登入 → 登入頁
   if (!isLoggedIn()) {
     renderLogin();
     state.appReady = true;
@@ -1371,7 +1805,6 @@ async function boot() {
   mountApp();
   state.appReady = true;
 
-  // 背景預取
   setTimeout(() => {
     if ('requestIdleCallback' in window) requestIdleCallback(prefetchAll, { timeout: 2000 });
     else setTimeout(prefetchAll, 300);
