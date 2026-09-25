@@ -804,9 +804,15 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, ids: idList.map(p => p.id) });
     }
 
-    // 全量列表（不含 ans / logic / statement）
+    // 全量列表（不含 ans / logic；可選包含 statement）
     if (req.query.all === '1') {
       const baseFilter = adminUser ? {} : { public: true };
+      const withStatement = req.query.withStatement === '1';
+      const projectFields = {
+        id: 1, name: 1, difficulty: 1, tags: 1, public: 1, solves: 1, _id: 0
+      };
+      if (withStatement) projectFields.statement = 1;
+
       const pipeline = [
         { $match: baseFilter },
         {
@@ -832,11 +838,7 @@ export default async function handler(req, res) {
           }
         },
         { $addFields: { solves: { $ifNull: [{ $arrayElemAt: ['$solvesData.count', 0] }, 0] } } },
-        {
-          $project: {
-            id: 1, name: 1, difficulty: 1, tags: 1, public: 1, solves: 1, _id: 0
-          }
-        }
+        { $project: projectFields }
       ];
 
       pipeline.push({ $sort: { id: 1 } });

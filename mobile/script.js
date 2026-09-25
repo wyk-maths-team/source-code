@@ -75,14 +75,81 @@ async function apiCall(endpoint, method = 'GET', body = null) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 1. 常量 & 狀態
+// 1. IndexedDB 封裝
+// ═══════════════════════════════════════════════════════════
+const DB_NAME = 'wyk-mobile-db';
+const DB_VERSION = 1;
+let _dbPromise = null;
+
+function openDB() {
+  if (_dbPromise) return _dbPromise;
+  _dbPromise = new Promise((resolve, reject) => {
+    if (!('indexedDB' in window)) { reject(new Error('No IndexedDB')); return; }
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('problems')) {
+        db.createObjectStore('problems', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('meta')) {
+        db.createObjectStore('meta', { keyPath: 'key' });
+      }
+      if (!db.objectStoreNames.contains('drafts')) {
+        const s = db.createObjectStore('drafts', { keyPath: 'id', autoIncrement: true });
+        s.createIndex('byProblem', 'problemId');
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return _dbPromise;
+}
+
+function dbGet(store, key) {
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  }));
+}
+function dbPut(store, value) {
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).put(value);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  }));
+}
+function dbGetAll(store) {
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  }));
+}
+function dbDelete(store, key) {
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  }));
+}
+
+// ═══════════════════════════════════════════════════════════
+// 2. 常量 & 狀態
 // ═══════════════════════════════════════════════════════════
 const LS = {
   problems: 'mobile_problems_v1',
   states:   'mobile_states_v1',
   fav:      'mobile_fav_v1',
   settings: 'mobile_settings_v1',
+  welcome:  'mobile_welcome_done_v1',
 };
+
+const CACHE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 const DEFAULT_SETTINGS = {
   theme: 'dark',
@@ -116,10 +183,12 @@ const state = {
   appReady: false,
   _updates: null,
   _firstRender: true,
+  _scrollMemory: {},
+  _cacheInProgress: false,
 };
 
 // ═══════════════════════════════════════════════════════════
-// 2. 工具
+// 3. 工具
 // ═══════════════════════════════════════════════════════════
 const $  = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
@@ -130,13 +199,17 @@ function esc(s) {
 }
 function escAttr(s) { return esc(s); }
 
-function toast(msg) {
+function toast(msg, icon) {
   let t = $('#ml-toast');
   if (!t) { t = document.createElement('div'); t.id = 'ml-toast'; document.body.appendChild(t); }
-  t.textContent = msg;
+  t.innerHTML = (icon ? `<i class="fas ${icon}" style="margin-right:6px;opacity:.85"></i>` : '') + esc(msg);
   t.classList.add('show');
   clearTimeout(t._t);
   t._t = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+function haptic(ms = 8) {
+  try { navigator.vibrate && navigator.vibrate(ms); } catch {}
 }
 
 function fmtDateTime(ts) {
@@ -174,12 +247,12 @@ function renderPagination(current, total, onNav) {
   if (total <= 1) return '';
   const items = computePageItems(current, total, 5);
   let html = '<div class="ml-pagination">';
-  html += `<button class="ml-page-btn" data-p="${current - 1}" ${current <= 1 ? 'disabled' : ''}>‹</button>`;
+  html += `<button class="ml-page-btn" data-p="${current - 1}" ${current <= 1 ? 'disabled' : ''} aria-label="Prev"><i class="fas fa-chevron-left"></i></button>`;
   for (const it of items) {
     if (it === '…') html += `<span class="ml-page-ellipsis">…</span>`;
     else html += `<button class="ml-page-btn ${it === current ? 'active' : ''}" data-p="${it}">${it}</button>`;
   }
-  html += `<button class="ml-page-btn" data-p="${current + 1}" ${current >= total ? 'disabled' : ''}>›</button>`;
+  html += `<button class="ml-page-btn" data-p="${current + 1}" ${current >= total ? 'disabled' : ''} aria-label="Next"><i class="fas fa-chevron-right"></i></button>`;
   html += '</div>';
   return html;
 }
@@ -187,12 +260,35 @@ function bindPagination(root, onNav) {
   $$('.ml-page-btn[data-p]', root).forEach(btn => {
     btn.onclick = () => {
       const p = parseInt(btn.dataset.p, 10);
-      if (p && p >= 1) onNav(p);
+      if (p && p >= 1) { haptic(6); onNav(p); }
     };
   });
 }
+
+function animateNumber(el, to, duration = 650) {
+  if (!el) return;
+  if (!state.settings.animations) { el.textContent = to; return; }
+  const from = 0;
+  const start = performance.now();
+  const tick = (now) => {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    el.textContent = Math.round(from + (to - from) * eased);
+    if (t < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+async function withMinSkeleton(fn, minMs = 250) {
+  const start = Date.now();
+  const result = await fn();
+  const remain = Math.max(0, minMs - (Date.now() - start));
+  if (remain) await new Promise(r => setTimeout(r, remain));
+  return result;
+}
+
 // ═══════════════════════════════════════════════════════════
-// 頁面過渡動畫
+// 4. 頁面過渡動畫
 // ═══════════════════════════════════════════════════════════
 const TAB_ORDER = ['/', '/problems', '/submissions', '/contests', '/rank', '/me'];
 
@@ -208,12 +304,9 @@ function detectDirection(prevPath, nextPath) {
   if (!prevPath || !nextPath || prevPath === nextPath) return 'fade';
   const pParts = prevPath.split('/').filter(Boolean);
   const nParts = nextPath.split('/').filter(Boolean);
-
-  // 同 Tab 內前進 / 後退（段數不同）
   if (pParts[0] === nParts[0] && pParts.length !== nParts.length) {
     return nParts.length > pParts.length ? 'forward' : 'back';
   }
-  // Tab 切換
   const pi = getTabIdx(prevPath);
   const ni = getTabIdx(nextPath);
   if (pi >= 0 && ni >= 0 && pi !== ni) {
@@ -229,10 +322,8 @@ function animatePageEnter(el, direction) {
   else if (direction === 'back')    from = { opacity: 0, transform: 'translateX(-28px)' };
   else                              from = { opacity: 0, transform: 'translateY(6px)' };
   try {
-    el.animate(
-      [from, { opacity: 1, transform: 'none' }],
-      { duration: 300, easing: 'cubic-bezier(.32,.72,0,1)' }
-    );
+    el.animate([from, { opacity: 1, transform: 'none' }],
+      { duration: 300, easing: 'cubic-bezier(.32,.72,0,1)' });
   } catch (e) {}
 }
 
@@ -246,12 +337,7 @@ function staggerIn(root) {
     try {
       el.animate(
         [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }],
-        {
-          duration: 240,
-          delay: Math.min(i * 22, 320),
-          easing: 'cubic-bezier(.32,.72,0,1)',
-          fill: 'backwards',
-        }
+        { duration: 240, delay: Math.min(i * 22, 320), easing: 'cubic-bezier(.32,.72,0,1)', fill: 'backwards' }
       );
     } catch (e) {}
   });
@@ -270,7 +356,7 @@ function animateTitle(el, text) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 3. 進度條
+// 5. 進度條
 // ═══════════════════════════════════════════════════════════
 const _progressStart = Date.now();
 function tickProgress() {
@@ -307,7 +393,7 @@ function tickProgress() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 4. LocalStorage
+// 6. LocalStorage
 // ═══════════════════════════════════════════════════════════
 function lsRead(key, ttl) {
   try {
@@ -374,7 +460,146 @@ function loadFavCache() {
 function saveFavCache() { lsWrite(LS.fav, Array.from(state.favorites || [])); }
 
 // ═══════════════════════════════════════════════════════════
-// 5. 路由
+// 7. Cache All Problems
+// ═══════════════════════════════════════════════════════════
+async function getCacheStatus() {
+  try {
+    const last = await dbGet('meta', 'cacheAllAt');
+    const problems = await dbGetAll('problems');
+    const lastAt = last ? last.value : 0;
+    const remaining = Math.max(0, CACHE_COOLDOWN_MS - (Date.now() - lastAt));
+    return { lastAt, remaining, count: problems.length };
+  } catch {
+    return { lastAt: 0, remaining: 0, count: 0 };
+  }
+}
+
+async function cacheAllProblems(onProgress) {
+  const d = await apiCall('/api/problem?all=1&withStatement=1');
+  if (!d || !d.success || !Array.isArray(d.problems)) {
+    throw new Error('Failed to load problems');
+  }
+  const problems = d.problems;
+
+  const db = await openDB();
+  const tx = db.transaction('problems', 'readwrite');
+  const store = tx.objectStore('problems');
+  store.clear();
+  const now = Date.now();
+  for (let i = 0; i < problems.length; i++) {
+    store.put({ ...problems[i], cachedAt: now });
+    if (onProgress && i % 10 === 0) onProgress(i + 1, problems.length);
+  }
+  await new Promise((res, rej) => {
+    tx.oncomplete = res;
+    tx.onerror = () => rej(tx.error);
+  });
+  await dbPut('meta', { key: 'cacheAllAt', value: Date.now() });
+
+  // 同時更新輕量列表到 localStorage（首屏用）
+  const light = problems.map(p => ({
+    id: p.id, name: p.name, difficulty: p.difficulty,
+    tags: p.tags, public: p.public, solves: p.solves,
+  }));
+  state.problems = light;
+  state.problemsLoaded = true;
+  saveProblemsCache(light);
+
+  return problems.length;
+}
+
+async function getCachedProblem(id) {
+  try { return await dbGet('problems', id); }
+  catch { return null; }
+}
+
+// ═══════════════════════════════════════════════════════════
+// 8. 草稿箱
+// ═══════════════════════════════════════════════════════════
+async function saveDraft(problemId, answer, type = 'text', image = '') {
+  const draft = {
+    problemId,
+    answer,
+    type,
+    image,
+    createdAt: Date.now(),
+    tries: 0,
+  };
+  await dbPut('drafts', draft);
+  return draft;
+}
+async function getAllDrafts() {
+  try { return await dbGetAll('drafts'); }
+  catch { return []; }
+}
+async function deleteDraft(id) { await dbDelete('drafts', id); }
+async function updateDraft(draft) { await dbPut('drafts', draft); }
+
+let _syncingDrafts = false;
+async function syncDrafts() {
+  if (!navigator.onLine || _syncingDrafts) return;
+  _syncingDrafts = true;
+  try {
+    const drafts = await getAllDrafts();
+    if (!drafts.length) return;
+
+    let synced = 0, failed = 0;
+    for (const draft of drafts) {
+      try {
+        const r = await apiCall('/api/submit', 'POST', {
+          problemId: draft.problemId,
+          answer: draft.answer,
+          type: draft.type || 'text',
+          image: draft.image || '',
+          clientTimestamp: new Date(draft.createdAt).toISOString(),
+        });
+        if (r && r.success) {
+          await deleteDraft(draft.id);
+          synced++;
+          // 更新本地狀態
+          if (r.correct || r.score === 100) {
+            state.states = state.states || {};
+            state.states[draft.problemId] = 'passed';
+          } else if (state.states && state.states[draft.problemId] !== 'passed') {
+            state.states[draft.problemId] = 'failed';
+          }
+          saveStatesCache(state.states || {});
+        } else {
+          // 後端明確拒絕 → 刪掉不重試
+          await deleteDraft(draft.id);
+          failed++;
+        }
+      } catch (e) {
+        // 網路失敗 → 保留並增加重試
+        draft.tries = (draft.tries || 0) + 1;
+        if (draft.tries >= 5) {
+          await deleteDraft(draft.id);
+          failed++;
+        } else {
+          await updateDraft(draft);
+        }
+      }
+    }
+    if (synced || failed) {
+      const total = synced + failed;
+      toast(`Synced ${synced}/${total} draft${total > 1 ? 's' : ''}`, 'fa-cloud-arrow-up');
+    }
+  } finally {
+    _syncingDrafts = false;
+  }
+}
+
+// 統一提交入口
+async function submitAnswer(problemId, answer, type = 'text', image = '') {
+  if (!navigator.onLine) {
+    const d = await saveDraft(problemId, answer, type, image);
+    return { success: true, drafted: true, draftId: d.id };
+  }
+  return await apiCall('/api/submit', 'POST', { problemId, answer, type, image });
+}
+
+// ═══════════════════════════════════════════════════════════
+// 9. 路由
 // ═══════════════════════════════════════════════════════════
 function parseRoute() {
   const raw = location.hash.replace(/^#/, '') || '/';
@@ -382,6 +607,9 @@ function parseRoute() {
   return { path: '/' + parts.join('/'), parts };
 }
 function navigate(path) {
+  const content = $('#ml-content');
+  if (content) state._scrollMemory[state.route.path] = content.scrollTop;
+  haptic(6);
   const h = '#' + path;
   if (location.hash === h) renderRoute();
   else location.hash = h;
@@ -399,7 +627,7 @@ function routeTitle() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 6. AppBar / TabBar
+// 10. AppBar / TabBar
 // ═══════════════════════════════════════════════════════════
 function renderAppBar(opts) {
   opts = opts || {};
@@ -409,20 +637,15 @@ function renderAppBar(opts) {
   const leftIcon = opts.leftIcon || 'fa-chevron-left';
   const rightIcon = opts.rightIcon || 'fa-chevron-right';
 
-  // 尽量复用现有 DOM，只更新内容 → 更流畅
   let backBtn = $('#ml-ab-back');
   let titleEl = $('.ml-ab-title', bar);
   let fwdBtn  = $('#ml-ab-fwd');
 
   if (!backBtn || !titleEl || !fwdBtn) {
     bar.innerHTML = `
-      <button class="ml-ab-btn" id="ml-ab-back">
-        <i class="fas ${leftIcon}"></i>
-      </button>
+      <button class="ml-ab-btn" id="ml-ab-back" aria-label="Back"><i class="fas ${leftIcon}"></i></button>
       <div class="ml-ab-title"></div>
-      <button class="ml-ab-btn" id="ml-ab-fwd">
-        <i class="fas ${rightIcon}"></i>
-      </button>`;
+      <button class="ml-ab-btn" id="ml-ab-fwd" aria-label="Forward"><i class="fas ${rightIcon}"></i></button>`;
     backBtn = $('#ml-ab-back');
     titleEl = $('.ml-ab-title', bar);
     fwdBtn  = $('#ml-ab-fwd');
@@ -436,14 +659,13 @@ function renderAppBar(opts) {
   backBtn.disabled = !!opts.leftDisabled;
   fwdBtn.disabled  = !!opts.rightDisabled;
 
-  // 標題：內容有變才播動畫
   if (titleEl.textContent !== title) {
     titleEl.classList.toggle('hidden', !title);
     animateTitle(titleEl, title);
   }
 
-  backBtn.onclick = () => { if (opts.onLeft) opts.onLeft(); else history.back(); };
-  fwdBtn.onclick  = () => { if (opts.onRight) opts.onRight(); else history.forward(); };
+  backBtn.onclick = () => { haptic(6); if (opts.onLeft) opts.onLeft(); else history.back(); };
+  fwdBtn.onclick  = () => { haptic(6); if (opts.onRight) opts.onRight(); else history.forward(); };
 }
 
 function renderTabBar() {
@@ -468,7 +690,7 @@ function renderTabBar() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 7. 預取
+// 11. 預取
 // ═══════════════════════════════════════════════════════════
 async function prefetchAll() {
   await Promise.allSettled([
@@ -505,7 +727,7 @@ async function prefetchAll() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 8. Home
+// 12. Home
 // ═══════════════════════════════════════════════════════════
 async function renderHome() {
   const content = $('#ml-content');
@@ -517,27 +739,42 @@ async function renderHome() {
   let solvedCount = 0;
   if (state.states) solvedCount = Object.values(state.states).filter(v => v === 'passed').length;
 
+  const showWelcome = localStorage.getItem(LS.welcome) !== '1';
+
   content.innerHTML = `
     <div class="ml-page">
+      ${showWelcome ? `
+        <div class="ml-welcome" id="ml-welcome">
+          <div class="ml-welcome-icon"><i class="fas fa-rocket"></i></div>
+          <div class="ml-welcome-text">
+            <b>Welcome to WYK Maths</b>
+            <span>Add to Home Screen for full experience</span>
+          </div>
+          <button class="ml-welcome-close" id="ml-welcome-close" aria-label="Close">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      ` : ''}
+
       <div class="ml-greet">
         <h1 class="ml-greet-h1">${esc(greet)},<br><em>${esc(u.displayName || u.username || 'Guest')}</em></h1>
-        <p class="ml-greet-sub">What are we solving today?</p>
+        <p class="ml-greet-sub"><i class="fas fa-bolt" style="margin-right:4px;opacity:.7"></i>What are we solving today?</p>
       </div>
 
       <div class="ml-stats-grid">
         <div class="ml-stat">
-          <i class="fas fa-check-circle ml-stat-icon"></i>
-          <div class="ml-stat-val">${solvedCount}</div>
+          <i class="fas fa-circle-check ml-stat-icon"></i>
+          <div class="ml-stat-val" id="stat-solved">0</div>
           <div class="ml-stat-lbl">Solved</div>
         </div>
         <div class="ml-stat">
           <i class="fas fa-book ml-stat-icon"></i>
-          <div class="ml-stat-val">${totalProblems}</div>
+          <div class="ml-stat-val" id="stat-total">0</div>
           <div class="ml-stat-lbl">Total</div>
         </div>
       </div>
 
-      <div class="ml-section-title">Quick Access</div>
+      <div class="ml-section-title"><i class="fas fa-bolt" style="margin-right:5px;opacity:.7"></i>Quick Access</div>
       <div class="ml-quick-grid">
         <a class="ml-quick" data-nav="/problems" data-filter="unsolved">
           <i class="fas fa-fire"></i>
@@ -561,9 +798,29 @@ async function renderHome() {
         </a>
       </div>
 
-      <div class="ml-section-title">Recent Updates</div>
+      <div class="ml-section-title"><i class="fas fa-bullhorn" style="margin-right:5px;opacity:.7"></i>Recent Updates</div>
       <div id="ml-updates">${renderUpdatesSkeleton()}</div>
     </div>`;
+
+  animateNumber($('#stat-solved'), solvedCount);
+  animateNumber($('#stat-total'), totalProblems);
+
+  const welcomeClose = $('#ml-welcome-close');
+  if (welcomeClose) {
+    welcomeClose.onclick = () => {
+      haptic(6);
+      localStorage.setItem(LS.welcome, '1');
+      const el = $('#ml-welcome');
+      if (el) {
+        if (state.settings.animations && typeof el.animate === 'function') {
+          el.animate(
+            [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-10px)' }],
+            { duration: 200, easing: 'ease' }
+          ).finished.then(() => el.remove()).catch(() => el.remove());
+        } else el.remove();
+      }
+    };
+  }
 
   $$('.ml-quick[data-nav]', content).forEach(el => {
     el.onclick = () => {
@@ -612,6 +869,7 @@ async function loadUpdates() {
       </div>`).join('');
     $$('.ml-update', wrap).forEach(el => {
       el.onclick = () => {
+        haptic(6);
         const open = el.classList.toggle('open');
         const ex = el.querySelector('[data-excerpt]');
         if (ex) ex.style.display = open ? 'none' : '';
@@ -628,7 +886,7 @@ function stripHtml(html) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 9. Problems 列表
+// 13. Problems 列表
 // ═══════════════════════════════════════════════════════════
 const probState = { filter: 'all', sort: 'default', page: 1 };
 
@@ -642,16 +900,16 @@ async function renderProblems() {
   content.innerHTML = `
     <div class="ml-page">
       <div class="ml-prob-filters" id="ml-prob-filters">
-        <button class="ml-chip" data-f="all">All</button>
-        <button class="ml-chip" data-f="unsolved">Unsolved</button>
-        <button class="ml-chip" data-f="solved">Solved</button>
-        <button class="ml-chip" data-f="fav">Bookmarks</button>
+        <button class="ml-chip" data-f="all"><i class="fas fa-layer-group"></i> All</button>
+        <button class="ml-chip" data-f="unsolved"><i class="fas fa-fire"></i> Unsolved</button>
+        <button class="ml-chip" data-f="solved"><i class="fas fa-circle-check"></i> Solved</button>
+        <button class="ml-chip" data-f="fav"><i class="fas fa-star"></i> Bookmarks</button>
       </div>
-      <div class="ml-sort-label">Sort by</div>
+      <div class="ml-sort-label"><i class="fas fa-arrow-down-wide-short" style="margin-right:5px;opacity:.7"></i>Sort by</div>
       <div class="ml-prob-filters" id="ml-prob-sorts">
-        <button class="ml-chip small" data-s="default">Default</button>
-        <button class="ml-chip small" data-s="difficulty">Difficulty</button>
-        <button class="ml-chip small" data-s="solves">Solves</button>
+        <button class="ml-chip small" data-s="default"><i class="fas fa-list-ol"></i> Default</button>
+        <button class="ml-chip small" data-s="difficulty"><i class="fas fa-gauge-high"></i> Difficulty</button>
+        <button class="ml-chip small" data-s="solves"><i class="fas fa-user-check"></i> Solves</button>
       </div>
       <div id="ml-prob-list">${renderProblemsSkeleton()}</div>
     </div>`;
@@ -663,11 +921,13 @@ async function renderProblems() {
   };
 
   $$('#ml-prob-filters .ml-chip').forEach(b => b.onclick = () => {
+    haptic(6);
     probState.filter = b.dataset.f;
     probState.page = 1;
     apply();
   });
   $$('#ml-prob-sorts .ml-chip').forEach(b => b.onclick = () => {
+    haptic(6);
     probState.sort = b.dataset.s;
     probState.page = 1;
     apply();
@@ -710,11 +970,8 @@ function renderProbList() {
   else if (filter === 'solved') items = items.filter(p => states[p.id] === 'passed');
   else if (filter === 'fav') items = items.filter(p => favs.has(p.id));
 
-  if (sort === 'difficulty') {
-    items.sort((a, b) => (a.difficulty || 0) - (b.difficulty || 0));
-  } else if (sort === 'solves') {
-    items.sort((a, b) => (b.solves || 0) - (a.solves || 0));
-  }
+  if (sort === 'difficulty') items.sort((a, b) => (a.difficulty || 0) - (b.difficulty || 0));
+  else if (sort === 'solves') items.sort((a, b) => (b.solves || 0) - (a.solves || 0));
 
   if (!items.length) {
     wrap.innerHTML = `<div class="ml-empty"><i class="fas fa-inbox"></i>No problems</div>`;
@@ -729,18 +986,16 @@ function renderProbList() {
   const shown = items.slice(start, start + limit);
 
   wrap.innerHTML = shown.map(p => probCardHtml(p, s, states, favs)).join('')
-    + renderPagination(probState.page, total, (p) => {
-        probState.page = p;
-        renderProbList();
-        $('#ml-content').scrollTop = 0;
-      });
+    + renderPagination(probState.page, total);
 
   bindProbCards(wrap);
   bindPagination(wrap, (p) => {
     probState.page = p;
     renderProbList();
-    $('#ml-content').scrollTop = 0;
+    const c = $('#ml-content');
+    if (c) c.scrollTop = 0;
   });
+  staggerIn(wrap);
 }
 
 function probCardHtml(p, s, states, favs) {
@@ -763,14 +1018,14 @@ function probCardHtml(p, s, states, favs) {
           ${statusHtml}
         </div>
         <div class="ml-prob-meta">
-          ${s.showDifficulty ? `<span class="ml-prob-diff">Lv.${diffText}</span>` : ''}
+          ${s.showDifficulty ? `<span class="ml-prob-diff"><i class="fas fa-gauge-high" style="margin-right:3px;opacity:.7"></i>Lv.${diffText}</span>` : ''}
           ${s.showSolves ? `<span><i class="fas fa-user-check"></i> ${p.solves || 0}</span>` : ''}
           ${s.showTags && p.tags && p.tags.length
             ? `<div class="ml-prob-tags">${p.tags.slice(0, 3).map(t => `<span class="ml-tag">${esc(t)}</span>`).join('')}${p.tags.length > 3 ? `<span class="ml-tag">+${p.tags.length - 3}</span>` : ''}</div>`
             : ''}
         </div>
       </div>
-      ${s.showFavorite ? `<button class="ml-prob-fav${isFav ? ' on' : ''}" data-fav="${escAttr(p.id)}"><i class="fas fa-star"></i></button>` : ''}
+      ${s.showFavorite ? `<button class="ml-prob-fav${isFav ? ' on' : ''}" data-fav="${escAttr(p.id)}" aria-label="Favorite"><i class="fas fa-star"></i></button>` : ''}
     </div>`;
 }
 
@@ -784,6 +1039,7 @@ function bindProbCards(root) {
   $$('[data-fav]', root).forEach(btn => {
     btn.onclick = async (e) => {
       e.stopPropagation();
+      haptic(6);
       const id = btn.dataset.fav;
       const isOn = btn.classList.contains('on');
       btn.classList.toggle('on');
@@ -805,10 +1061,8 @@ function bindProbCards(root) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 10. Problem Detail
+// 14. Problem Detail
 // ═══════════════════════════════════════════════════════════
-
-// 等待 KaTeX 就緒
 async function ensureKatex() {
   if (typeof window.renderMathInElement === 'function') return true;
   for (let i = 0; i < 30; i++) {
@@ -835,41 +1089,67 @@ async function renderProblemDetail(id) {
   });
 
   try {
-    const d = await apiCall('/api/problem?action=page&id=' + encodeURIComponent(id));
-    if (!d || !d.success || !d.problem) throw new Error('Not found');
-    const p = d.problem;
-    const fav = !!d.favorited;
-    if (!state.favorites) state.favorites = new Set();
-    if (fav) state.favorites.add(id); else state.favorites.delete(id);
-    saveFavCache();
+    let p = null;
+    let offlineFallback = false;
+
+    // 1) 在線 → 打 API
+    if (navigator.onLine) {
+      try {
+        const d = await apiCall('/api/problem?action=page&id=' + encodeURIComponent(id));
+        if (d && d.success && d.problem) {
+          p = d.problem;
+          // 順便更新 IndexedDB 快取
+          if (p.statement) {
+            dbPut('problems', { ...p, cachedAt: Date.now() }).catch(() => {});
+          }
+        }
+      } catch (e) {
+        // 網路失敗 → 走 fallback
+      }
+    }
+
+    // 2) 離線或 API 失敗 → IndexedDB fallback
+    if (!p) {
+      const cached = await getCachedProblem(id);
+      if (cached) {
+        p = cached;
+        offlineFallback = true;
+      }
+    }
+
+    if (!p) throw new Error('Not found');
 
     const s = state.settings;
     const diffText = !p.difficulty ? '∞' : Number(p.difficulty).toFixed(2);
 
     content.innerHTML = `
       <div class="ml-page">
+        ${offlineFallback ? `
+          <div class="ml-feedback show pending" style="margin-bottom:14px">
+            <i class="fas fa-plane"></i> Offline — showing cached version
+          </div>
+        ` : ''}
         <div class="ml-pd-title">${esc(p.name || p.id)}</div>
         <div class="ml-pd-meta">
           <span class="ml-prob-id">${esc(p.id)}</span>
-          ${s.showDifficulty ? `<span>Lv.${diffText}</span>` : ''}
+          ${s.showDifficulty ? `<span><i class="fas fa-gauge-high" style="margin-right:3px;opacity:.7"></i>Lv.${diffText}</span>` : ''}
           ${s.showTags && p.tags && p.tags.length
             ? `<div class="ml-prob-tags">${p.tags.map(t => `<span class="ml-tag">${esc(t)}</span>`).join('')}</div>` : ''}
-          <button class="ml-prob-fav${fav ? ' on' : ''}" data-fav="${escAttr(id)}" style="margin-left:auto">
-            <i class="fas fa-star"></i>
-          </button>
         </div>
         <div class="ml-pd-statement" id="ml-pd-statement"></div>
 
         <div id="ml-pd-answer-zone">
           <div class="ml-answer-row">
             <input type="text" class="ml-input" id="ml-pd-answer" placeholder="Your answer" autocomplete="off" inputmode="decimal">
-            <button class="ml-btn" id="ml-pd-submit">Submit</button>
+            <button class="ml-btn" id="ml-pd-submit">
+              <i class="fas fa-paper-plane"></i> Submit
+            </button>
           </div>
           <div class="ml-feedback" id="ml-pd-feedback"></div>
         </div>
 
         <div class="ml-pd-subs" id="ml-pd-subs">
-          <div class="ml-section-title">My Submissions</div>
+          <div class="ml-section-title"><i class="fas fa-history" style="margin-right:5px;opacity:.7"></i>My Submissions</div>
           <div id="ml-pd-subs-list"><div class="ml-loading-center" style="padding:20px 0"><span class="ml-spinner"></span></div></div>
         </div>
       </div>`;
@@ -884,7 +1164,6 @@ async function renderProblemDetail(id) {
         });
       }
       stmt.innerHTML = html;
-      // KaTeX 渲染
       ensureKatex().then(ready => {
         if (ready && typeof window.renderMathInElement === 'function') {
           try {
@@ -897,25 +1176,9 @@ async function renderProblemDetail(id) {
               ],
               throwOnError: false,
             });
-          } catch (e) { console.warn('katex render failed', e); }
+          } catch (e) {}
         }
       });
-    }
-
-    const favBtn = $('[data-fav]', content);
-    if (favBtn) {
-      favBtn.onclick = async () => {
-        const on = favBtn.classList.toggle('on');
-        if (on) state.favorites.add(id); else state.favorites.delete(id);
-        saveFavCache();
-        try {
-          const r = await apiCall('/api/users?action=favorite', 'POST', { problemId: id });
-          if (r && r.success && Array.isArray(r.favorites)) {
-            state.favorites = new Set(r.favorites);
-            saveFavCache();
-          }
-        } catch {}
-      };
     }
 
     const answerInp = $('#ml-pd-answer');
@@ -927,52 +1190,102 @@ async function renderProblemDetail(id) {
       if (saved[id] && answerInp) answerInp.value = saved[id];
     } catch {}
 
+    const alreadyPassed = (state.states && state.states[id] === 'passed');
+    if (alreadyPassed && answerInp) {
+      answerInp.disabled = true;
+      answerInp.style.opacity = '0.55';
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-circle-check"></i> Solved';
+      submitBtn.style.background = 'var(--ok)';
+    }
+
     const doSubmit = async () => {
       const ans = (answerInp.value || '').trim();
-      if (!ans) { toast('Enter an answer'); return; }
+      if (!ans) { toast('Enter an answer', 'fa-circle-exclamation'); return; }
+      haptic(10);
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<span class="ml-spinner" style="width:14px;height:14px;border-width:2px"></span>';
       try {
-        const r = await apiCall('/api/submit', 'POST', { problemId: id, answer: ans, type: 'text', image: '' });
+        const r = await submitAnswer(id, ans, 'text', '');
+
+        if (r && r.drafted) {
+          // 離線草稿
+          fb.className = 'ml-feedback show partial';
+          fb.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Saved as draft — will auto-submit when online';
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit';
+          return;
+        }
+
         if (r && r.success) {
           const correct = r.correct || r.score === 100;
           const score = typeof r.score === 'number' ? r.score : (correct ? 100 : 0);
           if (correct) {
             fb.className = 'ml-feedback show ac';
-            fb.textContent = '✓ Accepted';
+            fb.innerHTML = '<i class="fas fa-circle-check"></i> Accepted';
             state.states = state.states || {};
             state.states[id] = 'passed';
             saveStatesCache(state.states);
+            answerInp.disabled = true;
+            answerInp.style.opacity = '0.55';
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-circle-check"></i> Solved';
+            submitBtn.style.background = 'var(--ok)';
           } else if (score > 0) {
             fb.className = 'ml-feedback show partial';
-            fb.textContent = `Partial ${score}%`;
+            fb.innerHTML = `<i class="fas fa-circle-half-stroke"></i> Partial ${score}%`;
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit';
+            submitBtn.style.background = '';
           } else {
             fb.className = 'ml-feedback show wa';
-            fb.textContent = '✗ Wrong Answer';
+            fb.innerHTML = '<i class="fas fa-circle-xmark"></i> Wrong Answer';
             state.states = state.states || {};
             if (state.states[id] !== 'passed') state.states[id] = 'failed';
             saveStatesCache(state.states);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit';
+            submitBtn.style.background = '';
+            if (state.settings.animations && typeof fb.animate === 'function') {
+              try {
+                fb.animate(
+                  [{ transform: 'translateX(0)' }, { transform: 'translateX(-5px)' },
+                   { transform: 'translateX(5px)' }, { transform: 'translateX(-3px)' },
+                   { transform: 'translateX(3px)' }, { transform: 'translateX(0)' }],
+                  { duration: 320, easing: 'ease' }
+                );
+              } catch {}
+            }
           }
-          // 刷新提交列表
           loadProblemSubmissions(id);
         } else {
           fb.className = 'ml-feedback show wa';
-          fb.textContent = r.message || 'Error';
+          fb.innerHTML = `<i class="fas fa-circle-exclamation"></i> ${esc(r && r.message || 'Error')}`;
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit';
         }
       } catch (e) {
-        fb.className = 'ml-feedback show wa';
-        fb.textContent = 'Network error';
-      } finally {
+        // 突發網路失敗 → 存草稿
+        try {
+          await saveDraft(id, ans, 'text', '');
+          fb.className = 'ml-feedback show partial';
+          fb.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Saved as draft';
+        } catch {
+          fb.className = 'ml-feedback show wa';
+          fb.innerHTML = '<i class="fas fa-wifi"></i> Network error';
+        }
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Submit';
+        submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit';
       }
     };
-    submitBtn.onclick = doSubmit;
-    answerInp.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { e.preventDefault(); doSubmit(); }
-    });
 
-    // 載入提交列表
+    if (!alreadyPassed) {
+      submitBtn.onclick = doSubmit;
+      answerInp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); doSubmit(); }
+      });
+    }
+
     loadProblemSubmissions(id);
 
   } catch (e) {
@@ -983,6 +1296,10 @@ async function renderProblemDetail(id) {
 async function loadProblemSubmissions(id) {
   const wrap = $('#ml-pd-subs-list');
   if (!wrap) return;
+  if (!navigator.onLine) {
+    wrap.innerHTML = `<div class="ml-empty" style="padding:20px"><i class="fas fa-plane"></i>Offline</div>`;
+    return;
+  }
   try {
     const d = await apiCall('/api/submissions?problem_id=' + encodeURIComponent(id) + '&limit=20');
     if (!d || !d.success) throw new Error();
@@ -1012,7 +1329,7 @@ async function loadProblemSubmissions(id) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 11. Submissions
+// 15. Submissions
 // ═══════════════════════════════════════════════════════════
 const subsState = { filter: 'all', user: '', problem: '', page: 1 };
 
@@ -1022,12 +1339,12 @@ async function renderSubmissions() {
     <div class="ml-page">
       <div class="ml-sub-filters">
         <div class="ml-filter-chips" id="ml-subs-chips">
-          <button class="ml-chip" data-f="all">All</button>
-          <button class="ml-chip" data-f="accepted">Accepted</button>
-          <button class="ml-chip" data-f="wrong">Wrong</button>
-          <button class="ml-chip" data-f="partial">Partial</button>
-          <button class="ml-chip" data-f="pending">Pending</button>
-          <button class="ml-chip" data-f="system">System</button>
+          <button class="ml-chip" data-f="all"><i class="fas fa-layer-group"></i> All</button>
+          <button class="ml-chip" data-f="accepted"><i class="fas fa-circle-check"></i> Accepted</button>
+          <button class="ml-chip" data-f="wrong"><i class="fas fa-circle-xmark"></i> Wrong</button>
+          <button class="ml-chip" data-f="partial"><i class="fas fa-circle-half-stroke"></i> Partial</button>
+          <button class="ml-chip" data-f="pending"><i class="fas fa-clock"></i> Pending</button>
+          <button class="ml-chip" data-f="system"><i class="fas fa-triangle-exclamation"></i> System</button>
         </div>
         <div class="ml-filter-inputs">
           <input type="text" class="ml-input" id="ml-subs-user" placeholder="Username" autocomplete="off" autocapitalize="none" spellcheck="false">
@@ -1040,6 +1357,7 @@ async function renderSubmissions() {
   $$('#ml-subs-chips .ml-chip').forEach(b => {
     b.classList.toggle('active', b.dataset.f === subsState.filter);
     b.onclick = () => {
+      haptic(6);
       subsState.filter = b.dataset.f;
       subsState.page = 1;
       $$('#ml-subs-chips .ml-chip').forEach(x => x.classList.toggle('active', x === b));
@@ -1068,40 +1386,45 @@ async function loadSubmissions() {
   const wrap = $('#ml-subs-list');
   if (!wrap) return;
   wrap.innerHTML = `<div class="ml-loading-center"><span class="ml-spinner"></span></div>`;
-  const limit = state.settings.pageSize || 30;
-  const params = new URLSearchParams({ all: '1', page: subsState.page, limit });
-  if (subsState.user) params.set('user', subsState.user);
-  if (subsState.problem) params.set('problem', subsState.problem);
-  if (subsState.filter && subsState.filter !== 'all') params.set('result', subsState.filter);
 
-  try {
-    const d = await apiCall('/api/submissions?' + params.toString());
-    if (!d || !d.success) throw new Error();
-    const subs = d.submissions || [];
-    if (!subs.length) {
-      wrap.innerHTML = `<div class="ml-empty"><i class="fas fa-inbox"></i>No submissions</div>`;
-      return;
-    }
-    const total = d.totalPages || 1;
-    wrap.innerHTML = subs.map(subCardHtml).join('')
-      + renderPagination(subsState.page, total, (p) => {
+  await withMinSkeleton(async () => {
+    const limit = state.settings.pageSize || 30;
+    const params = new URLSearchParams({ all: '1', page: subsState.page, limit });
+    if (subsState.user) params.set('user', subsState.user);
+    if (subsState.problem) params.set('problem', subsState.problem);
+    if (subsState.filter && subsState.filter !== 'all') params.set('result', subsState.filter);
+
+    try {
+      const d = await apiCall('/api/submissions?' + params.toString());
+      if (!d || !d.success) throw new Error();
+      const subs = d.submissions || [];
+      if (!subs.length) {
+        wrap.innerHTML = `<div class="ml-empty"><i class="fas fa-inbox"></i>No submissions</div>`;
+        return;
+      }
+      const total = d.totalPages || 1;
+      wrap.innerHTML = subs.map(subCardHtml).join('')
+        + renderPagination(subsState.page, total);
+      $$('.ml-sub[data-subid]', wrap).forEach(el => {
+        el.onclick = () => {
+          if (el.dataset.subid) navigate('/submissions/' + encodeURIComponent(el.dataset.subid));
+        };
+      });
+      bindPagination(wrap, (p) => {
         subsState.page = p;
         loadSubmissions();
-        $('#ml-content').scrollTop = 0;
+        const c = $('#ml-content');
+        if (c) c.scrollTop = 0;
       });
-    $$('.ml-sub[data-subid]', wrap).forEach(el => {
-      el.onclick = () => {
-        if (el.dataset.subid) navigate('/submissions/' + encodeURIComponent(el.dataset.subid));
-      };
-    });
-    bindPagination(wrap, (p) => {
-      subsState.page = p;
-      loadSubmissions();
-      $('#ml-content').scrollTop = 0;
-    });
-  } catch (e) {
-    wrap.innerHTML = `<div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Failed to load</div>`;
-  }
+      staggerIn(wrap);
+    } catch (e) {
+      if (!navigator.onLine) {
+        wrap.innerHTML = `<div class="ml-empty"><i class="fas fa-plane"></i>Offline — submissions unavailable</div>`;
+      } else {
+        wrap.innerHTML = `<div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Failed to load</div>`;
+      }
+    }
+  }, 250);
 }
 
 function subCardHtml(s) {
@@ -1115,7 +1438,7 @@ function subCardHtml(s) {
       </div>
       <div class="ml-sub-main">
         <div class="ml-sub-prob">${esc(s.problemName || s.problemId || '—')}</div>
-        <div class="ml-sub-user">${esc(s.displayName || s.username || '')}</div>
+        <div class="ml-sub-user"><i class="fas fa-user" style="margin-right:3px;opacity:.6"></i>${esc(s.displayName || s.username || '')}</div>
       </div>
       <span class="ml-sub-status ${cls}">${esc(s.status || 'Pending')}</span>
     </div>`;
@@ -1146,19 +1469,20 @@ async function renderSubmissionDetail(subid) {
         <div class="ml-card">
           <div style="font-size:16px;font-weight:700;margin-bottom:6px">${esc(d.problemName || s.problemId)}</div>
           <div style="font-size:12px;color:var(--fg-muted);margin-bottom:12px">
-            ${esc(dt.date)} ${esc(dt.time)} · ${esc(s.username)}
+            <i class="fas fa-clock" style="margin-right:4px;opacity:.6"></i>${esc(dt.date)} ${esc(dt.time)}
+            <i class="fas fa-user" style="margin:0 4px 0 8px;opacity:.6"></i>${esc(s.username)}
           </div>
           <div class="ml-sub-status ${cls}" style="display:inline-block">${esc(d.status || 'Pending')}</div>
         </div>
         ${s.answer !== undefined ? `
-          <div class="ml-section-title" style="margin-top:18px">Answer</div>
+          <div class="ml-section-title" style="margin-top:18px"><i class="fas fa-pen" style="margin-right:5px;opacity:.7"></i>Answer</div>
           <div class="ml-card" style="font-family:Consolas,monospace;font-size:14px;word-break:break-all">${esc(s.answer || '(empty)')}</div>
         ` : s.answerHidden ? `
-          <div class="ml-section-title" style="margin-top:18px">Answer</div>
-          <div class="ml-card" style="color:var(--fg-muted);font-style:italic">Hidden</div>
+          <div class="ml-section-title" style="margin-top:18px"><i class="fas fa-pen" style="margin-right:5px;opacity:.7"></i>Answer</div>
+          <div class="ml-card" style="color:var(--fg-muted);font-style:italic"><i class="fas fa-eye-slash" style="margin-right:6px"></i>Hidden</div>
         ` : ''}
         ${s.comment ? `
-          <div class="ml-section-title" style="margin-top:18px">Comment</div>
+          <div class="ml-section-title" style="margin-top:18px"><i class="fas fa-comment" style="margin-right:5px;opacity:.7"></i>Comment</div>
           <div class="ml-card">${esc(s.comment)}</div>
         ` : ''}
       </div>`;
@@ -1168,34 +1492,38 @@ async function renderSubmissionDetail(subid) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 12. Contests
+// 16. Contests
 // ═══════════════════════════════════════════════════════════
 async function renderContests() {
   const content = $('#ml-content');
   content.innerHTML = `<div class="ml-page"><div id="ml-contests-list"><div class="ml-loading-center"><span class="ml-spinner"></span></div></div></div>`;
-  try {
-    const d = await apiCall('/api/contests?action=list&page=1&limit=30');
-    if (!d || !d.success) throw new Error();
-    const cs = d.contests || [];
-    if (!cs.length) {
-      $('#ml-contests-list').innerHTML = `<div class="ml-empty"><i class="fas fa-inbox"></i>No contests</div>`;
-      return;
+
+  await withMinSkeleton(async () => {
+    try {
+      const d = await apiCall('/api/contests?action=list&page=1&limit=30');
+      if (!d || !d.success) throw new Error();
+      const cs = d.contests || [];
+      if (!cs.length) {
+        $('#ml-contests-list').innerHTML = `<div class="ml-empty"><i class="fas fa-inbox"></i>No contests</div>`;
+        return;
+      }
+      const now = Date.now();
+      $('#ml-contests-list').innerHTML = cs.map(c => {
+        const start = new Date(c.startTime).getTime();
+        const end = start + (Number(c.duration) || 0) * 60000;
+        let status = 'upcoming';
+        if (now > end) status = 'ended';
+        else if (now >= start) status = 'ongoing';
+        return contestCardHtml(c, status);
+      }).join('');
+      $$('.ml-sub', content).forEach(el => {
+        el.onclick = () => navigate('/contests/' + encodeURIComponent(el.dataset.cid));
+      });
+      staggerIn($('#ml-contests-list'));
+    } catch (e) {
+      $('#ml-contests-list').innerHTML = `<div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Failed to load</div>`;
     }
-    const now = Date.now();
-    $('#ml-contests-list').innerHTML = cs.map(c => {
-      const start = new Date(c.startTime).getTime();
-      const end = start + (Number(c.duration) || 0) * 60000;
-      let status = 'upcoming';
-      if (now > end) status = 'ended';
-      else if (now >= start) status = 'ongoing';
-      return contestCardHtml(c, status);
-    }).join('');
-    $$('.ml-sub', content).forEach(el => {
-      el.onclick = () => navigate('/contests/' + encodeURIComponent(el.dataset.cid));
-    });
-  } catch (e) {
-    $('#ml-contests-list').innerHTML = `<div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Failed to load</div>`;
-  }
+  }, 250);
 }
 
 function contestCardHtml(c, status) {
@@ -1214,7 +1542,7 @@ function contestCardHtml(c, status) {
       </div>
       <div class="ml-sub-main">
         <div class="ml-sub-prob">${esc(c.name || ('Contest #' + c.id))}</div>
-        <div class="ml-sub-user">${c.contestantCount || 0} participants · ${Number(c.duration) || 0}m</div>
+        <div class="ml-sub-user"><i class="fas fa-users" style="margin-right:4px;opacity:.6"></i>${c.contestantCount || 0} · <i class="fas fa-clock" style="margin-right:3px;opacity:.6"></i>${Number(c.duration) || 0}m</div>
       </div>
       <span class="ml-sub-status ${cls[status]}">${statusMap[status]}</span>
     </div>`;
@@ -1238,11 +1566,12 @@ async function renderContestDetail(id) {
       <div class="ml-page">
         <h2 style="font-size:20px;font-weight:800;margin-bottom:6px">${esc(c.name)}</h2>
         <div style="font-size:12px;color:var(--fg-muted);margin-bottom:16px">
-          ${esc(dateStr)} · ${c.duration}m · ${c.participantCount} participants
+          <i class="fas fa-clock" style="margin-right:4px;opacity:.6"></i>${esc(dateStr)}
+          <i class="fas fa-users" style="margin:0 4px 0 10px;opacity:.6"></i>${c.participantCount}
         </div>
 
         ${canSee ? `
-          <div class="ml-section-title">Problems</div>
+          <div class="ml-section-title"><i class="fas fa-list-check" style="margin-right:5px;opacity:.7"></i>Problems</div>
           ${c.problems.map(p => {
             const st = (c.userContestStates || {})[p.id] || 'not_started';
             const cls = st === 'passed' ? 'passed' : st === 'failed' ? 'failed' : '';
@@ -1260,7 +1589,7 @@ async function renderContestDetail(id) {
         `}
 
         <div class="ml-results" id="ml-results">
-          <div class="ml-section-title">Results</div>
+          <div class="ml-section-title"><i class="fas fa-ranking-star" style="margin-right:5px;opacity:.7"></i>Results</div>
           <div id="ml-results-list"><div class="ml-loading-center" style="padding:20px 0"><span class="ml-spinner"></span></div></div>
         </div>
       </div>`;
@@ -1269,7 +1598,6 @@ async function renderContestDetail(id) {
       el.onclick = () => navigate('/problems/' + encodeURIComponent(el.dataset.pid));
     });
 
-    // 載入結果（僅已結束或進行中）
     if (c.status === 'ended' || c.status === 'ongoing') {
       loadContestResults(id, c.status);
     } else {
@@ -1289,7 +1617,6 @@ async function loadContestResults(id, status) {
     const d = await apiCall('/api/contests?action=results&id=' + encodeURIComponent(id));
     if (!d || !d.success) throw new Error();
     const parts = (d.stats && d.stats.participants) || [];
-    const problems = (d.stats && d.stats.problems) || [];
 
     if (!parts.length) {
       wrap.innerHTML = `<div class="ml-empty" style="padding:20px"><i class="fas fa-inbox"></i>No results yet</div>`;
@@ -1312,52 +1639,57 @@ async function loadContestResults(id, status) {
         <span class="ml-result-score">${score}</span>
       </div>`;
     }).join('');
+    staggerIn(wrap);
   } catch (e) {
     wrap.innerHTML = `<div class="ml-empty" style="padding:20px"><i class="fas fa-triangle-exclamation"></i>Failed to load</div>`;
   }
 }
 
 // ═══════════════════════════════════════════════════════════
-// 13. Rank
+// 17. Rank
 // ═══════════════════════════════════════════════════════════
 async function renderRank() {
   const content = $('#ml-content');
   content.innerHTML = `<div class="ml-page"><div class="ml-loading-center"><span class="ml-spinner"></span></div></div>`;
-  try {
-    const d = await apiCall('/api/users?action=leaderboard');
-    if (!d || !d.success) throw new Error();
-    const list = d.leaderboard || [];
-    let html = `<div class="ml-page">`;
+  await withMinSkeleton(async () => {
+    try {
+      const d = await apiCall('/api/users?action=leaderboard');
+      if (!d || !d.success) throw new Error();
+      const list = d.leaderboard || [];
+      let html = `<div class="ml-page">`;
 
-    if (list.length >= 3) {
-      html += `<div class="ml-rank-top">
-        ${rankPodiumHtml(list[1], 2)}
-        ${rankPodiumHtml(list[0], 1)}
-        ${rankPodiumHtml(list[2], 3)}
-      </div>`;
-    }
-    const rest = list.slice(3);
-    if (rest.length) html += `<div>${rest.map(u => rankItemHtml(u)).join('')}</div>`;
+      if (list.length >= 3) {
+        html += `<div class="ml-rank-top">
+          ${rankPodiumHtml(list[1], 2)}
+          ${rankPodiumHtml(list[0], 1)}
+          ${rankPodiumHtml(list[2], 3)}
+        </div>`;
+      }
+      const rest = list.slice(3);
+      if (rest.length) html += `<div>${rest.map(u => rankItemHtml(u)).join('')}</div>`;
 
-    const me = state.user && state.user.username;
-    if (me) {
-      const meIdx = list.findIndex(x => x.username === me);
-      if (meIdx >= 0) html += `<div class="ml-rank-self">${rankItemHtml(list[meIdx], true)}</div>`;
+      const me = state.user && state.user.username;
+      if (me) {
+        const meIdx = list.findIndex(x => x.username === me);
+        if (meIdx >= 0) html += `<div class="ml-rank-self">${rankItemHtml(list[meIdx], true)}</div>`;
+      }
+      html += `</div>`;
+      content.innerHTML = html;
+      staggerIn(content);
+    } catch (e) {
+      content.innerHTML = `<div class="ml-page"><div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Failed to load</div></div>`;
     }
-    html += `</div>`;
-    content.innerHTML = html;
-  } catch (e) {
-    content.innerHTML = `<div class="ml-page"><div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Failed to load</div></div>`;
-  }
+  }, 250);
 }
 
 function rankPodiumHtml(u, r) {
   const name = u.displayName || u.username;
   const avatar = u.pfp ? `<img src="${escAttr(u.pfp)}" alt="">` : faviconOf(name);
+  const medal = r === 1 ? 'fa-crown' : r === 2 ? 'fa-medal' : 'fa-award';
   return `<div class="ml-rank-podium r${r}">
     <div class="ml-rank-avatar">${avatar}</div>
     <div class="ml-rank-name">${esc(name)}</div>
-    <div class="ml-rank-solves">${u.solves || 0}</div>
+    <div class="ml-rank-solves"><i class="fas ${medal}" style="opacity:.6;margin-right:3px"></i>${u.solves || 0}</div>
   </div>`;
 }
 function rankItemHtml(u, isSelf) {
@@ -1372,7 +1704,7 @@ function rankItemHtml(u, isSelf) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 14. Me
+// 18. Me
 // ═══════════════════════════════════════════════════════════
 async function renderMe() {
   const content = $('#ml-content');
@@ -1383,6 +1715,10 @@ async function renderMe() {
   const pct = total ? Math.round(solved / total * 100) : 0;
   const avatar = u.pfp ? `<img src="${escAttr(u.pfp)}" alt="">` : '<i class="fas fa-user"></i>';
 
+  const R = 32;
+  const C = 2 * Math.PI * R;
+  const offset = C * (1 - pct / 100);
+
   content.innerHTML = `
     <div class="ml-page">
       <div class="ml-me-head">
@@ -1390,6 +1726,27 @@ async function renderMe() {
         <div class="ml-me-name">${esc(u.displayName || u.username || 'Guest')}</div>
         <div class="ml-me-sub">@${esc(u.username || '')}</div>
       </div>
+
+      <div class="ml-me-progress">
+        <svg width="96" height="96" viewBox="0 0 96 96" class="ml-me-ring">
+          <circle cx="48" cy="48" r="${R}" stroke="var(--surface-2)" stroke-width="6" fill="none"/>
+          <circle id="ml-me-ring-fill" cx="48" cy="48" r="${R}"
+                  stroke="var(--accent)" stroke-width="6" fill="none"
+                  stroke-linecap="round"
+                  stroke-dasharray="${C.toFixed(2)} ${C.toFixed(2)}"
+                  stroke-dashoffset="${C.toFixed(2)}"
+                  transform="rotate(-90 48 48)"
+                  style="transition: stroke-dashoffset .9s cubic-bezier(.32,.72,0,1)"/>
+          <text x="48" y="53" text-anchor="middle"
+                font-family="'SF Mono',Consolas,monospace" font-size="20" font-weight="800"
+                fill="var(--fg)">${pct}%</text>
+        </svg>
+        <div class="ml-me-progress-text">
+          <div><b>${solved}</b> solved</div>
+          <div style="color:var(--fg-muted);font-size:12px">${total - solved} to go</div>
+        </div>
+      </div>
+
       <div class="ml-me-stats">
         <div class="ml-me-stat"><div class="ml-me-stat-v">${solved}</div><div class="ml-me-stat-l">Solved</div></div>
         <div class="ml-me-stat"><div class="ml-me-stat-v">${pct}%</div><div class="ml-me-stat-l">Progress</div></div>
@@ -1427,6 +1784,11 @@ async function renderMe() {
       </div>
     </div>`;
 
+  requestAnimationFrame(() => {
+    const ring = $('#ml-me-ring-fill');
+    if (ring) ring.setAttribute('stroke-dashoffset', offset.toFixed(2));
+  });
+
   $$('[data-nav]', content).forEach(el => el.onclick = () => navigate(el.dataset.nav));
   const favNav = $('[data-filter="fav"]', content);
   if (favNav) favNav.onclick = () => {
@@ -1434,6 +1796,7 @@ async function renderMe() {
     navigate('/problems');
   };
   $('#ml-me-logout').onclick = () => {
+    haptic(10);
     if (!confirm('Sign out?')) return;
     setToken(null);
     setTimeout(() => location.reload(), 60);
@@ -1441,8 +1804,59 @@ async function renderMe() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 15. Settings
+// 19. Settings
 // ═══════════════════════════════════════════════════════════
+async function updateCacheButtonUI() {
+  const btn = $('#ml-cache-btn');
+  const hint = $('#ml-cache-status');
+  if (!btn || !hint) return;
+  if (state._cacheInProgress) return;
+
+  const { remaining, count, lastAt } = await getCacheStatus();
+
+  if (remaining > 0) {
+    const hours = Math.ceil(remaining / 3600000);
+    btn.disabled = true;
+    btn.classList.remove('caching');
+    btn.innerHTML = `<i class="fas fa-lock"></i> ${hours}h`;
+    hint.textContent = `Cached ${count} problems · last ${fmtDateTime(lastAt).short}`;
+  } else if (count > 0) {
+    btn.disabled = false;
+    btn.classList.remove('caching');
+    btn.innerHTML = '<i class="fas fa-rotate"></i> Update';
+    hint.textContent = `Cached ${count} problems`;
+  } else {
+    btn.disabled = false;
+    btn.classList.remove('caching');
+    btn.innerHTML = '<i class="fas fa-download"></i> Cache';
+    hint.textContent = 'Download all statements for offline';
+  }
+}
+
+async function updateDraftsUI() {
+  const btn = $('#ml-drafts-btn');
+  const hint = $('#ml-drafts-status');
+  if (!btn || !hint) return;
+  try {
+    const drafts = await getAllDrafts();
+    if (!drafts.length) {
+      btn.disabled = true;
+      btn.classList.add('ghost');
+      btn.textContent = 'Empty';
+      hint.textContent = 'No pending drafts';
+    } else {
+      btn.disabled = !navigator.onLine;
+      btn.classList.remove('ghost');
+      btn.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Sync';
+      hint.textContent = `${drafts.length} pending`;
+    }
+  } catch {
+    btn.disabled = true;
+    btn.textContent = 'N/A';
+    hint.textContent = 'Not supported';
+  }
+}
+
 async function renderSettings() {
   const content = $('#ml-content');
   const s = state.settings;
@@ -1451,22 +1865,22 @@ async function renderSettings() {
 
   content.innerHTML = `
     <div class="ml-page">
-      <div class="ml-section-title">Profile</div>
+      <div class="ml-section-title"><i class="fas fa-user-circle" style="margin-right:5px;opacity:.7"></i>Profile</div>
       <div class="ml-set-group">
         <div class="ml-pfp-row">
           <div class="ml-pfp-avatar" id="ml-pfp-avatar">${avatar}</div>
           <div class="ml-pfp-info">
             <div class="ml-pfp-name">${esc(u.displayName || u.username || '')}</div>
-            <button class="ml-pfp-btn" id="ml-pfp-pick">Change Picture</button>
+            <button class="ml-pfp-btn" id="ml-pfp-pick"><i class="fas fa-camera"></i> Change</button>
             <input type="file" id="ml-pfp-input" accept="image/*" style="display:none">
           </div>
         </div>
       </div>
 
-      <div class="ml-section-title">Appearance</div>
+      <div class="ml-section-title"><i class="fas fa-palette" style="margin-right:5px;opacity:.7"></i>Appearance</div>
       <div class="ml-set-group">
         <div class="ml-set-item">
-          <span class="lbl">Theme</span>
+          <span class="lbl"><i class="fas fa-circle-half-stroke" style="margin-right:8px;opacity:.6;width:16px"></i>Theme</span>
           <div class="ml-seg" data-seg="theme">
             <button class="ml-seg-btn${s.theme === 'dark' ? ' active' : ''}" data-v="dark">Dark</button>
             <button class="ml-seg-btn${s.theme === 'light' ? ' active' : ''}" data-v="light">Light</button>
@@ -1474,15 +1888,15 @@ async function renderSettings() {
           </div>
         </div>
         <div class="ml-set-item">
-          <span class="lbl">Compact Mode</span>
+          <span class="lbl"><i class="fas fa-compress" style="margin-right:8px;opacity:.6;width:16px"></i>Compact Mode</span>
           <div class="ml-switch${s.compact ? ' on' : ''}" data-sw="compact"></div>
         </div>
         <div class="ml-set-item">
-          <span class="lbl">Animations</span>
+          <span class="lbl"><i class="fas fa-wand-magic-sparkles" style="margin-right:8px;opacity:.6;width:16px"></i>Animations</span>
           <div class="ml-switch${s.animations ? ' on' : ''}" data-sw="animations"></div>
         </div>
         <div class="ml-set-item">
-          <span class="lbl">Cards per Page</span>
+          <span class="lbl"><i class="fas fa-table-cells" style="margin-right:8px;opacity:.6;width:16px"></i>Cards per Page</span>
           <div class="ml-seg" data-seg="pageSize">
             <button class="ml-seg-btn${s.pageSize === 20 ? ' active' : ''}" data-v="20">20</button>
             <button class="ml-seg-btn${s.pageSize === 30 ? ' active' : ''}" data-v="30">30</button>
@@ -1491,27 +1905,47 @@ async function renderSettings() {
         </div>
       </div>
 
-      <div class="ml-section-title">Problem List</div>
+      <div class="ml-section-title"><i class="fas fa-list-check" style="margin-right:5px;opacity:.7"></i>Problem List</div>
       <div class="ml-set-group">
         <div class="ml-set-item">
-          <span class="lbl">Show Difficulty</span>
+          <span class="lbl"><i class="fas fa-gauge-high" style="margin-right:8px;opacity:.6;width:16px"></i>Show Difficulty</span>
           <div class="ml-switch${s.showDifficulty ? ' on' : ''}" data-sw="showDifficulty"></div>
         </div>
         <div class="ml-set-item">
-          <span class="lbl">Show Tags</span>
+          <span class="lbl"><i class="fas fa-tags" style="margin-right:8px;opacity:.6;width:16px"></i>Show Tags</span>
           <div class="ml-switch${s.showTags ? ' on' : ''}" data-sw="showTags"></div>
         </div>
         <div class="ml-set-item">
-          <span class="lbl">Show Solve Count</span>
+          <span class="lbl"><i class="fas fa-user-check" style="margin-right:8px;opacity:.6;width:16px"></i>Show Solve Count</span>
           <div class="ml-switch${s.showSolves ? ' on' : ''}" data-sw="showSolves"></div>
         </div>
         <div class="ml-set-item">
-          <span class="lbl">Show Favorite Star</span>
+          <span class="lbl"><i class="fas fa-star" style="margin-right:8px;opacity:.6;width:16px"></i>Show Favorite Star</span>
           <div class="ml-switch${s.showFavorite ? ' on' : ''}" data-sw="showFavorite"></div>
         </div>
       </div>
 
-      <div class="ml-section-title">Account</div>
+      <div class="ml-section-title"><i class="fas fa-cloud-arrow-down" style="margin-right:5px;opacity:.7"></i>Offline</div>
+      <div class="ml-set-group">
+        <div class="ml-set-item">
+          <span class="lbl">
+            <i class="fas fa-download" style="margin-right:8px;opacity:.6;width:16px"></i>Cache All Problems
+            <span class="hint" id="ml-cache-status">Loading…</span>
+          </span>
+          <button class="ml-pfp-btn" id="ml-cache-btn" disabled>
+            <i class="fas fa-download"></i> Cache
+          </button>
+        </div>
+        <div class="ml-set-item">
+          <span class="lbl">
+            <i class="fas fa-inbox" style="margin-right:8px;opacity:.6;width:16px"></i>Draft Queue
+            <span class="hint" id="ml-drafts-status">Loading…</span>
+          </span>
+          <button class="ml-pfp-btn ghost" id="ml-drafts-btn" disabled>...</button>
+        </div>
+      </div>
+
+      <div class="ml-section-title"><i class="fas fa-user-shield" style="margin-right:5px;opacity:.7"></i>Account</div>
       <div class="ml-list">
         <div class="ml-list-item" data-act="password">
           <i class="fas fa-key ico"></i>
@@ -1533,6 +1967,7 @@ async function renderSettings() {
   // 開關
   $$('[data-sw]', content).forEach(el => {
     el.onclick = () => {
+      haptic(6);
       const k = el.dataset.sw;
       const next = !state.settings[k];
       state.settings[k] = next;
@@ -1545,6 +1980,7 @@ async function renderSettings() {
     const k = seg.dataset.seg;
     $$('.ml-seg-btn', seg).forEach(btn => {
       btn.onclick = () => {
+        haptic(6);
         let v = btn.dataset.v;
         if (k === 'pageSize') v = parseInt(v, 10);
         state.settings[k] = v;
@@ -1562,11 +1998,11 @@ async function renderSettings() {
     const file = pfpInput.files && pfpInput.files[0];
     pfpInput.value = '';
     if (!file) return;
-    if (!file.type.startsWith('image/')) { toast('Not an image'); return; }
-    if (file.size > 2 * 1024 * 1024) { toast('Max 2MB'); return; }
+    if (!file.type.startsWith('image/')) { toast('Not an image', 'fa-circle-exclamation'); return; }
+    if (file.size > 2 * 1024 * 1024) { toast('Max 2MB', 'fa-circle-exclamation'); return; }
 
     pfpBtn.disabled = true;
-    pfpBtn.textContent = 'Uploading…';
+    pfpBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading…';
     try {
       const dataUrl = await compressImage(file, 512, 0.85);
       const r = await apiCall('/api/users?action=pfp', 'POST', { image: dataUrl });
@@ -1574,17 +2010,65 @@ async function renderSettings() {
         state.user.pfp = r.pfp;
         const el = $('#ml-pfp-avatar');
         if (el) el.innerHTML = `<img src="${escAttr(r.pfp)}" alt="">`;
-        toast('Updated');
+        toast('Updated', 'fa-circle-check');
+        haptic(10);
       } else {
-        toast(r && r.message || 'Upload failed');
+        toast(r && r.message || 'Upload failed', 'fa-circle-exclamation');
       }
     } catch (e) {
-      toast('Network error');
+      toast('Network error', 'fa-wifi');
     } finally {
       pfpBtn.disabled = false;
-      pfpBtn.textContent = 'Change Picture';
+      pfpBtn.innerHTML = '<i class="fas fa-camera"></i> Change';
     }
   });
+
+  // Cache All Problems
+  const cacheBtn = $('#ml-cache-btn');
+  cacheBtn.onclick = async () => {
+    if (cacheBtn.disabled || state._cacheInProgress) return;
+    haptic(10);
+
+    if (!navigator.onLine) {
+      toast('Offline — cannot cache', 'fa-plane');
+      return;
+    }
+
+    state._cacheInProgress = true;
+    cacheBtn.disabled = true;
+    cacheBtn.classList.add('caching');
+
+    const hint = $('#ml-cache-status');
+    const origHint = hint ? hint.textContent : '';
+
+    try {
+      const count = await cacheAllProblems((done, total) => {
+        const pct = Math.floor(done / total * 100);
+        cacheBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${pct}%`;
+        if (hint) hint.textContent = `Downloading… ${done}/${total}`;
+      });
+      toast(`Cached ${count} problems`, 'fa-circle-check');
+      haptic(15);
+    } catch (e) {
+      toast('Cache failed: ' + (e.message || 'unknown'), 'fa-circle-exclamation');
+      if (hint) hint.textContent = origHint;
+    } finally {
+      state._cacheInProgress = false;
+      cacheBtn.classList.remove('caching');
+      await updateCacheButtonUI();
+    }
+  };
+
+  // Drafts sync
+  const draftsBtn = $('#ml-drafts-btn');
+  draftsBtn.onclick = async () => {
+    if (draftsBtn.disabled) return;
+    haptic(10);
+    draftsBtn.disabled = true;
+    draftsBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    await syncDrafts();
+    await updateDraftsUI();
+  };
 
   // 帳號操作
   $$('[data-act]', content).forEach(el => {
@@ -1597,24 +2081,29 @@ async function renderSettings() {
         if (!newP) return;
         try {
           const r = await apiCall('/api/users?action=changepassword', 'POST', { oldPassword: oldP, newPassword: newP });
-          toast(r.success ? 'Password updated' : (r.message || 'Failed'));
-        } catch { toast('Network error'); }
+          toast(r.success ? 'Password updated' : (r.message || 'Failed'), r.success ? 'fa-circle-check' : 'fa-circle-exclamation');
+        } catch { toast('Network error', 'fa-wifi'); }
       } else if (a === 'name') {
         const cur = state.user ? (state.user.displayName || state.user.username) : '';
         const nn = prompt('New display name', cur);
         if (!nn || !nn.trim()) return;
         try {
           const r = await apiCall('/api/users?action=changename', 'POST', { newname: nn.trim() });
-          if (r.success) { state.user.displayName = nn.trim(); toast('Updated'); }
-          else toast(r.message || 'Failed');
-        } catch { toast('Network error'); }
+          if (r.success) { state.user.displayName = nn.trim(); toast('Updated', 'fa-circle-check'); }
+          else toast(r.message || 'Failed', 'fa-circle-exclamation');
+        } catch { toast('Network error', 'fa-wifi'); }
       } else if (a === 'logout') {
+        haptic(10);
         if (!confirm('Sign out?')) return;
         setToken(null);
         setTimeout(() => location.reload(), 60);
       }
     };
   });
+
+  // 初始化按鈕狀態
+  await updateCacheButtonUI();
+  await updateDraftsUI();
 }
 
 // 圖片壓縮
@@ -1643,8 +2132,10 @@ function compressImage(file, maxDim, quality) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 16. 路由分派
+// 20. 路由分派
 // ═══════════════════════════════════════════════════════════
+const SCROLL_KEEP_PATHS = /^\/(problems|submissions|contests|rank|me|settings)?$/;
+
 async function renderRoute() {
   const prevPath = state.route.path;
   state.route = parseRoute();
@@ -1656,11 +2147,18 @@ async function renderRoute() {
   renderTabBar();
 
   const content = $('#ml-content');
-  if (content) content.scrollTop = 0;
+  const keep = SCROLL_KEEP_PATHS.test(nextPath);
+  if (content) {
+    if (keep) {
+      const saved = state._scrollMemory[nextPath];
+      content.scrollTop = typeof saved === 'number' ? saved : 0;
+    } else {
+      content.scrollTop = 0;
+    }
+  }
 
   renderAppBar({ leftDisabled: p.length <= 1, rightDisabled: true });
 
-  // 內容渲染
   if (p.length === 0) await renderHome();
   else if (p[0] === 'problems') {
     if (p[1]) await renderProblemDetail(decodeURIComponent(p[1]));
@@ -1676,10 +2174,8 @@ async function renderRoute() {
   else if (p[0] === 'settings') await renderSettings();
   else await renderHome();
 
-  // 入場動畫（首次不加，避免 loading 消失後又一個動畫）
   if (!isFirst && state.settings.animations && content) {
     animatePageEnter(content, direction);
-    // 稍微延遲再做 stagger，避免跟頁面入場打架
     setTimeout(() => { staggerIn(content); }, 30);
   }
 
@@ -1687,7 +2183,7 @@ async function renderRoute() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 17. 滾動隱藏 AppBar
+// 21. 滾動隱藏 AppBar
 // ═══════════════════════════════════════════════════════════
 function bindScrollBehavior() {
   const content = $('#ml-content');
@@ -1702,7 +2198,7 @@ function bindScrollBehavior() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 18. Login
+// 22. Login
 // ═══════════════════════════════════════════════════════════
 function renderLogin() {
   const root = $('#ml-root');
@@ -1718,10 +2214,18 @@ function renderLogin() {
           <p>Sign in to continue</p>
         </div>
         <form class="ml-login-form" id="ml-login-form" autocomplete="on">
-          <input type="text" class="ml-input" id="ml-login-u" placeholder="Username" autocomplete="username" autocapitalize="none" spellcheck="false">
-          <input type="password" class="ml-input" id="ml-login-p" placeholder="Password" autocomplete="current-password">
+          <div class="ml-input-wrap">
+            <i class="fas fa-user"></i>
+            <input type="text" class="ml-input" id="ml-login-u" placeholder="Username" autocomplete="username" autocapitalize="none" spellcheck="false">
+          </div>
+          <div class="ml-input-wrap">
+            <i class="fas fa-lock"></i>
+            <input type="password" class="ml-input" id="ml-login-p" placeholder="Password" autocomplete="current-password">
+          </div>
           <div class="ml-login-err" id="ml-login-err"></div>
-          <button type="submit" class="ml-btn full" id="ml-login-btn">Sign In</button>
+          <button type="submit" class="ml-btn full" id="ml-login-btn">
+            <i class="fas fa-right-to-bracket"></i> Sign In
+          </button>
         </form>
         <div class="ml-login-divider">OR</div>
         <button class="ml-ms-btn" id="ml-login-ms">
@@ -1742,11 +2246,31 @@ function renderLogin() {
   const btn  = $('#ml-login-btn');
   const err  = $('#ml-login-err');
 
+  const shake = () => {
+    if (!state.settings.animations) return;
+    [uInp, pInp].forEach(el => {
+      if (!el || typeof el.animate !== 'function') return;
+      try {
+        el.animate(
+          [{ transform: 'translateX(0)' }, { transform: 'translateX(-6px)' },
+           { transform: 'translateX(6px)' }, { transform: 'translateX(-4px)' },
+           { transform: 'translateX(4px)' }, { transform: 'translateX(0)' }],
+          { duration: 360, easing: 'ease' }
+        );
+      } catch {}
+    });
+    haptic(20);
+  };
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const u = uInp.value.trim();
     const p = pInp.value;
-    if (!u || !p) { err.textContent = 'Enter username and password'; return; }
+    if (!u || !p) {
+      err.textContent = 'Enter username and password';
+      shake();
+      return;
+    }
     err.textContent = '';
     btn.disabled = true;
     btn.innerHTML = '<span class="ml-spinner" style="width:14px;height:14px;border-width:2px"></span>';
@@ -1754,24 +2278,69 @@ function renderLogin() {
     const loginStart = Date.now();
     try {
       const result = await doLogin(u, p);
-      const remain = Math.max(0, 5000 - (Date.now() - loginStart));
-      await new Promise(r => setTimeout(r, remain));
-      if (result && result.success) { location.reload(); return; }
+      const elapsed = Date.now() - loginStart;
+      if (elapsed < 500) await new Promise(r => setTimeout(r, 500 - elapsed));
+      if (result && result.success) {
+        haptic(15);
+        location.reload();
+        return;
+      }
       err.textContent = (result && result.message) || 'Invalid credentials';
+      shake();
     } catch (e2) {
-      const remain = Math.max(0, 5000 - (Date.now() - loginStart));
-      await new Promise(r => setTimeout(r, remain));
+      const elapsed = Date.now() - loginStart;
+      if (elapsed < 500) await new Promise(r => setTimeout(r, 500 - elapsed));
       err.textContent = 'Network error';
+      shake();
     }
     btn.disabled = false;
-    btn.textContent = 'Sign In';
+    btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> Sign In';
   });
 
   $('#ml-login-ms').onclick = () => { location.href = '/api/auth/microsoft'; };
 }
 
 // ═══════════════════════════════════════════════════════════
-// 19. 啟動
+// 23. Service Worker / 離線
+// ═══════════════════════════════════════════════════════════
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
+
+  let isFirstLoad = !navigator.serviceWorker.controller;
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (isFirstLoad) { isFirstLoad = false; return; }
+    if (!sessionStorage.getItem('sw_reloaded')) {
+      sessionStorage.setItem('sw_reloaded', '1');
+      location.reload();
+    }
+  });
+
+  navigator.serviceWorker
+    .register('/mobile/sw.js', { scope: '/mobile/' })
+    .then(reg => reg.update().catch(() => {}))
+    .catch(err => console.warn('[sw] register failed:', err));
+}
+
+function setupOfflineIndicator() {
+  const update = () => {
+    document.body.classList.toggle('ml-offline', navigator.onLine === false);
+  };
+  update();
+  window.addEventListener('online', () => {
+    update();
+    toast('Online', 'fa-wifi');
+    setTimeout(() => { syncDrafts(); }, 800);
+  });
+  window.addEventListener('offline', () => {
+    update();
+    toast('Offline mode', 'fa-plane');
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// 24. 啟動
 // ═══════════════════════════════════════════════════════════
 function mountApp() {
   const root = $('#ml-root');
@@ -1790,6 +2359,8 @@ function mountApp() {
 async function boot() {
   requestAnimationFrame(tickProgress);
   loadSettings();
+  setupOfflineIndicator();
+  registerServiceWorker();
 
   if (!isLoggedIn()) {
     renderLogin();
@@ -1805,10 +2376,16 @@ async function boot() {
   mountApp();
   state.appReady = true;
 
+  // 背景預取
   setTimeout(() => {
     if ('requestIdleCallback' in window) requestIdleCallback(prefetchAll, { timeout: 2000 });
     else setTimeout(prefetchAll, 300);
   }, 200);
+
+  // 有網路時自動同步草稿
+  if (navigator.onLine) {
+    setTimeout(() => { syncDrafts(); }, 3000);
+  }
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

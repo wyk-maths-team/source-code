@@ -97,6 +97,23 @@ export default async function handler(req, res) {
     // ⭐ 检测是否在特殊竞赛的队伍中
   const db = await connectToDatabase();
   const now = new Date();
+
+  // ⭐ 客戶端時間戳（離線提交用）
+  let submitTime = now;
+  const ct = req.body && req.body.clientTimestamp;
+  if (ct) {
+    try {
+      const t = new Date(ct);
+      if (!isNaN(t.getTime())) {
+        const age = now.getTime() - t.getTime();
+        // 接受範圍：不超過 7 天前、不超過 5 分鐘後
+        if (age >= 0 && age <= 7 * 24 * 60 * 60 * 1000) {
+          submitTime = t;
+        }
+      }
+    } catch {}
+  }
+
   let teamContext = null;
 
   // 找所有进行中的 special contest
@@ -420,7 +437,7 @@ export default async function handler(req, res) {
       username,
       problemId: pid,
       type,
-      timestamp: now,
+      timestamp: submitTime,
       correct: false,
       systemError: false,
       marked: false,
