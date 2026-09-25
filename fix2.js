@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const INLINE = `<script>
+const INLINE = `<!-- <script>
 (function(){
   try {
     if (window.top !== window.self) return;
@@ -15,7 +15,7 @@ const INLINE = `<script>
     location.replace('/mobile/' + location.search + location.hash);
   } catch(e){}
 })();
-</script>
+</script> -->
 `;
 
 const files = fs.readdirSync(__dirname).filter(f => f.endsWith('.html'));
