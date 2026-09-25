@@ -82,6 +82,17 @@
   .cd-btn:disabled { opacity: .5; cursor: not-allowed; }
   .cd-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
   .cd-btn.primary:hover:not(:disabled) { background: var(--accent-hover); }
+    .cd-btn.sent {
+    background: #6c757d !important;
+    color: #fff !important;
+    border-color: #6c757d !important;
+    cursor: default;
+    opacity: 1;
+  }
+  .cd-btn.sent:hover {
+    transform: none;
+    box-shadow: none;
+  }
   .cd-btn.success { background: #2e7d32; color: #fff; border-color: #2e7d32; }
   .cd-btn.success:hover:not(:disabled) { background: #256428; }
   .cd-btn.danger { background: transparent; color: var(--danger); border-color: var(--danger); }
@@ -684,6 +695,18 @@
           }
         });
       });
+      document.querySelectorAll('#scRoot .cd-answer-input').forEach(inp => {
+        inp.addEventListener('input', () => {
+          const row = inp.closest('tr');
+          const btn = row.querySelector('[data-act="submit-one"]');
+          if (btn && btn.classList.contains('sent')) {
+            btn.classList.remove('sent');
+            btn.classList.add('primary');
+            btn.textContent = 'Suggest';
+            btn.disabled = false;
+          }
+        });
+      });
     }
 
     function onAction(el) {
@@ -885,8 +908,12 @@
           });
           if (!res.success) throw new Error(res.message);
           toast('Suggestion sent', 'good');
+          // ⭐ 永久显示灰色 Sent
+          btn.classList.remove('primary');
+          btn.classList.add('sent');
           btn.textContent = 'Sent';
-          setTimeout(() => { btn.textContent = old; btn.disabled = false; }, 1500);
+          btn.disabled = true;
+          // 不重载页面
         } else {
           const res = await apiCall('/api/submit', 'POST', {
             problemId: pid, answer, type: 'text', image: ''

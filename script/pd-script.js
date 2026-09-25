@@ -929,6 +929,7 @@ function mountMcQuiz() {
 .paper-row-btn.wa:hover:not(:disabled){background:#c82333;border-color:#c82333}
 .paper-row-btn.submitting{background:#6c757d;border-color:#6c757d;opacity:1}
 .paper-row-btn.cooldown{background:#adb5bd;border-color:#adb5bd;opacity:1}
+.paper-row-btn.sent{background:#6c757d;border-color:#6c757d;opacity:1;cursor:default}
 
 .paper-resize-handle{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;background:linear-gradient(135deg,transparent 45%,rgba(100,150,210,.4) 45%,rgba(100,150,210,.7) 100%);border-bottom-right-radius:8px}
 
@@ -1162,11 +1163,13 @@ function bindPaperEvents(paperState, floating) {
     saveUserAnswerDebounced(qid, input.value);
 
     // 若當前是 WA，用戶修改了 → 取消 WA，出現綠色 Submit
-    if (st.state === 'wa') {
+    if (st.state === 'wa' || st.state === 'sent') {
+      const prevState = st.state;
       st.state = 'unsubmitted';
       const btn = body.querySelector(`.paper-row-btn[data-qid="${CSS.escape(qid)}"]`);
       if (btn) {
-        btn.classList.remove('wa');
+        btn.classList.remove(prevState === 'wa' ? 'wa' : 'sent');
+        btn.disabled = false;
         btn.textContent = 'Submit';
       }
     }
@@ -1335,7 +1338,7 @@ function bindPaperEvents(paperState, floating) {
       const st = paperState.answers[qid];
       const btn = body.querySelector(`.paper-row-btn[data-qid="${CSS.escape(qid)}"]`);
       if (!btn) continue;
-      if (st.state === 'ac' || st.state === 'submitting') continue;
+      if (st.state === 'ac' || st.state === 'submitting' || st.state === 'sent') continue;
       if (st.cooldownUntil > now) {
         const remain = Math.ceil((st.cooldownUntil - now) / 1000);
         btn.disabled = true;
@@ -1405,6 +1408,18 @@ async function submitPaperQuestion(paperState, qid, floating) {
       btn.textContent = 'Submit';
       return;
     }
+
+    // ⭐ 特殊竞赛 Mode 1 队员：后端把它转成 suggestion → 显示灰色 Sent
+    if (res.suggested) {
+      st.state = 'sent';
+      btn.classList.remove('submitting');
+      btn.classList.add('sent');
+      btn.textContent = 'Sent';
+      btn.disabled = true;
+      // 不锁 input，队员可改后重新建议
+      return;
+    }
+
 
     const correct = res.correct === true || res.score === 100;
     if (correct) {
@@ -2058,7 +2073,7 @@ function bindSubmitEvent() {
           try {
             const r = await apiCall('/api/submit', 'POST', { problemId, answer, type: 'text', image });
             if (r.suggested) {
-              fb.textContent = '✓ Suggestion sent to captain';
+              fb.textContent = 'Sent';
               fb.className = 'feedback';
               return;
             }

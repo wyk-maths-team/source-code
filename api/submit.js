@@ -141,8 +141,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ success: false, message: 'Problem is WA-locked (0 pts permanent)' });
     }
 
-    // Mode 1：成员提交建议，不入库
-    if (team.mode === 1) {
+    // Mode 1 + 非队长：成员提交建议，不入库
+    // 队长在 Mode 1 下也走正常提交逻辑
+    if (team.mode === 1 && username !== team.captain) {
       const answer = String(req.body.answer || '').trim();
       if (!answer) return res.status(400).json({ success: false, message: 'Empty answer' });
 
