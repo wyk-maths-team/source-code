@@ -888,7 +888,7 @@
       } catch (err) { toast(err.message || 'Failed', 'bad'); }
     }
 
-        async function doSubmitOne(pid, btn) {
+    async function doSubmitOne(pid, btn) {
       const row = btn.closest('tr');
       const inp = row.querySelector('.cd-answer-input');
       if (!inp) return;
@@ -909,59 +909,69 @@
           });
           if (!res.success) throw new Error(res.message);
           toast('Suggestion sent', 'good');
-          // 本地更新建议列表（可选，如果队长看的）
-          STATE.suggestions = STATE.suggestions.filter(s => !(s.username === STATE.team.captain ? false : false));
           btn.classList.remove('primary');
           btn.classList.add('sent');
           btn.textContent = 'Sent';
           btn.disabled = true;
-        } else {
-          // ── Mode 2 / 队长：真提交 ──
-          const res = await apiCall('/api/submit', 'POST', {
-            problemId: pid, answer, type: 'text', image: ''
-          });
-          if (!res.success) throw new Error(res.message);
-
-          // ⭐ 乐观更新本地状态（立即反馈）
-          if (res.suggested) {
-            toast('Suggestion sent', 'good');
-          } else {
-            const score = (res.score !== undefined) ? Number(res.score) : (res.correct ? 100 : 0);
-            const isWA = !res.correct && score < 100;
-            STATE.resultMap[pid] = {
-              problemId: pid,
-              score,
-              solved: res.correct === true,
-              locked: isWA,        // 特殊竞赛 WA 必锁
-              lastSubmissionTime: new Date().toISOString(),
-            };
-            // 重新渲染该行
-            render();
-            if (res.correct) toast('AC', 'good');
-            else toast('WA (locked)', 'bad');
-          }
-
-          // ⭐ 后台静默同步（拉服务端真值）
-          setTimeout(async () => {
-            try {
-              const mineRes = await apiCall(`/api/teams?action=mine&contestId=${contestId}`);
-              if (mineRes.success) {
-                STATE.results = mineRes.results || [];
-                STATE.resultMap = {};
-                for (const r of STATE.results) STATE.resultMap[r.problemId] = r;
-                // 不 re-render，避免打断用户（除了 state 变化）
-                // 但要更新可能是其他地方变化
-                render();
-              }
-            } catch (e) { /* ignore */ }
-          }, 800);
+          return;
         }
+
+        // ── Mode 2 / 队长：真提交 ──
+        const res = await apiCall('/api/submit', 'POST', {
+          problemId: pid, answer, type: 'text', image: ''
+        });
+        if (!res.success) throw new Error(res.message);
+
+        if (res.suggested) {
+          toast('Suggestion sent', 'good');
+          btn.classList.remove('primary');
+          btn.classList.add('sent');
+          btn.textContent = 'Sent';
+          btn.disabled = true;
+          return;
+        }
+
+        // ⭐ 乐观更新：立即反映
+        const score = (res.score !== undefined) ? Number(res.score) : (res.correct ? 100 : 0);
+        const isWA = !res.correct && score < 100;
+        STATE.resultMap[pid] = {
+          problemId: pid,
+          score,
+          solved: res.correct === true || score >= 100,
+          locked: isWA,
+          lastSubmissionTime: new Date().toISOString(),
+        };
+        render();
+        if (res.correct || score === 100) toast('AC', 'good');
+        else toast('WA (locked)', 'bad');
+
+        // ⭐ 后台静默校对（用服务端真值覆盖，但只在有差异时）
+        setTimeout(async () => {
+          try {
+            const mineRes = await apiCall(`/api/teams?action=mine&contestId=${contestId}`);
+            if (!mineRes.success) return;
+            const newMap = {};
+            for (const r of (mineRes.results || [])) newMap[r.problemId] = r;
+
+            const cur = STATE.resultMap[pid];
+            const srv = newMap[pid];
+            // 只在服务端返回不同时 re-render
+            const srvScore = srv ? Number(srv.score) : null;
+            const curScore = cur ? Number(cur.score) : null;
+            if (srvScore !== curScore) {
+              STATE.results = mineRes.results || [];
+              STATE.resultMap = newMap;
+              render();
+            }
+          } catch (e) { /* ignore */ }
+        }, 1000);
+
       } catch (err) {
         toast(err.message || 'Failed', 'bad');
-        btn.textContent = old; btn.disabled = false;
+        btn.textContent = old;
+        btn.disabled = false;
       }
     }
-    // ═══ Start ═══
     load();
   })();
   </script>

@@ -396,7 +396,20 @@ export default async function handler(req, res) {
         break;
       }
     }
-    const inContest = !!activeContest;
+    let inContest = !!activeContest;
+
+    // ⭐ team context 兜底：即使 participants 没同步，也强制走竞赛逻辑
+    if (!inContest && teamSubmissionMeta && teamContext) {
+      activeContest = teamContext.contest;
+      const cp = (activeContest.problems || []).find(p => {
+        const ppid = (typeof p === 'object' && p.problemId) ? String(p.problemId) : String(p);
+        return ppid === pid;
+      });
+      contestProblem = cp
+        ? { problemId: pid, evalType: cp.evalType || 'numeric' }
+        : { problemId: pid, evalType: 'numeric' };
+      inContest = true;
+    }
 
     if (role === 'student' && !inContest && problem.public === false) {
       return res.status(404).json({ success: false, message: 'Problem not found' });

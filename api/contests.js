@@ -424,7 +424,21 @@ export default async function handler(req, res) {
 
 // ====== 統計（⭐ problems[pid] 改為 { score, wrongAttempts }）======
 async function calculateContestStats(db, contest) {
-  const participants = Array.isArray(contest.participants) ? contest.participants : [];
+  let participants = Array.isArray(contest.participants) ? contest.participants : [];
+
+  // ⭐ Special contest：从 teams 反推，补齐 participants 里缺失的 team
+  if (contest.special) {
+    try {
+      const teams = await db.collection('teams')
+        .find({ contestId: contest.id }, { projection: { id: 1, _id: 0 } })
+        .toArray();
+      const teamUsernames = teams.map(t => String(t.id));
+      participants = [...new Set([...participants, ...teamUsernames])];
+    } catch (e) {
+      console.error('[calculateContestStats] teams lookup failed:', e);
+    }
+  }
+
   const userScores = {};
   for (const u of participants) {
     userScores[u] = { total: 0, lastTime: null, problems: {} };
