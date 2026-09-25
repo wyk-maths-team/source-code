@@ -1,0 +1,19 @@
+{
+  "name": "WYK Maths Team",
+  "short_name": "WYK Maths",
+  "description": "WYK Maths Team Mobile",
+  "start_url": "/mobile/index.html",
+  "id": "/mobile/",
+  "scope": "/mobile/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d1117",
+  "theme_color": "#0d1117",
+  "lang": "zh-HK",
+  "categories": ["education"],
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "/icons/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
