@@ -5,17 +5,14 @@ const path = require('path');
 const INLINE = `<script>
 (function(){
   try {
-    var isStandalone = window.matchMedia('(display-mode: standalone)').matches
-                    || window.navigator.standalone === true
-                    || window.matchMedia('(display-mode: fullscreen)').matches
-                    || window.matchMedia('(display-mode: minimal-ui)').matches;
-    if (!isStandalone) return;
-    if (location.pathname.indexOf('/os') === 0) return;
+    if (window.top !== window.self) return;
+    // if (sessionStorage.getItem('desktopPreferred')) return;   // 用戶手動選桌面版
+    var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (!isMobile) return;
+    if (location.pathname.indexOf('/mobile') === 0) return;
+    // if (location.pathname.indexOf('/os') === 0) return;
     if (location.pathname.indexOf('/admin') === 0) return;
-    if (!sessionStorage.getItem('pwaEnteredOS')) {
-      sessionStorage.setItem('pwaEnteredOS', '1');
-      location.replace('/mobile' + location.search + location.hash);
-    }
+    location.replace('/mobile/' + location.search + location.hash);
   } catch(e){}
 })();
 </script>
