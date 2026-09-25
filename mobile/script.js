@@ -2088,6 +2088,18 @@ async function renderSettings() {
           <button class="ml-pfp-btn ghost" id="ml-drafts-btn" disabled>...</button>
         </div>
       </div>
+      <div class="ml-section-title"><i class="fas fa-triangle-exclamation" style="margin-right:5px;opacity:.7"></i>Danger Zone</div>
+      <div class="ml-set-group">
+        <div class="ml-set-item">
+          <span class="lbl">
+            <i class="fas fa-bomb" style="margin-right:8px;opacity:.6;width:16px"></i>Force Reset
+            <span class="hint">Clear all caches and stop the app</span>
+          </span>
+          <button class="ml-pfp-btn" id="ml-reset-btn">
+            <i class="fas fa-bomb"></i> Reset
+          </button>
+        </div>
+      </div>
 
       <div class="ml-section-title"><i class="fas fa-user-shield" style="margin-right:5px;opacity:.7"></i>Account</div>
       <div class="ml-list">
@@ -2213,6 +2225,47 @@ async function renderSettings() {
     await syncDrafts();
     await updateDraftsUI();
   };
+    // Force Reset
+  const resetBtn = $('#ml-reset-btn');
+  if (resetBtn) {
+    resetBtn.onclick = async () => {
+      if (resetBtn.disabled) return;
+      const ok = confirm(
+        'Force Reset\n\n' +
+        '• Clear all caches (Cache Storage)\n' +
+        '• Unregister Service Worker\n' +
+        '• Stop the app\n\n' +
+        'You will need to close and reopen the app.'
+      );
+      if (!ok) return;
+
+      haptic(30);
+      resetBtn.disabled = true;
+      resetBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting…';
+
+      // 1) 清 Cache Storage
+      try {
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+      } catch (e) { console.warn('clear caches failed', e); }
+
+      // 2) 註銷所有 Service Worker
+      try {
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(r => r.unregister()));
+        }
+      } catch (e) { console.warn('unregister SW failed', e); }
+
+      // 3) 清 sessionStorage（保留 auth_token）
+      try { sessionStorage.clear(); } catch {}
+
+      // 4) 崩潰
+      crashOut();
+    };
+  }
 
   // 帳號操作
   $$('[data-act]', content).forEach(el => {
@@ -2502,6 +2555,91 @@ function mountApp() {
   bindScrollBehavior();
   window.addEventListener('hashchange', renderRoute);
   renderRoute();
+}
+// ═══════════════════════════════════════════════════════════
+// 崩潰退出
+// ═══════════════════════════════════════════════════════════
+function crashOut() {
+  // 1) 停止網路活動
+  try { window.stop && window.stop(); } catch {}
+
+  // 2) 停止所有定時器（瀏覽器 timer ID 是遞增整數）
+  try {
+    for (let i = 1; i < 100000; i++) {
+      clearTimeout(i);
+      clearInterval(i);
+    }
+  } catch {}
+
+  // 3) 清空 DOM 並換上崩潰畫面
+  try {
+    document.documentElement.innerHTML = `
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+        <title>App Stopped</title>
+        <style>
+          html,body{margin:0;padding:0;height:100%;width:100%;
+            background:#0a0a0a;color:#f85149;
+            font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+            display:flex;align-items:center;justify-content:center;text-align:center;
+            overscroll-behavior:none;user-select:none;-webkit-user-select:none;
+            -webkit-tap-highlight-color:transparent}
+          .crash-inner{padding:32px 24px;max-width:360px}
+          .crash-icon{font-size:56px;margin-bottom:18px;opacity:.85;color:#f85149}
+          .crash-title{font-size:18px;font-weight:800;color:#e6edf3;margin-bottom:8px;letter-spacing:-.2px}
+          .crash-text{font-size:13px;color:#8b949e;line-height:1.6;margin-bottom:24px}
+          .crash-hint{font-size:11px;color:#484f58;line-height:1.6}
+        </style>
+      </head>
+      <body>
+        <div class="crash-inner">
+          <div class="crash-icon">⚠</div>
+          <div class="crash-title">App Stopped</div>
+          <div class="crash-text">
+            All caches have been cleared.<br>
+            The app has been halted intentionally.
+          </div>
+          <div class="crash-hint">
+            Close this window and reopen the app to continue.
+          </div>
+        </div>
+      </body>
+    `;
+  } catch (e) {
+    try { document.body.innerHTML = '<div style="padding:40px;color:#f85149;background:#0a0a0a;height:100vh">App stopped.</div>'; } catch {}
+  }
+
+  // 4) 阻止所有指標交互
+  try {
+    document.body.style.pointerEvents = 'none';
+    document.body.style.userSelect = 'none';
+    document.documentElement.style.pointerEvents = 'none';
+  } catch {}
+
+  // 5) 移除所有事件監聽：把 window / document 上的 handler 換掉（部分能生效）
+  try {
+    // 阻止所有鍵盤輸入
+    window.addEventListener('keydown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, true);
+    // 阻止所有滾動
+    window.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+    window.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
+  } catch {}
+
+  // 6) 嘗試關閉視窗（PWA 通常無效，普通 tab 有時有效）
+  try { window.close(); } catch {}
+  try {
+    window.open('', '_self', '');
+    window.close();
+  } catch {}
+
+  // 7) 讓 JS 引擎進入死循環狀態（在微任務隊列的最後丟出一個 uncaught error）
+  setTimeout(() => {
+    throw new Error('__APP_FORCE_RESET__');
+  }, 60);
 }
 
 async function boot() {
