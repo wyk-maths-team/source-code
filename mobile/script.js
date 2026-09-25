@@ -147,6 +147,7 @@ const LS = {
   fav:      'mobile_fav_v1',
   settings: 'mobile_settings_v1',
   welcome:  'mobile_welcome_done_v1',
+  acAnswers: 'mobile_ac_answers_v1',
 };
 
 const CACHE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
@@ -287,8 +288,97 @@ async function withMinSkeleton(fn, minMs = 250) {
   return result;
 }
 
+// ── KaTeX 就緒 ──
+async function ensureKatex() {
+  if (typeof window.renderMathInElement === 'function') return true;
+  for (let i = 0; i < 30; i++) {
+    await new Promise(r => setTimeout(r, 100));
+    if (typeof window.renderMathInElement === 'function') return true;
+  }
+  return false;
+}
+
+// ── math.js 就緒（表達式計算用） ──
+let _mathLoading = null;
+function ensureMath() {
+  if (window.math && typeof window.math.evaluate === 'function') return Promise.resolve(true);
+  if (_mathLoading) return _mathLoading;
+  _mathLoading = new Promise((resolve) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/mathjs@11.8.0/lib/browser/math.js';
+    s.async = true;
+    s.onload = () => resolve(!!(window.math && typeof window.math.evaluate === 'function'));
+    s.onerror = () => resolve(false);
+    document.head.appendChild(s);
+  });
+  return _mathLoading;
+}
+
+// 格式化計算結果（去尾零，最大 12 位小數）
+function formatMathNumber(n) {
+  if (!Number.isFinite(n)) return null;
+  if (Number.isInteger(n)) return String(n);
+  let s = n.toFixed(12);
+  s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
+}
+
+// 計算表達式，成功回傳字串，失敗回傳 null
+async function evaluateExpression(expr) {
+  const raw = String(expr || '').trim();
+  if (!raw) return { ok: false, reason: 'empty' };
+
+  const ready = await ensureMath();
+  if (!ready) return { ok: false, reason: 'unavailable' };
+
+  try {
+    const result = window.math.evaluate(raw);
+    let num = null;
+    if (typeof result === 'number') num = result;
+    else if (result && typeof result.toNumber === 'function') num = result.toNumber();
+    else if (result && typeof result.valueOf === 'function') {
+      const v = result.valueOf();
+      if (typeof v === 'number') num = v;
+    }
+    if (typeof num !== 'number' || !Number.isFinite(num)) {
+      return { ok: false, reason: 'not-number' };
+    }
+    const formatted = formatMathNumber(num);
+    if (formatted == null) return { ok: false, reason: 'not-number' };
+    return { ok: true, value: formatted, num };
+  } catch (e) {
+    return { ok: false, reason: 'syntax' };
+  }
+}
+
 // ═══════════════════════════════════════════════════════════
-// 4. 頁面過渡動畫
+// 4. AC 答案緩存
+// ═══════════════════════════════════════════════════════════
+function loadAcAnswers() {
+  try {
+    const raw = localStorage.getItem(LS.acAnswers);
+    if (!raw) return {};
+    const obj = JSON.parse(raw);
+    return obj && typeof obj === 'object' ? obj : {};
+  } catch { return {}; }
+}
+function saveAcAnswer(pid, ans) {
+  if (!pid) return;
+  const s = String(ans == null ? '' : ans).trim();
+  if (!s) return;
+  try {
+    const all = loadAcAnswers();
+    all[pid] = s;
+    localStorage.setItem(LS.acAnswers, JSON.stringify(all));
+  } catch {}
+}
+function getAcAnswer(pid) {
+  const all = loadAcAnswers();
+  return all[pid] || '';
+}
+
+// ═══════════════════════════════════════════════════════════
+// 5. 頁面過渡動畫
 // ═══════════════════════════════════════════════════════════
 const TAB_ORDER = ['/', '/problems', '/submissions', '/contests', '/rank', '/me'];
 
@@ -356,7 +446,7 @@ function animateTitle(el, text) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 5. 進度條
+// 6. 進度條
 // ═══════════════════════════════════════════════════════════
 const _progressStart = Date.now();
 function tickProgress() {
@@ -393,7 +483,7 @@ function tickProgress() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 6. LocalStorage
+// 7. LocalStorage
 // ═══════════════════════════════════════════════════════════
 function lsRead(key, ttl) {
   try {
@@ -460,7 +550,7 @@ function loadFavCache() {
 function saveFavCache() { lsWrite(LS.fav, Array.from(state.favorites || [])); }
 
 // ═══════════════════════════════════════════════════════════
-// 7. Cache All Problems
+// 8. Cache All Problems
 // ═══════════════════════════════════════════════════════════
 async function getCacheStatus() {
   try {
@@ -496,7 +586,6 @@ async function cacheAllProblems(onProgress) {
   });
   await dbPut('meta', { key: 'cacheAllAt', value: Date.now() });
 
-  // 同時更新輕量列表到 localStorage（首屏用）
   const light = problems.map(p => ({
     id: p.id, name: p.name, difficulty: p.difficulty,
     tags: p.tags, public: p.public, solves: p.solves,
@@ -514,7 +603,7 @@ async function getCachedProblem(id) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 8. 草稿箱
+// 9. 草稿箱
 // ═══════════════════════════════════════════════════════════
 async function saveDraft(problemId, answer, type = 'text', image = '') {
   const draft = {
@@ -556,21 +645,20 @@ async function syncDrafts() {
         if (r && r.success) {
           await deleteDraft(draft.id);
           synced++;
-          // 更新本地狀態
           if (r.correct || r.score === 100) {
             state.states = state.states || {};
             state.states[draft.problemId] = 'passed';
+            // ⭐ 保存 AC 答案
+            saveAcAnswer(draft.problemId, draft.answer);
           } else if (state.states && state.states[draft.problemId] !== 'passed') {
             state.states[draft.problemId] = 'failed';
           }
           saveStatesCache(state.states || {});
         } else {
-          // 後端明確拒絕 → 刪掉不重試
           await deleteDraft(draft.id);
           failed++;
         }
       } catch (e) {
-        // 網路失敗 → 保留並增加重試
         draft.tries = (draft.tries || 0) + 1;
         if (draft.tries >= 5) {
           await deleteDraft(draft.id);
@@ -599,7 +687,7 @@ async function submitAnswer(problemId, answer, type = 'text', image = '') {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 9. 路由
+// 10. 路由
 // ═══════════════════════════════════════════════════════════
 function parseRoute() {
   const raw = location.hash.replace(/^#/, '') || '/';
@@ -627,7 +715,7 @@ function routeTitle() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 10. AppBar / TabBar
+// 11. AppBar / TabBar
 // ═══════════════════════════════════════════════════════════
 function renderAppBar(opts) {
   opts = opts || {};
@@ -690,7 +778,7 @@ function renderTabBar() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 11. 預取
+// 12. 預取
 // ═══════════════════════════════════════════════════════════
 async function prefetchAll() {
   await Promise.allSettled([
@@ -727,7 +815,7 @@ async function prefetchAll() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 12. Home
+// 13. Home
 // ═══════════════════════════════════════════════════════════
 async function renderHome() {
   const content = $('#ml-content');
@@ -886,7 +974,7 @@ function stripHtml(html) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 13. Problems 列表
+// 14. Problems 列表
 // ═══════════════════════════════════════════════════════════
 const probState = { filter: 'all', sort: 'default', page: 1 };
 
@@ -1061,20 +1149,10 @@ function bindProbCards(root) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 14. Problem Detail
+// 15. Problem Detail
 // ═══════════════════════════════════════════════════════════
-async function ensureKatex() {
-  if (typeof window.renderMathInElement === 'function') return true;
-  for (let i = 0; i < 30; i++) {
-    await new Promise(r => setTimeout(r, 100));
-    if (typeof window.renderMathInElement === 'function') return true;
-  }
-  return false;
-}
-
 async function renderProblemDetail(id) {
   const content = $('#ml-content');
-  content.innerHTML = `<div class="ml-page"><div class="ml-loading-center"><span class="ml-spinner"></span></div></div>`;
 
   const all = state.problems || [];
   const idx = all.findIndex(p => p.id === id);
@@ -1098,7 +1176,6 @@ async function renderProblemDetail(id) {
         const d = await apiCall('/api/problem?action=page&id=' + encodeURIComponent(id));
         if (d && d.success && d.problem) {
           p = d.problem;
-          // 順便更新 IndexedDB 快取
           if (p.statement) {
             dbPut('problems', { ...p, cachedAt: Date.now() }).catch(() => {});
           }
@@ -1139,8 +1216,15 @@ async function renderProblemDetail(id) {
         <div class="ml-pd-statement" id="ml-pd-statement"></div>
 
         <div id="ml-pd-answer-zone">
+          <div class="ml-expr-row">
+            <input type="text" class="ml-input ml-expr-input" id="ml-pd-expr"
+                   placeholder="Expression · e.g. sqrt(3)+2/5 (Enter to compute)"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+            <div class="ml-expr-hint" id="ml-pd-expr-hint"></div>
+          </div>
           <div class="ml-answer-row">
-            <input type="text" class="ml-input" id="ml-pd-answer" placeholder="Your answer" autocomplete="off" inputmode="decimal">
+            <input type="text" class="ml-input" id="ml-pd-answer" placeholder="Your answer"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
             <button class="ml-btn" id="ml-pd-submit">
               <i class="fas fa-paper-plane"></i> Submit
             </button>
@@ -1181,22 +1265,80 @@ async function renderProblemDetail(id) {
       });
     }
 
+    const exprInp = $('#ml-pd-expr');
+    const exprHint = $('#ml-pd-expr-hint');
     const answerInp = $('#ml-pd-answer');
     const submitBtn = $('#ml-pd-submit');
     const fb = $('#ml-pd-feedback');
 
-    try {
-      const saved = JSON.parse(localStorage.getItem('pd_user_answers') || '{}');
-      if (saved[id] && answerInp) answerInp.value = saved[id];
-    } catch {}
+    // ── 初始答案填入（優先：AC 答案 → 上次輸入） ──
+    let initialAnswer = '';
+    const acAns = getAcAnswer(id);
+    if (acAns) {
+      initialAnswer = acAns;
+    } else {
+      try {
+        const saved = JSON.parse(localStorage.getItem('pd_user_answers') || '{}');
+        if (saved[id]) initialAnswer = saved[id];
+      } catch {}
+    }
+    if (initialAnswer && answerInp) answerInp.value = initialAnswer;
 
-    const alreadyPassed = (state.states && state.states[id] === 'passed');
-    if (alreadyPassed && answerInp) {
-      answerInp.disabled = true;
-      answerInp.style.opacity = '0.55';
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<i class="fas fa-circle-check"></i> Solved';
-      submitBtn.style.background = 'var(--ok)';
+    // ── 表達式 Enter 計算 ──
+    if (exprInp) {
+      exprInp.addEventListener('keydown', async (e) => {
+        if (e.key !== 'Enter') return;
+        if (e.isComposing) return;
+        e.preventDefault();
+        const raw = (exprInp.value || '').trim();
+        if (!raw) return;
+
+        // 顯示「計算中」
+        if (exprHint) {
+          exprHint.className = 'ml-expr-hint show';
+          exprHint.textContent = 'Computing…';
+        }
+
+        const r = await evaluateExpression(raw);
+        if (r.ok) {
+          if (answerInp) answerInp.value = r.value;
+          if (exprHint) {
+            exprHint.className = 'ml-expr-hint show ok';
+            exprHint.textContent = '= ' + r.value;
+          }
+          haptic(8);
+          // 聚焦 answer input，方便用戶確認/提交
+          if (answerInp) answerInp.focus();
+        } else {
+          let msg = 'Invalid expression';
+          if (r.reason === 'unavailable') msg = 'Calculator not available offline';
+          else if (r.reason === 'syntax') msg = 'Syntax error';
+          else if (r.reason === 'not-number') msg = 'Result is not a number';
+          if (exprHint) {
+            exprHint.className = 'ml-expr-hint show error';
+            exprHint.textContent = msg;
+          }
+          if (state.settings.animations && exprInp && typeof exprInp.animate === 'function') {
+            try {
+              exprInp.animate(
+                [{ transform: 'translateX(0)' }, { transform: 'translateX(-5px)' },
+                 { transform: 'translateX(5px)' }, { transform: 'translateX(-3px)' },
+                 { transform: 'translateX(3px)' }, { transform: 'translateX(0)' }],
+                { duration: 320, easing: 'ease' }
+              );
+            } catch {}
+          }
+          haptic(20);
+        }
+      });
+
+      // 輸入變化時清除舊提示
+      exprInp.addEventListener('input', () => {
+        if (exprHint && exprHint.classList.contains('error')) {
+          exprHint.className = 'ml-expr-hint';
+          exprHint.textContent = '';
+        }
+      });
     }
 
     const doSubmit = async () => {
@@ -1209,7 +1351,6 @@ async function renderProblemDetail(id) {
         const r = await submitAnswer(id, ans, 'text', '');
 
         if (r && r.drafted) {
-          // 離線草稿
           fb.className = 'ml-feedback show partial';
           fb.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Saved as draft — will auto-submit when online';
           submitBtn.disabled = false;
@@ -1226,11 +1367,21 @@ async function renderProblemDetail(id) {
             state.states = state.states || {};
             state.states[id] = 'passed';
             saveStatesCache(state.states);
-            answerInp.disabled = true;
-            answerInp.style.opacity = '0.55';
+
+            // ⭐ 保存 AC 答案，以便下次自動填入
+            saveAcAnswer(id, ans);
+
+            // 短暫顯示 Solved（2 秒）後恢復可提交
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<i class="fas fa-circle-check"></i> Solved';
             submitBtn.style.background = 'var(--ok)';
+            setTimeout(() => {
+              if (document.body.contains(submitBtn)) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit';
+                submitBtn.style.background = '';
+              }
+            }, 2000);
           } else if (score > 0) {
             fb.className = 'ml-feedback show partial';
             fb.innerHTML = `<i class="fas fa-circle-half-stroke"></i> Partial ${score}%`;
@@ -1265,7 +1416,6 @@ async function renderProblemDetail(id) {
           submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit';
         }
       } catch (e) {
-        // 突發網路失敗 → 存草稿
         try {
           await saveDraft(id, ans, 'text', '');
           fb.className = 'ml-feedback show partial';
@@ -1279,12 +1429,10 @@ async function renderProblemDetail(id) {
       }
     };
 
-    if (!alreadyPassed) {
-      submitBtn.onclick = doSubmit;
-      answerInp.addEventListener('keydown', e => {
-        if (e.key === 'Enter') { e.preventDefault(); doSubmit(); }
-      });
-    }
+    submitBtn.onclick = doSubmit;
+    answerInp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); doSubmit(); }
+    });
 
     loadProblemSubmissions(id);
 
@@ -1329,7 +1477,7 @@ async function loadProblemSubmissions(id) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 15. Submissions
+// 16. Submissions
 // ═══════════════════════════════════════════════════════════
 const subsState = { filter: 'all', user: '', problem: '', page: 1 };
 
@@ -1455,7 +1603,6 @@ function statusCls(st) {
 
 async function renderSubmissionDetail(subid) {
   const content = $('#ml-content');
-  content.innerHTML = `<div class="ml-page"><div class="ml-loading-center"><span class="ml-spinner"></span></div></div>`;
   renderAppBar();
   try {
     const d = await apiCall('/api/submissions?action=detail&subid=' + encodeURIComponent(subid));
@@ -1492,17 +1639,18 @@ async function renderSubmissionDetail(subid) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 16. Contests
+// 17. Contests
 // ═══════════════════════════════════════════════════════════
 async function renderContests() {
   const content = $('#ml-content');
-  content.innerHTML = `<div class="ml-page"><div id="ml-contests-list"><div class="ml-loading-center"><span class="ml-spinner"></span></div></div></div>`;
-
   await withMinSkeleton(async () => {
     try {
       const d = await apiCall('/api/contests?action=list&page=1&limit=30');
       if (!d || !d.success) throw new Error();
       const cs = d.contests || [];
+
+      content.innerHTML = `<div class="ml-page"><div id="ml-contests-list"></div></div>`;
+
       if (!cs.length) {
         $('#ml-contests-list').innerHTML = `<div class="ml-empty"><i class="fas fa-inbox"></i>No contests</div>`;
         return;
@@ -1519,9 +1667,8 @@ async function renderContests() {
       $$('.ml-sub', content).forEach(el => {
         el.onclick = () => navigate('/contests/' + encodeURIComponent(el.dataset.cid));
       });
-      staggerIn($('#ml-contests-list'));
     } catch (e) {
-      $('#ml-contests-list').innerHTML = `<div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Failed to load</div>`;
+      content.innerHTML = `<div class="ml-page"><div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Failed to load</div></div>`;
     }
   }, 250);
 }
@@ -1550,7 +1697,6 @@ function contestCardHtml(c, status) {
 
 async function renderContestDetail(id) {
   const content = $('#ml-content');
-  content.innerHTML = `<div class="ml-page"><div class="ml-loading-center"><span class="ml-spinner"></span></div></div>`;
   renderAppBar();
   try {
     const d = await apiCall('/api/contests?action=page&id=' + encodeURIComponent(id));
@@ -1646,11 +1792,10 @@ async function loadContestResults(id, status) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 17. Rank
+// 18. Rank
 // ═══════════════════════════════════════════════════════════
 async function renderRank() {
   const content = $('#ml-content');
-  content.innerHTML = `<div class="ml-page"><div class="ml-loading-center"><span class="ml-spinner"></span></div></div>`;
   await withMinSkeleton(async () => {
     try {
       const d = await apiCall('/api/users?action=leaderboard');
@@ -1675,7 +1820,6 @@ async function renderRank() {
       }
       html += `</div>`;
       content.innerHTML = html;
-      staggerIn(content);
     } catch (e) {
       content.innerHTML = `<div class="ml-page"><div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Failed to load</div></div>`;
     }
@@ -1704,7 +1848,7 @@ function rankItemHtml(u, isSelf) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 18. Me
+// 19. Me
 // ═══════════════════════════════════════════════════════════
 async function renderMe() {
   const content = $('#ml-content');
@@ -1804,7 +1948,7 @@ async function renderMe() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 19. Settings
+// 20. Settings
 // ═══════════════════════════════════════════════════════════
 async function updateCacheButtonUI() {
   const btn = $('#ml-cache-btn');
@@ -2101,7 +2245,6 @@ async function renderSettings() {
     };
   });
 
-  // 初始化按鈕狀態
   await updateCacheButtonUI();
   await updateDraftsUI();
 }
@@ -2132,7 +2275,7 @@ function compressImage(file, maxDim, quality) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 20. 路由分派
+// 21. 路由分派
 // ═══════════════════════════════════════════════════════════
 const SCROLL_KEEP_PATHS = /^\/(problems|submissions|contests|rank|me|settings)?$/;
 
@@ -2159,6 +2302,12 @@ async function renderRoute() {
 
   renderAppBar({ leftDisabled: p.length <= 1, rightDisabled: true });
 
+  const doTransition = !isFirst && content && state.settings.animations;
+  if (doTransition) {
+    content.innerHTML = `<div class="ml-page"><div class="ml-loading-center"><span class="ml-spinner"></span></div></div>`;
+    animatePageEnter(content, direction);
+  }
+
   if (p.length === 0) await renderHome();
   else if (p[0] === 'problems') {
     if (p[1]) await renderProblemDetail(decodeURIComponent(p[1]));
@@ -2174,8 +2323,7 @@ async function renderRoute() {
   else if (p[0] === 'settings') await renderSettings();
   else await renderHome();
 
-  if (!isFirst && state.settings.animations && content) {
-    animatePageEnter(content, direction);
+  if (doTransition) {
     setTimeout(() => { staggerIn(content); }, 30);
   }
 
@@ -2183,7 +2331,7 @@ async function renderRoute() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 21. 滾動隱藏 AppBar
+// 22. 滾動隱藏 AppBar
 // ═══════════════════════════════════════════════════════════
 function bindScrollBehavior() {
   const content = $('#ml-content');
@@ -2198,7 +2346,7 @@ function bindScrollBehavior() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 22. Login
+// 23. Login
 // ═══════════════════════════════════════════════════════════
 function renderLogin() {
   const root = $('#ml-root');
@@ -2301,7 +2449,7 @@ function renderLogin() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 23. Service Worker / 離線
+// 24. Service Worker / 離線
 // ═══════════════════════════════════════════════════════════
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
@@ -2340,7 +2488,7 @@ function setupOfflineIndicator() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 24. 啟動
+// 25. 啟動
 // ═══════════════════════════════════════════════════════════
 function mountApp() {
   const root = $('#ml-root');

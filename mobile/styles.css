@@ -765,3 +765,32 @@ body.ml-offline::before{
   background:var(--warn);
   color:#000;
 }
+/* ── 表達式輸入框 ── */
+.ml-expr-row{
+  margin-bottom:8px;
+}
+.ml-expr-input{
+  font-family:'SF Mono','Consolas',monospace;
+  font-size:14px;
+  background:var(--surface);
+  color:var(--fg-muted);
+  border-style:dashed;
+}
+.ml-expr-input:focus{
+  color:var(--fg);
+  border-style:solid;
+  border-color:var(--accent);
+  background:var(--surface-2);
+}
+.ml-expr-hint{
+  display:none;
+  font-size:11.5px;
+  color:var(--fg-muted);
+  padding:2px 6px 0;
+  font-family:'SF Mono','Consolas',monospace;
+  min-height:16px;
+  line-height:1.4;
+}
+.ml-expr-hint.show{display:block}
+.ml-expr-hint.error{color:var(--err)}
+.ml-expr-hint.ok{color:var(--ok)}
