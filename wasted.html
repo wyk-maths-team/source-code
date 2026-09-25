@@ -15,7 +15,7 @@
     if (location.pathname.indexOf('/admin') === 0) return;
     if (!sessionStorage.getItem('pwaEnteredOS')) {
       sessionStorage.setItem('pwaEnteredOS', '1');
-      location.replace('/os' + location.search + location.hash);
+      location.replace('/mobile' + location.search + location.hash);
     }
   } catch(e){}
 })();
