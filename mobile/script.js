@@ -783,6 +783,7 @@ function renderTabBar() {
 async function prefetchAll() {
   await Promise.allSettled([
     (async () => {
+      if (state._updates) return; 
       try {
         if (loadProblemsCache()) return;
         const d = await apiCall('/api/problem?all=1');
@@ -1355,6 +1356,19 @@ async function renderProblemDetail(id) {
           fb.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Saved as draft — will auto-submit when online';
           submitBtn.disabled = false;
           submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit';
+
+          // ⭐ 離線草稿也顯示在列表頂部（灰色 pending）
+          prependLocalSubmission({
+            subid: '',   // 沒有 subid → 不可點
+            problemId: id,
+            type: 'text',
+            timestamp: Date.now(),
+            answer: ans,
+            answerHidden: false,
+            username: state.user?.username || '',
+            displayName: state.user?.displayName || '',
+            status: 'Pending',
+          });
           return;
         }
 
@@ -1408,7 +1422,25 @@ async function renderProblemDetail(id) {
               } catch {}
             }
           }
-          loadProblemSubmissions(id);
+          // ⭐ 樂觀更新：不重新拉 API
+          if (r.subid) {
+            prependLocalSubmission({
+              subid: r.subid,
+              problemId: id,
+              type: 'text',
+              timestamp: Date.now(),
+              answer: ans,
+              answerHidden: false,
+              username: state.user?.username || '',
+              displayName: state.user?.displayName || '',
+              status: correct
+                ? 'Accepted'
+                : (score > 0 ? `Partial Score (${score})` : 'Wrong Answer'),
+            });
+          } else {
+            // 後端沒回 subid（極少數）→ 保守重拉
+            loadProblemSubmissions(id);
+          }
         } else {
           fb.className = 'ml-feedback show wa';
           fb.innerHTML = `<i class="fas fa-circle-exclamation"></i> ${esc(r && r.message || 'Error')}`;
@@ -1440,7 +1472,57 @@ async function renderProblemDetail(id) {
     content.innerHTML = `<div class="ml-page"><div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Problem not found</div></div>`;
   }
 }
+// ── 題目詳情提交項：HTML 生成 ──
+function pdSubItemHtml(sub) {
+  const dt = fmtDateTime(sub.timestamp);
+  const cls = statusCls(sub.status);
+  const ansText = sub.type === 'image'
+    ? '[Image]'
+    : (sub.answerHidden ? 'Hidden' : (sub.answer || ''));
+  return `<div class="ml-pd-sub" data-subid="${escAttr(sub.subid || '')}">
+    <span class="ml-pd-sub-time">${esc(dt.short)}</span>
+    <span class="ml-pd-sub-ans">${esc(ansText)}</span>
+    <span class="ml-pd-sub-status ${cls}">${esc(sub.status || 'Pending')}</span>
+  </div>`;
+}
 
+function bindPdSubItems(root) {
+  $$('.ml-pd-sub[data-subid]', root).forEach(el => {
+    el.onclick = () => {
+      if (el.dataset.subid) navigate('/submissions/' + encodeURIComponent(el.dataset.subid));
+    };
+  });
+}
+
+// ── 樂觀更新：把剛提交的項目插入列表頂部（不重新拉 API） ──
+function prependLocalSubmission(sub) {
+  const wrap = $('#ml-pd-subs-list');
+  if (!wrap) return false;
+
+  // 若當前是空狀態 / spinner → 先清掉
+  if (wrap.querySelector('.ml-empty') || wrap.querySelector('.ml-loading-center')) {
+    wrap.innerHTML = '';
+  }
+
+  wrap.insertAdjacentHTML('afterbegin', pdSubItemHtml(sub));
+
+  const first = wrap.querySelector('.ml-pd-sub');
+  if (first) {
+    first.onclick = () => {
+      if (first.dataset.subid) navigate('/submissions/' + encodeURIComponent(first.dataset.subid));
+    };
+    // 入場動畫（可選）
+    if (state.settings.animations && typeof first.animate === 'function') {
+      try {
+        first.animate(
+          [{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }],
+          { duration: 260, easing: 'cubic-bezier(.32,.72,0,1)' }
+        );
+      } catch {}
+    }
+  }
+  return true;
+}
 async function loadProblemSubmissions(id) {
   const wrap = $('#ml-pd-subs-list');
   if (!wrap) return;
@@ -1456,21 +1538,8 @@ async function loadProblemSubmissions(id) {
       wrap.innerHTML = `<div class="ml-empty" style="padding:20px"><i class="fas fa-inbox"></i>No submissions yet</div>`;
       return;
     }
-    wrap.innerHTML = subs.map(sub => {
-      const dt = fmtDateTime(sub.timestamp);
-      const cls = statusCls(sub.status);
-      const ansText = sub.type === 'image' ? '[Image]' : (sub.answerHidden ? 'Hidden' : (sub.answer || ''));
-      return `<div class="ml-pd-sub" data-subid="${escAttr(sub.subid || '')}">
-        <span class="ml-pd-sub-time">${esc(dt.short)}</span>
-        <span class="ml-pd-sub-ans">${esc(ansText)}</span>
-        <span class="ml-pd-sub-status ${cls}">${esc(sub.status || 'Pending')}</span>
-      </div>`;
-    }).join('');
-    $$('.ml-pd-sub[data-subid]', wrap).forEach(el => {
-      el.onclick = () => {
-        if (el.dataset.subid) navigate('/submissions/' + encodeURIComponent(el.dataset.subid));
-      };
-    });
+    wrap.innerHTML = subs.map(pdSubItemHtml).join('');
+    bindPdSubItems(wrap);
   } catch {
     wrap.innerHTML = `<div class="ml-empty" style="padding:20px"><i class="fas fa-triangle-exclamation"></i>Failed to load</div>`;
   }
