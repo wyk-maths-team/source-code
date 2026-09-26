@@ -77,6 +77,34 @@
     .img-up-copy.done { background: #2e7d32; color: #fff; border-color: #2e7d32; }
     .img-up-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding-top: 4px; }
     .img-up-actions .btn { padding: 0.4rem 1rem; font-size: 0.85rem; margin-right: 0; }
+        .img-up-paste-input {
+      width: 100%;
+      min-height: 62px;
+      padding: 10px 14px;
+      border: 2px dashed var(--border-color);
+      border-radius: 6px;
+      background: rgba(74,144,217,.04);
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      resize: vertical;
+      cursor: text;
+      outline: none;
+      transition: all .15s;
+      box-sizing: border-box;
+    }
+    .img-up-paste-input::placeholder {
+      color: var(--text-secondary);
+      opacity: .85;
+    }
+    .img-up-paste-input:focus {
+      border-color: var(--accent);
+      border-style: solid;
+      background: rgba(74,144,217,.08);
+      box-shadow: 0 0 0 3px rgba(74,144,217,.15);
+      color: var(--text-primary);
+    }
   </style>
 </head>
 <body class="index-body">
@@ -228,8 +256,10 @@
                   <button type="button" class="btn btn-primary" id="imgUpPickBtn">
                     <i class="fas fa-upload"></i> Upload Image
                   </button>
-                  <span class="img-up-hint">Max 2 MB · JPG / PNG / GIF / WebP · 自動壓縮到 1920px</span>
+                  <span class="img-up-hint" style="margin-left:0;">px(Empty=66.67%)</span>
                 </div>
+                <textarea class="img-up-paste-input" id="imgUpPasteInput" readonly
+                  placeholder="Click here and paste images"></textarea>
                 <div class="img-up-progress" id="imgUpProgress" style="display:none;">
                   <span class="spinner"></span>
                   <span id="imgUpProgressText">Uploading...</span>
@@ -290,11 +320,12 @@
       const toolbar = document.getElementById('newToolbar');
       initCodeEditor(textarea, lineNumbers, highlightPre, toolbar);
 
-      /* ═══════════ 圖片上傳 ═══════════ */
-      (function initImageUpload() {
+      // 圖片上傳
+      (function initImageUpload() {//IIFE
         const panel       = document.getElementById('imgUpPanel');
         const pickBtn     = document.getElementById('imgUpPickBtn');
         const fileInput   = document.getElementById('imgUpInput');
+        const pasteInput  = document.getElementById('imgUpPasteInput');
         const progress    = document.getElementById('imgUpProgress');
         const progressTxt = document.getElementById('imgUpProgressText');
         const resultEl    = document.getElementById('imgUpResult');
@@ -311,11 +342,25 @@
         let currentUrl = '';
         let isUploading = false;
 
+        // ⭐ Statement 光標位置追蹤
+        const stmtTA = document.getElementById('newStatement');
+        let stmtPos = { start: null, end: null };
+        function recordStmtPos() {
+          if (!stmtTA) return;
+          stmtPos.start = stmtTA.selectionStart;
+          stmtPos.end   = stmtTA.selectionEnd;
+        }
+        if (stmtTA) {
+          ['keyup','click','select','input','blur','mouseup'].forEach(ev =>
+            stmtTA.addEventListener(ev, recordStmtPos));
+        }
+
+        // ⭐ width 留空 → 66.67%（auto 的 2/3）
         function buildImgHtml(url) {
           const w = (widthEl.value || '').trim();
           const style = w
             ? `max-width:${w}px;width:100%;height:auto;display:block;margin:.6rem auto;`
-            : `max-width:100%;height:auto;display:block;margin:.6rem auto;`;
+            : `max-width:66.67%;width:100%;height:auto;display:block;margin:.6rem auto;`;
           return `<img src="${url}" alt="problem image" loading="lazy" style="${style}" />`;
         }
         function refreshFields() {
@@ -323,6 +368,7 @@
           urlEl.value = currentUrl;
           htmlEl.value = buildImgHtml(currentUrl);
         }
+
         function readAndCompress(file, maxWidth = 1920, quality = 0.85) {
           return new Promise((resolve, reject) => {
             if (!file.type.startsWith('image/')) return reject(new Error('Not an image'));
@@ -345,7 +391,31 @@
             reader.readAsDataURL(file);
           });
         }
-        async function uploadFile(file) {
+
+        // ⭐ 把圖片插到 Statement 的記錄光標處（無光標則 append 到末尾）
+        function insertImageIntoStatement(url) {
+          if (!stmtTA) return;
+          const html = buildImgHtml(url);
+          let start = stmtPos.start;
+          let end   = stmtPos.end;
+          if (start === null || start > stmtTA.value.length) {
+            start = stmtTA.value.length;
+            end   = start;
+          }
+          const before = stmtTA.value.substring(0, start);
+          const after  = stmtTA.value.substring(end);
+          const needsNL = before.length > 0 && !before.endsWith('\n');
+          const insertText = (needsNL ? '\n' : '') + html + '\n';
+          stmtTA.value = before + insertText + after;
+          stmtTA.dispatchEvent(new Event('input', { bubbles: true }));
+          const newPos = start + insertText.length;
+          stmtTA.setSelectionRange(newPos, newPos);
+          stmtPos.start = newPos;
+          stmtPos.end   = newPos;
+        }
+
+        // ⭐ 上传（autoInsert=true 时上传完自动插入）
+        async function uploadFile(file, { autoInsert = false } = {}) {
           if (isUploading) return;
           isUploading = true;
           pickBtn.disabled = true;
@@ -354,8 +424,25 @@
           progressTxt.textContent = 'Compressing...';
           try {
             const base64 = await readAndCompress(file);
-            progressTxt.textContent = 'Uploading to Cloudinary...';
-            const res = await apiCall('/api/problem?action=adminUploadImage', 'POST', { image: base64 });
+
+            // ⭐ 從 ID 輸入框即時讀取（用戶可能還沒填 → 走 timestamped fallback）
+            const problemId = (document.getElementById('newId')?.value || '').trim();
+
+            // ⭐ 若 ID 為空，友善提示（不阻止，讓後端走時間戳命名）
+            if (!problemId && !window.__imgUpWarned) {
+              const msg = document.getElementById('message');
+              if (msg) {
+                msg.textContent = '⚠️ ID 為空，圖片將用時間戳命名。建議先填 ID 再上傳。';
+                msg.style.color = '#e67e22';
+              }
+              window.__imgUpWarned = true;
+            }
+
+            progressTxt.textContent = 'Uploading to GitHub...';
+            const res = await apiCall('/api/problem?action=adminUploadImage', 'POST', {
+              image: base64,
+              problemId: problemId || undefined,   // '' → 後端走 uploadTimestampedImage
+            });
             if (!res.success) throw new Error(res.message || 'Upload failed');
             currentUrl = res.url;
             previewEl.src = currentUrl;
@@ -364,7 +451,13 @@
             resultEl.style.display = 'flex';
             progress.style.display = 'none';
             const msg = document.getElementById('message');
-            if (msg) { msg.textContent = 'Image uploaded.'; msg.style.color = '#2e7d32'; }
+            if (msg) {
+              msg.textContent = autoInsert
+                ? `✓ 圖片已上傳（${problemId ? problemId + '-N' : 'img-' + Date.now()}）並插入 Statement。`
+                : 'Image uploaded. Use "Insert into Statement" to place it.';
+              msg.style.color = '#2e7d32';
+            }
+            if (autoInsert) insertImageIntoStatement(currentUrl);
           } catch (err) {
             progress.style.display = 'none';
             alert('Upload failed: ' + err.message);
@@ -373,28 +466,46 @@
             pickBtn.disabled = false;
           }
         }
-        // 供 submit 後重置
-        window.__resetImageUpload = function() {
-          currentUrl = '';
-          previewEl.src = '';
-          urlEl.value = '';
-          htmlEl.value = '';
-          resultEl.style.display = 'none';
-        };
+        // ⭐ 從 clipboardData 提取圖片 file
+        function extractImageFile(cd) {
+          if (!cd || !cd.items) return null;
+          for (let i = 0; i < cd.items.length; i++) {
+            const it = cd.items[i];
+            if (it.kind === 'file' && it.type && it.type.startsWith('image/')) {
+              const f = it.getAsFile();
+              if (f) return f;
+            }
+          }
+          return null;
+        }
+
+        // ⭐ Ctrl+V 粘貼處理（textarea + 全局）
+        async function handlePaste(e) {
+          const file = extractImageFile(e.clipboardData);
+          if (!file) return;                     // 剪貼板無圖片 → 不攔截
+          e.preventDefault();
+          await uploadFile(file, { autoInsert: true });
+        }
+        if (pasteInput) pasteInput.addEventListener('paste', handlePaste);
+        document.addEventListener('paste', (e) => {
+          if (e.target === pasteInput) return;   // 已由上面處理
+          handlePaste(e);
+        });
 
         pickBtn.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', () => {
           const file = fileInput.files && fileInput.files[0];
           fileInput.value = '';
-          if (file) uploadFile(file);
+          if (file) uploadFile(file, { autoInsert: true });
         });
         panel.addEventListener('dragover', (e) => { e.preventDefault(); panel.style.borderColor = 'var(--accent)'; });
         panel.addEventListener('dragleave', () => { panel.style.borderColor = ''; });
         panel.addEventListener('drop', (e) => {
           e.preventDefault(); panel.style.borderColor = '';
           const file = e.dataTransfer?.files?.[0];
-          if (file) uploadFile(file);
+          if (file) uploadFile(file, { autoInsert: true });
         });
+
         async function copyText(text, btn) {
           try {
             if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text);
@@ -412,29 +523,16 @@
         copyUrlBtn.addEventListener('click', () => { if (currentUrl) copyText(currentUrl, copyUrlBtn); });
         copyHtmlBtn.addEventListener('click', () => { if (currentUrl) copyText(buildImgHtml(currentUrl), copyHtmlBtn); });
         widthEl.addEventListener('input', refreshFields);
+
         insertBtn.addEventListener('click', () => {
           if (!currentUrl) return;
-          const html = buildImgHtml(currentUrl);
-          const ta = document.getElementById('newStatement');
-          if (!ta) return;
-          ta.focus();
-          const start = ta.selectionStart ?? ta.value.length;
-          const end = ta.selectionEnd ?? ta.value.length;
-          const before = ta.value.substring(0, start);
-          const after = ta.value.substring(end);
-          const needsNewline = before.length > 0 && !before.endsWith('\n');
-          const insertText = (needsNewline ? '\n' : '') + html + '\n';
-          ta.value = before + insertText + after;
-          ta.dispatchEvent(new Event('input', { bubbles: true }));
-          const newPos = start + insertText.length;
-          ta.setSelectionRange(newPos, newPos);
+          insertImageIntoStatement(currentUrl);
         });
         clearBtn.addEventListener('click', () => {
           currentUrl = ''; previewEl.src = ''; urlEl.value = ''; htmlEl.value = '';
           resultEl.style.display = 'none';
         });
       })();
-
       // 提交
       document.getElementById('newForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -478,6 +576,7 @@
             if (typeof window.__resetImageUpload === 'function') window.__resetImageUpload();
 
             // 焦點回到 ID
+            window.__imgUpWarned = false; 
             document.getElementById('newId').focus();
 
             // 追加提示

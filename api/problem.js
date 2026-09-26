@@ -1,6 +1,6 @@
 ﻿// api/problem.js
 import { connectToDatabase } from './db.js';
-// import { auditLog } from '../lib/audit.js';
+import { auditLog } from '../lib/audit.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { sanitizeHTML } from '../lib/sanitize.js';
@@ -12,76 +12,7 @@ function isAdminUser(user) {
   return !!user && (user.role === 'admin' || user.role === 'root');
 }
 
-// ⭐ 通用 audit + webhook 通知
-// 用於非「題目」類的敏感操作（圖片上傳、討論刪除等）
-const AUDIT_NOTIFY_LEVEL = {
-  problem_create:         'info',
-  problem_change:         'warn',
-  problem_delete:         'danger',
-  problem_delete_batch:   'danger',
-  upload_problem_image:   'info',
-  delete_discussion:      'warn',
-  set_discussion_likes:   null,
-};
 
-async function auditLog(db, action, details, operator) {
-  try {
-    await db.collection('audit_logs').insertOne({
-      action, details, operator, timestamp: new Date(),
-    });
-
-    const level = AUDIT_NOTIFY_LEVEL[action];
-    if (level) {
-      await sendAuditNotification(action, details, operator, level);
-    }
-  } catch (e) {
-    console.error('Audit log error:', e);
-  }
-}
-
-// ⭐ 送 webhook（同步 await，避免 Vercel 殺 function）
-async function sendAuditNotification(action, details, operator, level) {
-  if (!process.env.DISCORD_WEBHOOK_URL) return;
-
-  const LEVEL_EMOJI = { info: 'ℹ️', warn: '⚠️', danger: '🚨' };
-  const LEVEL_COLOR = { info: 0x4a90d9, warn: 0xffc107, danger: 0xf85149 };
-
-  try {
-    const fields = [];
-    const pick = (k, v) => { if (v !== undefined && v !== null) fields.push({ name: k, value: String(v).slice(0, 1024), inline: true }); };
-
-    pick('Operator', operator);
-    pick('Action', action);
-    if (details) {
-      pick('ID', details.id || details.problemId || details.username);
-      if (Array.isArray(details.ids)) {
-        pick('Count', details.ids.length);
-        pick('IDs', details.ids.slice(0, 8).join(', ') + (details.ids.length > 8 ? '…' : ''));
-      }
-      if (details.changes) {
-        const keys = Object.keys(details.changes).slice(0, 5);
-        pick('Fields', keys.join(', '));
-      }
-    }
-
-    await fetch(process.env.DISCORD_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: 'WYK Maths Audit',
-        embeds: [{
-          title: `${LEVEL_EMOJI[level] || ''} ${action}`,
-          description: details?.id || details?.ids?.slice(0, 3).join(', ') || '(no target)',
-          color: LEVEL_COLOR[level] || 0x888888,
-          fields: fields.length ? fields : undefined,
-          timestamp: new Date().toISOString(),
-        }],
-      }),
-    });
-  } catch (e) {
-    console.warn('[audit] webhook failed:', e.message);
-  }
-}
 
 function checkAccess(user, problemId) {
   if (!user) return false;
@@ -114,49 +45,26 @@ async function auditProblemChange(db, operator, problemId, before, after) {
   const changes = diffFields(before, after);
   if (Object.keys(changes).length === 0) return;
 
-  await db.collection('audit_logs').insertOne({
-    action: 'problem_change',
-    operator,
+  // 只在「關鍵欄位」變動時發通知；其餘只寫 DB（level=null）
+  const CRITICAL_FIELDS = ['ans', 'public', 'logic', 'statement'];
+  const criticalChanged = Object.keys(changes).filter(k => CRITICAL_FIELDS.includes(k));
+  const level = criticalChanged.length > 0 ? 'warn' : null;
+
+  await auditLog(db, 'problem_change', {
     problemId: String(problemId),
     collection: 'problems',
     changes,
-    timestamp: new Date()
-  });
-
-  // ⭐ 只在「關鍵欄位」變動時通知，避免瑣碎修改吵人
-  const CRITICAL_FIELDS = ['ans', 'public', 'logic', 'statement'];
-  const criticalChanged = Object.keys(changes).filter(k => CRITICAL_FIELDS.includes(k));
-
-  if (criticalChanged.length > 0) {
-    await sendAuditNotification(
-      'problem_change',
-      {
-        id: problemId,
-        changes: Object.fromEntries(criticalChanged.map(k => [k, true])),
-      },
-      operator,
-      'warn'
-    );
-  }
+    criticalFields: criticalChanged.length ? criticalChanged : undefined,
+  }, operator, level);
 }
 
 async function auditProblemDelete(db, operator, problem) {
-  await db.collection('audit_logs').insertOne({
-    action: 'problem_delete',
-    operator,
+  await auditLog(db, 'problem_delete', {
     problemId: String(problem.id),
     collection: 'problems',
-    backup: problem,
-    timestamp: new Date()
-  });
-
-  // ⭐ 刪題目一定要通知
-  await sendAuditNotification(
-    'problem_delete',
-    { id: problem.id, name: problem.name },
-    operator,
-    'danger'
-  );
+    name: problem.name,
+    backup: problem,     // 完整文檔備份
+  }, operator, 'danger');
 }
 
 async function bumpProblemsVersion(db) {
@@ -242,14 +150,12 @@ export default async function handler(req, res) {
         };
         await db.collection('problems').insertOne(newProblem);
         await bumpProblemsVersion(db);
-        await db.collection('audit_logs').insertOne({
-          action: 'problem_create',
-          operator: req.user.username,
+        await auditLog(db, 'problem_create', {
           problemId: idStr,
           collection: 'problems',
+          name: newProblem.name,
           after: newProblem,
-          timestamp: new Date()
-        });
+        }, req.user.username, 'info');
         return res.status(201).json({ success: true, message: 'Problem created' });
       }
 
@@ -329,28 +235,23 @@ export default async function handler(req, res) {
           }
 
           // ⭐ 寫 N 筆 audit_logs（保持完整），但只發 1 條 webhook
+          // ⭐ 每筆只寫 DB 不發通知（避免 Discord 被掃屏）
           for (const prob of problems) {
-            await db.collection('audit_logs').insertOne({
-              action: 'problem_delete',
-              operator: req.user.username,
+            await auditLog(db, 'problem_delete', {
               problemId: String(prob.id),
               collection: 'problems',
+              name: prob.name,
               backup: prob,
-              batch: true,     // ⭐ 標記為批次
-              timestamp: new Date(),
-            });
+              batch: true,
+            }, req.user.username, null);   // level=null → 只寫 DB
           }
 
-          // ⭐ 只發一次通知
-          await sendAuditNotification(
-            'problem_delete_batch',
-            {
-              ids: problems.map(p => p.id),
-              count: problems.length,
-            },
-            req.user.username,
-            'danger'
-          );
+          // ⭐ 一條匯總通知
+          await auditLog(db, 'problem_delete_batch', {
+            ids: problems.map(p => p.id),
+            count: problems.length,
+            collection: 'problems',
+          }, req.user.username, 'danger');
 
           await bumpProblemsVersion(db);
           return res.status(200).json({ success: true, message: `Deleted ${problems.length} problems` });
@@ -498,16 +399,13 @@ export default async function handler(req, res) {
           await import('../lib/github-upload.js');
 
         const url = problemId
-          ? await uploadNumberedImage(image, {
-              folder: 'images/problems',
-              baseName: String(problemId),
-            })
-          : await uploadTimestampedImage(image, {
-              folder: 'images/problems',
-              baseName: 'img',
-            });
+        ? await uploadNumberedImage(image, { folder: 'images/problems', baseName: String(problemId) })
+        : await uploadTimestampedImage(image, { folder: 'images/problems', baseName: 'img' });
 
-        await auditLog(db, 'upload_problem_image', { url, problemId: problemId || null }, req.user.username);
+        await auditLog(db, 'upload_problem_image', {
+          url,
+          problemId: problemId || null,
+        }, req.user.username, 'info');
         return res.status(200).json({ success: true, url });
       } catch (err) {
         console.error('Problem image upload error:', err);
@@ -524,7 +422,7 @@ export default async function handler(req, res) {
       try { oid = new ObjectId(id); } catch { return res.status(400).json({ success: false, message: 'Invalid ID' }); }
       const result = await db.collection('discussions').deleteOne({ _id: oid });
       if (result.deletedCount === 0) return res.status(404).json({ success: false, message: 'Post not found' });
-      await auditLog(db, 'delete_discussion', { id }, req.user.username);
+      await auditLog(db, 'delete_discussion', { id }, req.user.username, 'warn');
       return res.status(200).json({ success: true, message: 'Discussion deleted' });
     }
 
@@ -540,7 +438,10 @@ export default async function handler(req, res) {
         { $set: { likes: Number(likes) } }
       );
       if (result.matchedCount === 0) return res.status(404).json({ success: false, message: 'Post not found' });
-      await auditLog(db, 'set_discussion_likes', { id, likes }, req.user.username);
+      await auditLog(db, 'set_discussion_likes', {
+        id,
+        likes: Number(likes),
+      }, req.user.username, 'warn');
       return res.status(200).json({ success: true, message: 'Likes updated' });
     }
 

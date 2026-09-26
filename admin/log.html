@@ -310,10 +310,11 @@
     //   kind: 'change' | 'create' | 'delete' | 'details' | 'empty'
     //   body: HTML 字串（展開後顯示的內容）
     function classifyEntry(entry) {
-      // 1) 新格式：problem_change
-      if (entry.changes && typeof entry.changes === 'object') {
-        const fields = Object.keys(entry.changes);
-        const body = renderChangesTable(entry.changes);
+      const d = entry.details || {};
+
+      // 1) problem_change
+      if (d.changes && typeof d.changes === 'object') {
+        const fields = Object.keys(d.changes);
         return {
           kind: 'change',
           class: 'change',
@@ -321,61 +322,74 @@
           summary: fields.length === 1
             ? `field: ${fields[0]}`
             : `${fields.length} fields changed`,
-          body
+          body: renderChangesTable(d.changes),
         };
       }
 
-      // 2) 新格式：problem_create（有 after）
-      if (entry.after && typeof entry.after === 'object') {
-        const body = renderObjectTable(entry.after, 'After');
+      // 2) problem_create（有 after）
+      if (d.after && typeof d.after === 'object') {
         return {
           kind: 'create',
           class: 'create',
           icon: '＋',
           summary: 'New record',
-          body
+          body: renderObjectTable(d.after, 'After'),
         };
       }
 
-      // 3) 新格式：problem_delete（有 backup）
-      if (entry.backup && typeof entry.backup === 'object') {
-        const body = renderObjectTable(entry.backup, 'Backup (full document)');
+      // 3) problem_delete（有 backup）
+      if (d.backup && typeof d.backup === 'object') {
         return {
           kind: 'delete',
           class: 'delete',
           icon: '🗑',
           summary: 'Deleted · backup saved',
-          body
+          body: renderObjectTable(d.backup, 'Backup (full document)'),
         };
       }
 
-      // 4) 舊格式：有 details
+      // 4) 一般 details
       if (entry.details !== undefined) {
         let body;
-        if (typeof entry.details === 'object' && entry.details !== null) {
-          body = renderObjectTable(entry.details, 'Details');
+        if (typeof d === 'object' && d !== null) {
+          body = renderObjectTable(d, 'Details');
         } else {
-          body = `<pre class="json-block">${escapeHtml(String(entry.details))}</pre>`;
+          body = `<pre class="json-block">${escapeHtml(String(d))}</pre>`;
         }
         return {
           kind: 'details',
           class: classForAction(entry.action),
           icon: iconForAction(entry.action),
           summary: 'details',
-          body
+          body,
         };
       }
 
-      // 5) 甚麼都沒有
       return {
         kind: 'empty',
         class: 'neutral',
         icon: '·',
         summary: '—',
-        body: ''
+        body: '',
       };
     }
 
+function renderTarget(entry) {
+  const d = entry.details || {};
+  const parts = [];
+  if (d.problemId) {
+    parts.push(
+      `<a href="/problems/${encodeURIComponent(d.problemId)}">${escapeHtml(d.problemId)}</a>`
+    );
+  }
+  if (d.collection) {
+    parts.push(`<span class="coll">${escapeHtml(d.collection)}</span>`);
+  }
+  if (parts.length === 0) {
+    return '<span style="color:var(--text-secondary);">—</span>';
+  }
+  return `<span class="log-target">${parts.join(' · ')}</span>`;
+}
     function classForAction(action) {
       if (/create|new/i.test(action)) return 'create';
       if (/change|update|edit|rejudge/i.test(action)) return 'change';
@@ -424,19 +438,19 @@
     }
 
     // Target 列（collection · problemId）
-    function renderTarget(entry) {
-      const parts = [];
-      if (entry.problemId) {
-        parts.push(
-          `<a href="/problems/${encodeURIComponent(entry.problemId)}">${escapeHtml(entry.problemId)}</a>`
-        );
-      }
-      if (entry.collection) {
-        parts.push(`<span class="coll">${escapeHtml(entry.collection)}</span>`);
-      }
-      if (parts.length === 0) return '<span style="color:var(--text-secondary);">—</span>';
-      return `<span class="log-target">${parts.join(' · ')}</span>`;
-    }
+    // function renderTarget(entry) {
+    //   const parts = [];
+    //   if (entry.problemId) {
+    //     parts.push(
+    //       `<a href="/problems/${encodeURIComponent(entry.problemId)}">${escapeHtml(entry.problemId)}</a>`
+    //     );
+    //   }
+    //   if (entry.collection) {
+    //     parts.push(`<span class="coll">${escapeHtml(entry.collection)}</span>`);
+    //   }
+    //   if (parts.length === 0) return '<span style="color:var(--text-secondary);">—</span>';
+    //   return `<span class="log-target">${parts.join(' · ')}</span>`;
+    // }
 
     // ============ 列表 ============
     function renderLogs(logs) {
