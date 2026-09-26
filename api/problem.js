@@ -1,5 +1,6 @@
 ﻿// api/problem.js
 import { connectToDatabase } from './db.js';
+import { auditLog } from '../lib/audit.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { sanitizeHTML } from '../lib/sanitize.js';
@@ -17,15 +18,7 @@ function checkAccess(user, problemId) {
   return user.states[problemId] === 'passed';
 }
 
-async function auditLog(db, action, details, operator) {
-  try {
-    await db.collection('audit_logs').insertOne({
-      action, details, operator, timestamp: new Date()
-    });
-  } catch (e) {
-    console.error('Audit log error:', e);
-  }
-}
+
 
 // 計算 before → after 的欄位差異
 function diffFields(before, after) {

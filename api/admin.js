@@ -1,5 +1,6 @@
 ﻿// api/admin.js
 import { connectToDatabase } from './db.js';
+import { auditLog } from '../lib/audit.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { sanitizeHTML } from '../lib/sanitize.js';
@@ -9,18 +10,18 @@ import path from 'path';
 const allowedCollections = ['problems', 'users', 'submissions', 'userstats', 'updates', 'contests', 'contest_results', 'metadata'];
 
 const ALLOWED_COLLECTIONS = ['problems', 'users', 'submissions', 'userstats', 'updates', 'contests', 'contest_results', 'metadata'];
-async function auditLog(db, action, details, operator) {
-  try {
-    await db.collection('audit_logs').insertOne({
-      action,
-      details,
-      operator,
-      timestamp: new Date()
-    });
-  } catch (e) {
-    console.error('Audit log error:', e);
-  }
-}
+// async function auditLog(db, action, details, operator) {
+//   try {
+//     await db.collection('audit_logs').insertOne({
+//       action,
+//       details,
+//       operator,
+//       timestamp: new Date()
+//     });
+//   } catch (e) {
+//     console.error('Audit log error:', e);
+//   }
+// }
 
 export default async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
@@ -34,16 +35,16 @@ export default async function handler(req, res) {
   const { action } = req.query;
 
   // ====== 审计日志（内部） ======
-  async function auditLog(actionName, details) {
-    try {
-      await db.collection('audit_logs').insertOne({
-        action: actionName,
-        details,
-        operator: decoded.username,
-        timestamp: new Date()
-      });
-    } catch (e) { console.error('Audit log error:', e); }
-  }
+  // async function auditLog(actionName, details) {
+  //   try {
+  //     await db.collection('audit_logs').insertOne({
+  //       action: actionName,
+  //       details,
+  //       operator: decoded.username,
+  //       timestamp: new Date()
+  //     });
+  //   } catch (e) { console.error('Audit log error:', e); }
+  // }
   // ========== Marker: 待批改列表 ==========
   if (action === 'markerList') {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });

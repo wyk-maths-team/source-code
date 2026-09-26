@@ -2,6 +2,7 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { connectToDatabase } from './db.js';
+import { auditLog } from '../lib/audit.js';
 
 /**
  * 從微軟回傳的 displayName 抽出真名。

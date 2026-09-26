@@ -355,6 +355,8 @@ export default async function handler(req, res) {
   }
 
   const { problemId, answer, type = 'text', image = '' } = req.body;
+  if(typeof(ans)==='string'&&ans.length>500)return res.status(400).json({success:false,message:'Answer Length Exceed 500'});
+  if(typeof(problemId)!=='string'||problemId.length>12)return res.status(400).json({success:false,message:'invalid problem id.'});
   if (!problemId) return res.status(400).json({ success: false, message: 'Missing problemId' });
   if (type === 'text' && answer === undefined) {
     return res.status(400).json({ success: false, message: 'Missing answer' });

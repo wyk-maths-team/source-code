@@ -176,35 +176,48 @@
 
     // ========== 刷新数据（核心优化） ==========
     async function refreshData() {
-      try {
-        const [verRes, preload] = await Promise.all([
-          apiCall('/api/problem?checkVersion=1'),
-          apiCall('/api/users?action=preload')
-        ]);
+      // ⭐ 各自獨立，任何一個失敗不影響另一個
+      const [verRes, preload] = await Promise.all([
+        apiCall('/api/problem?checkVersion=1').catch(e => {
+          console.warn('[refreshData] checkVersion failed:', e.message);
+          return null;
+        }),
+        apiCall('/api/users?action=preload').catch(e => {
+          console.warn('[refreshData] preload failed:', e.message);
+          return null;
+        })
+      ]);
 
-        // 更新用户状态与收藏
-        if (preload.success) {
-          userStates = preload.states || {};
-          window.favorites = new Set(preload.favorites || []);
-          saveUserStatesToCache(userStates);
-          saveFavoritesToCache(window.favorites);
-        }
+      // 更新用户状态与收藏（若 preload 成功）
+      if (preload && preload.success) {
+        userStates = preload.states || {};
+        window.favorites = new Set(preload.favorites || []);
+        saveUserStatesToCache(userStates);
+        saveFavoritesToCache(window.favorites);
+      }
 
-        // 版本变化时才拉取新题目列表
-        if (verRes.success) {
-          const newVersion = String(verRes.version);
-          const cachedVersion = localStorage.getItem('problemListVersion');
-          if (!cachedVersion || cachedVersion !== newVersion) {
+      // ⭐ 版本变化 → 拉新題目（即使 preload 失敗也會跑）
+      let versionChanged = false;
+      if (verRes && verRes.success) {
+        const newVersion = String(verRes.version);
+        const cachedVersion = localStorage.getItem('problemListVersion');
+        if (!cachedVersion || cachedVersion !== newVersion) {
+          versionChanged = true;
+          try {
             await fetchAllProblems(newVersion);
+          } catch (e) {
+            console.error('[refreshData] fetchAllProblems failed:', e);
           }
         }
-
-        // 重新过滤、排序并渲染
-        applyFiltersAndSort();
-        renderFullPage();
-      } catch (e) {
-        console.error('Refresh data failed:', e);
+      } else {
+        console.warn('[refreshData] checkVersion failed, cannot verify version');
       }
+
+      // 重新过滤、排序并渲染
+      applyFiltersAndSort();
+      renderFullPage();
+
+      return { versionChanged };
     }
 
     // ========== 客户端过滤与排序 ==========
@@ -627,7 +640,14 @@
         refreshBtn.addEventListener('click', async function() {
           if (this.disabled) return;
           startRefreshCooldown(30);
-          await refreshData();
+          const result = await refreshData();
+          if (result && result.versionChanged) {
+            // 版本有變：顯示一下
+            const btn = this;
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i>';
+            setTimeout(() => { btn.innerHTML = orig; }, 800);
+          }
         });
       }
     }

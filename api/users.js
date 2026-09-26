@@ -527,6 +527,9 @@ export default async function handler(req, res) {
     if (newPassword.length < 4) {
       return res.status(400).json({ success: false, message: 'New password too short (min 4 characters)' });
     }
+    if (newPassword.length > 128) {
+      return res.status(400).json({ success: false, message: 'Password too long (max 128 chars)' });
+    }
 
     // 关键：必须包含 password 字段
     const user = await db.collection('users').findOne(

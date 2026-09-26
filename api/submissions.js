@@ -228,7 +228,7 @@ export default async function handler(req, res) {
 
       const filter = {};
       // ⭐ 用戶過濾
-      const targetUser = user || qUsername;
+      const targetUser = String(qUser || qUsername || '').trim().slice(0, 50);
       if (targetUser) filter.username = targetUser;
 
       if (problem_id) filter.problemId = { $in: buildProblemIdFilter([problem_id]) };

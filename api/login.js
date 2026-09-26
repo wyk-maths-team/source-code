@@ -1,5 +1,6 @@
 ﻿// api/login.js
 import { connectToDatabase } from './db.js';
+// import { auditLog } from '../lib/audit.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { applyRateLimit } from '../lib/rateLimit.js';
@@ -38,7 +39,8 @@ export default async function handler(req, res) {
     rateLimitMap.set(ip, { count: 1, firstAttempt: now });
   }
 
-  const { username, password } = req.body;
+  const username = String(req.body.username || '').trim();
+  const password = String(req.body.password || '');
   if (!username || !password) {
     return res.status(400).json({ success: false, message: 'Missing fields' });
   }
