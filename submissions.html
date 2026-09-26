@@ -716,43 +716,22 @@ function buildFilterHeader(header) {
           }
         }
       }
-
+      // ---- 加载数据（單次 API，header 內嵌） ----
       // ---- 加载数据（單次 API，header 內嵌） ----
       async function loadSubmissions() {
         const tbody = document.getElementById('submissionsBody');
         if (!tbody) return;
 
         const currentKey = getFilterKey();
-        const isInternal = _lastFilterKey !== null && _lastFilterKey === currentKey;
+        const isFirstLoad = _lastFilterKey === null;
 
         const params = new URLSearchParams({ all: '1', page: state.page, limit: 50, includeHeader: '1' });
         if (state.user) params.set('user', state.user);
         if (state.problem) params.set('problem', state.problem);
         if (state.result) params.set('result', state.result);
 
-        if (isInternal) {
-          // ══════ 內部刷新：overlay + 淡出淡入 ══════
-          showTableOverlay();
-          try {
-            const data = await apiCall(`/api/submissions?${params.toString()}`);
-            if (!data.success) throw new Error(data.message || 'Failed');
-
-            updateFilterHeader(data.header);
-
-            await fadeOut(tbody);
-            renderTable(data.submissions);
-            renderPagination(data.page, data.totalPages, data.total);
-            fadeIn(tbody);
-
-            _lastFilterKey = currentKey;
-          } catch (err) {
-            console.error(err);
-            // 保留舊內容，不清空
-          } finally {
-            hideTableOverlay();
-          }
-        } else {
-          // ══════ 全新載入：清空 + loading icon ══════
+        // ══════ 首次：清空 + loading icon ══════
+        if (isFirstLoad) {
           tbody.style.opacity = '1';
           tbody.innerHTML = loadingRowHtml();
           try {
@@ -762,12 +741,33 @@ function buildFilterHeader(header) {
             updateFilterHeader(data.header);
             renderTable(data.submissions);
             renderPagination(data.page, data.totalPages, data.total);
-
             _lastFilterKey = currentKey;
           } catch (err) {
             console.error(err);
             tbody.innerHTML = '<tr><td colspan="5" class="error-msg">Failed to load submissions.</td></tr>';
           }
+          return;
+        }
+
+        // ══════ 之後（分頁 / 過濾 / 刷新）：overlay + 淡出淡入 ══════
+        showTableOverlay();
+        try {
+          const data = await apiCall(`/api/submissions?${params.toString()}`);
+          if (!data.success) throw new Error(data.message || 'Failed');
+
+          updateFilterHeader(data.header);
+
+          await fadeOut(tbody);
+          renderTable(data.submissions);
+          renderPagination(data.page, data.totalPages, data.total);
+          fadeIn(tbody);
+
+          _lastFilterKey = currentKey;
+        } catch (err) {
+          console.error(err);
+          // 保留舊內容，不清空
+        } finally {
+          hideTableOverlay();
         }
       }
       // ---- 渲染表格 ----
@@ -807,81 +807,81 @@ function buildFilterHeader(header) {
 
       // ---- 渲染分页 ----
       // ⭐ 依視窗寬度決定最多顯示幾個頁碼
-function getMaxVisiblePages() {
-  const w = window.innerWidth;
-  if (w < 400) return 5;
-  if (w < 600) return 7;
-  if (w < 900) return 9;
-  return 10;
-}
+      function getMaxVisiblePages() {
+        const w = window.innerWidth;
+        if (w < 400) return 5;
+        if (w < 600) return 7;
+        if (w < 900) return 9;
+        return 10;
+      }
 
 // ⭐ 計算要顯示的頁碼（含 '…' 佔位）
-function computePageItems(current, total, maxVisible) {
-  if (total <= maxVisible) {
-    return Array.from({ length: total }, (_, i) => i + 1);
-  }
+      function computePageItems(current, total, maxVisible) {
+        if (total <= maxVisible) {
+          return Array.from({ length: total }, (_, i) => i + 1);
+        }
 
-  // 首末固定，中間 maxVisible - 2 個
-  const inner = maxVisible - 2;
-  const half = Math.floor(inner / 2);
+        // 首末固定，中間 maxVisible - 2 個
+        const inner = maxVisible - 2;
+        const half = Math.floor(inner / 2);
 
-  let start = Math.max(2, current - half);
-  let end = Math.min(total - 1, start + inner - 1);
-  start = Math.max(2, end - inner + 1);
+        let start = Math.max(2, current - half);
+        let end = Math.min(total - 1, start + inner - 1);
+        start = Math.max(2, end - inner + 1);
 
-  const items = [1];
-  if (start > 2) items.push('…');
-  for (let p = start; p <= end; p++) items.push(p);
-  if (end < total - 1) items.push('…');
-  items.push(total);
+        const items = [1];
+        if (start > 2) items.push('…');
+        for (let p = start; p <= end; p++) items.push(p);
+        if (end < total - 1) items.push('…');
+        items.push(total);
 
-  return items;
-}
+        return items;
+      }
 
 // ⭐ 渲染分頁
-function renderPagination(page, totalPages, total) {
-  window.__lastPagination = { page, totalPages, total };
+      function renderPagination(page, totalPages, total) {
+        window.__lastPagination = { page, totalPages, total };
 
-  const render = (container) => {
-    if (!container) return;
-    if (totalPages <= 1) {
-      container.innerHTML = `<span class="page-info">${total} submission${total !== 1 ? 's' : ''}</span>`;
-      return;
-    }
+        const render = (container) => {
+          if (!container) return;
+          if (totalPages <= 1) {
+            container.innerHTML = `<span class="page-info">${total} submission${total !== 1 ? 's' : ''}</span>`;
+            return;
+          }
 
-    const maxVisible = getMaxVisiblePages();
-    const items = computePageItems(page, totalPages, maxVisible);
+          const maxVisible = getMaxVisiblePages();
+          const items = computePageItems(page, totalPages, maxVisible);
 
-    let html = '<ul class="pagination-list">';
+          let html = '<ul class="pagination-list">';
 
-    // 上一頁
-    html += `<li class="page-item ${page <= 1 ? 'disabled' : ''}">
-      <span class="page-link arrow" ${page > 1 ? `onclick="goToPage(${page - 1})"` : ''}>‹</span>
-    </li>`;
+          // 上一頁
+          html += `<li class="page-item ${page <= 1 ? 'disabled' : ''}">
+            <span class="page-link arrow" ${page > 1 ? `onclick="goToPage(${page - 1})"` : ''}>‹</span>
+          </li>`;
 
-    // 頁碼
-    for (const it of items) {
-      if (it === '…') {
-        html += `<li class="page-item ellipsis"><span class="page-link">…</span></li>`;
-      } else if (it === page) {
-        html += `<li class="page-item active"><span class="page-link">${it}</span></li>`;
-      } else {
-        html += `<li class="page-item"><span class="page-link" onclick="goToPage(${it})">${it}</span></li>`;
+          // 頁碼
+          for (const it of items) {
+            if (it === '…') {
+              html += `<li class="page-item ellipsis"><span class="page-link">…</span></li>`;
+            } else if (it === page) {
+              html += `<li class="page-item active"><span class="page-link">${it}</span></li>`;
+            } else {
+              html += `<li class="page-item"><span class="page-link" onclick="goToPage(${it})">${it}</span></li>`;
+            }
+          }
+
+          // 下一頁
+          html += `<li class="page-item ${page >= totalPages ? 'disabled' : ''}">
+            <span class="page-link arrow" ${page < totalPages ? `onclick="goToPage(${page + 1})"` : ''}>›</span>
+          </li>`;
+          html += `</ul><span class="page-info" style="margin-left:0.5rem;font-size:0.8rem;">${total} submissions</span>`;
+
+          container.innerHTML = html;
+        };
+
+        render(document.getElementById('paginationTop'));
+        render(document.getElementById('paginationBottom'));
       }
-    }
-
-    // 下一頁
-    html += `<li class="page-item ${page >= totalPages ? 'disabled' : ''}">
-      <span class="page-link arrow" ${page < totalPages ? `onclick="goToPage(${page + 1})"` : ''}>›</span>
-    </li>`;
-    html += `</ul><span class="page-info" style="margin-left:0.5rem;font-size:0.8rem;">${total} submissions</span>`;
-
-    container.innerHTML = html;
-  };
-
-  render(document.getElementById('paginationTop'));
-  render(document.getElementById('paginationBottom'));
-}
 
       window.goToPage = function(newPage) {
         if (newPage === state.page) return;
@@ -890,16 +890,16 @@ function renderPagination(page, totalPages, total) {
         loadSubmissions();
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };// ⭐ 視窗大小改變時重新渲染分頁（因為 maxVisible 變了）
-let _paginationResizeTimer = null;
-window.addEventListener('resize', () => {
-  if (_paginationResizeTimer) clearTimeout(_paginationResizeTimer);
-  _paginationResizeTimer = setTimeout(() => {
-    const last = window.__lastPagination;
-    if (last && document.getElementById('paginationTop')) {
-      renderPagination(last.page, last.totalPages, last.total);
-    }
-  }, 200);
-});
+      let _paginationResizeTimer = null;
+      window.addEventListener('resize', () => {
+        if (_paginationResizeTimer) clearTimeout(_paginationResizeTimer);
+        _paginationResizeTimer = setTimeout(() => {
+          const last = window.__lastPagination;
+          if (last && document.getElementById('paginationTop')) {
+            renderPagination(last.page, last.totalPages, last.total);
+          }
+        }, 200);
+      });
 
       // ---- 启动 ----
       renderLayout();
