@@ -3,30 +3,7 @@ import { connectToDatabase } from './db.js';
 import { verifyToken } from '../lib/auth.js';
 import bcrypt from 'bcrypt';
 import { applyRateLimit } from '../lib/rateLimit.js';
-import { auditLog } from '../lib/audit.js';   // ⭐ 統一來源
-// ═══════════════ Audit helper ═══════════════
-// action 命名統一：user_create / user_update / user_delete / pfp_upload
-// 通知級別：
-//   info   → 建立、頭像、其他低風險
-//   warn   → 一般修改
-//   danger → 刪除、提權、封禁
-
-async function auditLog(db, action, details, operator, level = null) {
-  try {
-    await db.collection('audit_logs').insertOne({
-      action,
-      details,
-      operator,
-      timestamp: new Date(),
-    });
-
-    if (level && process.env.DISCORD_WEBHOOK_URL) {
-      await sendAuditNotification(action, details, operator, level);
-    }
-  } catch (e) {
-    console.error('[audit]', action, 'failed:', e);
-  }
-}
+import { auditLog } from '../lib/audit.js';   // ⭐ 唯一来源，不再本地重复定义
 
 // ⭐ 排行榜內存緩存（30 秒）
 let _leaderboardCache = { data: null, expireAt: 0 };
@@ -34,6 +11,7 @@ const LEADERBOARD_TTL = 30_000;
 // ⭐ Charts 內存緩存（24 小時）
 let _chartCache = { data: null, expireAt: 0 };
 const CHART_CACHE_TTL = 24 * 60 * 60_000;
+
 export default async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
 
@@ -44,7 +22,8 @@ export default async function handler(req, res) {
     if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
   const db = await connectToDatabase();
-    // ========== 管理端 ==========
+
+  // ========== 管理端 ==========
   if (typeof action === 'string' && action.startsWith('admin')) {
     const isAdminUser = decoded && (decoded.role === 'admin' || decoded.role === 'root');
     if (!isAdminUser) return res.status(403).json({ success: false, message: 'Admin only' });
@@ -173,26 +152,21 @@ export default async function handler(req, res) {
       let level = 'warn';
       const dangerFlags = [];
 
-      // 提權 / 降級 → danger
       if (updateFields.role !== undefined && updateFields.role !== targetUser.role) {
         dangerFlags.push(`role: ${targetUser.role} → ${updateFields.role}`);
         level = 'danger';
       }
-      // 封禁 → danger
       if (updateFields.banned !== undefined && updateFields.banned !== targetUser.banned) {
         dangerFlags.push(updateFields.banned ? 'banned' : 'unbanned');
         level = 'danger';
       }
-      // 改密碼 → warn（等於可以登入該賬戶）
       if (updateFields.password) {
         dangerFlags.push('password reset');
       }
-      // 改用戶名 → warn（影響 submissions / userstats）
       if (updateFields.username) {
         dangerFlags.push(`username: ${username} → ${updateFields.username}`);
       }
 
-      // 記錄所有欄位變動（去掉密碼 hash，只記標記）
       const details = {
         username,
         fields: changedKeys,
@@ -216,9 +190,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, message: 'User updated' });
     }
 
-    // ----- DELETE：刪除 -----
-        // ----- DELETE：刪除 -----
-        // ----- DELETE：刪除（先備份到 GitHub backup repo） -----
+    // ----- DELETE：刪除（先備份到 GitHub backup repo）-----
     if (action === 'adminDelete') {
       if (req.method !== 'DELETE') return res.status(405).json({ error: 'Method not allowed' });
       const { username } = req.query;
@@ -253,13 +225,12 @@ export default async function handler(req, res) {
             hasUserstats: !!userstatsDoc,
           },
         },
-        user,                                    // 完整 user 文檔（含 password hash）
+        user,
         userstats: userstatsDoc || null,
-        submissions,                             // 全部提交
+        submissions,
       };
 
       // ⭐ 2. 上傳到 GitHub backup repo
-      //    檔名：users/{username}-{YYYYMMDD-HHmmss}.json
       const ts = (() => {
         const d = new Date();
         const p = n => String(n).padStart(2, '0');
@@ -274,7 +245,7 @@ export default async function handler(req, res) {
         const { uploadJsonFile } = await import('../lib/github-upload.js');
         backupResult = await uploadJsonFile(backupPath, backupPayload, {
           message: `backup: user delete — ${username} (by ${decoded.username})`,
-          overwrite: false,   // 檔名有時間戳，不該覆蓋
+          overwrite: false,
         });
         console.log(`[user_delete] backup ok: ${backupResult.githubUrl}`);
       } catch (e) {
@@ -282,17 +253,12 @@ export default async function handler(req, res) {
         console.error('[user_delete] backup failed:', e);
       }
 
-      // ⭐ 3. 若備份失敗 → 除非 force，否則拒絕刪除
+      // ⭐ 3. 備份失敗 → 除非 force，否則拒絕刪除
       if (backupError && !force) {
-        // 寫 audit 記下失敗
-        try {
-          await db.collection('audit_logs').insertOne({
-            action: 'user_delete_backup_failed',
-            operator: decoded.username,
-            details: { username, error: backupError },
-            timestamp: new Date(),
-          });
-        } catch {}
+        await auditLog(db, 'user_delete_backup_failed', {
+          username,
+          error: backupError,
+        }, decoded.username, 'danger');
 
         return res.status(500).json({
           success: false,
@@ -306,8 +272,8 @@ export default async function handler(req, res) {
       await db.collection('submissions').deleteMany({ username });
       await db.collection('userstats').deleteOne({ username });
 
-      // ⭐ 5. 寫 audit（含備份連結，方便事後恢復）
-      const auditDetails = {
+      // ⭐ 5. 統一走 auditLog（會自動寫 DB + 發 webhook）
+      await auditLog(db, 'user_delete', {
         username,
         displayName: user.displayName,
         realName: user.realName,
@@ -323,37 +289,7 @@ export default async function handler(req, res) {
           : null,
         backupFailed: backupError || undefined,
         forcedWithoutBackup: !!(backupError && force),
-      };
-
-      // ⭐ 送 Discord 通知（若已有 webhook helper）
-      try {
-        const { sendAuditNotification } = await import('../lib/webhook.js');
-        await sendAuditNotification(
-          'user_delete',
-          {
-            username,
-            count: submissions.length,
-            backupUrl: backupResult?.githubUrl || '(failed)',
-          },
-          decoded.username,
-          'danger'
-        );
-      } catch (e) {
-        // 通知失敗不影響主流程
-        console.warn('[user_delete] notify failed:', e.message);
-      }
-
-      // ⭐ 寫 audit_logs（若你沒整合 auditLog helper，這裡直接寫）
-      try {
-        await db.collection('audit_logs').insertOne({
-          action: 'user_delete',
-          operator: decoded.username,
-          details: auditDetails,
-          timestamp: new Date(),
-        });
-      } catch (e) {
-        console.error('[user_delete] audit_logs failed:', e);
-      }
+      }, decoded.username, 'danger');
 
       return res.status(200).json({
         success: true,
@@ -367,40 +303,38 @@ export default async function handler(req, res) {
 
     return res.status(400).json({ success: false, message: 'Invalid admin action' });
   }
-  // 除 leaderboard 外都需要登录
-  
 
+  // ═══════════════ 以下為非 admin action ═══════════════
   try {
-    
-
     // ---------- 用户状态 ----------
     if (action === 'stats') {
       const stats = await db.collection('userstats').findOne({ username: decoded.username });
       return res.status(200).json({ success: true, states: stats?.states || {} });
     }
+
     if (action === 'preload') {
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  const [stats, userdata] = await Promise.all([
-    db.collection('userstats').findOne({ username: decoded.username }),
-    db.collection('userdata').findOne({ username: decoded.username })
-  ]);
-  return res.status(200).json({
-    success: true,
-    states: stats?.states || {},
-    favorites: userdata?.favorites || []
-  });
-}
+      if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+      const [stats, userdata] = await Promise.all([
+        db.collection('userstats').findOne({ username: decoded.username }),
+        db.collection('userdata').findOne({ username: decoded.username })
+      ]);
+      return res.status(200).json({
+        success: true,
+        states: stats?.states || {},
+        favorites: userdata?.favorites || []
+      });
+    }
+
     if (action === 'pfp') {
       // ── GET：拿單個或批量頭像 ──
       if (req.method === 'GET') {
-        // ⭐ 批量：?action=pfp&usernames=a,b,c
         const batchParam = req.query.usernames;
         if (batchParam) {
           const list = String(batchParam)
             .split(',')
             .map(s => s.trim())
             .filter(Boolean)
-            .slice(0, 100); // 上限 100 個
+            .slice(0, 100);
 
           if (list.length === 0) {
             res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=86400');
@@ -421,20 +355,17 @@ export default async function handler(req, res) {
           return res.status(200).json({ success: true, pfps: map });
         }
 
-        // 單個
         const { username } = req.query;
         if (!username) return res.status(400).json({ success: false, message: 'Missing username' });
 
         const user = await db.collection('users')
           .findOne({ username }, { projection: { pfp: 1, _id: 0 } });
 
-        // ⭐ 若沒有 pfp，短快取（避免反覆查 DB）
         if (!user || !user.pfp) {
           res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=600');
           return res.status(200).json({ success: true, pfp: '' });
         }
 
-        // ⭐ 有 pfp 長快取
         res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800');
         return res.status(200).json({ success: true, pfp: user.pfp });
       }
@@ -450,7 +381,7 @@ export default async function handler(req, res) {
           return res.status(400).json({ success: false, message: 'Image too large (max 2MB)' });
         }
 
-          try {
+        try {
           const { uploadTimestampedImage } = await import('../lib/github-upload.js');
           const imageUrl = await uploadTimestampedImage(image, {
             folder: 'images/pfp',
@@ -477,20 +408,16 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: 'Method not allowed' });
     }
 
-        // ---------- 解題進度圖（所有人可見）----------
+    // ---------- 解題進度圖（所有人可見）----------
     if (action === 'charts') {
       if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-
-      // ⭐ 瀏覽器端緩存 60 秒（不經 Edge，避免權限穿透）
       res.setHeader('Cache-Control', 'private, max-age=60');
 
-      // ⭐ 內存緩存命中 → 直接返回
       if (_chartCache.data && _chartCache.expireAt > Date.now()) {
         return res.status(200).json({ success: true, data: _chartCache.data, cached: true });
       }
 
       try {
-        // 聚合：每位用戶對每題的最早 AC 時間 → 按日期累計
         const pipeline = [
           { $match: { correct: true, systemError: false } },
           {
@@ -523,7 +450,6 @@ export default async function handler(req, res) {
           return res.status(200).json({ success: true, data: { dates: [], users: [] } });
         }
 
-        // 補齊日期（從開服第一天到今天）
         const startDate = new Date(datesArray[0] + 'T00:00:00Z');
         const endDate = new Date();
         const allDates = [];
@@ -531,7 +457,6 @@ export default async function handler(req, res) {
           allDates.push(d.toISOString().split('T')[0]);
         }
 
-        // 按 user 重組
         const userMap = {};
         dailyData.forEach(d => {
           const username = d._id.username;
@@ -542,7 +467,6 @@ export default async function handler(req, res) {
 
         const usernames = Object.keys(userMap);
 
-        // 一次拉 realName / displayName
         const userDocs = await db.collection('users')
           .find(
             { username: { $in: usernames } },
@@ -553,7 +477,6 @@ export default async function handler(req, res) {
           userDocs.map(u => [u.username, { realName: u.realName || '', displayName: u.displayName || '' }])
         );
 
-        // 構建累計序列
         const users = usernames.map(username => {
           const dailyMap = userMap[username];
           let cumulative = 0;
@@ -580,13 +503,10 @@ export default async function handler(req, res) {
         return res.status(500).json({ success: false, message: err.message });
       }
     }
-    if (action === 'leaderboard') {
-      res.setHeader(
-        'Cache-Control',
-        'public, s-maxage=30, stale-while-revalidate=120'
-      );
 
-      // ⭐ 內存緩存：30 秒內直接返回，不打 DB
+    if (action === 'leaderboard') {
+      res.setHeader('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=120');
+
       const now = Date.now();
       if (_leaderboardCache.data && _leaderboardCache.expireAt > now) {
         return res.status(200).json(_leaderboardCache.data);
@@ -594,11 +514,10 @@ export default async function handler(req, res) {
       const leaderboardData = await db.collection('leaderboardView').find({}).toArray();
       const usernames = leaderboardData.map(e => e.username);
 
-      // 一併取出 realName / displayName（給 hover tooltip 用）
       const users = await db.collection('users')
         .find(
           { username: { $in: usernames } },
-          { projection: { username: 1, pfp: 1, displayName: 1, realName: 1, banned: 1 } }
+          { projection: { username: 1, pfp: 1, displayName: 1, realName: 1, banned: 1, role: 1 } }
         )
         .toArray();
 
@@ -608,7 +527,7 @@ export default async function handler(req, res) {
         .filter(entry => {
           const u = userMap[entry.username];
           if (u && u.banned === true) return false;
-          if (u && u.role === 'team') return false;   // ⭐ 新增
+          if (u && u.role === 'team') return false;
           return true;
         })
         .map((entry, idx) => {
@@ -619,15 +538,13 @@ export default async function handler(req, res) {
             displayName: entry.displayName || u.displayName || entry.username,
             solves: entry.solves,
             pfp: u.pfp || '',
-            realName: u.realName || ''   // ⭐ 新增
+            realName: u.realName || ''
           };
         });
       const payload = { success: true, leaderboard };
       _leaderboardCache = { data: payload, expireAt: Date.now() + LEADERBOARD_TTL };
       return res.status(200).json(payload);
-      // return res.status(200).json({ success: true, leaderboard });
     }
-    
 
     if (action === 'profile') {
       const { username } = req.query;
@@ -636,7 +553,6 @@ export default async function handler(req, res) {
       const isAdminUser = decoded.role === 'admin' || decoded.role === 'root';
       const problemFilter = isAdminUser ? {} : { public: true };
 
-      // 並行拉：題目清單、用戶狀態、用戶資料
       const [problems, userStats, user] = await Promise.all([
         db.collection('problems')
           .find(problemFilter, { projection: { id: 1, _id: 0 } })
@@ -648,7 +564,6 @@ export default async function handler(req, res) {
         )
       ]);
 
-      // 依 id 數字升序排序（IP2 < IP10 < IP100）
       problems.sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
 
       const states = userStats?.states || {};
@@ -668,12 +583,10 @@ export default async function handler(req, res) {
         pfp: user?.pfp || '',
         totalPassed,
         totalProblems: problems.length,
-        attempted,                             // [{id, state}]，已排序，只含 passed/failed
-        allProblemIds: problems.map(p => p.id) // ⭐ 供前端渲染「所有題目」網格
+        attempted,
+        allProblemIds: problems.map(p => p.id)
       });
     }
-
-
 
     // ========== 收藏/取消收藏 ==========
     if (action === 'favorite') {
@@ -704,67 +617,61 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, favorites });
     }
 
- if (action === 'changename') {
-  //
-
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  const { newname } = req.body;
-  if (!newname || newname.trim() === '') {
-    return res.status(400).json({ success: false, message: 'Display name cannot be empty' });
-  }
-  if (newname.length > 50) {
-    return res.status(400).json({ success: false, message: 'Display name too long (max 50 characters)' });
-  }
-  try {
-    await db.collection('users').updateOne(
-      { username: decoded.username },
-      { $set: { displayName: newname.trim() } }
-    );
-    return res.status(200).json({ success: true, message: 'Display name updated successfully' });
-  } catch (err) {
-    console.error('Update display name error:', err);
-    return res.status(500).json({ success: false, message: 'Database error' });
-  }
-}
-
-    
-  if (action === 'changepassword') {
-    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
-    const { oldPassword, newPassword } = req.body;
-    if (!oldPassword || !newPassword) {
-      return res.status(400).json({ success: false, message: 'Missing fields' });
-    }
-    if (newPassword.length < 4) {
-      return res.status(400).json({ success: false, message: 'New password too short (min 4 characters)' });
-    }
-    if (newPassword.length > 128) {
-      return res.status(400).json({ success: false, message: 'Password too long (max 128 chars)' });
+    if (action === 'changename') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+      const { newname } = req.body;
+      if (!newname || newname.trim() === '') {
+        return res.status(400).json({ success: false, message: 'Display name cannot be empty' });
+      }
+      if (newname.length > 50) {
+        return res.status(400).json({ success: false, message: 'Display name too long (max 50 characters)' });
+      }
+      try {
+        await db.collection('users').updateOne(
+          { username: decoded.username },
+          { $set: { displayName: newname.trim() } }
+        );
+        return res.status(200).json({ success: true, message: 'Display name updated successfully' });
+      } catch (err) {
+        console.error('Update display name error:', err);
+        return res.status(500).json({ success: false, message: 'Database error' });
+      }
     }
 
-    // 关键：必须包含 password 字段
-    const user = await db.collection('users').findOne(
-      { username: decoded.username },
-      { projection: { password: 1 } }  // 只取 password
-    );
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    if (action === 'changepassword') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-    // 如果用户没有密码（如通过微软登录注册的），不允许用旧密码修改
-    if (!user.password) {
-      return res.status(400).json({ success: false, message: 'This account does not have a password set. Please use SSO or contact admin.' });
+      const { oldPassword, newPassword } = req.body;
+      if (!oldPassword || !newPassword) {
+        return res.status(400).json({ success: false, message: 'Missing fields' });
+      }
+      if (newPassword.length < 4) {
+        return res.status(400).json({ success: false, message: 'New password too short (min 4 characters)' });
+      }
+      if (newPassword.length > 128) {
+        return res.status(400).json({ success: false, message: 'Password too long (max 128 chars)' });
+      }
+
+      const user = await db.collection('users').findOne(
+        { username: decoded.username },
+        { projection: { password: 1 } }
+      );
+      if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+      if (!user.password) {
+        return res.status(400).json({ success: false, message: 'This account does not have a password set. Please use SSO or contact admin.' });
+      }
+
+      const match = await bcrypt.compare(oldPassword, user.password);
+      if (!match) return res.status(400).json({ success: false, message: 'Old password is incorrect' });
+
+      const hashed = await bcrypt.hash(newPassword, 10);
+      await db.collection('users').updateOne(
+        { username: decoded.username },
+        { $set: { password: hashed } }
+      );
+      return res.status(200).json({ success: true, message: 'Password updated successfully' });
     }
-
-    // 验证旧密码
-    const match = await bcrypt.compare(oldPassword, user.password);
-    if (!match) return res.status(400).json({ success: false, message: 'Old password is incorrect' });
-
-    const hashed = await bcrypt.hash(newPassword, 10);
-    await db.collection('users').updateOne(
-      { username: decoded.username },
-      { $set: { password: hashed } }
-    );
-    return res.status(200).json({ success: true, message: 'Password updated successfully' });
-  }
 
     return res.status(400).json({ success: false, message: 'Invalid action' });
   } catch (err) {
