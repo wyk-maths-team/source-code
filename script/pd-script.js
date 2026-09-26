@@ -31,6 +31,7 @@ let timerInterval = null;
 let timerSeconds = 0;
 let timerRunning = false;
 let currentProblemName = '';
+let SPECIAL_CONTEXT = null;
 
 // ============ Timer ============
 const TIMER_KEY = `timer_${problemId}`;
@@ -1560,8 +1561,8 @@ async function submitPaperBatch(paperState, floating) {
 // ============ 主流程 ============
 async function initPage() {
   try {
-    // ⭐ 检测是否是特殊竞赛题目
-    let SPECIAL_CONTEXT = null;   // { contestId, teamId, mode, isCaptain }
+    // ⭐ 检测是否是特殊竞赛题目（賦值到 module scope 的變數）
+    SPECIAL_CONTEXT = null;   // 先重置
     try {
       const activeRes = await apiCall('/api/teams?action=active');
       if (activeRes.success && activeRes.active) {
@@ -2114,8 +2115,9 @@ function bindSubmitEvent() {
         updateProblemDetailIcon(problemId, currentProblemName);
       }
     } catch (err) {
+      console.error('[submit] failed:', err);
       spinner.style.display = 'none';
-      fb.textContent = 'Network error';
+      fb.textContent = 'Error: ' + (err.message || 'unknown');
       fb.className = 'feedback wrong';
     }
   });

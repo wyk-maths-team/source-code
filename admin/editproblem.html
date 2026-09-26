@@ -650,7 +650,7 @@
           progressTxt.textContent = 'Compressing...';
           try {
             const base64 = await readAndCompress(file);
-            progressTxt.textContent = 'Uploading to Cloudinary...';
+            progressTxt.textContent = 'Uploading to GitHub...';
             const res = await apiCall('/api/problem?action=adminUploadImage', 'POST', {
               image: base64,
               problemId,   // ⭐ 用當前頁面的 problemId
