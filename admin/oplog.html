@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Activity Timeline - Admin</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
+<style>
+  /* ═══════════════ op 顏色 ═══════════════ */
+  :root {
+    --op-insert: #2e7d32;
+    --op-insert-bg: #e8f5e9;
+    --op-update: #ed6c02;
+    --op-update-bg: #fff3e0;
+    --op-delete: #c62828;
+    --op-delete-bg: #ffebee;
+    --op-command: #6a1b9a;
+    --op-command-bg: #f3e5f5;
+  }
+  :root[data-theme="dark"] {
+    --op-insert: #56d364;
+    --op-insert-bg: #1a3a2a;
+    --op-update: #ffa726;
+    --op-update-bg: #3a2a1a;
+    --op-delete: #f85149;
+    --op-delete-bg: #3a1a1a;
+    --op-command: #c586f5;
+    --op-command-bg: #2a1a3a;
+  }
+
+  .oplog-wrap { max-width: 1080px; margin: 0 auto; }
+
+  /* ═══════════════ Header ═══════════════ */
+  .oplog-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 18px;
+  }
+  .oplog-header h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-primary);
+  }
+  .oplog-header h1 i { color: var(--accent); font-size: 1.05rem; }
+  .oplog-header-spacer { flex: 1; }
+  .oplog-stats {
+    font-size: .82rem;
+    color: var(--text-secondary);
+    font-family: 'Consolas', monospace;
+  }
+  .oplog-icon-btn {
+    width: 34px; height: 34px;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all .15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .9rem;
+  }
+  .oplog-icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .oplog-icon-btn.spinning i { animation: oplogSpin .8s linear infinite; }
+  @keyframes oplogSpin { to { transform: rotate(360deg); } }
+
+  /* ═══════════════ Filters ═══════════════ */
+  .oplog-filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 12px 14px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 16px;
+  }
+  .oplog-filters select,
+  .oplog-filters input {
+    padding: 7px 11px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font-size: .85rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .oplog-filters select:focus,
+  .oplog-filters input:focus { border-color: var(--accent); }
+  .oplog-filters input {
+    flex: 1;
+    min-width: 180px;
+  }
+
+  /* ═══════════════ List ═══════════════ */
+  .oplog-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .oplog-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background .12s, border-color .12s, transform .08s;
+  }
+  .oplog-item:hover {
+    background: var(--hover-bg);
+    transform: translateX(2px);
+    border-color: var(--accent);
+  }
+  .oplog-item.insert  { border-left-color: var(--op-insert); }
+  .oplog-item.update  { border-left-color: var(--op-update); }
+  .oplog-item.delete  { border-left-color: var(--op-delete); }
+  .oplog-item.command { border-left-color: var(--op-command); }
+
+  .oplog-time {
+    flex-shrink: 0;
+    min-width: 82px;
+    font-family: 'Consolas', monospace;
+    font-size: .72rem;
+    line-height: 1.35;
+    color: var(--text-secondary);
+  }
+  .oplog-time .d { display: block; font-weight: 700; color: var(--text-primary); font-size: .76rem; }
+
+  .oplog-icon {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .78rem;
+    flex-shrink: 0;
+  }
+  .oplog-item.insert  .oplog-icon { background: var(--op-insert-bg); color: var(--op-insert); }
+  .oplog-item.update  .oplog-icon { background: var(--op-update-bg); color: var(--op-update); }
+  .oplog-item.delete  .oplog-icon { background: var(--op-delete-bg); color: var(--op-delete); }
+  .oplog-item.command .oplog-icon { background: var(--op-command-bg); color: var(--op-command); }
+
+  .oplog-body { flex: 1; min-width: 0; }
+  .oplog-summary {
+    font-size: .88rem;
+    line-height: 1.4;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    word-break: break-word;
+  }
+  .oplog-sub {
+    font-size: .72rem;
+    color: var(--text-secondary);
+    font-family: 'Consolas', monospace;
+    margin-top: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .oplog-badge {
+    flex-shrink: 0;
+    font-size: .66rem;
+    font-weight: 800;
+    padding: 3px 9px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+  .oplog-item.insert  .oplog-badge { background: var(--op-insert-bg); color: var(--op-insert); }
+  .oplog-item.update  .oplog-badge { background: var(--op-update-bg); color: var(--op-update); }
+  .oplog-item.delete  .oplog-badge { background: var(--op-delete-bg); color: var(--op-delete); }
+  .oplog-item.command .oplog-badge { background: var(--op-command-bg); color: var(--op-command); }
+
+  /* ═══════════════ Pagination ═══════════════ */
+  .oplog-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    padding: 24px 0 12px;
+    flex-wrap: wrap;
+  }
+  .oplog-page-btn {
+    min-width: 34px;
+    height: 34px;
+    padding: 0 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font-size: .85rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all .12s;
+  }
+  .oplog-page-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .oplog-page-btn.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    font-weight: 700;
+  }
+  .oplog-page-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .oplog-page-info {
+    margin: 0 10px;
+    font-size: .8rem;
+    color: var(--text-secondary);
+    font-family: 'Consolas', monospace;
+  }
+
+  /* ═══════════════ Empty / Loading ═══════════════ */
+  .oplog-empty,
+  .oplog-loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+    font-size: .92rem;
+  }
+  .oplog-empty i,
+  .oplog-loading i {
+    font-size: 2rem;
+    color: var(--accent);
+    opacity: .45;
+    display: block;
+    margin-bottom: 12px;
+  }
+
+  /* ═══════════════ Drawer ═══════════════ */
+  .oplog-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 500px;
+    max-width: 92vw;
+    background: var(--card-bg);
+    border-left: 1px solid var(--border-color);
+    box-shadow: -8px 0 32px rgba(0,0,0,.18);
+    transform: translateX(100%);
+    transition: transform .28s cubic-bezier(.32,.72,0,1);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .oplog-drawer.open { transform: translateX(0); }
+
+  .oplog-drawer-head {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .oplog-drawer-head h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .oplog-drawer-close {
+    width: 32px; height: 32px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 1.1rem;
+    border-radius: 6px;
+    transition: all .12s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .oplog-drawer-close:hover { background: var(--hover-bg); color: var(--text-primary); }
+
+  .oplog-drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 18px 40px;
+  }
+  .oplog-drawer-body::-webkit-scrollbar { width: 6px; }
+  .oplog-drawer-body::-webkit-scrollbar-thumb { background: rgba(150,150,150,.3); border-radius: 3px; }
+
+  .oplog-detail-section { margin-bottom: 18px; }
+  .oplog-detail-label {
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    color: var(--text-secondary);
+    font-weight: 700;
+    margin-bottom: 5px;
+  }
+  .oplog-detail-value {
+    font-family: 'Consolas', monospace;
+    font-size: .82rem;
+    color: var(--text-primary);
+    word-break: break-all;
+    line-height: 1.5;
+  }
+  .oplog-json {
+    background: var(--hover-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 12px;
+    font-family: 'Consolas', monospace;
+    font-size: .78rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 400px;
+    overflow-y: auto;
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  .oplog-related-item {
+    font-size: .78rem;
+    padding: 7px 10px;
+    background: var(--hover-bg);
+    border-radius: 5px;
+    margin-bottom: 4px;
+    border-left: 3px solid var(--border-color);
+    word-break: break-word;
+  }
+  .oplog-related-item.insert  { border-left-color: var(--op-insert); }
+  .oplog-related-item.update  { border-left-color: var(--op-update); }
+  .oplog-related-item.delete  { border-left-color: var(--op-delete); }
+
+  /* ═══════════════ Mobile ═══════════════ */
+  @media (max-width: 700px) {
+    .oplog-time { min-width: 60px; font-size: .68rem; }
+    .oplog-summary { font-size: .84rem; }
+    .oplog-filters select { flex: 1; min-width: 0; }
+  }
+</style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent"></main>
+  </div>
+
+  <aside class="oplog-drawer" id="oplogDrawer"></aside>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+  (function () {
+    'use strict';
+
+    if (!isLoggedIn()) { window.location.href = '/index.html'; return; }
+    const me = getCurrentUser();
+    if (!me || (me.role !== 'admin' && me.role !== 'root')) {
+      window.location.href = '/404.html';
+      return;
+    }
+
+    // ═══════════════ 常數 ═══════════════
+    const TIME_RANGES = [
+      { v: '1h',  t: 'Last 1 hour',   ms: 60 * 60 * 1000 },
+      { v: '6h',  t: 'Last 6 hours',  ms: 6 * 60 * 60 * 1000 },
+      { v: '24h', t: 'Last 24 hours', ms: 24 * 60 * 60 * 1000 },
+      { v: '7d',  t: 'Last 7 days',   ms: 7 * 24 * 60 * 60 * 1000 },
+      { v: '30d', t: 'Last 30 days',  ms: 30 * 24 * 60 * 60 * 1000 },
+    ];
+
+    const COLLECTIONS = [
+      { v: '',                 t: 'All Collections' },
+      { v: 'submissions',      t: 'Submissions' },
+      { v: 'userstats',        t: 'User Stats' },
+      { v: 'users',            t: 'Users' },
+      { v: 'problems',         t: 'Problems' },
+      { v: 'contests',         t: 'Contests' },
+      { v: 'contest_results',  t: 'Contest Results' },
+      { v: 'updates',          t: 'Announcements' },
+      { v: 'audit_logs',       t: 'Audit Logs' },
+      { v: 'userdata',         t: 'User Data' },
+      { v: 'metadata',         t: 'Metadata' },
+      { v: 'teams',            t: 'Teams' },
+      { v: 'discussions',      t: 'Discussions' },
+      { v: 'reports',          t: 'Reports' },
+      { v: 'tr-problems',      t: 'TR Problems' },
+    ];
+
+    const state = {
+      page: 1,
+      limit: 50,
+      q: '',
+      total: 0,
+      totalPages: 1,
+      entries: [],
+    };
+
+    const mainContent = document.getElementById('mainContent');
+    const drawer = document.getElementById('oplogDrawer');
+
+    // ═══════════════ 初始化 ═══════════════
+    function init() {
+      mainContent.innerHTML = `
+        <div class="oplog-wrap">
+          <header class="oplog-header">
+            <h1><i class="fas fa-history"></i> Activity Timeline</h1>
+            <div class="oplog-header-spacer"></div>
+            <span class="oplog-stats" id="oplogStats">—</span>
+            <button class="oplog-icon-btn" id="oplogRefresh" title="Refresh">
+              <i class="fas fa-sync-alt"></i>
+            </button>
+          </header>
+
+          <div class="oplog-filters">
+            <select id="opTimeRange">
+              ${TIME_RANGES.map((r, i) =>
+                `<option value="${r.v}" ${r.v === '24h' ? 'selected' : ''}>${r.t}</option>`
+              ).join('')}
+            </select>
+            <select id="opCollection">
+              ${COLLECTIONS.map(c =>
+                `<option value="${c.v}">${c.t}</option>`
+              ).join('')}
+            </select>
+            <select id="opType">
+              <option value="">All Operations</option>
+              <option value="i">Insert</option>
+              <option value="u">Update</option>
+              <option value="d">Delete</option>
+            </select>
+            <input type="text" id="opSearch" placeholder="Search… (username, problemId, subid)"
+                   autocomplete="off" spellcheck="false">
+          </div>
+
+          <div class="oplog-list" id="oplogList">
+            <div class="oplog-loading">
+              <i class="fas fa-spinner fa-spin"></i>
+              Loading…
+            </div>
+          </div>
+
+          <div class="oplog-pagination" id="oplogPagination"></div>
+        </div>
+      `;
+
+      bindFilters();
+      loadList();
+    }
+
+    // ═══════════════ 事件綁定 ═══════════════
+    function bindFilters() {
+      const onFilterChange = () => { state.page = 1; loadList(); };
+
+      document.getElementById('opTimeRange').addEventListener('change', onFilterChange);
+      document.getElementById('opCollection').addEventListener('change', onFilterChange);
+      document.getElementById('opType').addEventListener('change', onFilterChange);
+
+      let searchTimer = null;
+      document.getElementById('opSearch').addEventListener('input', (e) => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+          state.q = e.target.value.trim();
+          state.page = 1;
+          loadList();
+        }, 400);
+      });
+
+      document.getElementById('oplogRefresh').addEventListener('click', (e) => {
+        const btn = e.currentTarget;
+        btn.classList.add('spinning');
+        loadList().finally(() => {
+          setTimeout(() => btn.classList.remove('spinning'), 300);
+        });
+      });
+
+      drawer.addEventListener('click', (e) => {
+        if (e.target === drawer) closeDrawer();
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && drawer.classList.contains('open')) {
+          closeDrawer();
+        }
+      });
+    }
+
+    // ═══════════════ 載入列表 ═══════════════
+    async function loadList() {
+      const listEl = document.getElementById('oplogList');
+      listEl.innerHTML = `<div class="oplog-loading"><i class="fas fa-spinner fa-spin"></i>Loading…</div>`;
+
+      const tr = document.getElementById('opTimeRange').value;
+      const rangeDef = TIME_RANGES.find(r => r.v === tr) || TIME_RANGES[2];
+      const until = new Date();
+      const since = new Date(until.getTime() - rangeDef.ms);
+
+      const params = new URLSearchParams({
+        action: 'list',
+        since: since.toISOString(),
+        until: until.toISOString(),
+        page: state.page,
+        limit: state.limit,
+      });
+
+      const coll = document.getElementById('opCollection').value;
+      const op = document.getElementById('opType').value;
+      if (coll) params.set('coll', coll);
+      if (op) params.set('op', op);
+      if (state.q) params.set('q', state.q);
+
+      try {
+        const r = await apiCall('/api/oplog?' + params.toString());
+        if (!r.success) throw new Error(r.message || 'Failed');
+
+        state.entries = r.entries || [];
+        state.total = r.total || 0;
+        state.totalPages = r.totalPages || 1;
+
+        document.getElementById('oplogStats').textContent =
+          `${state.total.toLocaleString()} entries`;
+
+        renderList();
+        renderPagination();
+      } catch (e) {
+        listEl.innerHTML = `<div class="oplog-empty">
+          <i class="fas fa-triangle-exclamation"></i>
+          <div>Failed to load: ${escapeHtml(e.message)}</div>
+        </div>`;
+      }
+    }
+
+    // ═══════════════ 渲染列表 ═══════════════
+    function renderList() {
+      const listEl = document.getElementById('oplogList');
+
+      if (!state.entries.length) {
+        listEl.innerHTML = `<div class="oplog-empty">
+          <i class="fas fa-inbox"></i>
+          <div>No entries in this range</div>
+        </div>`;
+        return;
+      }
+
+      listEl.innerHTML = state.entries.map(e => {
+        const dt = new Date(e.wall || (e.ts.t * 1000));
+        const dateStr = fmtDate(dt);
+        const timeStr = fmtTime(dt);
+
+        return `
+          <div class="oplog-item ${e.category}" data-tskey="${escapeHtml(e.tsKey)}">
+            <div class="oplog-time">
+              <span class="d">${dateStr}</span>
+              <span>${timeStr}</span>
+            </div>
+            <div class="oplog-icon"><i class="fas ${opIcon(e.op)}"></i></div>
+            <div class="oplog-body">
+              <div class="oplog-summary">${escapeHtml(e.summary)}</div>
+              <div class="oplog-sub">${escapeHtml(e.coll)}${e.actor ? ' · ' + escapeHtml(e.actor) : ''}${e.truncated ? ' · [truncated]' : ''}</div>
+            </div>
+            <span class="oplog-badge">${opLabel(e.op)}</span>
+          </div>
+        `;
+      }).join('');
+
+      listEl.querySelectorAll('.oplog-item').forEach(el => {
+        el.addEventListener('click', () => openDetail(el.dataset.tskey));
+      });
+    }
+
+    // ═══════════════ 分頁 ═══════════════
+    function renderPagination() {
+      const el = document.getElementById('oplogPagination');
+      if (state.totalPages <= 1) { el.innerHTML = ''; return; }
+
+      const { page, totalPages } = state;
+      const items = computePageItems(page, totalPages, 7);
+
+      let html = `<button class="oplog-page-btn" data-p="${page - 1}" ${page <= 1 ? 'disabled' : ''}>
+        <i class="fas fa-chevron-left"></i>
+      </button>`;
+
+      for (const it of items) {
+        if (it === '…') html += `<span class="oplog-page-info">…</span>`;
+        else html += `<button class="oplog-page-btn ${it === page ? 'active' : ''}" data-p="${it}">${it}</button>`;
+      }
+
+      html += `<button class="oplog-page-btn" data-p="${page + 1}" ${page >= totalPages ? 'disabled' : ''}>
+        <i class="fas fa-chevron-right"></i>
+      </button>`;
+      html += `<span class="oplog-page-info">${state.total.toLocaleString()} total</span>`;
+
+      el.innerHTML = html;
+
+      el.querySelectorAll('button[data-p]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const p = parseInt(btn.dataset.p, 10);
+          if (p >= 1 && p <= state.totalPages && p !== state.page) {
+            state.page = p;
+            loadList();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        });
+      });
+    }
+
+    function computePageItems(current, total, maxVisible) {
+      if (total <= maxVisible) return Array.from({ length: total }, (_, i) => i + 1);
+      const inner = maxVisible - 2;
+      const half = Math.floor(inner / 2);
+      let start = Math.max(2, current - half);
+      let end = Math.min(total - 1, start + inner - 1);
+      start = Math.max(2, end - inner + 1);
+      const items = [1];
+      if (start > 2) items.push('…');
+      for (let p = start; p <= end; p++) items.push(p);
+      if (end < total - 1) items.push('…');
+      items.push(total);
+      return items;
+    }
+
+    // ═══════════════ 詳情抽屜 ═══════════════
+    async function openDetail(tsKey) {
+      const [t, i] = tsKey.split('-');
+      if (!t || i === undefined) return;
+
+      drawer.classList.add('open');
+      drawer.innerHTML = `
+        <div class="oplog-drawer-head">
+          <h3><i class="fas fa-info-circle"></i> Entry Detail</h3>
+          <button class="oplog-drawer-close" id="oplogDrawerClose"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="oplog-drawer-body">
+          <div class="oplog-loading"><i class="fas fa-spinner fa-spin"></i>Loading…</div>
+        </div>
+      `;
+      document.getElementById('oplogDrawerClose').onclick = closeDrawer;
+
+      try {
+        const r = await apiCall(`/api/oplog?action=detail&t=${encodeURIComponent(t)}&i=${encodeURIComponent(i)}`);
+        if (!r.success) throw new Error(r.message);
+        renderDetail(r.entry, r.related || []);
+      } catch (e) {
+        drawer.querySelector('.oplog-drawer-body').innerHTML = `
+          <div class="oplog-empty">
+            <i class="fas fa-triangle-exclamation"></i>
+            <div>${escapeHtml(e.message)}</div>
+          </div>`;
+      }
+    }
+
+    function renderDetail(entry, related) {
+      const dt = new Date(entry.wall || (entry.ts.t * 1000));
+
+      let html = `
+        <div class="oplog-drawer-head">
+          <h3><i class="fas ${opIcon(entry.op)}"></i> ${opLabel(entry.op)}</h3>
+          <button class="oplog-drawer-close" id="oplogDrawerClose"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="oplog-drawer-body">
+          <div class="oplog-detail-section">
+            <div class="oplog-detail-label">Time</div>
+            <div class="oplog-detail-value">${dt.toISOString()}</div>
+          </div>
+          <div class="oplog-detail-section">
+            <div class="oplog-detail-label">Namespace</div>
+            <div class="oplog-detail-value">${escapeHtml(entry.ns)}</div>
+          </div>
+          <div class="oplog-detail-section">
+            <div class="oplog-detail-label">Summary</div>
+            <div class="oplog-detail-value">${escapeHtml(entry.summary)}</div>
+          </div>
+          ${entry.actor ? `
+            <div class="oplog-detail-section">
+              <div class="oplog-detail-label">Actor</div>
+              <div class="oplog-detail-value">${escapeHtml(entry.actor)}</div>
+            </div>
+          ` : ''}
+          ${entry.lsid ? `
+            <div class="oplog-detail-section">
+              <div class="oplog-detail-label">Session (lsid)</div>
+              <div class="oplog-detail-value" style="font-size:.72rem">${escapeHtml(entry.lsid)}</div>
+            </div>
+          ` : ''}
+
+          <div class="oplog-detail-section">
+            <div class="oplog-detail-label">
+              o ${entry.truncated ? '(truncated)' : ''}
+            </div>
+            <pre class="oplog-json">${escapeHtml(JSON.stringify(entry.o, null, 2))}</pre>
+          </div>
+
+          ${entry.o2 && Object.keys(entry.o2).length ? `
+            <div class="oplog-detail-section">
+              <div class="oplog-detail-label">o2</div>
+              <pre class="oplog-json">${escapeHtml(JSON.stringify(entry.o2, null, 2))}</pre>
+            </div>
+          ` : ''}
+
+          <div class="oplog-detail-section">
+            <button class="oplog-page-btn" id="oplogCopyJson" style="width:100%;">
+              <i class="fas fa-copy"></i> Copy JSON
+            </button>
+          </div>
+
+          ${related.length ? `
+            <div class="oplog-detail-section">
+              <div class="oplog-detail-label">Related (${related.length})</div>
+              ${related.map(r => {
+                const rdt = new Date(r.wall || (r.ts.t * 1000));
+                return `<div class="oplog-related-item ${r.category}">
+                  <span style="font-family:'Consolas',monospace;color:var(--text-secondary);">${fmtDate(rdt)} ${fmtTime(rdt)}</span>
+                  <span style="margin-left:8px;">${escapeHtml(r.summary)}</span>
+                </div>`;
+              }).join('')}
+            </div>
+          ` : ''}
+        </div>
+      `;
+
+      drawer.innerHTML = html;
+      document.getElementById('oplogDrawerClose').onclick = closeDrawer;
+      document.getElementById('oplogCopyJson').onclick = async () => {
+        const btn = document.getElementById('oplogCopyJson');
+        try {
+          await navigator.clipboard.writeText(JSON.stringify({ o: entry.o, o2: entry.o2 }, null, 2));
+          btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+          setTimeout(() => { btn.innerHTML = '<i class="fas fa-copy"></i> Copy JSON'; }, 1500);
+        } catch (e) {
+          alert('Copy failed: ' + e.message);
+        }
+      };
+    }
+
+    function closeDrawer() {
+      drawer.classList.remove('open');
+    }
+
+    // ═══════════════ 工具 ═══════════════
+    function opIcon(op) {
+      return { i: 'fa-plus', u: 'fa-pen', d: 'fa-trash', c: 'fa-terminal' }[op] || 'fa-circle';
+    }
+    function opLabel(op) {
+      return { i: 'Insert', u: 'Update', d: 'Delete', c: 'Cmd' }[op] || op;
+    }
+    function fmtTime(d) {
+      const p = n => String(n).padStart(2, '0');
+      return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+    }
+    function fmtDate(d) {
+      const p = n => String(n).padStart(2, '0');
+      return `${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    }
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, m =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    }
+
+    init();
+  })();
+  </script>
+</body>
+</html>
