@@ -1,10 +1,36 @@
 // api/oplog.js
 // 從 local.oplog.rs 讀取 MongoDB 副本集的寫入記錄
 // 只給 admin / root 存取
-import { connectToDatabase } from './db.js';
+//
+// ⚠️ 獨立連線：不使用 db.js（那個連 wyk_math）
+//    這裡需要連 local 數據庫，故自建 client
+import { MongoClient, Timestamp } from 'mongodb';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
-import { Timestamp } from 'mongodb';
+
+// ═══════════════ 專用連線（只讀 local）═══════════════
+let _localClient = null;
+let _localOplog = null;
+
+async function getOplog() {
+  if (_localOplog) return _localOplog;
+
+  const uri = process.env.MONGODB_URI;
+  if (!uri) throw new Error('MONGODB_URI not defined');
+
+  _localClient = new MongoClient(uri, {
+    maxPoolSize: 2,
+    minPoolSize: 0,
+    serverSelectionTimeoutMS: 3000,
+    socketTimeoutMS: 10000,
+    // oplog 只讀，不需要寫入相關設定
+    readPreference: 'primary',
+  });
+
+  await _localClient.connect();
+  _localOplog = _localClient.db('local').collection('oplog.rs');
+  return _localOplog;
+}
 
 // ═══════════════ 常數 ═══════════════
 const OP_CATEGORY = { i: 'insert', u: 'update', d: 'delete', c: 'command' };
@@ -12,22 +38,17 @@ const MAX_SERIALIZE_LEN = 10000;
 const SEARCH_HARD_LIMIT = 2000;
 
 // ═══════════════ 工具函式 ═══════════════
-
-// 解析 ns: "6a2e29620cfd90710534e012_wyk_math.submissions"
-// → { db: 'wyk_math', coll: 'submissions' }
 function parseNs(ns) {
   if (!ns || typeof ns !== 'string') return { db: '', coll: ns || '' };
   const dot = ns.lastIndexOf('.');
   if (dot < 0) return { db: '', coll: ns };
   const coll = ns.slice(dot + 1);
   const dbRaw = ns.slice(0, dot);
-  // 去掉可能的租戶前綴
   const idx = dbRaw.lastIndexOf('_');
   const db = idx >= 0 ? dbRaw.slice(idx + 1) : dbRaw;
   return { db, coll };
 }
 
-// 把 BSON 物件轉成 JSON-safe 的普通物件
 function safeSerialize(obj) {
   if (obj === null || obj === undefined) return obj;
   const t = typeof obj;
@@ -139,7 +160,6 @@ function extractActor(o) {
   return o.username || o.operator || o.displayName || '';
 }
 
-// ═══════════════ 截斷過大的 o ═══════════════
 function truncateO(o) {
   const ser = safeSerialize(o || {});
   const json = JSON.stringify(ser);
@@ -157,7 +177,6 @@ function truncateO(o) {
   return { o: truncated, truncated: true };
 }
 
-// ═══════════════ 序列化單一條目 ═══════════════
 function serializeEntry(e) {
   const parsed = parseNs(e.ns);
   const oSer = truncateO(e.o);
@@ -190,17 +209,18 @@ export default async function handler(req, res) {
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
   if (decoded.role !== 'admin' && decoded.role !== 'root') {
-    // 用 404 而非 403，不洩漏這個 API 存在
     return res.status(404).json({ success: false, message: 'Not found' });
   }
 
-  const db = await connectToDatabase();
-
   let oplog;
   try {
-    oplog = db.client.db('local').collection('oplog.rs');
+    oplog = await getOplog();
   } catch (e) {
-    return res.status(500).json({ success: false, message: 'Cannot access local.oplog.rs' });
+    console.error('[oplog] connection failed:', e);
+    return res.status(500).json({
+      success: false,
+      message: 'Cannot access local.oplog.rs — ' + e.message,
+    });
   }
 
   const action = req.query.action || 'list';
@@ -255,7 +275,6 @@ async function handleList(req, res, oplog) {
 
   const skip = (pageNum - 1) * limitNum;
 
-  // 沒關鍵字 → 直接在 Mongo 分頁
   if (!q || !String(q).trim()) {
     const [total, entries] = await Promise.all([
       oplog.countDocuments(match),
@@ -273,7 +292,6 @@ async function handleList(req, res, oplog) {
     });
   }
 
-  // 有關鍵字 → 拉一批做應用層過濾
   const all = await oplog.find(match).sort({ ts: -1 }).limit(SEARCH_HARD_LIMIT).toArray();
   const needle = String(q).toLowerCase();
 
