@@ -653,7 +653,7 @@
             progressTxt.textContent = 'Uploading to Cloudinary...';
             const res = await apiCall('/api/problem?action=adminUploadImage', 'POST', {
               image: base64,
-              problemId: currentProblemId,   // ⭐ 從頁面狀態取
+              problemId,   // ⭐ 用當前頁面的 problemId
             });
             if (!res.success) throw new Error(res.message || 'Upload failed');
             currentUrl = res.url;
