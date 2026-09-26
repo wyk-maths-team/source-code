@@ -567,7 +567,7 @@ async function getCacheStatus() {
 async function cacheAllProblems(onProgress) {
   const d = await apiCall('/api/problem?all=1&withStatement=1');
   if (!d || !d.success || !Array.isArray(d.problems)) {
-    throw new Error('Failed to load problems');
+    throw new Error('Failed to load problems: apicall failed or database broken');
   }
   const problems = d.problems;
 
@@ -2604,8 +2604,12 @@ async function renderSettings() {
     const origHint = hint ? hint.textContent : '';
 
     try {
+      let countdown=4;
+      let ctime=Date.now();
       const count = await cacheAllProblems((done, total) => {
-        const pct = Math.floor(done / total * 100);
+        let cctime=Date.now();
+        let dif=(cctime-ctime)/1000;
+        const pct = Math.floor(dif / countdown * 100);
         cacheBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${pct}%`;
         if (hint) hint.textContent = `Downloading… ${done}/${total}`;
       });
