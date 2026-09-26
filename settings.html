@@ -241,7 +241,7 @@
               <input type="file" id="pfpInput" accept="image/*" style="display:none;">
               <button id="pfpSelectBtn" class="btn btn-primary">Choose Image</button>
               <button id="pfpSaveBtn" class="btn btn-primary" style="margin-left:0.5rem;" disabled>Save Image</button>
-              <p style="font-size:0.8rem; margin-top:0.3rem;">Max size: 1MB. No inappropriate content.</p>
+              <p style="font-size:0.8rem; margin-top:0.3rem;">Max size: 2MB. No inappropriate content.</p>
             </div>
           </div>
           <span id="pfpMessage" class="message" style="margin-left:0;"></span>
@@ -561,8 +561,8 @@
     pfpInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      if (file.size > 1024 * 1024) {
-        showPfpMessage('Image too large (max 1MB)', 'error');
+      if (file.size > 1024 * 1024*2) {
+        showPfpMessage('Image too large (max 2MB)', 'error');
         return;
       }
       const reader = new FileReader();

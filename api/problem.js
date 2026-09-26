@@ -359,22 +359,35 @@ export default async function handler(req, res) {
 
       return res.status(405).json({ error: 'Method not allowed' });
     }
-    // ----- 圖片上傳 -----
+    // ----- 圖片上傳（→ GitHub static repo） -----
     if (action === 'adminUploadImage') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-      const { image } = req.body || {};
+      const { image, problemId } = req.body || {};
       if (!image || typeof image !== 'string') {
         return res.status(400).json({ success: false, message: 'Missing image data' });
       }
+
       const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
       const approxBytes = Math.floor(base64Data.length * 3 / 4);
-      if (approxBytes > 2 * 1024 * 1024) {
-        return res.status(400).json({ success: false, message: 'Image too large (max 2MB)' });
+      if (approxBytes > 10 * 1024 * 1024) {
+        return res.status(400).json({ success: false, message: 'Image too large (max 10MB)' });
       }
+
       try {
-        const { uploadImage } = await import('../lib/cloudinary.js');
-        const url = await uploadImage(image, { folder: 'problems' });
-        await auditLog(db, 'upload_problem_image', { url }, req.user.username);
+        const { uploadNumberedImage, uploadTimestampedImage } =
+          await import('../lib/github-upload.js');
+
+        const url = problemId
+          ? await uploadNumberedImage(image, {
+              folder: 'images/problems',
+              baseName: String(problemId),
+            })
+          : await uploadTimestampedImage(image, {
+              folder: 'images/problems',
+              baseName: 'img',
+            });
+
+        await auditLog(db, 'upload_problem_image', { url, problemId: problemId || null }, req.user.username);
         return res.status(200).json({ success: true, url });
       } catch (err) {
         console.error('Problem image upload error:', err);

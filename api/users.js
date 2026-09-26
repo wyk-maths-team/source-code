@@ -3,7 +3,7 @@ import { connectToDatabase } from './db.js';
 import { verifyToken } from '../lib/auth.js';
 import bcrypt from 'bcrypt';
 import { applyRateLimit } from '../lib/rateLimit.js';
-import { uploadImage } from '../lib/cloudinary.js';
+// import { uploadImage } from '../lib/cloudinary.js';
 
 // ⭐ 排行榜內存緩存（30 秒）
 let _leaderboardCache = { data: null, expireAt: 0 };
@@ -243,20 +243,23 @@ export default async function handler(req, res) {
         const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
         const buffer = Buffer.from(base64Data, 'base64');
         if (buffer.length > 2 * 1024 * 1024) {
-          return res.status(400).json({ success: false, message: 'Image too large (max 1MB)' });
+          return res.status(400).json({ success: false, message: 'Image too large (max 2MB)' });
         }
 
         try {
-          const imageUrl = await uploadImage(image, { folder: 'problems' });
+          const { uploadTimestampedImage } = await import('../lib/github-upload.js');
+          const imageUrl = await uploadTimestampedImage(image, {
+            folder: 'images/pfp',
+            baseName: decoded.username,
+          });
           await db.collection('users').updateOne(
             { username: decoded.username },
             { $set: { pfp: imageUrl, pfpUpdatedAt: new Date() } }
           );
-          // ⭐ 上傳後清 CDN 快取（Vercel 換 URL 即可繞過，因為 Cloudinary URL 帶 hash）
           return res.status(200).json({ success: true, pfp: imageUrl });
         } catch (err) {
           console.error('PFP upload error:', err);
-          return res.status(500).json({ success: false, message: 'Image upload failed' });
+          return res.status(500).json({ success: false, message: 'Image upload failed: ' + err.message });
         }
       }
 

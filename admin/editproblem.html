@@ -651,7 +651,10 @@
           try {
             const base64 = await readAndCompress(file);
             progressTxt.textContent = 'Uploading to Cloudinary...';
-            const res = await apiCall('/api/problem?action=adminUploadImage', 'POST', { image: base64 });
+            const res = await apiCall('/api/problem?action=adminUploadImage', 'POST', {
+              image: base64,
+              problemId: currentProblemId,   // ⭐ 從頁面狀態取
+            });
             if (!res.success) throw new Error(res.message || 'Upload failed');
             currentUrl = res.url;
             previewEl.src = currentUrl;
