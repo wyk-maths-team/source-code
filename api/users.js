@@ -3,7 +3,30 @@ import { connectToDatabase } from './db.js';
 import { verifyToken } from '../lib/auth.js';
 import bcrypt from 'bcrypt';
 import { applyRateLimit } from '../lib/rateLimit.js';
-// import { uploadImage } from '../lib/cloudinary.js';
+import { sendAuditNotification } from '../lib/webhook.js';
+// ═══════════════ Audit helper ═══════════════
+// action 命名統一：user_create / user_update / user_delete / pfp_upload
+// 通知級別：
+//   info   → 建立、頭像、其他低風險
+//   warn   → 一般修改
+//   danger → 刪除、提權、封禁
+
+async function auditLog(db, action, details, operator, level = null) {
+  try {
+    await db.collection('audit_logs').insertOne({
+      action,
+      details,
+      operator,
+      timestamp: new Date(),
+    });
+
+    if (level && process.env.DISCORD_WEBHOOK_URL) {
+      await sendAuditNotification(action, details, operator, level);
+    }
+  } catch (e) {
+    console.error('[audit]', action, 'failed:', e);
+  }
+}
 
 // ⭐ 排行榜內存緩存（30 秒）
 let _leaderboardCache = { data: null, expireAt: 0 };
@@ -73,6 +96,13 @@ export default async function handler(req, res) {
         { $setOnInsert: { username, states: {} } },
         { upsert: true }
       );
+
+      await auditLog(db, 'user_create', {
+        username,
+        displayName: newUser.displayName,
+        role: finalRole,
+      }, decoded.username, 'info');
+
       return res.status(201).json({ success: true, message: 'User created' });
     }
 
@@ -137,13 +167,62 @@ export default async function handler(req, res) {
       } else {
         await db.collection('users').updateOne({ username }, { $set: updateFields });
       }
+
+      // ⭐ 依「改了什麼」決定通知級別
+      const changedKeys = Object.keys(updateFields);
+      let level = 'warn';
+      const dangerFlags = [];
+
+      // 提權 / 降級 → danger
+      if (updateFields.role !== undefined && updateFields.role !== targetUser.role) {
+        dangerFlags.push(`role: ${targetUser.role} → ${updateFields.role}`);
+        level = 'danger';
+      }
+      // 封禁 → danger
+      if (updateFields.banned !== undefined && updateFields.banned !== targetUser.banned) {
+        dangerFlags.push(updateFields.banned ? 'banned' : 'unbanned');
+        level = 'danger';
+      }
+      // 改密碼 → warn（等於可以登入該賬戶）
+      if (updateFields.password) {
+        dangerFlags.push('password reset');
+      }
+      // 改用戶名 → warn（影響 submissions / userstats）
+      if (updateFields.username) {
+        dangerFlags.push(`username: ${username} → ${updateFields.username}`);
+      }
+
+      // 記錄所有欄位變動（去掉密碼 hash，只記標記）
+      const details = {
+        username,
+        fields: changedKeys,
+        notes: dangerFlags,
+        before: {
+          displayName: targetUser.displayName,
+          realName: targetUser.realName,
+          role: targetUser.role,
+          banned: targetUser.banned,
+        },
+        after: {
+          displayName: updateFields.displayName ?? targetUser.displayName,
+          realName: updateFields.realName ?? targetUser.realName,
+          role: updateFields.role ?? targetUser.role,
+          banned: updateFields.banned ?? targetUser.banned,
+        },
+      };
+
+      await auditLog(db, 'user_update', details, decoded.username, level);
+
       return res.status(200).json({ success: true, message: 'User updated' });
     }
 
     // ----- DELETE：刪除 -----
+        // ----- DELETE：刪除 -----
+        // ----- DELETE：刪除（先備份到 GitHub backup repo） -----
     if (action === 'adminDelete') {
       if (req.method !== 'DELETE') return res.status(405).json({ error: 'Method not allowed' });
       const { username } = req.query;
+      const force = req.query.force === '1' || req.body?.force === true;
       if (!username) return res.status(400).json({ success: false, message: 'Missing username' });
 
       const user = await db.collection('users').findOne({ username });
@@ -155,10 +234,135 @@ export default async function handler(req, res) {
         return res.status(403).json({ success: false, message: 'Admin can only delete students' });
       }
 
+      // ⭐ 1. 收集要備份的全部資料
+      const [userstatsDoc, submissions] = await Promise.all([
+        db.collection('userstats').findOne({ username }),
+        db.collection('submissions').find({ username }).toArray(),
+      ]);
+
+      const backupPayload = {
+        _meta: {
+          backupAt: new Date().toISOString(),
+          backupBy: decoded.username,
+          backupByRole: decoded.role,
+          targetUsername: username,
+          reason: 'user_delete',
+          schemaVersion: 1,
+          counts: {
+            submissions: submissions.length,
+            hasUserstats: !!userstatsDoc,
+          },
+        },
+        user,                                    // 完整 user 文檔（含 password hash）
+        userstats: userstatsDoc || null,
+        submissions,                             // 全部提交
+      };
+
+      // ⭐ 2. 上傳到 GitHub backup repo
+      //    檔名：users/{username}-{YYYYMMDD-HHmmss}.json
+      const ts = (() => {
+        const d = new Date();
+        const p = n => String(n).padStart(2, '0');
+        return `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}-${p(d.getUTCHours())}${p(d.getUTCMinutes())}${p(d.getUTCSeconds())}`;
+      })();
+      const safeUser = String(username).replace(/[^A-Za-z0-9._-]/g, '_');
+      const backupPath = `users/${safeUser}-${ts}.json`;
+
+      let backupResult = null;
+      let backupError = null;
+      try {
+        const { uploadJsonFile } = await import('../lib/github-upload.js');
+        backupResult = await uploadJsonFile(backupPath, backupPayload, {
+          message: `backup: user delete — ${username} (by ${decoded.username})`,
+          overwrite: false,   // 檔名有時間戳，不該覆蓋
+        });
+        console.log(`[user_delete] backup ok: ${backupResult.githubUrl}`);
+      } catch (e) {
+        backupError = e.message;
+        console.error('[user_delete] backup failed:', e);
+      }
+
+      // ⭐ 3. 若備份失敗 → 除非 force，否則拒絕刪除
+      if (backupError && !force) {
+        // 寫 audit 記下失敗
+        try {
+          await db.collection('audit_logs').insertOne({
+            action: 'user_delete_backup_failed',
+            operator: decoded.username,
+            details: { username, error: backupError },
+            timestamp: new Date(),
+          });
+        } catch {}
+
+        return res.status(500).json({
+          success: false,
+          message: 'Backup failed, delete aborted. Retry or use ?force=1 to skip backup.',
+          error: backupError,
+        });
+      }
+
+      // ⭐ 4. 執行刪除
       await db.collection('users').deleteOne({ username });
       await db.collection('submissions').deleteMany({ username });
       await db.collection('userstats').deleteOne({ username });
-      return res.status(200).json({ success: true, message: 'User deleted' });
+
+      // ⭐ 5. 寫 audit（含備份連結，方便事後恢復）
+      const auditDetails = {
+        username,
+        displayName: user.displayName,
+        realName: user.realName,
+        role: user.role,
+        submissionsDeleted: submissions.length,
+        backup: backupResult
+          ? {
+              path: backupResult.path,
+              url: backupResult.githubUrl,
+              size: backupResult.size,
+              sha: backupResult.sha,
+            }
+          : null,
+        backupFailed: backupError || undefined,
+        forcedWithoutBackup: !!(backupError && force),
+      };
+
+      // ⭐ 送 Discord 通知（若已有 webhook helper）
+      try {
+        const { sendAuditNotification } = await import('../lib/webhook.js');
+        await sendAuditNotification(
+          'user_delete',
+          {
+            username,
+            count: submissions.length,
+            backupUrl: backupResult?.githubUrl || '(failed)',
+          },
+          decoded.username,
+          'danger'
+        );
+      } catch (e) {
+        // 通知失敗不影響主流程
+        console.warn('[user_delete] notify failed:', e.message);
+      }
+
+      // ⭐ 寫 audit_logs（若你沒整合 auditLog helper，這裡直接寫）
+      try {
+        await db.collection('audit_logs').insertOne({
+          action: 'user_delete',
+          operator: decoded.username,
+          details: auditDetails,
+          timestamp: new Date(),
+        });
+      } catch (e) {
+        console.error('[user_delete] audit_logs failed:', e);
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'User deleted',
+        backup: backupResult
+          ? { url: backupResult.githubUrl, size: backupResult.size }
+          : null,
+        submissionsDeleted: submissions.length,
+      });
     }
 
     return res.status(400).json({ success: false, message: 'Invalid admin action' });
@@ -246,7 +450,7 @@ export default async function handler(req, res) {
           return res.status(400).json({ success: false, message: 'Image too large (max 2MB)' });
         }
 
-        try {
+          try {
           const { uploadTimestampedImage } = await import('../lib/github-upload.js');
           const imageUrl = await uploadTimestampedImage(image, {
             folder: 'images/pfp',
@@ -256,6 +460,13 @@ export default async function handler(req, res) {
             { username: decoded.username },
             { $set: { pfp: imageUrl, pfpUpdatedAt: new Date() } }
           );
+
+          await auditLog(db, 'pfp_upload', {
+            username: decoded.username,
+            url: imageUrl,
+            size: buffer.length,
+          }, decoded.username, 'info');
+
           return res.status(200).json({ success: true, pfp: imageUrl });
         } catch (err) {
           console.error('PFP upload error:', err);

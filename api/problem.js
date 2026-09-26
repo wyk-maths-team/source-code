@@ -15,11 +15,11 @@ function isAdminUser(user) {
 // ⭐ 通用 audit + webhook 通知
 // 用於非「題目」類的敏感操作（圖片上傳、討論刪除等）
 const AUDIT_NOTIFY_LEVEL = {
-  problem_create:         null,
+  problem_create:         'info',
   problem_change:         'warn',
   problem_delete:         'danger',
   problem_delete_batch:   'danger',
-  upload_problem_image:   null,
+  upload_problem_image:   'info',
   delete_discussion:      'warn',
   set_discussion_likes:   null,
 };
