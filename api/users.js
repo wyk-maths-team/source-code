@@ -186,7 +186,7 @@ export default async function handler(req, res) {
     favorites: userdata?.favorites || []
   });
 }
-        if (action === 'pfp') {
+    if (action === 'pfp') {
       // ── GET：拿單個或批量頭像 ──
       if (req.method === 'GET') {
         // ⭐ 批量：?action=pfp&usernames=a,b,c
@@ -242,12 +242,12 @@ export default async function handler(req, res) {
 
         const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
         const buffer = Buffer.from(base64Data, 'base64');
-        if (buffer.length > 1 * 1024 * 1024) {
+        if (buffer.length > 2 * 1024 * 1024) {
           return res.status(400).json({ success: false, message: 'Image too large (max 1MB)' });
         }
 
         try {
-          const imageUrl = await uploadImage(image);
+          const imageUrl = await uploadImage(image, { folder: 'problems' });
           await db.collection('users').updateOne(
             { username: decoded.username },
             { $set: { pfp: imageUrl, pfpUpdatedAt: new Date() } }
