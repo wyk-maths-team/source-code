@@ -1463,9 +1463,18 @@
     $('#trHeadStat').textContent = `${state.items.length} problems`;
   }
 
-  // ═══════════ 載入單題詳情 ═══════════
+  // ═══════════ 載入單題詳情（純本地，不打 API）═══════════
   async function loadDetail(id) {
     if (state.currentDetail && state.currentDetail.id === id) return state.currentDetail;
+
+    // ⭐ 1) 從已載入的題庫找（list-all 已含全部渲染所需欄位）
+    const local = state.items.find(it => it.id === id);
+    if (local) {
+      state.currentDetail = local;
+      return local;
+    }
+
+    // 2) 本地找不到（罕見：items 被清空 / 該題不在列表）→ 打 API 兜底
     try {
       const r = await apiCall(`/api/tr-problems?action=get&id=${encodeURIComponent(id)}`);
       if (!r.success) throw new Error(r.message);
