@@ -3,7 +3,7 @@ import { connectToDatabase } from './db.js';
 import { verifyToken } from '../lib/auth.js';
 import bcrypt from 'bcrypt';
 import { applyRateLimit } from '../lib/rateLimit.js';
-import { sendAuditNotification } from '../lib/webhook.js';
+import { auditLog } from '../lib/audit.js';   // ⭐ 統一來源
 // ═══════════════ Audit helper ═══════════════
 // action 命名統一：user_create / user_update / user_delete / pfp_upload
 // 通知級別：
