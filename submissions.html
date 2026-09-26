@@ -1,22 +1,6 @@
 ﻿﻿<!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- <script>
-(function(){
-  try {
-    if (window.top !== window.self) return;
-    // if (sessionStorage.getItem('desktopPreferred')) return;   // 用戶手動選桌面版
-    var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (!isMobile) return;
-    if (location.pathname.indexOf('/mobile') === 0) return;
-    // if (location.pathname.indexOf('/os') === 0) return;
-    if (location.pathname.indexOf('/admin') === 0) return;
-    location.replace('/mobile/' + location.search + location.hash);
-  } catch(e){}
-})();
-</script> -->
-
-  
 <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Submissions - WYK Maths Team</title>
@@ -243,6 +227,64 @@
   border-color: #7d5bb0;
   text-decoration: none;
 }
+/* ═══════════════ Loading Overlay ═══════════════ */
+.table-responsive {
+  position: relative;
+}
+
+.submissions-table tbody {
+  transition: opacity .16s ease;
+}
+
+.table-loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, .72);
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease;
+  border-radius: 4px;
+}
+
+:root[data-theme="dark"] .table-loading-overlay {
+  background: rgba(13, 17, 23, .72);
+}
+
+.table-loading-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.table-loading-overlay i {
+  font-size: 1.8rem;
+  color: var(--accent);
+}
+
+/* ═══════════════ Loading Cell（初次 / 過濾變化） ═══════════════ */
+.loading-cell {
+  padding: 60px 20px !important;
+  text-align: center;
+  border-bottom: none !important;
+}
+
+.loading-cell .loading-icon {
+  font-size: 2.2rem;
+  color: var(--accent);
+  display: inline-block;
+}
+
+.loading-cell .loading-text {
+  margin-top: 14px;
+  color: var(--text-secondary);
+  font-size: .88rem;
+  font-weight: 500;
+}
   </style>
 
   <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
@@ -426,7 +468,9 @@ function buildFilterHeader(header) {
 
   if (state.user) {
     const u = info.user || {};
+    const realName = u.realName || '';
     const displayName = u.displayName || state.user;
+    const title = realName || displayName;   // ⭐ 優先顯示真名
     const pfp = u.pfp || '';
     const avatarHtml = pfp ? `<img src="${escapeHtml(pfp)}" class="profile-40" alt="avatar">` : '';
 
@@ -435,18 +479,18 @@ function buildFilterHeader(header) {
         <h2>
           <a href="/users/${encodeURIComponent(state.user)}">
             ${avatarHtml}
-            ${escapeHtml(displayName)}
+            ${escapeHtml(title)}
           </a>
         </h2>
         <div class="filter-meta">
           <span class="meta-btn">Username: ${escapeHtml(state.user)}</span>
+          ${realName && displayName !== realName ? `<span class="meta-btn">Display: ${escapeHtml(displayName)}</span>` : ''}
           <a href="/submissions/user/${encodeURIComponent(state.user)}" class="meta-btn info">Submissions</a>
           <a href="/users/${encodeURIComponent(state.user)}" class="meta-btn purple">Profile</a>
         </div>
       </div>
     `;
   }
-
   return html;
 }
       // ---- 渲染布局 ----
@@ -523,13 +567,7 @@ function buildFilterHeader(header) {
             state.page = 1;
             applyFilters();
           });
-          document.getElementById('filterResult').addEventListener('change', () => {
-            state.result = document.getElementById('filterResult').value;
-            state.page = 1;
-            applyFilters();
-          });
         }
-
         const selfBtn = document.getElementById('selfBtn');
         if (selfBtn) {
           selfBtn.addEventListener('click', () => {
@@ -554,10 +592,8 @@ function buildFilterHeader(header) {
         refreshBtn.addEventListener('click', async () => {
           if (refreshBtn.disabled) return;
           refreshBtn.disabled = true;
-          refreshBtn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i>';
+          refreshBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
           try {
-            lastQuerySnapshot = null;   // 强制重新查询
-            updateURL();
             await loadSubmissions();
           } finally {
             refreshBtn.disabled = false;
@@ -612,36 +648,128 @@ function buildFilterHeader(header) {
         window.history.replaceState({}, '', qs ? `${path}?${qs}` : path);
       }
       // ---- 加载数据（單次 API，header 內嵌） ----
+// ---- 記錄上次成功載入的過濾條件 ----
+// 相同 → 內部刷新（overlay + fade）
+// 不同 → 全新載入（清空 + loading icon）
+      let _lastFilterKey = null;
+
+      function getFilterKey() {
+        return [state.user || '', state.problem || '', state.result || ''].join('|');
+      }
+
+      // ---- 內部刷新：overlay 開 / 關 ----
+      function showTableOverlay() {
+        const wrap = document.querySelector('.table-responsive');
+        if (!wrap) return;
+        let overlay = wrap.querySelector('.table-loading-overlay');
+        if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.className = 'table-loading-overlay';
+          overlay.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+          wrap.appendChild(overlay);
+        }
+        // 下一帧再 show，保證 transition 生效
+        requestAnimationFrame(() => overlay.classList.add('show'));
+      }
+
+      function hideTableOverlay() {
+        const overlay = document.querySelector('.table-loading-overlay');
+        if (overlay) overlay.classList.remove('show');
+      }
+
+      // ---- 淡出 / 淡入 ----
+      function fadeOut(el) {
+        return new Promise(resolve => {
+          if (!el) return resolve();
+          el.style.opacity = '0';
+          setTimeout(resolve, 170);
+        });
+      }
+
+      function fadeIn(el) {
+        if (!el) return;
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            el.style.opacity = '1';
+          });
+        });
+      }
+
+      // ---- Loading 行的 HTML ----
+      function loadingRowHtml() {
+        return `<tr><td colspan="5" class="loading-cell">
+          <i class="fas fa-circle-notch fa-spin loading-icon"></i>
+          <div class="loading-text">Loading submissions…</div>
+        </td></tr>`;
+      }
+
+      // ---- 更新 filter-header 區塊 ----
+      function updateFilterHeader(header) {
+        const headerHtml = buildFilterHeader(header);
+        const wrapper = document.querySelector('.submissions-wrapper');
+        if (!wrapper) return;
+        wrapper.querySelectorAll('.filter-header').forEach(el => el.remove());
+        if (headerHtml) {
+          const headerActions = wrapper.querySelector('.header-actions');
+          if (headerActions) {
+            headerActions.insertAdjacentHTML('afterend', headerHtml);
+          }
+        }
+      }
+
+      // ---- 加载数据（單次 API，header 內嵌） ----
       async function loadSubmissions() {
-  const tbody = document.getElementById('submissionsBody');
-  tbody.innerHTML = '<tr><td colspan="5" class="loading-msg">Loading…</td></tr>';
+        const tbody = document.getElementById('submissionsBody');
+        if (!tbody) return;
 
-  const params = new URLSearchParams({ all: '1', page: state.page, limit: 50, includeHeader: '1' });
-  if (state.user) params.set('user', state.user);
-  if (state.problem) params.set('problem', state.problem);
-  if (state.result) params.set('result', state.result);
+        const currentKey = getFilterKey();
+        const isInternal = _lastFilterKey !== null && _lastFilterKey === currentKey;
 
-  try {
-    const data = await apiCall(`/api/submissions?${params.toString()}`);
-    if (!data.success) throw new Error(data.message || 'Failed');
+        const params = new URLSearchParams({ all: '1', page: state.page, limit: 50, includeHeader: '1' });
+        if (state.user) params.set('user', state.user);
+        if (state.problem) params.set('problem', state.problem);
+        if (state.result) params.set('result', state.result);
 
-    // 更新 filter-header 區塊
-    const headerHtml = buildFilterHeader(data.header);
-    const wrapper = document.querySelector('.submissions-wrapper');
-    wrapper.querySelectorAll('.filter-header').forEach(el => el.remove());
-    if (headerHtml) {
-      const headerActions = wrapper.querySelector('.header-actions');
-      headerActions.insertAdjacentHTML('afterend', headerHtml);
-    }
+        if (isInternal) {
+          // ══════ 內部刷新：overlay + 淡出淡入 ══════
+          showTableOverlay();
+          try {
+            const data = await apiCall(`/api/submissions?${params.toString()}`);
+            if (!data.success) throw new Error(data.message || 'Failed');
 
-    renderTable(data.submissions);
-    renderPagination(data.page, data.totalPages, data.total);
-    lastQuerySnapshot = makeSnapshot();
-  } catch (err) {
-    console.error(err);
-    tbody.innerHTML = '<tr><td colspan="5" class="error-msg">Failed to load submissions.</td></tr>';
-  }
-}
+            updateFilterHeader(data.header);
+
+            await fadeOut(tbody);
+            renderTable(data.submissions);
+            renderPagination(data.page, data.totalPages, data.total);
+            fadeIn(tbody);
+
+            _lastFilterKey = currentKey;
+          } catch (err) {
+            console.error(err);
+            // 保留舊內容，不清空
+          } finally {
+            hideTableOverlay();
+          }
+        } else {
+          // ══════ 全新載入：清空 + loading icon ══════
+          tbody.style.opacity = '1';
+          tbody.innerHTML = loadingRowHtml();
+          try {
+            const data = await apiCall(`/api/submissions?${params.toString()}`);
+            if (!data.success) throw new Error(data.message || 'Failed');
+
+            updateFilterHeader(data.header);
+            renderTable(data.submissions);
+            renderPagination(data.page, data.totalPages, data.total);
+
+            _lastFilterKey = currentKey;
+          } catch (err) {
+            console.error(err);
+            tbody.innerHTML = '<tr><td colspan="5" class="error-msg">Failed to load submissions.</td></tr>';
+          }
+        }
+      }
       // ---- 渲染表格 ----
       function renderTable(submissions) {
         const tbody = document.getElementById('submissionsBody');

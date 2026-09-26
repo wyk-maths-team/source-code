@@ -108,9 +108,17 @@ async function buildHeader(db, problemId, username) {
   if (username) {
     tasks.push(
       db.collection('users')
-        .findOne({ username }, { projection: { username: 1, displayName: 1, pfp: 1, _id: 0 } })
+        .findOne(
+          { username },
+          { projection: { username: 1, displayName: 1, realName: 1, pfp: 1, _id: 0 } }
+        )
         .then(u => {
-          if (u) header.user = { username: u.username, displayName: u.displayName || u.username, pfp: u.pfp || '' };
+          if (u) header.user = {
+            username: u.username,
+            displayName: u.displayName || u.username,
+            realName: u.realName || '',
+            pfp: u.pfp || '',
+          };
         })
         .catch(() => {})
     );
