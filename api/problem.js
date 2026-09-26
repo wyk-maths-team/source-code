@@ -1,14 +1,86 @@
 ﻿// api/problem.js
 import { connectToDatabase } from './db.js';
-import { auditLog } from '../lib/audit.js';
+// import { auditLog } from '../lib/audit.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { sanitizeHTML } from '../lib/sanitize.js';
 import { ObjectId } from 'mongodb';
 //説明：所有的題目相關的操作都在這裏。
 // ============== 輔助函數 ==============
+// ============== 輔助函數 ==============
 function isAdminUser(user) {
   return !!user && (user.role === 'admin' || user.role === 'root');
+}
+
+// ⭐ 通用 audit + webhook 通知
+// 用於非「題目」類的敏感操作（圖片上傳、討論刪除等）
+const AUDIT_NOTIFY_LEVEL = {
+  problem_create:         null,
+  problem_change:         'warn',
+  problem_delete:         'danger',
+  problem_delete_batch:   'danger',
+  upload_problem_image:   null,
+  delete_discussion:      'warn',
+  set_discussion_likes:   null,
+};
+
+async function auditLog(db, action, details, operator) {
+  try {
+    await db.collection('audit_logs').insertOne({
+      action, details, operator, timestamp: new Date(),
+    });
+
+    const level = AUDIT_NOTIFY_LEVEL[action];
+    if (level) {
+      await sendAuditNotification(action, details, operator, level);
+    }
+  } catch (e) {
+    console.error('Audit log error:', e);
+  }
+}
+
+// ⭐ 送 webhook（同步 await，避免 Vercel 殺 function）
+async function sendAuditNotification(action, details, operator, level) {
+  if (!process.env.DISCORD_WEBHOOK_URL) return;
+
+  const LEVEL_EMOJI = { info: 'ℹ️', warn: '⚠️', danger: '🚨' };
+  const LEVEL_COLOR = { info: 0x4a90d9, warn: 0xffc107, danger: 0xf85149 };
+
+  try {
+    const fields = [];
+    const pick = (k, v) => { if (v !== undefined && v !== null) fields.push({ name: k, value: String(v).slice(0, 1024), inline: true }); };
+
+    pick('Operator', operator);
+    pick('Action', action);
+    if (details) {
+      pick('ID', details.id || details.problemId || details.username);
+      if (Array.isArray(details.ids)) {
+        pick('Count', details.ids.length);
+        pick('IDs', details.ids.slice(0, 8).join(', ') + (details.ids.length > 8 ? '…' : ''));
+      }
+      if (details.changes) {
+        const keys = Object.keys(details.changes).slice(0, 5);
+        pick('Fields', keys.join(', '));
+      }
+    }
+
+    await fetch(process.env.DISCORD_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: 'WYK Maths Audit',
+        embeds: [{
+          title: `${LEVEL_EMOJI[level] || ''} ${action}`,
+          description: details?.id || details?.ids?.slice(0, 3).join(', ') || '(no target)',
+          color: LEVEL_COLOR[level] || 0x888888,
+          fields: fields.length ? fields : undefined,
+          timestamp: new Date().toISOString(),
+        }],
+      }),
+    });
+  } catch (e) {
+    console.warn('[audit] webhook failed:', e.message);
+  }
 }
 
 function checkAccess(user, problemId) {
@@ -41,6 +113,7 @@ function diffFields(before, after) {
 async function auditProblemChange(db, operator, problemId, before, after) {
   const changes = diffFields(before, after);
   if (Object.keys(changes).length === 0) return;
+
   await db.collection('audit_logs').insertOne({
     action: 'problem_change',
     operator,
@@ -49,6 +122,22 @@ async function auditProblemChange(db, operator, problemId, before, after) {
     changes,
     timestamp: new Date()
   });
+
+  // ⭐ 只在「關鍵欄位」變動時通知，避免瑣碎修改吵人
+  const CRITICAL_FIELDS = ['ans', 'public', 'logic', 'statement'];
+  const criticalChanged = Object.keys(changes).filter(k => CRITICAL_FIELDS.includes(k));
+
+  if (criticalChanged.length > 0) {
+    await sendAuditNotification(
+      'problem_change',
+      {
+        id: problemId,
+        changes: Object.fromEntries(criticalChanged.map(k => [k, true])),
+      },
+      operator,
+      'warn'
+    );
+  }
 }
 
 async function auditProblemDelete(db, operator, problem) {
@@ -60,6 +149,14 @@ async function auditProblemDelete(db, operator, problem) {
     backup: problem,
     timestamp: new Date()
   });
+
+  // ⭐ 刪題目一定要通知
+  await sendAuditNotification(
+    'problem_delete',
+    { id: problem.id, name: problem.name },
+    operator,
+    'danger'
+  );
 }
 
 async function bumpProblemsVersion(db) {
@@ -215,16 +312,46 @@ export default async function handler(req, res) {
           return res.status(200).json({ success: true, message: 'Problem deleted' });
         }
 
-        if (Array.isArray(ids) && ids.length) {
+          if (Array.isArray(ids) && ids.length) {
+          // ⭐ 限制一次最多刪 50 題，防止一鍵掃蕩
+          if (ids.length > 50) {
+            return res.status(400).json({
+              success: false,
+              message: `一次最多刪除 50 題（你送了 ${ids.length}）`
+            });
+          }
+
           const idStrs = ids.map(String);
           const problems = await db.collection('problems').find({ id: { $in: idStrs } }).toArray();
           await db.collection('problems').deleteMany({ id: { $in: idStrs } });
           for (const pid of idStrs) {
             await db.collection('userstats').updateMany({}, { $unset: { [`states.${pid}`]: '' } });
           }
+
+          // ⭐ 寫 N 筆 audit_logs（保持完整），但只發 1 條 webhook
           for (const prob of problems) {
-            await auditProblemDelete(db, req.user.username, prob);
+            await db.collection('audit_logs').insertOne({
+              action: 'problem_delete',
+              operator: req.user.username,
+              problemId: String(prob.id),
+              collection: 'problems',
+              backup: prob,
+              batch: true,     // ⭐ 標記為批次
+              timestamp: new Date(),
+            });
           }
+
+          // ⭐ 只發一次通知
+          await sendAuditNotification(
+            'problem_delete_batch',
+            {
+              ids: problems.map(p => p.id),
+              count: problems.length,
+            },
+            req.user.username,
+            'danger'
+          );
+
           await bumpProblemsVersion(db);
           return res.status(200).json({ success: true, message: `Deleted ${problems.length} problems` });
         }
