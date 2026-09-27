@@ -11,7 +11,109 @@
       localStorage.removeItem('favoritesCache');
       localStorage.setItem('cacheClean_v3', '1');
     }
+        // ========== 随机题目抽奖动画 ==========
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
 
+    // 单个滚轮的滚动动画
+    function spinReel(el, pool, target, duration) {
+      return new Promise(resolve => {
+        if (!el) return resolve();
+        const start = Date.now();
+        const safePool = pool && pool.length > 0 ? pool : [target];
+
+        function tick() {
+          const elapsed = Date.now() - start;
+          if (elapsed >= duration) {
+            el.textContent = target;
+            el.classList.add('landed');
+            resolve();
+            return;
+          }
+          // 逐渐减速：前期快，后期慢
+          const progress = elapsed / duration;
+          const wait = 40 + Math.pow(progress, 2.5) * 260;
+          el.textContent = safePool[Math.floor(Math.random() * safePool.length)];
+          setTimeout(tick, wait);
+        }
+        tick();
+      });
+    }
+
+    // 播放整个抽奖流程，返回 Promise（动画结束后 resolve）
+    async function playRandomAnimation(targetId) {
+      // 解析目标
+      const m = String(targetId).match(/^([A-Za-z]+)(.*)$/);
+      if (!m) return;
+      const targetPrefix = m[1].toUpperCase();
+      const targetSuffix = m[2];
+
+      // 从缓存里收集池子
+      const problemCacheRaw = localStorage.getItem('problemListCache_full');
+      let allIds = [];
+      try {
+        allIds = (JSON.parse(problemCacheRaw)?.problems || []).map(p => p.id);
+      } catch (e) {}
+
+      const prefixSet = new Set();
+      const suffixMap = {};
+      for (const id of allIds) {
+        const mm = String(id).match(/^([A-Za-z]+)(.*)$/);
+        if (!mm) continue;
+        const p = mm[1].toUpperCase();
+        prefixSet.add(p);
+        if (!suffixMap[p]) suffixMap[p] = [];
+        suffixMap[p].push(mm[2]);
+      }
+
+      let prefixPool = Array.from(prefixSet);
+      let suffixPool = suffixMap[targetPrefix] || [targetSuffix];
+
+      // 池子至少要有 2 个才有滚动感（否则补一个相同的凑数）
+      if (prefixPool.length < 2) prefixPool = [targetPrefix, targetPrefix];
+      if (suffixPool.length < 2) suffixPool = [targetSuffix, targetSuffix];
+
+      // 创建遮罩
+      const overlay = document.createElement('div');
+      overlay.className = 'slot-overlay';
+      overlay.innerHTML = `
+        <div class="slot-machine">
+          <div class="slot-title">🎲 Random Problem 🎲</div>
+          <div class="slot-reels">
+            <div class="slot-reel" id="slotPrefix">—</div>
+            <div class="slot-reel" id="slotSuffix">—</div>
+          </div>
+          <div class="slot-status" id="slotStatus">Rolling…</div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      // 触发 fade-in
+      requestAnimationFrame(() => overlay.classList.add('show'));
+
+      const prefixEl = document.getElementById('slotPrefix');
+      const suffixEl = document.getElementById('slotSuffix');
+      const statusEl = document.getElementById('slotStatus');
+
+      // 1) 先滚前缀
+      await sleep(200);
+      await spinReel(prefixEl, prefixPool, targetPrefix, 900);
+
+      // 2) 再滚后缀
+      statusEl.textContent = 'Locking…';
+      await sleep(100);
+      await spinReel(suffixEl, suffixPool, targetSuffix, 800);
+
+      // 3) 展示结果
+      statusEl.textContent = `🎉 ${targetPrefix}${targetSuffix}`;
+      statusEl.classList.add('done');
+      await sleep(500);
+
+      // 4) 淡出
+      overlay.classList.add('fade-out');
+      await sleep(300);
+      overlay.remove();
+    }
     const mainContainer = document.getElementById('mainContent');
 
     // ========== 标签分类配置 ==========
@@ -533,7 +635,7 @@
                 ${renderTagsDropdown()}
               </ul>
             </div>
-            <span class="tag-dd-hint">多标签为 <code>AND</code> 关系</span>
+            <span class="tag-dd-hint"><code>AND</code></span>
           </div>
           ${filterHtml}
           <div class="visibility-filter-container">${visibilityHtml}</div>
@@ -635,15 +737,25 @@
           renderFullPage();
         });
       });
-
-      // ⭐ 分类卡片点击事件（替代原 .filter-tag-btn）
       document.querySelectorAll('.cat-item:not(.disabled)').forEach(item => {
         if (item.dataset.listener) return;
         item.dataset.listener = 'true';
         item.addEventListener('click', () => {
           const tag = item.dataset.tag;
+
+          // 找出这个 tag 属于哪个分类
+          const cat = TAG_CATEGORIES.find(c => c.tags.some(t => t.name === tag));
+          if (cat) {
+            // 先清掉同分类下的其他 tag
+            for (const t of cat.tags) {
+              if (t.name !== tag) activeTags.delete(t.name);
+            }
+          }
+
+          // 再 toggle 当前 tag
           if (activeTags.has(tag)) activeTags.delete(tag);
           else activeTags.add(tag);
+
           localStorage.setItem('problemFilterTags', JSON.stringify(Array.from(activeTags)));
           currentPage = 1;
           applyFiltersAndSort();
@@ -712,46 +824,79 @@
 
       const randomBtn = document.getElementById('randomUnsolvedBtn');
       if (randomBtn && !randomBtn.dataset.listener) {
-          randomBtn.dataset.listener = 'true';
-          randomBtn.onclick = async () => {
+        randomBtn.dataset.listener = 'true';
+        randomBtn.onclick = async () => {
+          try {
+            const problemCacheRaw = localStorage.getItem('problemListCache_full');
+            if (!problemCacheRaw) {
+              alert('Problem list not cached. Please refresh the page.');
+              return;
+            }
+            const problemCache = JSON.parse(problemCacheRaw);
+            if (!problemCache.problems || !Array.isArray(problemCache.problems)) {
+              alert('Invalid problem cache.');
+              return;
+            }
+            const allIds = problemCache.problems.map(p => p.id);
+
+            const stateCacheRaw = localStorage.getItem('userStatesCache');
+            let userStates = {};
+            if (stateCacheRaw) {
+              const stateCache = JSON.parse(stateCacheRaw);
+              userStates = stateCache.states || {};
+            }
+
+            // 过滤未解决
+            const unsolved = allIds.filter(id => userStates[id] !== 'passed');
+            if (unsolved.length === 0) {
+              alert('🎉 All problems solved!');
+              return;
+            }
+
+            // 按前缀分组
+            const PREFIXES = ['IP', 'HA', 'MO'];
+            const buckets = {};
+            PREFIXES.forEach(p => buckets[p] = []);
+            for (const id of unsolved) {
+              const m = String(id).match(/^([A-Za-z]+)/);
+              if (!m) continue;
+              const prefix = m[1].toUpperCase();
+              if (buckets[prefix]) buckets[prefix].push(id);
+            }
+
+            const available = PREFIXES.filter(p => buckets[p].length > 0);
+            if (available.length === 0) {
+              alert('🎉 All problems solved!');
+              return;
+            }
+
+            // 均匀选前缀 → 从该前缀池随机抽一道
+            const chosenPrefix = available[Math.floor(Math.random() * available.length)];
+            const pool = buckets[chosenPrefix];
+            const randomId = pool[Math.floor(Math.random() * pool.length)];
+
+            // ⭐ 看 settings 开关决定是否播放动画
+            const animEnabled = localStorage.getItem('randomAnimation') !== 'false';
+
+            if (animEnabled) {
+              // 禁用按钮防连点
+              randomBtn.disabled = true;
               try {
-                  const problemCacheRaw = localStorage.getItem('problemListCache_full');
-                  if (!problemCacheRaw) {
-                      alert('Problem list not cached. Please refresh the page.');
-                      return;
-                  }
-                  const problemCache = JSON.parse(problemCacheRaw);
-                  if (!problemCache.problems || !Array.isArray(problemCache.problems)) {
-                      alert('Invalid problem cache.');
-                      return;
-                  }
-                  const allIds = problemCache.problems.map(p => p.id);
-
-                  const stateCacheRaw = localStorage.getItem('userStatesCache');
-                  let userStates = {};
-                  if (stateCacheRaw) {
-                      const stateCache = JSON.parse(stateCacheRaw);
-                      userStates = stateCache.states || {};
-                  }
-
-                  const unsolved = allIds.filter(id => {
-                      const state = userStates[id];
-                      return state !== 'passed';
-                  });
-
-                  if (unsolved.length === 0) {
-                      alert('🎉 All problems solved!');
-                      return;
-                  }
-
-                  const randomId = unsolved[Math.floor(Math.random() * unsolved.length)];
-                  location.href = `/problems/${encodeURIComponent(randomId)}`;
-
+                await playRandomAnimation(randomId);
               } catch (e) {
-                  console.error('Random unsolved error:', e);
-                  alert('Error selecting random problem. Please try again.');
+                console.warn('Animation failed:', e);
               }
-          };
+              location.href = `/problems/${encodeURIComponent(randomId)}`;
+              // 注意：跳转后本页卸载，不需要恢复按钮
+            } else {
+              location.href = `/problems/${encodeURIComponent(randomId)}`;
+            }
+
+          } catch (e) {
+            console.error('Random unsolved error:', e);
+            alert('Error selecting random problem. Please try again.');
+          }
+        };
       }
 
       const idInput = document.getElementById('idFilterInput');

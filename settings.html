@@ -168,6 +168,13 @@
             </label>
           </div>
           <div class="setting-row">
+            <span class="setting-label">Random Problem Animation</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="randomAnimToggle">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="setting-row">
             <span class="setting-label">Hide difficulty</span>
             <label class="toggle-switch">
               <input type="checkbox" id="hideDifficultyToggle">
@@ -322,6 +329,7 @@
       document.getElementById('hideDifficultyToggle').checked = localStorage.getItem('hideDifficulty') === 'true';
       document.getElementById('uiTypeSelect').value = localStorage.getItem('uiType') || 'default';
       document.getElementById('showTagsToggle').checked = localStorage.getItem('showTags') !== 'false';
+      document.getElementById('randomAnimToggle').checked = localStorage.getItem('randomAnimation') !== 'false';
       updateGoodUIVisibility(theme);
     }
 
@@ -364,6 +372,7 @@
       const hideDifficulty = document.getElementById('hideDifficultyToggle').checked;
       const uiType = document.getElementById('uiTypeSelect').value;
       const showTags = document.getElementById('showTagsToggle').checked;
+      const randomAnim = document.getElementById('randomAnimToggle').checked;
 
       localStorage.setItem('showTags', showTags);
       localStorage.setItem('theme', theme);
@@ -373,6 +382,7 @@
       localStorage.setItem('animations', animations);
       localStorage.setItem('hideDifficulty', hideDifficulty);
       localStorage.setItem('uiType', uiType);
+      localStorage.setItem('randomAnimation', randomAnim);
 
       applyTheme();
       applyFontSize();
