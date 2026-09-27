@@ -318,7 +318,6 @@
 
     // ========== 渲染：分类卡片网格 ==========
     function renderTagCategories() {
-      // 统计每个标签的题目数
       const tagCounts = {};
       allProblems.forEach(p => {
         (p.tags || []).forEach(t => {
@@ -326,19 +325,19 @@
         });
       });
 
-      let html = '<div class="task-group-grid">';
+      let html = '<div class="cat-grid">';
       TAG_CATEGORIES.forEach(cat => {
-        html += '<div class="task-group-grid-column">';
-        html += '<div class="task-group">';
-        html += `<div class="task-group-heading">${escapeHtml(cat.title)}</div>`;
-        html += '<ul class="task-group-list">';
+        html += '<div class="cat-col">';
+        html += '<div class="cat-box">';
+        html += `<div class="cat-heading">${escapeHtml(cat.title)}</div>`;
+        html += '<ul class="cat-list">';
         cat.tags.forEach(tag => {
           const count = tagCounts[tag.name] || 0;
           const active = activeTags.has(tag.name) ? ' active' : '';
           const disabled = tag.placeholder ? ' disabled' : '';
-          html += `<li class="task-group-item${active}${disabled}" data-tag="${escapeHtml(tag.name)}">
-            <span class="task-group-item-text">${escapeHtml(tag.name)}</span>
-            <span class="task-group-badge">${count}</span>
+          html += `<li class="cat-item${active}${disabled}" data-tag="${escapeHtml(tag.name)}">
+            <span class="cat-text">${escapeHtml(tag.name)}</span>
+            <span class="cat-badge">${count}</span>
           </li>`;
         });
         html += '</ul></div></div>';
@@ -524,12 +523,12 @@
             <h2>Loading Problem Set...</h2>
             <div></div>
           </div>
-          <div class="task-group-grid">
-            <div class="task-group-grid-column">
-              <div class="task-group">
-                <div class="task-group-heading">Loading...</div>
-                <ul class="task-group-list">
-                  <li class="task-group-item disabled"><span class="task-group-item-text">—</span><span class="task-group-badge">–</span></li>
+          <div class="cat-grid">
+            <div class="cat-col">
+              <div class="cat-box">
+                <div class="cat-heading">Loading...</div>
+                <ul class="cat-list">
+                  <li class="cat-item disabled"><span class="cat-text">—</span><span class="cat-badge">–</span></li>
                 </ul>
               </div>
             </div>
@@ -577,7 +576,7 @@
       });
 
       // ⭐ 分类卡片点击事件（替代原 .filter-tag-btn）
-      document.querySelectorAll('.task-group-item:not(.disabled)').forEach(item => {
+      document.querySelectorAll('.cat-item:not(.disabled)').forEach(item => {
         if (item.dataset.listener) return;
         item.dataset.listener = 'true';
         item.addEventListener('click', () => {
