@@ -467,6 +467,60 @@
       .purge-actions { width: 100%; }
       .btn-purge { flex: 1; justify-content: center; }
     }
+        /* ═══════════════ Purge 清單工具列 ═══════════════ */
+    .purge-checklist-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+      min-height: 26px;
+    }
+    .purge-catalog-status {
+      font-size: .78rem;
+      color: var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .purge-catalog-status.loading::before {
+      content: '';
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgba(74,144,217,.25);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: purgeSpin .7s linear infinite;
+      display: inline-block;
+    }
+    @keyframes purgeSpin { to { transform: rotate(360deg); } }
+    .purge-reload-btn {
+      padding: 4px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: .78rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+    .purge-reload-btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .purge-reload-btn:disabled { opacity: .55; cursor: not-allowed; }
+    .purge-reload-btn.spinning i { animation: purgeSpin .8s linear infinite; }
+
+    .purge-cat-name .count.loading {
+      background: rgba(74,144,217,.15);
+      color: var(--accent);
+    }
   </style>
   <!-- ⭐ PWA（必須靜態寫入 <head>，不能靠 JS 動態注入） -->
   <link rel="manifest" href="/manifest.json">
@@ -619,6 +673,13 @@
                 <i class="fas fa-circle-info"></i>
                 <span>Select the files you want to purge.</span>
               </p>
+              <!-- ⭐ 清單工具列 -->
+              <div class="purge-checklist-toolbar">
+                <span class="purge-catalog-status loading" id="purgeCatalogStatus">載入清單…</span>
+                <button class="purge-reload-btn" id="purgeReloadBtn" type="button" title="重新拉取 GitHub 文件樹">
+                  <i class="fas fa-rotate"></i> Reload
+                </button>
+              </div>
 
               <!-- ⭐ 動態生成的複選清單 -->
               <div class="purge-checklist" id="purgeChecklist"></div>
@@ -704,44 +765,174 @@
     //                  CDN Purge（複選清單）
     // ═══════════════════════════════════════════════════════
 
-    const REPO = 'wyk-math-team/resources';
-    const PURGE_BASE = `https://purge.jsdelivr.net/gh/${REPO}`;
-    const COOLDOWN_MS = 60_000;
-    const COOLDOWN_KEY = 'cdnPurgeLastRun';   // 全域冷卻（單一 key）
+        // ═══════════════════════════════════════════════════════
+    //               CDN Purge（動態從 GitHub 拉取清單）
+    // ═══════════════════════════════════════════════════════
 
-    // ── CDN 檔案清單（可依需求擴充）──
-    const PURGE_CATALOG = [
-      {
-        id: 'css',
-        label: 'stylesheet',
-        icon: 'fas fa-brush',
-        files: [
-          'web_css/styles.css',
-          'web_css/submissions.css'
-        ]
-      },
-      {
-        id: 'scripts',
-        label: 'scripts',
-        icon: 'fas fa-broom',
-        files: [
-          'script/auth.js',
-          'script/app.js',
-          'script/topbar.js',
-          'script/sidebar.js',
-          'script/problems-1.js',
-          'script/pd-script.js'
-        ]
-      },
-      {
-        id: 'problems',
-        label: 'Problems CDN',
-        icon: 'fas fa-database',
-        files: [
-          'static/_problems/*'
-        ]
-      }
+    const REPO = 'wyk-math-team/resources';
+    const REPO_BRANCH = 'main';
+    const PURGE_BASE = `https://purge.jsdelivr.net/gh/${REPO}`;
+    const GITHUB_TREE_API = `https://api.github.com/repos/${REPO}/git/trees/${REPO_BRANCH}?recursive=1`;
+    const COOLDOWN_MS = 60_000;
+    const COOLDOWN_KEY = 'cdnPurgeLastRun';
+    const TREE_CACHE_KEY = 'cdnTreeCache_v1';
+    const TREE_CACHE_TTL = 5 * 60 * 1000;   // 5 分鐘
+    const MAX_FILES_PER_GROUP = 30;         // 每組超過 30 檔 → 用通配符
+
+    // ⭐ fallback 清單：GitHub API 掛掉時使用
+    const PURGE_FALLBACK = [
+      { id: 'web_css', label: 'Stylesheet', icon: 'fas fa-brush',
+        files: ['web_css/styles.css', 'web_css/submissions.css'] },
+      { id: 'script', label: 'Scripts', icon: 'fas fa-broom',
+        files: ['script/auth.js', 'script/app.js', 'script/topbar.js',
+                'script/sidebar.js', 'script/problems-1.js', 'script/pd-script.js'] },
+      { id: 'static', label: 'Static files', icon: 'fas fa-database',
+        files: ['static/_problems/*'] }
     ];
+
+    // ⭐ 目錄友善名稱
+    const DIR_LABELS = {
+      web_css:  { label: 'Stylesheet',   icon: 'fas fa-brush' },
+      script:   { label: 'Scripts',      icon: 'fas fa-broom' },
+      static:   { label: 'Static files', icon: 'fas fa-database' },
+      images:   { label: 'Images',       icon: 'fas fa-image' },
+      icons:    { label: 'Icons',        icon: 'fas fa-icons' },
+      fonts:    { label: 'Fonts',        icon: 'fas fa-font' },
+    };
+
+    let currentCatalog = PURGE_FALLBACK;
+
+    // ── 從 GitHub 拉取 flat 路徑列表 ──
+    async function fetchTreeFromGithub() {
+      const res = await fetch(GITHUB_TREE_API, {
+        headers: { 'Accept': 'application/vnd.github+json' },
+        cache: 'no-store',
+      });
+      if (!res.ok) throw new Error(`GitHub API ${res.status}`);
+      const data = await res.json();
+      if (!data.tree || !Array.isArray(data.tree)) {
+        throw new Error('Invalid tree response');
+      }
+      return data.tree
+        .filter(it => it.type === 'blob')
+        .map(it => it.path)
+        .sort();
+    }
+
+    // ── 帶 TTL 快取 ──
+    async function getTree(force = false) {
+      if (!force) {
+        try {
+          const cached = JSON.parse(localStorage.getItem(TREE_CACHE_KEY) || 'null');
+          if (cached && cached.timestamp &&
+              Date.now() - cached.timestamp < TREE_CACHE_TTL) {
+            return { paths: cached.paths, fromCache: true };
+          }
+        } catch {}
+      }
+      const paths = await fetchTreeFromGithub();
+      try {
+        localStorage.setItem(
+          TREE_CACHE_KEY,
+          JSON.stringify({ timestamp: Date.now(), paths })
+        );
+      } catch {}
+      return { paths, fromCache: false };
+    }
+
+    // ── flat paths → catalog 結構 ──
+    function buildCatalogFromPaths(paths) {
+      const groups = {};
+      for (const p of paths) {
+        const slash = p.indexOf('/');
+        if (slash === -1) {
+          (groups._root = groups._root || []).push(p);
+        } else {
+          const top = p.slice(0, slash);
+          (groups[top] = groups[top] || []).push(p);
+        }
+      }
+
+      const catalog = [];
+
+      // 根目錄散檔
+      if (groups._root && groups._root.length) {
+        catalog.push({
+          id: '_root',
+          label: 'Root files',
+          icon: 'fas fa-file',
+          files: groups._root,
+        });
+        delete groups._root;
+      }
+
+      // 各頂層目錄
+      for (const top of Object.keys(groups).sort()) {
+        const files = groups[top];
+        const meta = DIR_LABELS[top] || { label: top, icon: 'fas fa-folder' };
+        if (files.length > MAX_FILES_PER_GROUP) {
+          catalog.push({
+            id: top,
+            label: meta.label,
+            icon: meta.icon,
+            files: [`${top}/*`],
+            totalFiles: files.length,
+          });
+        } else {
+          catalog.push({
+            id: top,
+            label: meta.label,
+            icon: meta.icon,
+            files,
+            totalFiles: files.length,
+          });
+        }
+      }
+      return catalog;
+    }
+
+    // ── 異步初始化：先 fallback，再拉 GitHub ──
+    async function initCatalog(force = false) {
+      const status = document.getElementById('purgeCatalogStatus');
+      const reloadBtn = document.getElementById('purgeReloadBtn');
+
+      // 1) 立即渲染 fallback（不阻塞）
+      renderChecklist(currentCatalog);
+
+      // 2) UI 進入 loading 狀態
+      if (status) {
+        status.classList.add('loading');
+        status.textContent = '載入清單…';
+        status.style.color = '';
+      }
+      if (reloadBtn) {
+        reloadBtn.disabled = true;
+        reloadBtn.classList.add('spinning');
+      }
+
+      try {
+        const { paths, fromCache } = await getTree(force);
+        currentCatalog = buildCatalogFromPaths(paths);
+        renderChecklist(currentCatalog);
+        if (status) {
+          status.classList.remove('loading');
+          status.textContent =
+            `已載入 ${paths.length} 個檔案${fromCache ? '（快取）' : ''}`;
+        }
+      } catch (err) {
+        console.warn('[purge] GitHub tree 載入失敗，使用預設清單：', err);
+        if (status) {
+          status.classList.remove('loading');
+          status.textContent = '無法連線 GitHub，使用預設清單';
+          status.style.color = '#e67e22';
+        }
+      } finally {
+        if (reloadBtn) {
+          reloadBtn.disabled = false;
+          reloadBtn.classList.remove('spinning');
+        }
+      }
+    }
 
     // ── 冷卻 ──
     function getCooldownRemaining() {
@@ -773,12 +964,13 @@
     }
 
     // ── 生成複選清單 ──
-    function renderChecklist() {
+    function renderChecklist(catalog) {
       const container = document.getElementById('purgeChecklist');
       if (!container) return;
 
       let html = '';
-      for (const cat of PURGE_CATALOG) {
+      for (const cat of catalog) {
+        const total = cat.totalFiles || cat.files.length;
         html += `
           <div class="purge-category" data-cat="${cat.id}">
             <div class="purge-cat-header">
@@ -799,7 +991,9 @@
                   <label class="purge-file-item">
                     <input type="checkbox" data-file="${f}" data-cat="${cat.id}">
                     <span class="file-path">${f}</span>
-                    ${isWildcard ? '<span class="file-badge wildcard">WILDCARD</span>' : ''}
+                    ${isWildcard
+                      ? `<span class="file-badge wildcard">WILDCARD · ${total}</span>`
+                      : ''}
                   </label>
                 `;
               }).join('')}
@@ -809,16 +1003,15 @@
       }
       container.innerHTML = html;
 
-      // 綁定
+      // 事件綁定
       container.querySelectorAll('input[type="checkbox"][data-file]').forEach(cb => {
         cb.addEventListener('change', updateCounts);
       });
       container.querySelectorAll('input[type="checkbox"][data-select-all]').forEach(cb => {
-        cb.addEventListener('change', (e) => {
+        cb.addEventListener('change', () => {
           const catId = cb.dataset.selectAll;
-          container.querySelectorAll(`input[data-file][data-cat="${catId}"]`).forEach(f => {
-            f.checked = cb.checked;
-          });
+          container.querySelectorAll(`input[data-file][data-cat="${catId}"]`)
+            .forEach(f => { f.checked = cb.checked; });
           updateCounts();
         });
       });
@@ -832,14 +1025,13 @@
 
       let totalSelected = 0;
 
-      for (const cat of PURGE_CATALOG) {
+      for (const cat of currentCatalog) {
         const all = container.querySelectorAll(`input[data-file][data-cat="${cat.id}"]`);
         const checked = container.querySelectorAll(`input[data-file][data-cat="${cat.id}"]:checked`);
         const countEl = container.querySelector(`[data-count="${cat.id}"]`);
         if (countEl) countEl.textContent = `${checked.length}/${all.length}`;
         totalSelected += checked.length;
 
-        // 更新 group 全選的勾選狀態
         const selectAll = container.querySelector(`input[data-select-all="${cat.id}"]`);
         if (selectAll) {
           selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
@@ -854,6 +1046,7 @@
 
     function getSelectedFiles() {
       const container = document.getElementById('purgeChecklist');
+      if (!container) return [];
       const files = [];
       container.querySelectorAll('input[data-file]:checked').forEach(cb => {
         files.push(cb.dataset.file);
@@ -877,7 +1070,6 @@
         logLine(`   ✗ HTTP ${res.status}`, 'log-err');
         return { ok: false, path };
       } catch (err) {
-        // CORS / 網路錯誤 → no-cors 盲送
         try {
           await fetch(url, { mode: 'no-cors', cache: 'no-store' });
           logLine(`   ✓ 已送出（no-cors，無法讀取回應）`, 'log-ok');
@@ -939,10 +1131,17 @@
       }
     }
 
-    // ── 綁定主按鈕 ──
+    // ── 綁定主按鈕 + Reload ──
     function bindPurgeButtons() {
       const selectedBtn = document.getElementById('purgeSelectedBtn');
       const allBtn = document.getElementById('purgeAllBtn');
+      const reloadBtn = document.getElementById('purgeReloadBtn');
+
+      if (reloadBtn) {
+        reloadBtn.addEventListener('click', () => {
+          initCatalog(true);   // 強制刷新
+        });
+      }
 
       selectedBtn.addEventListener('click', async () => {
         if (getCooldownRemaining() > 0) {
@@ -976,7 +1175,7 @@
           alert(`請稍候 ${Math.ceil(getCooldownRemaining() / 1000)} 秒後再試。`);
           return;
         }
-        const allFiles = PURGE_CATALOG.flatMap(c => c.files);
+        const allFiles = currentCatalog.flatMap(c => c.files);
         const ok = confirm(
           `⚠️  確認清除全部 ${allFiles.length} 個 CDN 檔案？\n\n` +
           '這將會清除整個 resources repo 的快取。\n' +
@@ -996,10 +1195,10 @@
       });
     }
 
-    // ── 初始化 ──
-    renderChecklist();
+    // ── 啟動 ──
     bindPurgeButtons();
     refreshCooldownUI();
+    initCatalog();   // ⭐ 異步
   </script>
 </body>
 </html>
