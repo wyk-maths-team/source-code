@@ -5,18 +5,15 @@
 (function(){
   try {
     if (window.top !== window.self) return;
-    // if (sessionStorage.getItem('desktopPreferred')) return;   // 用戶手動選桌面版
     var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     if (!isMobile) return;
     if (location.pathname.indexOf('/mobile') === 0) return;
-    // if (location.pathname.indexOf('/os') === 0) return;
     if (location.pathname.indexOf('/admin') === 0) return;
     location.replace('/mobile/' + location.search + location.hash);
   } catch(e){}
 })();
 </script> -->
 
-  
 <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>WYK Maths Team - Problems</title>
@@ -27,10 +24,8 @@
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
   <script>
-  // 尽早应用 hideDifficulty，避免闪烁
   (function() {
     if (localStorage.getItem('hideDifficulty') === 'true') {
-      // body 可能还没解析出来，用 DOMContentLoaded
       if (document.body) {
         document.body.classList.add('hide-difficulty');
       } else {
@@ -39,7 +34,6 @@
         });
       }
     }
-    // 跨标签页同步：在 settings 页改了，另一个标签页打开 problems 时
     window.addEventListener('storage', (e) => {
       if (e.key === 'hideDifficulty') {
         document.body.classList.toggle('hide-difficulty', e.newValue === 'true');
@@ -102,9 +96,6 @@
     .problem-name { font-weight:600 }
     .tags-container { display:flex; gap:.4rem; flex-wrap:nowrap; overflow:hidden; min-height:1.5em; align-items:center; padding:0 }
     .tag { background:#f0f0f0; padding:.1rem .5rem; border-radius:12px; font-size:.7rem; white-space:nowrap }
-    .filter-bar { background:var(--card-bg); border-radius:4px; padding:.5rem 1rem; margin-bottom:1rem; border:1px solid var(--border-color); display:flex; flex-wrap:wrap; gap:.5rem; overflow-x:auto }
-    .filter-tag-btn { background:#f0f2f5; border:1px solid var(--border-color); border-radius:20px; padding:.2rem .7rem; font-size:.75rem; cursor:pointer; white-space:nowrap }
-    .filter-tag-btn.active { background:var(--accent); color:#fff; border-color:var(--accent) }
     .sortable { cursor:pointer; user-select:none }
     .sortable:hover { color:var(--accent) }
     .pagination { display:flex; justify-content:center; align-items:center; gap:.5rem; margin:1rem 0; flex-wrap:wrap }
@@ -125,54 +116,154 @@
     @keyframes chaosMove { 0%{background-position:0 0,5px 10px,-10px -5px} 100%{background-position:20px 20px,30px 5px,10px -15px} }
     #paginationTopContainer, #paginationContainer { min-height: 40px; }
     /* ===== 刷新按钮样式 ===== */
-#refreshProblemsBtn {
-  width: 38px;
-  height: 38px;
-  padding: 0 !important;
-  border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  font-size: 1.2rem;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  vertical-align: middle;
-}
+    #refreshProblemsBtn {
+      width: 38px;
+      height: 38px;
+      padding: 0 !important;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      font-size: 1.2rem;
+      line-height: 1;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      vertical-align: middle;
+    }
+    #refreshProblemsBtn:hover {
+      background: var(--accent-hover);
+      transform: scale(1.05);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+    #refreshProblemsBtn:active {
+      transform: scale(0.92);
+    }
+    #refreshProblemsBtn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+    [data-theme="dark"] #refreshProblemsBtn {
+      color: #fff;
+    }
+    /* 隐藏难度列 */
+    body.hide-difficulty .col-level,
+    body.hide-difficulty .difficulty-cell {
+      display: none !important;
+    }
 
-#refreshProblemsBtn:hover {
-  background: var(--accent-hover);
-  transform: scale(1.05);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-#refreshProblemsBtn:active {
-  transform: scale(0.92);
-}
-
-#refreshProblemsBtn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none !important;
-  box-shadow: none !important;
-}
-
-/* 暗色主题下保持可读性 */
-[data-theme="dark"] #refreshProblemsBtn {
-  color: #fff;
-}
-/* 隐藏难度列 */
-body.hide-difficulty .col-level,
-body.hide-difficulty .difficulty-cell {
-  display: none !important;
-}
+    /* ═══════════════ 分类卡片网格（HKOI 风格）═══════════════ */
+    .task-group-grid {
+      display: flex;
+      gap: .75rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+    .task-group-grid-column {
+      flex: 1 1 220px;
+      min-width: 220px;
+      max-width: 340px;
+      display: flex;
+      flex-direction: column;
+      gap: .75rem;
+    }
+    .task-group {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .task-group-heading {
+      font-weight: 700;
+      font-size: .88rem;
+      padding: .55rem .95rem;
+      background: #e9ecef;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-primary);
+      margin: 0;
+      letter-spacing: .2px;
+    }
+    [data-theme="dark"] .task-group-heading {
+      background: #2d2d2d;
+      color: #e0e6ed;
+    }
+    .task-group-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .task-group-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: .5rem;
+      padding: .5rem .95rem;
+      border-bottom: 1px solid var(--border-color);
+      cursor: pointer;
+      font-size: .84rem;
+      background: transparent;
+      color: var(--text-primary);
+      transition: background .15s, color .15s;
+      user-select: none;
+      line-height: 1.3;
+    }
+    .task-group-item:last-child {
+      border-bottom: none;
+    }
+    .task-group-item:hover {
+      background: rgba(74,144,217,.08);
+    }
+    .task-group-item.active {
+      background: var(--accent);
+      color: #fff;
+    }
+    .task-group-item.active .task-group-badge {
+      background: rgba(255,255,255,.3);
+      color: #fff;
+    }
+    .task-group-item.disabled {
+      opacity: .45;
+      cursor: default;
+      pointer-events: none;
+    }
+    .task-group-item-text {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .task-group-badge {
+      background: rgba(0,0,0,.08);
+      color: var(--text-secondary);
+      font-size: .68rem;
+      font-weight: 700;
+      padding: 1px 8px;
+      border-radius: 10px;
+      font-family: 'Consolas', monospace;
+      min-width: 22px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    [data-theme="dark"] .task-group-badge {
+      background: rgba(255,255,255,.12);
+      color: #c9d1d9;
+    }
+    @media (max-width: 768px) {
+      .task-group-grid-column {
+        flex: 1 1 100%;
+        max-width: none;
+      }
+    }
   </style>
 
-  <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#1a1a2e">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">

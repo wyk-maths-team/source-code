@@ -1,5 +1,4 @@
-
-  (function() {
+(function() {
     "use strict";
 
     if (!isLoggedIn()) window.location.href = '/index.html';
@@ -14,6 +13,40 @@
     }
 
     const mainContainer = document.getElementById('mainContent');
+
+    // ========== 标签分类配置 ==========
+    // ⭐ 修改这里即可调整分类与标签
+    const TAG_CATEGORIES = [
+      {
+        title: 'Learn',
+        tags: [
+          { name: 'Tricks', placeholder: true },
+          { name: 'Advanced skills', placeholder: true },
+        ],
+      },
+      {
+        title: 'Exercises',
+        tags: [
+          { name: 'DSE' },
+        ],
+      },
+      {
+        title: 'Local Competitions',
+        tags: [
+          { name: 'HKMHASC' },
+          { name: 'HKMO' },
+          { name: 'IMO Prelim' },
+        ],
+      },
+      {
+        title: 'External Competitions',
+        tags: [
+          { name: 'IMO Shortlist', placeholder: true },
+          { name: 'CMO', placeholder: true },
+          { name: 'APMO', placeholder: true },
+        ],
+      },
+    ];
 
     // ========== 状态变量 ==========
     let allProblems = [];
@@ -176,7 +209,6 @@
 
     // ========== 刷新数据（核心优化） ==========
     async function refreshData() {
-      // ⭐ 各自獨立，任何一個失敗不影響另一個
       const [verRes, preload] = await Promise.all([
         apiCall('/api/problem?checkVersion=1').catch(e => {
           console.warn('[refreshData] checkVersion failed:', e.message);
@@ -188,7 +220,6 @@
         })
       ]);
 
-      // 更新用户状态与收藏（若 preload 成功）
       if (preload && preload.success) {
         userStates = preload.states || {};
         window.favorites = new Set(preload.favorites || []);
@@ -196,7 +227,6 @@
         saveFavoritesToCache(window.favorites);
       }
 
-      // ⭐ 版本变化 → 拉新題目（即使 preload 失敗也會跑）
       let versionChanged = false;
       if (verRes && verRes.success) {
         const newVersion = String(verRes.version);
@@ -213,7 +243,6 @@
         console.warn('[refreshData] checkVersion failed, cannot verify version');
       }
 
-      // 重新过滤、排序并渲染
       applyFiltersAndSort();
       renderFullPage();
 
@@ -287,7 +316,38 @@
       if (currentPage > totalPages) currentPage = Math.max(1, totalPages);
     }
 
-    // ========== 渲染 ==========
+    // ========== 渲染：分类卡片网格 ==========
+    function renderTagCategories() {
+      // 统计每个标签的题目数
+      const tagCounts = {};
+      allProblems.forEach(p => {
+        (p.tags || []).forEach(t => {
+          tagCounts[t] = (tagCounts[t] || 0) + 1;
+        });
+      });
+
+      let html = '<div class="task-group-grid">';
+      TAG_CATEGORIES.forEach(cat => {
+        html += '<div class="task-group-grid-column">';
+        html += '<div class="task-group">';
+        html += `<div class="task-group-heading">${escapeHtml(cat.title)}</div>`;
+        html += '<ul class="task-group-list">';
+        cat.tags.forEach(tag => {
+          const count = tagCounts[tag.name] || 0;
+          const active = activeTags.has(tag.name) ? ' active' : '';
+          const disabled = tag.placeholder ? ' disabled' : '';
+          html += `<li class="task-group-item${active}${disabled}" data-tag="${escapeHtml(tag.name)}">
+            <span class="task-group-item-text">${escapeHtml(tag.name)}</span>
+            <span class="task-group-badge">${count}</span>
+          </li>`;
+        });
+        html += '</ul></div></div>';
+      });
+      html += '</div>';
+      return html;
+    }
+
+    // ========== 渲染：骨架屏 ==========
     function renderSkeletonRows(count = 30) {
       let html = '';
       for (let i = 0; i < count; i++) {
@@ -392,15 +452,8 @@
       const start = (currentPage - 1) * pageLimit;
       const pageProblems = filteredProblems.slice(start, start + pageLimit);
 
-      let filterHtml = '<span style="font-weight:600;">Filter tags:</span>';
-      if (allTags.length === 0) {
-        filterHtml += '<span style="color:var(--text-secondary);">(none)</span>';
-      } else {
-        allTags.forEach(tag => {
-          const active = activeTags.has(tag) ? 'active' : '';
-          filterHtml += `<button class="filter-tag-btn ${active}" data-tag="${tag}">${escapeHtml(tag)}</button>`;
-        });
-      }
+      // ⭐ 分类卡片（替代原 filter-bar）
+      const filterHtml = renderTagCategories();
 
       let visibilityHtml = '';
       if (isAdmin) {
@@ -429,7 +482,7 @@
               <a href="/problems/bookmarked" class="btn btn-secondary" style="margin-left:0.5rem;">Bookmarked</a>
             </div>
           </div>
-          <div class="filter-bar">${filterHtml}</div>
+          ${filterHtml}
           <div class="visibility-filter-container">${visibilityHtml}</div>
           <div class="id-filter-bar" style="margin-top:0.5rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
             <span style="font-weight:600;">Filter ID:</span>
@@ -460,7 +513,7 @@
       const idInput = document.getElementById('idFilterInput');
       if (idInput) idInput.value = idFilterPattern;
       bindEvents();
-      updateRefreshButtonState(); // 更新按钮冷却状态
+      updateRefreshButtonState();
     }
 
     function showSkeleton() {
@@ -471,7 +524,16 @@
             <h2>Loading Problem Set...</h2>
             <div></div>
           </div>
-          <div class="filter-bar"><span style="font-weight:600;">Filter tags:</span><span style="color:var(--text-secondary);">(loading...)</span></div>
+          <div class="task-group-grid">
+            <div class="task-group-grid-column">
+              <div class="task-group">
+                <div class="task-group-heading">Loading...</div>
+                <ul class="task-group-list">
+                  <li class="task-group-item disabled"><span class="task-group-item-text">—</span><span class="task-group-badge">–</span></li>
+                </ul>
+              </div>
+            </div>
+          </div>
           <div id="paginationTopContainer"></div>
           <div class="table-responsive">
             <table class="problems-table">
@@ -514,11 +576,12 @@
         });
       });
 
-      document.querySelectorAll('.filter-tag-btn').forEach(btn => {
-        if (btn.dataset.listener) return;
-        btn.dataset.listener = 'true';
-        btn.addEventListener('click', () => {
-          const tag = btn.dataset.tag;
+      // ⭐ 分类卡片点击事件（替代原 .filter-tag-btn）
+      document.querySelectorAll('.task-group-item:not(.disabled)').forEach(item => {
+        if (item.dataset.listener) return;
+        item.dataset.listener = 'true';
+        item.addEventListener('click', () => {
+          const tag = item.dataset.tag;
           if (activeTags.has(tag)) activeTags.delete(tag);
           else activeTags.add(tag);
           localStorage.setItem('problemFilterTags', JSON.stringify(Array.from(activeTags)));
@@ -550,34 +613,28 @@
           randomBtn.dataset.listener = 'true';
           randomBtn.onclick = async () => {
               try {
-                  // 1. 从 localStorage 获取题目列表缓存
                   const problemCacheRaw = localStorage.getItem('problemListCache_full');
                   if (!problemCacheRaw) {
                       alert('Problem list not cached. Please refresh the page.');
                       return;
                   }
                   const problemCache = JSON.parse(problemCacheRaw);
-                  // 检查缓存有效性（可选：检查时间戳）
                   if (!problemCache.problems || !Array.isArray(problemCache.problems)) {
                       alert('Invalid problem cache.');
                       return;
                   }
-                  // 提取所有题目 ID
                   const allIds = problemCache.problems.map(p => p.id);
 
-                  // 2. 从 localStorage 获取用户状态缓存
                   const stateCacheRaw = localStorage.getItem('userStatesCache');
                   let userStates = {};
                   if (stateCacheRaw) {
                       const stateCache = JSON.parse(stateCacheRaw);
                       userStates = stateCache.states || {};
                   }
-                  // 如果状态缓存不存在或为空，可以继续，但所有题目都视为未解决
 
-                  // 3. 过滤出未解决的题目
                   const unsolved = allIds.filter(id => {
                       const state = userStates[id];
-                      return state !== 'passed'; // 未通过（包括 failed, not_started, 或 undefined）
+                      return state !== 'passed';
                   });
 
                   if (unsolved.length === 0) {
@@ -585,7 +642,6 @@
                       return;
                   }
 
-                  // 4. 随机选择一个
                   const randomId = unsolved[Math.floor(Math.random() * unsolved.length)];
                   location.href = `/problems/${encodeURIComponent(randomId)}`;
 
@@ -633,7 +689,6 @@
         });
       }
 
-      // 刷新按钮 - 冷却 + 高效刷新
       const refreshBtn = document.getElementById('refreshProblemsBtn');
       if (refreshBtn && !refreshBtn.dataset.listener) {
         refreshBtn.dataset.listener = 'true';
@@ -642,7 +697,6 @@
           startRefreshCooldown(30);
           const result = await refreshData();
           if (result && result.versionChanged) {
-            // 版本有變：顯示一下
             const btn = this;
             const orig = btn.innerHTML;
             btn.innerHTML = '<i class="fas fa-check"></i>';
@@ -651,6 +705,7 @@
         });
       }
     }
+
     // ========== 其他功能 ==========
     function applyIdFilter() {
       const input = document.getElementById('idFilterInput');
@@ -752,13 +807,10 @@
       const hasFavs = loadFavoritesFromCache();
 
       if (hasProblems && hasStates && hasFavs) {
-        // 有完整缓存：先渲染缓存内容
         applyFiltersAndSort();
         renderFullPage();
-        // 后台静默更新（包含版本检查与用户数据更新）
         refreshData();
       } else {
-        // 无缓存：显示骨架屏，然后并行获取题目列表和用户数据
         showSkeleton();
         const [problemsRes, preload] = await Promise.all([
           fetchAllProblems(),
