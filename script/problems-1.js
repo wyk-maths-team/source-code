@@ -488,6 +488,30 @@
         </li>`;
       }).join('');
     }
+        // ========== 渲染：已应用的 filter 显示条 ==========
+    function renderActiveFilters() {
+      const list = Array.from(activeTags);
+      const chips = list.length === 0
+        ? '<span class="af-empty">(none)</span>'
+        : list.map(t => `
+            <span class="af-chip">
+              ${escapeHtml(t)}
+              <button class="af-chip-remove" data-tag="${escapeHtml(t)}" title="移除">×</button>
+            </span>
+          `).join('');
+
+      const clearBtn = list.length > 0
+        ? '<button class="af-clear-all" id="afClearAll">Clear All</button>'
+        : '';
+
+      return `
+        <div class="active-filters-row">
+          <span class="af-label">Applied:</span>
+          <div class="af-chips">${chips}</div>
+          ${clearBtn}
+        </div>
+      `;
+    }
 
     // ========== 渲染：骨架屏 ==========
     function renderSkeletonRows(count = 30) {
@@ -535,7 +559,10 @@
         if (isAdmin && prob.public === false) {
           publicIcon = `<i class="fas fa-eye-slash" style="color: var(--text-secondary); margin-left: 0.3rem; text-decoration: line-through;" title="Not public"></i>`;
         }
-        const tagsHtml = (prob.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('');
+        const tagsHtml = (prob.tags || []).map(t => {
+          const active = activeTags.has(t) ? ' active' : '';
+          return `<span class="tag tag-clickable${active}" data-tag="${escapeHtml(t)}">${escapeHtml(t)}</span>`;
+        }).join('');
         let diffDisplay, colorStyle = '', extraClass = '';
         if (prob.difficulty === 0) {
           diffDisplay = '∞';
@@ -637,6 +664,7 @@
             </div>
             <span class="tag-dd-hint"><code>AND</code></span>
           </div>
+          ${renderActiveFilters()}
           ${filterHtml}
           <div class="visibility-filter-container">${visibilityHtml}</div>
           <div class="id-filter-bar" style="margin-top:0.5rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
@@ -742,21 +770,7 @@
         item.dataset.listener = 'true';
         item.addEventListener('click', () => {
           const tag = item.dataset.tag;
-
-          // 找出这个 tag 属于哪个分类
-          const cat = TAG_CATEGORIES.find(c => c.tags.some(t => t.name === tag));
-          if (cat) {
-            // 先清掉同分类下的其他 tag
-            for (const t of cat.tags) {
-              if (t.name !== tag) activeTags.delete(t.name);
-            }
-          }
-
-          // 再 toggle 当前 tag
-          if (activeTags.has(tag)) activeTags.delete(tag);
-          else activeTags.add(tag);
-
-          localStorage.setItem('problemFilterTags', JSON.stringify(Array.from(activeTags)));
+          toggleTagWithExclusivity(tag);
           currentPage = 1;
           applyFiltersAndSort();
           updateURL();
@@ -793,14 +807,12 @@
           e.preventDefault();
           e.stopPropagation();
           const tag = item.dataset.tag;
-          if (activeTags.has(tag)) activeTags.delete(tag);
-          else activeTags.add(tag);
-          localStorage.setItem('problemFilterTags', JSON.stringify(Array.from(activeTags)));
+          toggleTagWithExclusivity(tag);
           currentPage = 1;
           applyFiltersAndSort();
           updateURL();
           renderFullPage();
-          // 重建后保持 dropdown 打开，方便连续选择
+          // 保持 dropdown 打开
           const dd = document.getElementById('tagDropdown');
           if (dd) dd.classList.add('open');
         });
@@ -949,6 +961,49 @@
             btn.innerHTML = '<i class="fas fa-check"></i>';
             setTimeout(() => { btn.innerHTML = orig; }, 800);
           }
+        });
+      }
+            // ⭐ 表格里的 tag 点击
+      document.querySelectorAll('.tag.tag-clickable').forEach(el => {
+        if (el.dataset.listener) return;
+        el.dataset.listener = 'true';
+        el.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();   // 防止触发 tr 的跳转
+          const tag = el.dataset.tag;
+          toggleTagWithExclusivity(tag);
+          currentPage = 1;
+          applyFiltersAndSort();
+          updateURL();
+          renderFullPage();
+        });
+      });
+
+      // ⭐ 已应用 chip 的 × 移除
+      document.querySelectorAll('.af-chip-remove').forEach(btn => {
+        if (btn.dataset.listener) return;
+        btn.dataset.listener = 'true';
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const tag = btn.dataset.tag;
+          activeTags.delete(tag);
+          localStorage.setItem('problemFilterTags', JSON.stringify(Array.from(activeTags)));
+          currentPage = 1;
+          applyFiltersAndSort();
+          updateURL();
+          renderFullPage();
+        });
+      });
+
+      // ⭐ Clear All
+      const afClearAll = document.getElementById('afClearAll');
+      if (afClearAll && !afClearAll.dataset.listener) {
+        afClearAll.dataset.listener = 'true';
+        afClearAll.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          clearAllTags();
         });
       }
     }
