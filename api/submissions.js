@@ -2,10 +2,9 @@
 import { connectToDatabase } from './db.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
-import { runCustomLogic } from '../lib/logic-runner.js'; 
-
+import { runCustomLogic } from '../lib/logic-runner.js';
 import { ObjectId } from 'mongodb';
-// import vm from 'vm';
+// ⭐ 移除 executeCustomLogic 死函數（原使用 vm，但 import 被註釋 → 一旦被呼叫就 ReferenceError）
 
 // =============== 快取 ===============
 let _publicIdsCache = { ids: null, expireAt: 0 };
@@ -19,37 +18,12 @@ async function getPublicProblemIds(db) {
   _publicIdsCache.expireAt = now + 300_000;
   return _publicIdsCache.ids;
 }
-// ⭐ 執行題目的自訂 logic
-function executeCustomLogic(logicStr, ans, userAnswer) {
-  try {
-    const result = vm.runInNewContext(
-      `(${logicStr})(${JSON.stringify(ans)}, ${JSON.stringify(userAnswer)})`
-    );
-    if (typeof result === 'number') {
-      return {
-        score: Math.min(100, Math.max(0, result)),
-        comment: '',
-        systemError: false,
-      };
-    }
-    if (result && typeof result === 'object' && typeof result.score === 'number') {
-      return {
-        score: Math.min(100, Math.max(0, result.score)),
-        comment: result.comment || '',
-        systemError: false,
-      };
-    }
-    return { score: 0, comment: 'Invalid logic return value', systemError: true };
-  } catch (err) {
-    return { score: 0, comment: 'Logic error: ' + err.message, systemError: true };
-  }
-}
+
 // =============== 共用 ===============
 function isAdminUser(user) {
   return !!user && (user.role === 'admin' || user.role === 'root');
 }
 
-// 支援字串 + 數字雙軌查詢（兼容舊資料）
 function buildProblemIdFilter(rawIds) {
   const out = [];
   for (const id of rawIds) {
@@ -61,7 +35,6 @@ function buildProblemIdFilter(rawIds) {
   return out;
 }
 
-// 統一狀態推導
 function deriveStatus(s) {
   if (s.marked && s.score !== undefined) {
     if (s.score === 100) return 'Accepted';
@@ -74,7 +47,6 @@ function deriveStatus(s) {
   return 'Pending';
 }
 
-// status → Mongo filter
 function buildStatusFilter(status) {
   switch (status) {
     case 'accepted':
@@ -92,7 +64,6 @@ function buildStatusFilter(status) {
   }
 }
 
-// 一次拉 header 用的 problem + user
 async function buildHeader(db, problemId, username) {
   const header = {};
   const tasks = [];
@@ -193,8 +164,8 @@ export default async function handler(req, res) {
       systemError: !!sub.systemError,
       markedAt: sub.markedAt || null
     };
-        if (sub.type === 'image') {
-      // ⭐ 圖片提交：只有本人和管理員能看，防止競賽抄襲
+
+    if (sub.type === 'image') {
       if (isOwner || isAdmin) {
         result.image = sub.image || '';
       } else {
@@ -220,15 +191,15 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const {
         problem_id, status,
-        user, username: qUsername,
+        user, username: qUsername,     // ⭐ 保持 user 作為主鍵
         page = '1', limit = '50'
       } = req.query;
       const pageNum = Math.max(1, parseInt(page) || 1);
       const limitNum = Math.min(100, parseInt(limit) || 50);
 
       const filter = {};
-      // ⭐ 用戶過濾
-      const targetUser = String(qUser || qUsername || '').trim().slice(0, 50);
+      // ⭐ FIX：用 user（不是 qUser）
+      const targetUser = String(user || qUsername || '').trim().slice(0, 50);
       if (targetUser) filter.username = targetUser;
 
       if (problem_id) filter.problemId = { $in: buildProblemIdFilter([problem_id]) };
@@ -284,7 +255,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, message: 'Submission deleted' });
     }
 
-        // PUT：rejudge
+    // PUT：rejudge
     if (req.method === 'PUT') {
       const { submissionId } = req.body || {};
       if (!submissionId) return res.status(400).json({ success: false, message: 'Missing submission ID' });
@@ -296,7 +267,6 @@ export default async function handler(req, res) {
       const problem = await db.collection('problems').findOne({ id: sub.problemId });
       if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
 
-      // ⭐ 圖片提交不能 rejudge（要人工批改）
       if (sub.type === 'image') {
         return res.status(400).json({ success: false, message: 'Cannot rejudge image submissions (manual marking)' });
       }
@@ -311,14 +281,12 @@ export default async function handler(req, res) {
       const hasLogic = typeof problem.logic === 'string' && problem.logic.trim() !== '';
 
       if (hasLogic) {
-        // ⭐ 有 logic → 用 logic 判定
         const r = await runCustomLogic(problem.logic, problem.ans, sub.answer);
         score = r.score;
         comment = r.comment;
         systemError = r.systemError;
         correct = !systemError && score === 100;
       } else {
-        // 無數值比對（原邏輯）
         const isValid = s => s !== '' && Number.isFinite(Number(s));
         if (!isValid(ansStr.trim())) systemError = true;
         else if (!isValid(userAns.trim())) systemError = true;
@@ -330,7 +298,6 @@ export default async function handler(req, res) {
         }
       }
 
-      // ⭐ 更新 submission：marked、score、comment、correct、systemError 一起寫
       await db.collection('submissions').updateOne(
         { _id: oid },
         {
@@ -345,7 +312,6 @@ export default async function handler(req, res) {
         }
       );
 
-      // ⭐ 更新 userstats（用點號路徑原子寫，避免並發覆蓋）
       const username = sub.username;
       const problemId = sub.problemId;
       const statsCol = db.collection('userstats');
@@ -353,7 +319,6 @@ export default async function handler(req, res) {
       const stats = await statsCol.findOne({ username }, { projection: { states: 1 } });
       const currentState = stats?.states?.[problemId];
 
-      // 只有「未 passed」才更新（避免降級已 AC 的狀態）
       if (currentState !== 'passed') {
         const newState = correct ? 'passed' : 'failed';
         await statsCol.updateOne(
@@ -410,7 +375,6 @@ export default async function handler(req, res) {
       if (sf) Object.assign(filter, sf);
     }
 
-    // 公開題目權限
     if (!isAdmin) {
       const allowedSet = await getPublicProblemIds(db);
       if (!allowedSet.size) {
@@ -440,7 +404,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // 並行：count + list + userstats + header
     const [total, submissions, userStats, header] = await Promise.all([
       db.collection('submissions').countDocuments(filter),
       db.collection('submissions').find(filter, {
@@ -456,7 +419,6 @@ export default async function handler(req, res) {
       includeHeader === '1' ? buildHeader(db, targetProblem, targetUser) : Promise.resolve(null)
     ]);
 
-    // 並行：題目名稱 + displayName
     const problemIds = [...new Set(submissions.map(s => s.problemId))];
     const usernames = [...new Set(submissions.map(s => s.username))];
     const [problems, users] = await Promise.all([
