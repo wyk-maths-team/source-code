@@ -263,6 +263,139 @@
         max-width: none;
       }
     }
+        /* ═══════════════ Tags dropdown ═══════════════ */
+    .tag-dd-row {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      margin: .5rem 0 .75rem 0;
+      flex-wrap: wrap;
+    }
+    .tag-dd {
+      position: relative;
+      display: inline-block;
+    }
+    .tag-dd-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 14px;
+      border: 1px solid var(--border-color);
+      background: var(--card-bg);
+      color: var(--text-primary);
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: .88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: border-color .15s, color .15s, background .15s;
+    }
+    .tag-dd-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .tag-dd-btn .caret {
+      display: inline-block;
+      font-size: .7em;
+      transition: transform .15s;
+    }
+    .tag-dd.open .tag-dd-btn {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .tag-dd.open .tag-dd-btn .caret {
+      transform: rotate(180deg);
+    }
+    .tag-dd-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      min-width: 280px;
+      max-height: 420px;
+      overflow-y: auto;
+      list-style: none;
+      margin: 0;
+      padding: 4px 0;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      box-shadow: 0 6px 24px rgba(0,0,0,.12), 0 2px 6px rgba(0,0,0,.06);
+      z-index: 100;
+    }
+    .tag-dd.open .tag-dd-menu {
+      display: block;
+    }
+    .tag-dd-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 14px;
+      font-size: .85rem;
+      color: var(--text-primary);
+      text-decoration: none;
+      cursor: pointer;
+      transition: background .12s;
+    }
+    .tag-dd-item:hover {
+      background: rgba(74,144,217,.08);
+    }
+    .tag-dd-item.active {
+      background: var(--accent);
+      color: #fff;
+    }
+    .tag-dd-item.active .tag-dd-badge {
+      background: rgba(255,255,255,.3);
+      color: #fff;
+    }
+    .tag-dd-item.empty {
+      opacity: .5;
+      cursor: default;
+    }
+    .tag-dd-item.empty:hover {
+      background: transparent;
+    }
+    .tag-dd-text {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .tag-dd-badge {
+      background: rgba(0,0,0,.08);
+      color: var(--text-secondary);
+      font-size: .7rem;
+      font-weight: 700;
+      padding: 1px 8px;
+      border-radius: 10px;
+      font-family: 'Consolas', monospace;
+      min-width: 22px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    [data-theme="dark"] .tag-dd-badge {
+      background: rgba(255,255,255,.12);
+      color: #c9d1d9;
+    }
+    .tag-dd-empty {
+      padding: 10px 14px;
+      color: var(--text-secondary);
+      font-size: .85rem;
+      text-align: center;
+    }
+    .tag-dd-hint {
+      font-size: .78rem;
+      color: var(--text-secondary);
+    }
+    .tag-dd-hint code {
+      background: rgba(74,144,217,.12);
+      color: var(--accent);
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-family: 'Consolas', monospace;
+    }
   </style>
 
   <link rel="manifest" href="/manifest.json">
@@ -286,7 +419,7 @@
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/problems-3.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/problems-4.js"></script>
 
 </body>
 </html>

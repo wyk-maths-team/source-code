@@ -272,8 +272,13 @@
         });
       }
 
+      // ⭐ AND 逻辑：题目必须同时包含所有选中的标签
       if (activeTags.size > 0) {
-        problems = problems.filter(p => p.tags && p.tags.some(t => activeTags.has(t)));
+        const activeArr = Array.from(activeTags);
+        problems = problems.filter(p => {
+          const pTags = Array.isArray(p.tags) ? p.tags : [];
+          return activeArr.every(t => pTags.includes(t));
+        });
       }
 
       if (visibilityFilter === 'public') {
@@ -344,6 +349,42 @@
       });
       html += '</div>';
       return html;
+    }
+        // ========== 渲染：Tags dropdown ==========
+    function renderTagsDropdown() {
+      // 统计所有出现的 tag
+      const tagCounts = {};
+      allProblems.forEach(p => {
+        (p.tags || []).forEach(t => {
+          tagCounts[t] = (tagCounts[t] || 0) + 1;
+        });
+      });
+
+      // union：分类配置里的 tag + 题目中实际出现的 tag
+      const union = new Set();
+      TAG_CATEGORIES.forEach(cat => cat.tags.forEach(t => union.add(t.name)));
+      Object.keys(tagCounts).forEach(t => union.add(t));
+
+      const sorted = Array.from(union).sort((a, b) => a.localeCompare(b));
+
+      if (sorted.length === 0) {
+        return '<li class="tag-dd-empty">No tags yet.</li>';
+      }
+
+      return sorted.map(t => {
+        const count = tagCounts[t] || 0;
+        const isActive = activeTags.has(t);
+        const active = isActive ? ' active' : '';
+        const empty = (count === 0 && !isActive) ? ' empty' : '';
+        return `<li>
+          <a href="javascript:void(0)"
+             class="tag-dd-item${active}${empty}"
+             data-tag="${escapeHtml(t)}">
+            <span class="tag-dd-text">${escapeHtml(t)}</span>
+            <span class="tag-dd-badge">${count}</span>
+          </a>
+        </li>`;
+      }).join('');
     }
 
     // ========== 渲染：骨架屏 ==========
@@ -481,6 +522,19 @@
               <a href="/problems/bookmarked" class="btn btn-secondary" style="margin-left:0.5rem;">Bookmarked</a>
             </div>
           </div>
+          <div class="tag-dd-row">
+            <div class="tag-dd" id="tagDropdown">
+              <button class="tag-dd-btn" id="tagDropdownBtn" type="button">
+                <i class="fas fa-tag"></i>
+                <span>Tags</span>
+                <span class="caret">▾</span>
+              </button>
+              <ul class="tag-dd-menu" id="tagDropdownMenu">
+                ${renderTagsDropdown()}
+              </ul>
+            </div>
+            <span class="tag-dd-hint">多标签为 <code>AND</code> 关系</span>
+          </div>
           ${filterHtml}
           <div class="visibility-filter-container">${visibilityHtml}</div>
           <div class="id-filter-bar" style="margin-top:0.5rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
@@ -522,6 +576,13 @@
           <div class="updates-header">
             <h2>Loading Problem Set...</h2>
             <div></div>
+          </div>
+          <div class="tag-dd-row">
+            <button class="tag-dd-btn" disabled>
+              <i class="fas fa-tag"></i>
+              <span>Tags</span>
+              <span class="caret">▾</span>
+            </button>
           </div>
           <div class="cat-grid">
             <div class="cat-col">
@@ -588,6 +649,48 @@
           applyFiltersAndSort();
           updateURL();
           renderFullPage();
+        });
+      });
+            // ⭐ Tags dropdown 开关
+      const tagDropdown = document.getElementById('tagDropdown');
+      const tagDropdownBtn = document.getElementById('tagDropdownBtn');
+      if (tagDropdownBtn && !tagDropdownBtn.dataset.listener) {
+        tagDropdownBtn.dataset.listener = 'true';
+        tagDropdownBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          tagDropdown.classList.toggle('open');
+        });
+      }
+
+      // ⭐ document 层级：点击外部关闭（只绑一次）
+      if (!window.__tagDropdownGlobalBound) {
+        window.__tagDropdownGlobalBound = true;
+        document.addEventListener('click', (e) => {
+          const dd = document.getElementById('tagDropdown');
+          if (dd && dd.classList.contains('open') && !dd.contains(e.target)) {
+            dd.classList.remove('open');
+          }
+        });
+      }
+
+      // ⭐ dropdown 内 tag 点击 → 直接 apply filter
+      document.querySelectorAll('.tag-dd-item:not(.empty)').forEach(item => {
+        if (item.dataset.listener) return;
+        item.dataset.listener = 'true';
+        item.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const tag = item.dataset.tag;
+          if (activeTags.has(tag)) activeTags.delete(tag);
+          else activeTags.add(tag);
+          localStorage.setItem('problemFilterTags', JSON.stringify(Array.from(activeTags)));
+          currentPage = 1;
+          applyFiltersAndSort();
+          updateURL();
+          renderFullPage();
+          // 重建后保持 dropdown 打开，方便连续选择
+          const dd = document.getElementById('tagDropdown');
+          if (dd) dd.classList.add('open');
         });
       });
 
