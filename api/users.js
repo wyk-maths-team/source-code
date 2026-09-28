@@ -672,6 +672,71 @@ export default async function handler(req, res) {
       );
       return res.status(200).json({ success: true, message: 'Password updated successfully' });
     }
+    // ========== 成就相关 ==========
+
+    // GET：拉当前用户的成就
+    if (action === 'achievements') {
+      if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+      const targetUsername = req.query.username || decoded.username;
+
+      const [user, logs] = await Promise.all([
+        db.collection('users').findOne(
+          { username: targetUsername },
+          { projection: { achievements: 1, streakDays: 1, maxStreak: 1, activeDaysTotal: 1 } }
+        ),
+        db.collection('achievements_log')
+          .find({ username: targetUsername }, { projection: { achievementId: 1, unlockedAt: 1, _id: 0 } })
+          .sort({ unlockedAt: 1 })
+          .toArray(),
+      ]);
+
+      if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+      const unlockedMap = Object.fromEntries(
+        logs.map(l => [l.achievementId, l.unlockedAt])
+      );
+
+      return res.status(200).json({
+        success: true,
+        username: targetUsername,
+        achievements: user.achievements || [],
+        unlockedAt: unlockedMap,
+        streak: {
+          current: user.streakDays || 0,
+          max: user.maxStreak || 0,
+          activeDays: user.activeDaysTotal || 0,
+        },
+      });
+    }
+
+// GET：全站成就统计（每个成就多少用户解锁）
+if (action === 'achievementsStats') {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+
+  const stats = await db.collection('users').aggregate([
+    { $match: { banned: { $ne: true } } },
+    { $unwind: { path: '$achievements', preserveNullAndEmptyArrays: false } },
+    { $group: { _id: '$achievements', count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+  ]).toArray();
+
+  const totalUsers = await db.collection('users').countDocuments({ banned: { $ne: true } });
+  const map = Object.fromEntries(stats.map(s => [s._id, s.count]));
+
+  return res.status(200).json({
+    success: true,
+    totalUsers,
+    counts: map,
+  });
+}
+
+// POST：标记访问过 admin 页面（unlock "curious"）
+if (action === 'markAdminVisit') {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { unlockAchievement } = await import('../lib/achievements.js');
+  const r = await unlockAchievement(db, decoded.username, 'curious');
+  return res.status(200).json({ success: true, unlocked: r.ok });
+}
 
     return res.status(400).json({ success: false, message: 'Invalid action' });
   } catch (err) {

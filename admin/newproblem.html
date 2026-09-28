@@ -122,6 +122,7 @@
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
 
   <script>
+    if(isLoggedIn())apiCall('/api/users?action=markAdminVisit', 'POST').catch(() => {});
     const user = getCurrentUser();
     if (!isLoggedIn() || (user?.role !== 'admin' && user?.role !== 'root')) {
       window.location.href = '/index.html';

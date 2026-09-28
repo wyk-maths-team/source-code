@@ -40,6 +40,7 @@
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
 
   <script>
+    if(isLoggedIn())apiCall('/api/users?action=markAdminVisit', 'POST').catch(() => {});
     if (!isLoggedIn()) window.location.href = '/index.html';
     const editorUser = getCurrentUser();
     if (!editorUser || (editorUser.role !== 'admin' && editorUser.role !== 'root')) {

@@ -30,6 +30,7 @@
   <link rel="dns-prefetch" href="https://cdn.amcharts.com">
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
   <style>
     .profile-container {
       background: var(--card-bg);
@@ -245,6 +246,160 @@
       accent-color: var(--accent);
       margin: 0;
     }
+        /* ═══════════════ Achievements ═══════════════ */
+    .ach-section {
+      margin-top: 1.5rem;
+      padding-top: 1.2rem;
+      border-top: 1px solid var(--border-color);
+    }
+    .ach-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: .5rem;
+      margin-bottom: 1rem;
+    }
+    .ach-header h2 {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .ach-progress {
+      font-size: .85rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+    .ach-progress b {
+      color: var(--accent);
+      font-size: 1rem;
+    }
+
+    /* ─── 网格 ─── */
+    .ach-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: .7rem;
+    }
+    @media (max-width: 500px) {
+      .ach-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    }
+
+    /* ─── 卡片 ─── */
+    .ach-card {
+      position: relative;
+      padding: .8rem .7rem;
+      border: 1.5px solid var(--border-color);
+      border-radius: 8px;
+      background: var(--card-bg);
+      text-align: center;
+      transition: transform .15s, box-shadow .15s, border-color .15s;
+      cursor: default;
+      min-height: 150px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: .35rem;
+    }
+    .ach-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,.08);
+    }
+    .ach-card.locked {
+      opacity: .45;
+      filter: grayscale(1);
+    }
+    .ach-card.locked:hover {
+      opacity: .65;
+    }
+
+    .ach-icon-wrap {
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: rgba(74,144,217,.1);
+      margin-bottom: .1rem;
+      flex-shrink: 0;
+    }
+    .ach-icon-wrap i {
+      font-size: 1.5rem;
+    }
+    .ach-name {
+      font-size: .88rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+    .ach-desc {
+      font-size: .72rem;
+      color: var(--text-secondary);
+      line-height: 1.35;
+      flex: 1;
+    }
+    .ach-date {
+      font-size: .68rem;
+      color: var(--text-secondary);
+      font-family: 'Consolas', monospace;
+      margin-top: auto;
+      opacity: .85;
+    }
+    .ach-rarity-tag {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      font-size: .6rem;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 8px;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+
+    /* ─── 稀有度配色（图标 + 边框 + tag） ─── */
+    .ach-card.rarity-common    { border-color: rgba(128,128,128,.4); }
+    .ach-card.rarity-common    .ach-icon-wrap { background: rgba(128,128,128,.15); color: #808080; }
+    .ach-card.rarity-common    .ach-rarity-tag { background: rgba(128,128,128,.15); color: #808080; }
+
+    .ach-card.rarity-uncommon  { border-color: rgba(0,128,0,.45); }
+    .ach-card.rarity-uncommon  .ach-icon-wrap { background: rgba(0,128,0,.14); color: #008000; }
+    .ach-card.rarity-uncommon  .ach-rarity-tag { background: rgba(0,128,0,.15); color: #008000; }
+
+    .ach-card.rarity-rare      { border-color: rgba(0,0,255,.45); }
+    .ach-card.rarity-rare      .ach-icon-wrap { background: rgba(0,0,255,.12); color: #0000FF; }
+    .ach-card.rarity-rare      .ach-rarity-tag { background: rgba(0,0,255,.12); color: #0000FF; }
+
+    .ach-card.rarity-epic      { border-color: rgba(170,0,170,.5); }
+    .ach-card.rarity-epic      .ach-icon-wrap { background: rgba(170,0,170,.14); color: #AA00AA; }
+    .ach-card.rarity-epic      .ach-rarity-tag { background: rgba(170,0,170,.14); color: #AA00AA; }
+
+    .ach-card.rarity-legendary {
+      border-color: rgba(255,170,0,.7);
+      box-shadow: 0 0 12px rgba(255,170,0,.18);
+    }
+    .ach-card.rarity-legendary .ach-icon-wrap { background: rgba(255,170,0,.18); color: #FFAA00; }
+    .ach-card.rarity-legendary .ach-rarity-tag { background: rgba(255,170,0,.2); color: #B37700; }
+
+    /* dark 模式微调 */
+    [data-theme="dark"] .ach-card.locked { opacity: .3; }
+    [data-theme="dark"] .ach-card.rarity-common .ach-rarity-tag { color: #aaa; }
+    [data-theme="dark"] .ach-card.rarity-uncommon .ach-rarity-tag { color: #6dbf6d; }
+    [data-theme="dark"] .ach-card.rarity-uncommon .ach-icon-wrap { color: #6dbf6d; }
+    [data-theme="dark"] .ach-card.rarity-rare .ach-rarity-tag { color: #7d9dff; }
+    [data-theme="dark"] .ach-card.rarity-rare .ach-icon-wrap { color: #7d9dff; }
+    [data-theme="dark"] .ach-card.rarity-epic .ach-rarity-tag { color: #d68cd6; }
+    [data-theme="dark"] .ach-card.rarity-epic .ach-icon-wrap { color: #d68cd6; }
+
+    /* ─── 空状态 ─── */
+    .ach-empty {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--text-secondary);
+      font-style: italic;
+    }
   </style>
 
   <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
@@ -391,6 +546,14 @@
               </label>
             </div>
             <div class="profile-solved" id="profileGrid"></div>
+            <div id="achievementsContainer">
+              <div class="ach-section">
+                <div class="ach-header">
+                  <h2><i class="fa-solid fa-trophy" style="color:#FFAA00;margin-right:.4rem;"></i>Achievements</h2>
+                  <span class="ach-progress" style="font-weight:400;color:var(--text-secondary);">Loading…</span>
+                </div>
+              </div>
+            </div>
           </div>
         `;
 
@@ -412,9 +575,147 @@
           refresh();
         });
         refresh();
+                // ⭐ 异步加载成就
+        (async () => {
+          const achContainer = document.getElementById('achievementsContainer');
+          if (!achContainer) return;
+          const achData = await loadAchievements(username);
+          achContainer.innerHTML = achData
+            ? renderAchievements(achData)
+            : '<div class="ach-section"><div class="ach-header"><h2><i class="fa-solid fa-trophy" style="color:#FFAA00;margin-right:.4rem;"></i>Achievements</h2></div><div class="ach-empty">Failed to load achievements.</div></div>';
+        })();
       }
 
       (async function init() {
+              // ═══════════════ 成就元数据（前端缓存）═══════════════
+      const ACHIEVEMENTS = {
+        // Milestone
+        'first-blood':  { name: 'First Blood',      desc: 'AC your first problem',   fa: 'fa-droplet',        rarity: 'common' },
+        'solved-10':    { name: 'Getting Started',  desc: 'AC 10 problems',          fa: 'fa-seedling',       rarity: 'common' },
+        'solved-25':    { name: 'Warming Up',       desc: 'AC 25 problems',          fa: 'fa-mug-hot',        rarity: 'common' },
+        'solved-50':    { name: 'Half Century',     desc: 'AC 50 problems',          fa: 'fa-person-running', rarity: 'uncommon' },
+        'solved-100':   { name: 'Centurion',        desc: 'AC 100 problems',         fa: 'fa-award',          rarity: 'rare' },
+        'solved-200':   { name: 'Double Century',   desc: 'AC 200 problems',         fa: 'fa-landmark',       rarity: 'rare' },
+        'solved-500':   { name: 'Five Hundred',     desc: 'AC 500 problems',         fa: 'fa-mountain',       rarity: 'epic' },
+        'solved-1000':  { name: 'Millennium',       desc: 'AC 1000 problems',        fa: 'fa-meteor',         rarity: 'epic' },
+        'solved-2000':  { name: 'Two Millenniums',  desc: 'AC 2000 problems',        fa: 'fa-rocket',         rarity: 'legendary' },
+
+        // Difficulty
+        'hard-3':  { name: 'Beyond Easy',      desc: 'AC a problem with difficulty ≥ 3', fa: 'fa-shield-halved',  rarity: 'common' },
+        'hard-4':  { name: 'Rising Challenge', desc: 'AC a problem with difficulty ≥ 4', fa: 'fa-shield',         rarity: 'uncommon' },
+        'hard-5':  { name: 'Midway',           desc: 'AC a problem with difficulty ≥ 5', fa: 'fa-trophy',         rarity: 'uncommon' },
+        'hard-6':  { name: 'Into the Deep',    desc: 'AC a problem with difficulty ≥ 6', fa: 'fa-fire',           rarity: 'rare' },
+        'hard-7':  { name: 'Elite Solver',     desc: 'AC a problem with difficulty ≥ 7', fa: 'fa-gem',            rarity: 'epic' },
+
+        // Streak
+        'streak-3':   { name: 'Hat Trick',        desc: 'Submit 3 days in a row',   fa: 'fa-fire-flame-curved', rarity: 'common' },
+        'streak-7':   { name: 'Week Warrior',     desc: 'Submit 7 days in a row',   fa: 'fa-bolt',              rarity: 'uncommon' },
+        'streak-30':  { name: 'Monthly Devotion', desc: 'Submit 30 days in a row',  fa: 'fa-moon',              rarity: 'rare' },
+        'streak-100': { name: 'Century Streak',   desc: 'Submit 100 days in a row', fa: 'fa-crown',             rarity: 'epic' },
+
+        // Efficiency
+        'first-try':    { name: 'One Shot',       desc: 'First try AC on a problem',    fa: 'fa-bullseye',    rarity: 'common' },
+        'first-try-10': { name: 'Sharp Shooter',  desc: '10 problems first-try AC',     fa: 'fa-crosshairs',  rarity: 'uncommon' },
+        'first-try-50': { name: 'Perfect Aim',    desc: '50 problems first-try AC',     fa: 'fa-compass',     rarity: 'rare' },
+        'daily-5':      { name: 'Daily Five',     desc: 'AC 5 problems in one day',     fa: 'fa-cloud-sun',   rarity: 'uncommon' },
+        'daily-10':     { name: 'Busy Bee',       desc: 'AC 10 problems in one day',    fa: 'fa-spa',         rarity: 'rare' },
+        'daily-15':     { name: 'Fifteen Frenzy', desc: 'AC 15 problems in one day',    fa: 'fa-hurricane',   rarity: 'epic' },
+        'daily-20':     { name: 'Daily Marathon', desc: 'AC 20 problems in one day',    fa: 'fa-medal',       rarity: 'legendary' },
+
+        // Fun
+        'night-owl':   { name: 'Night Owl',     desc: 'Submit between 00:00-04:00 HKT',    fa: 'fa-moon',    rarity: 'uncommon' },
+        'early-bird':  { name: 'Early Bird',    desc: 'Submit between 05:00-07:00 HKT',    fa: 'fa-dove',    rarity: 'uncommon' },
+        'perfect-day': { name: 'Perfect Day',   desc: 'A day with ≥5 submissions, all AC', fa: 'fa-star',    rarity: 'rare' },
+
+        // Hidden
+        'curious': { name: '???', desc: 'Hidden', fa: 'fa-question', rarity: 'rare', hidden: true },
+
+        // Accuracy
+        'accuracy-30': { name: 'Steady Hand', desc: 'Accuracy ≥ 30% (min 20 subs)', fa: 'fa-chart-simple',  rarity: 'common' },
+        'accuracy-40': { name: 'Sharp',       desc: 'Accuracy ≥ 40% (min 20 subs)', fa: 'fa-chart-line',    rarity: 'common' },
+        'accuracy-50': { name: 'Accurate',    desc: 'Accuracy ≥ 50% (min 20 subs)', fa: 'fa-chart-column',  rarity: 'uncommon' },
+        'accuracy-60': { name: 'Precise',     desc: 'Accuracy ≥ 60% (min 20 subs)', fa: 'fa-palette',       rarity: 'uncommon' },
+        'accuracy-70': { name: 'Meticulous',  desc: 'Accuracy ≥ 70% (min 20 subs)', fa: 'fa-gear',          rarity: 'rare' },
+        'accuracy-80': { name: 'Surgical',    desc: 'Accuracy ≥ 80% (min 20 subs)', fa: 'fa-microscope',    rarity: 'epic' },
+        'accuracy-90': { name: 'Flawless',    desc: 'Accuracy ≥ 90% (min 20 subs)', fa: 'fa-circle-check',  rarity: 'legendary' },
+      };
+
+      const RARITY_ORDER = { legendary: 0, epic: 1, rare: 2, uncommon: 3, common: 4 };
+
+      // 拉当前用户的成就
+      async function loadAchievements(username) {
+        try {
+          const data = await apiCall(`/api/users?action=achievements&username=${encodeURIComponent(username)}`);
+          return data.success ? data : null;
+        } catch (e) {
+          console.error('[achievements]', e);
+          return null;
+        }
+      }
+
+      // 渲染成就区域
+      function renderAchievements(achData) {
+        const unlocked = new Set(achData?.achievements || []);
+        const unlockedAt = achData?.unlockedAt || {};
+        const streak = achData?.streak || {};
+
+        const allIds = Object.keys(ACHIEVEMENTS);
+        // 排序：先按稀有度，再按解锁状态，再按解锁时间倒序
+        allIds.sort((a, b) => {
+          const ra = RARITY_ORDER[ACHIEVEMENTS[a].rarity] ?? 9;
+          const rb = RARITY_ORDER[ACHIEVEMENTS[b].rarity] ?? 9;
+          if (ra !== rb) return ra - rb;
+          const ua = unlocked.has(a) ? 0 : 1;
+          const ub = unlocked.has(b) ? 0 : 1;
+          if (ua !== ub) return ua - ub;
+          return 0;
+        });
+
+        const unlockedCount = unlocked.size;
+        const totalCount = allIds.length;
+
+        const cardsHtml = allIds.map(id => {
+          const a = ACHIEVEMENTS[id];
+          const isUnlocked = unlocked.has(id);
+          const date = unlockedAt[id] ? new Date(unlockedAt[id]).toISOString().slice(0, 10) : '';
+          const rarity = a.rarity || 'common';
+
+          // 隐藏成就：未解锁时屏蔽名称
+          const displayName = (a.hidden && !isUnlocked) ? '???' : a.name;
+          const displayDesc = (a.hidden && !isUnlocked) ? 'Hidden achievement' : a.desc;
+          const displayFa = (a.hidden && !isUnlocked) ? 'fa-lock' : a.fa;
+
+          return `
+            <div class="ach-card ${isUnlocked ? 'unlocked' : 'locked'} rarity-${rarity}"
+                 title="${escapeHtml(displayDesc)}">
+              <span class="ach-rarity-tag">${rarity}</span>
+              <div class="ach-icon-wrap">
+                <i class="fa-solid ${displayFa}"></i>
+              </div>
+              <div class="ach-name">${escapeHtml(displayName)}</div>
+              <div class="ach-desc">${escapeHtml(displayDesc)}</div>
+              ${isUnlocked && date ? `<div class="ach-date">${date}</div>` : ''}
+            </div>
+          `;
+        }).join('');
+
+        const streakLine = (streak.current || streak.max)
+          ? `<span style="margin-left:auto;font-size:.82rem;color:var(--text-secondary);">
+               🔥 Streak: <b style="color:var(--accent);">${streak.current || 0}</b> / best ${streak.max || 0}
+             </span>`
+          : '';
+
+        return `
+          <div class="ach-section">
+            <div class="ach-header">
+              <h2><i class="fa-solid fa-trophy" style="color:#FFAA00;margin-right:.4rem;"></i>Achievements</h2>
+              <span class="ach-progress"><b>${unlockedCount}</b> / ${totalCount}</span>
+              ${streakLine}
+            </div>
+            <div class="ach-grid">${cardsHtml}</div>
+          </div>
+        `;
+      }
         const data = await loadProfile();
         if (!data || !data.success) {
           mainContainer.innerHTML = '<div class="error-msg">Failed to load profile.</div>';

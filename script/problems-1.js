@@ -79,7 +79,7 @@
       overlay.className = 'slot-overlay';
       overlay.innerHTML = `
         <div class="slot-machine">
-          <div class="slot-title">🎲 Random Problem 🎲</div>
+          <div class="slot-title">Random Problem</div>
           <div class="slot-reels">
             <div class="slot-reel" id="slotPrefix">—</div>
             <div class="slot-reel" id="slotSuffix">—</div>
@@ -105,7 +105,7 @@
       await spinReel(suffixEl, suffixPool, targetSuffix, 800);
 
       // 3) 展示结果
-      statusEl.textContent = `🎉 ${targetPrefix}${targetSuffix}`;
+      statusEl.textContent = `${targetPrefix}${targetSuffix}`;
       statusEl.classList.add('done');
       await sleep(500);
 
@@ -149,7 +149,36 @@
         ],
       },
     ];
+        // ⭐ 互斥组：同组内只能选一个
+    const EXCLUSIVE_GROUPS = [
+      // 来源互斥
+      ['DSE', 'HKMHASC', 'HKMO', 'IMO Prelim', 'IMO Shortlist', 'CMO', 'APMO'],
+      // 领域互斥
+      ['Algebra', 'NumberTheory', 'Geometry', 'Combinatorics'],
+    ];
 
+    // ⭐ 统一 toggle：先处理互斥，再 toggle
+    function toggleTagWithExclusivity(tag) {
+      const group = EXCLUSIVE_GROUPS.find(g => g.includes(tag));
+      if (group) {
+        for (const t of group) {
+          if (t !== tag) activeTags.delete(t);
+        }
+      }
+      if (activeTags.has(tag)) activeTags.delete(tag);
+      else activeTags.add(tag);
+      localStorage.setItem('problemFilterTags', JSON.stringify(Array.from(activeTags)));
+    }
+
+    // ⭐ 清空所有 filter
+    function clearAllTags() {
+      activeTags.clear();
+      localStorage.setItem('problemFilterTags', '[]');
+      currentPage = 1;
+      applyFiltersAndSort();
+      updateURL();
+      renderFullPage();
+    }
     // ========== 状态变量 ==========
     let allProblems = [];
     let filteredProblems = [];
