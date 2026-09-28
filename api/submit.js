@@ -14,6 +14,7 @@ import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { runCustomLogic } from '../lib/logic-runner.js';
 import crypto from 'crypto';
+import { json } from 'stream/consumers';
 
 // ═══════════════ Constants ═══════════════
 const RATE_MAX_PER_MIN = 10;
@@ -184,11 +185,7 @@ async function sendSuccess(db, username, res, result, context = {}) {
   return res.status(200).json(result);
 }
 
-/** 统一成功出口：先跑成就钩子，再返回 JSON */
-async function sendSuccess(db, username, res, result) {
-  await finishSubmit(db, username, result);
-  return res.status(200).json(result);
-}
+
 
 // ═══════════════ Validation ═══════════════
 function validateSingleSubmission(body) {
@@ -536,10 +533,11 @@ async function handleSingleSubmit(ctx) {
       subid: submissionData.subid,
       correct: jr.correct,
       systemError: jr.systemError,
-      score: currentScore,
+      score: currentScore,         // 或 score: jr.score
       message: jr.systemError
         ? 'Logic execution failed'
         : (jr.marked ? 'Judged by custom logic' : undefined),
+    }, {
       justAC: jr.correct,
       problemId: pid,
       pageDwellMs,
@@ -577,19 +575,20 @@ async function handleSingleSubmit(ctx) {
     await updateUserStats(db, effectiveUsername, pid, jr.correct);
   }
 
-  return sendSuccess(db, rawUsername, res, {
-    success: true,
-    subid: submissionData.subid,
-    correct: jr.correct,
-    systemError: jr.systemError,
-    score: jr.score,
-    message: jr.systemError
-      ? 'Logic execution failed'
-      : (jr.marked ? 'Judged by custom logic' : undefined),
-    justAC: jr.correct,
-    problemId: pid,
-    pageDwellMs,
-  });
+    return sendSuccess(db, rawUsername, res, {
+      success: true,
+      subid: submissionData.subid,
+      correct: jr.correct,
+      systemError: jr.systemError,
+      score: jr.score,         // 或 score: jr.score
+      message: jr.systemError
+        ? 'Logic execution failed'
+        : (jr.marked ? 'Judged by custom logic' : undefined),
+    }, {
+      justAC: jr.correct,
+      problemId: pid,
+      pageDwellMs,
+    });
 }
 
 // ═══════════════ Batch submission flow ═══════════════
