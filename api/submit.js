@@ -157,18 +157,31 @@ async function findUserActiveContests(db, username, now) {
 // ═══════════════ Achievements hook ═══════════════
 
 /** 更新 streak + 检查成就。Team 虚拟用户（纯数字）跳过 */
-async function finishSubmit(db, username, result) {
+async function finishSubmit(db, username, result, context = {}) {
   try {
     if (/^\d+$/.test(username)) return result;
-
     const { updateStreak, checkAchievements } = await import('../lib/achievements.js');
     await updateStreak(db, username);
-    const unlocked = await checkAchievements(db, username, { trigger: 'submit' });
+
+    // ⭐ 若给了 problemId 但没给 problemSubmitCount，自动补
+    if (context.justAC && context.problemId && context.problemSubmitCount === undefined) {
+      context.problemSubmitCount = await db.collection('submissions').countDocuments({
+        username,
+        problemId: context.problemId,
+      });
+    }
+
+    const unlocked = await checkAchievements(db, username, { trigger: 'submit', ...context });
     if (unlocked.length) result.unlockedAchievements = unlocked;
   } catch (e) {
     console.error('[achievements]', e);
   }
   return result;
+}
+
+async function sendSuccess(db, username, res, result, context = {}) {
+  await finishSubmit(db, username, result, context);
+  return res.status(200).json(result);
 }
 
 /** 统一成功出口：先跑成就钩子，再返回 JSON */
@@ -241,6 +254,10 @@ export default async function handler(req, res) {
 
   // ── Validate ──
   const v = validateSingleSubmission(req.body);
+  const pageDwellMs =
+  typeof req.body?.pageDwellMs === 'number' && req.body.pageDwellMs >= 0
+    ? Math.min(req.body.pageDwellMs, 3600_000)   // 上限 1 小时
+    : undefined;
   if (v.error) return res.status(400).json({ success: false, message: v.error });
   const { problemId: pid, answer, type, image } = v;
 
@@ -314,6 +331,7 @@ export default async function handler(req, res) {
       role,
       pid, answer, type, image,
       teamContext, teamMeta,
+      pageDwellMs,   
     });
   } catch (err) {
     console.error('Submit error:', err);
@@ -329,6 +347,7 @@ async function handleSingleSubmit(ctx) {
     rawUsername, effectiveUsername, role,
     pid, answer, type, image,
     teamContext, teamMeta,
+    pageDwellMs,
   } = ctx;
 
   // ── Load problem + user's active contests ──
@@ -521,6 +540,9 @@ async function handleSingleSubmit(ctx) {
       message: jr.systemError
         ? 'Logic execution failed'
         : (jr.marked ? 'Judged by custom logic' : undefined),
+      justAC: jr.correct,
+      problemId: pid,
+      pageDwellMs,
     });
   }
 
@@ -564,6 +586,9 @@ async function handleSingleSubmit(ctx) {
     message: jr.systemError
       ? 'Logic execution failed'
       : (jr.marked ? 'Judged by custom logic' : undefined),
+    justAC: jr.correct,
+    problemId: pid,
+    pageDwellMs,
   });
 }
 

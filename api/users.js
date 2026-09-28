@@ -709,34 +709,53 @@ export default async function handler(req, res) {
       });
     }
 
-// GET：全站成就统计（每个成就多少用户解锁）
-if (action === 'achievementsStats') {
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+    // GET：全站成就统计（每个成就多少用户解锁）
+    if (action === 'achievementsStats') {
+      if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const stats = await db.collection('users').aggregate([
-    { $match: { banned: { $ne: true } } },
-    { $unwind: { path: '$achievements', preserveNullAndEmptyArrays: false } },
-    { $group: { _id: '$achievements', count: { $sum: 1 } } },
-    { $sort: { count: -1 } },
-  ]).toArray();
+      const stats = await db.collection('users').aggregate([
+        { $match: { banned: { $ne: true } } },
+        { $unwind: { path: '$achievements', preserveNullAndEmptyArrays: false } },
+        { $group: { _id: '$achievements', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]).toArray();
 
-  const totalUsers = await db.collection('users').countDocuments({ banned: { $ne: true } });
-  const map = Object.fromEntries(stats.map(s => [s._id, s.count]));
+      const totalUsers = await db.collection('users').countDocuments({ banned: { $ne: true } });
+      const map = Object.fromEntries(stats.map(s => [s._id, s.count]));
 
-  return res.status(200).json({
-    success: true,
-    totalUsers,
-    counts: map,
-  });
-}
+      return res.status(200).json({
+        success: true,
+        totalUsers,
+        counts: map,
+      });
+    }
 
-// POST：标记访问过 admin 页面（unlock "curious"）
-if (action === 'markAdminVisit') {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  const { unlockAchievement } = await import('../lib/achievements.js');
-  const r = await unlockAchievement(db, decoded.username, 'curious');
-  return res.status(200).json({ success: true, unlocked: r.ok });
-}
+    // POST：标记访问过 admin 页面（unlock "curious"）
+    if (action === 'markAdminVisit') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+      const { unlockAchievement } = await import('../lib/achievements.js');
+      const r = await unlockAchievement(db, decoded.username, 'curious');
+      return res.status(200).json({ success: true, unlocked: r.ok });
+    }
+    // POST: 客户端上报的成就（白名单）
+    if (action === 'markAchievement') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+      const { id } = req.body || {};
+
+      // ⭐ 只允许客户端触发的成就
+      const CLIENT_TRIGGERABLE = new Set(['voyeur', 'curious']);
+      if (!CLIENT_TRIGGERABLE.has(id)) {
+        return res.status(400).json({ success: false, message: 'Achievement not client-triggerable' });
+      }
+
+      const { unlockAchievement } = await import('../lib/achievements.js');
+      const r = await unlockAchievement(db, decoded.username, id);
+      return res.status(200).json({
+        success: true,
+        unlocked: r.ok,
+        alreadyHave: r.alreadyHave || false,
+      });
+    }
 
     return res.status(400).json({ success: false, message: 'Invalid action' });
   } catch (err) {

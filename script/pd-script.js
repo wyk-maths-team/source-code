@@ -8,7 +8,7 @@ if (!pathMatch) {
 }
 const problemId = decodeURIComponent(pathMatch[1]);
 document.title = `Problem ${problemId} - WYK Maths Team`;
-
+const PAGE_LOAD_AT = Date.now();
 
 const mainContainer = document.getElementById('mainContent');
 let userStates = {};
@@ -1375,7 +1375,13 @@ function bindSubmitEvent() {
         }
         // 队长/mode 2 走正常提交（后端会自动以 team 身份）
       }
-      const result = await apiCall('/api/submit', 'POST', { problemId, answer, type, image: image || '' });
+      const result = await apiCall('/api/submit', 'POST', {
+        problemId,
+        answer,
+        type,
+        image: image || '',
+        pageDwellMs: Date.now() - PAGE_LOAD_AT,   // ⭐ 加这行
+      });
       spinner.style.display = 'none';
       if (!result.success) return;
 

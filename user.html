@@ -400,6 +400,26 @@
       color: var(--text-secondary);
       font-style: italic;
     }
+        /* 已解锁的右上角绿色勾 */
+    .ach-card.unlocked::before {
+      content: '\f00c';  /* FontAwesome check */
+      font-family: 'Font Awesome 6 Free';
+      font-weight: 900;
+      position: absolute;
+      top: -6px;
+      left: -6px;
+      width: 20px;
+      height: 20px;
+      background: #2e7d32;
+      color: #fff;
+      border-radius: 50%;
+      font-size: .7rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,.15);
+      z-index: 1;
+    }
   </style>
 
   <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
@@ -478,8 +498,11 @@
         'early-bird':  { name: 'Early Bird',    desc: 'Submit between 05:00-07:00 HKT',    fa: 'fa-dove',    rarity: 'uncommon' },
         'perfect-day': { name: 'Perfect Day',   desc: 'A day with ≥5 submissions, all AC', fa: 'fa-star',    rarity: 'rare' },
 
-        // Hidden
-        'curious': { name: '???', desc: 'Hidden', fa: 'fa-question', rarity: 'rare', hidden: true },
+          // ═══ F. Hidden ═══
+        'curious':       { name: 'Curious',        desc: 'Hidden', fa: 'fa-question',       rarity: 'rare', hidden: true },
+        'voyeur':        { name: 'Voyeur',         desc: 'Hidden', fa: 'fa-user-secret',    rarity: 'rare', hidden: true },
+        'speed-demon':   { name: 'Speed Demon',    desc: 'Hidden', fa: 'fa-bolt-lightning', rarity: 'rare', hidden: true },
+        'never-give-up': { name: 'Never Give Up',  desc: 'Hidden', fa: 'fa-hand-fist',      rarity: 'epic', hidden: true },
 
         // Accuracy
         'accuracy-30': { name: 'Steady Hand', desc: 'Accuracy ≥ 30% (min 20 subs)', fa: 'fa-chart-simple',  rarity: 'common' },
@@ -573,7 +596,35 @@
 
       const mainContainer = document.getElementById('mainContent');
       const TOGGLE_KEY = 'profileOnlyAttempted';
+            // ⭐ Voyeur 计数（localStorage）
+      const VIEWED_USERS_KEY = 'viewedUsers';
+      const VOYEUR_REPORTED_KEY = 'voyeurReported';
+      const VOYEUR_THRESHOLD = 10;
 
+      function recordProfileView(viewedUsername) {
+        const me = (typeof getCurrentUser === 'function') ? getCurrentUser()?.username : null;
+        if (!me || me === viewedUsername) return;             // 跳过自己
+        if (/^\d+$/.test(String(viewedUsername))) return;      // 跳过 team
+
+        try {
+          const raw = localStorage.getItem(VIEWED_USERS_KEY);
+          const set = new Set(raw ? JSON.parse(raw) : []);
+          const before = set.size;
+          set.add(viewedUsername);
+          if (set.size !== before) {
+            localStorage.setItem(VIEWED_USERS_KEY, JSON.stringify(Array.from(set)));
+          }
+
+          // 达到阈值 → 上报一次
+          if (set.size >= VOYEUR_THRESHOLD && !localStorage.getItem(VOYEUR_REPORTED_KEY)) {
+            apiCall('/api/users?action=markAchievement', 'POST', { id: 'voyeur' })
+              .then(r => {
+                if (r.success) localStorage.setItem(VOYEUR_REPORTED_KEY, '1');
+              })
+              .catch(() => {});
+          }
+        } catch (e) {}
+      }
       function escapeHtml(str) {
         return String(str).replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
       }
@@ -723,6 +774,7 @@
         return;
       }
       renderProfile(data);
+      recordProfileView(profileUsername);
     })();
   })();
   </script>
