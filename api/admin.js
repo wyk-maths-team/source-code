@@ -68,6 +68,171 @@ function makeSafeCollection(col) {
     },
   });
 }
+// ═══════════════ GitHub 备份辅助 ═══════════════
+function getBackupConfig() {
+  const token  = process.env.GITHUB_BACKUP_TOKEN  || process.env.GITHUB_IMAGES_TOKEN  || process.env.GITHUB_TOKEN;
+  const owner  = process.env.GITHUB_BACKUP_OWNER  || process.env.GITHUB_IMAGES_OWNER  || process.env.GITHUB_OWNER;
+  const repo   = process.env.GITHUB_BACKUP_REPO   || 'backup';
+  const branch = process.env.GITHUB_BACKUP_BRANCH || 'main';
+  if (!token || !owner || !repo) {
+    throw new Error('GitHub backup not configured (missing env vars)');
+  }
+  return { token, owner, repo, branch };
+}
+
+async function ghApi(url, token) {
+  return fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'wyk-math-backup',
+    },
+  });
+}
+
+// 列出 database/ 下所有备份目录
+async function listBackupsHelper() {
+  const { token, owner, repo, branch } = getBackupConfig();
+
+  // 用 tree API 一次性拿所有路径，比 contents API N+1 快
+  const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`;
+  const res = await ghApi(url, token);
+  if (res.status === 404) return [];
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(`GitHub tree API ${res.status}: ${t.slice(0, 200)}`);
+  }
+  const data = await res.json();
+
+  // 按 database/<ts>/ 分组
+  const byDir = {};
+  for (const node of (data.tree || [])) {
+    if (node.type !== 'blob') continue;
+    if (!node.path.startsWith('database/')) continue;
+    const rest = node.path.slice('database/'.length);
+    const slash = rest.indexOf('/');
+    if (slash === -1) continue;
+    const ts = rest.slice(0, slash);
+    const file = rest.slice(slash + 1);
+    if (!file.endsWith('.json')) continue;
+    if (!byDir[ts]) byDir[ts] = { files: [], totalSize: 0 };
+    byDir[ts].files.push(file);
+    byDir[ts].totalSize += node.size || 0;
+  }
+
+  const backups = Object.entries(byDir).map(([ts, d]) => {
+    // ts 格式：2026-09-29T23-07-38  （ISO slice(0,19) 把 : 换成 -）
+    const isoTry = ts.replace(/T(\d{2})-(\d{2})-(\d{2})$/, 'T$1:$2:$3') + 'Z';
+    const dt = new Date(isoTry);
+    const validDate = !isNaN(dt.getTime());
+
+    const collections = d.files
+      .filter(f => !f.startsWith('_'))
+      .map(f => f.replace(/\.json$/, ''));
+
+    return {
+      dir: `database/${ts}`,
+      timestamp: ts,
+      isoDate: validDate ? dt.toISOString() : null,
+      collections,
+      collectionCount: collections.length,
+      fileCount: d.files.length,
+      totalSize: d.totalSize,
+      hasManifest: d.files.includes('_manifest.json'),
+    };
+  });
+
+  backups.sort((a, b) => b.timestamp.localeCompare(a.timestamp));  // 新的在前
+  return backups;
+}
+
+// JSON 里的 ISO 字符串 → Date（启发式）
+const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/;
+function reviveDates(obj) {
+  if (Array.isArray(obj)) return obj.map(reviveDates);
+  if (obj && typeof obj === 'object') {
+    if (obj._bsontype) return obj;
+    const out = {};
+    for (const [k, v] of Object.entries(obj)) {
+      if (typeof v === 'string' && ISO_RE.test(v)) {
+        const d = new Date(v);
+        out[k] = isNaN(d.getTime()) ? v : d;
+      } else {
+        out[k] = reviveDates(v);
+      }
+    }
+    return out;
+  }
+  return obj;
+}
+
+// 从备份恢复
+async function restoreDatabaseHelper(db, dir, dryRun) {
+  const { token, owner, repo, branch } = getBackupConfig();
+
+  // 列出备份目录内容
+  const listUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURI(dir)}?ref=${encodeURIComponent(branch)}`;
+  const res = await ghApi(listUrl, token);
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(`Cannot list backup (${res.status}): ${t.slice(0, 200)}`);
+  }
+  const items = await res.json();
+  if (!Array.isArray(items)) throw new Error('Invalid backup listing');
+
+  const dataFiles = items.filter(it =>
+    it.type === 'file' && it.name.endsWith('.json') && !it.name.startsWith('_')
+  );
+  if (dataFiles.length === 0) throw new Error('Backup contains no data files');
+
+  const results = [];
+  let totalDocs = 0;
+
+  for (const file of dataFiles) {
+    const collectionName = file.name.replace(/\.json$/, '');
+    try {
+      // 用 raw 下载（带 token 才能访问 private repo）
+      const dl = await fetch(file.download_url, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (!dl.ok) throw new Error(`Download ${dl.status}`);
+      const payload = await dl.json();
+
+      const docsRaw = Array.isArray(payload) ? payload : (payload.docs || []);
+      const docs = docsRaw.map(reviveDates);
+
+      if (dryRun) {
+        results.push({ collection: collectionName, count: docs.length, action: 'would-replace' });
+        totalDocs += docs.length;
+        continue;
+      }
+
+      // 真恢复：清空 + 分批插入
+      const col = db.collection(collectionName);
+      await col.deleteMany({});
+
+      const BATCH = 500;
+      for (let i = 0; i < docs.length; i += BATCH) {
+        await col.insertMany(docs.slice(i, i + BATCH), { ordered: false });
+      }
+
+      results.push({ collection: collectionName, count: docs.length, action: 'restored' });
+      totalDocs += docs.length;
+    } catch (e) {
+      console.error(`restore ${collectionName} failed:`, e);
+      results.push({ collection: collectionName, error: e.message });
+    }
+  }
+
+  return {
+    dir,
+    dryRun,
+    results,
+    totalDocs,
+    collectionsRestored: results.filter(r => r.action === 'restored').length,
+  };
+}
 export default async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
 
@@ -261,6 +426,53 @@ if (action === 'dumpDatabase') {
     return res.status(200).send(JSON.stringify(dump));
   } catch (err) {
     console.error('dumpDatabase error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+}
+// ========== 列出所有备份 ==========
+if (action === 'listBackups') {
+  if (decoded.role !== 'root') return res.status(403).json({ success: false, message: 'Root only' });
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+
+  try {
+    const backups = await listBackupsHelper();
+    return res.status(200).json({ success: true, backups });
+  } catch (err) {
+    console.error('listBackups error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+// ========== 恢复数据库 ==========
+if (action === 'restoreDatabase') {
+  if (decoded.role !== 'root') return res.status(403).json({ success: false, message: 'Root only' });
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const { dir, dryRun } = req.body || {};
+  if (!dir || typeof dir !== 'string') {
+    return res.status(400).json({ success: false, message: 'Missing dir' });
+  }
+  // 严格校验：只允许 database/<timestamp>
+  if (!/^database\/[\w.\-]+$/.test(dir)) {
+    return res.status(400).json({ success: false, message: 'Invalid backup dir' });
+  }
+
+  try {
+    const result = await restoreDatabaseHelper(db, dir, !!dryRun);
+
+    // dry-run 不写审计，真恢复写
+    if (!dryRun) {
+      await auditLog(db, 'restore_database', {
+        dir,
+        totalDocs: result.totalDocs,
+        collections: result.results.map(r => r.collection),
+        errors: result.results.filter(r => r.error).map(r => ({ c: r.collection, e: r.error })),
+      }, decoded.username, 'danger').catch(() => {});
+    }
+
+    return res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    console.error('restoreDatabase error:', err);
     return res.status(500).json({ success: false, message: err.message });
   }
 }
