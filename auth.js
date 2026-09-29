@@ -152,7 +152,7 @@ window.addEventListener('storage', (e) => {
     // ⭐ OS 的所有變體都視為公開（未登入顯示鎖屏）
     path === '/os' || path === '/os.html' ||
     // ⭐ 只要路徑以 /os 開頭（涵蓋未來可能的 /os/xxx）也放行
-    path.startsWith('/os')||path === '/auth/forgot-password'|| path === '/auth/reset-password';
+    path.startsWith('/os')||path === '/auth/forgot-password'|| path === '/auth/reset-password'|| path ==='/ranklist.html';
   const token = getToken();
   if (token) {
     // 验证 token 是否过期
