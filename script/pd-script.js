@@ -74,7 +74,20 @@ function saveAnswerNow(pid, ans) {
 
 // ============ 工具 ============
 const escapeHtml = s => (s ?? '').toString().replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
-
+// ⭐ 让 innerHTML 注入的 <script> 真正执行
+function executeScriptsIn(container) {
+  if (!container) return;
+  container.querySelectorAll('script').forEach(oldScript => {
+    const newScript = document.createElement('script');
+    // 复制属性（src / type / async / defer ...）
+    for (const attr of oldScript.attributes) {
+      newScript.setAttribute(attr.name, attr.value);
+    }
+    // 复制内容
+    newScript.textContent = oldScript.textContent;
+    oldScript.parentNode.replaceChild(newScript, oldScript);
+  });
+}
 const getTopbarHeight = () => {
   const n = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--topbar-height'), 10);
   return Number.isFinite(n) ? n : 60;
@@ -991,19 +1004,22 @@ async function initPage() {
         </div>
       </div>`;
 
-    const statementContent = document.getElementById('statementContent');
-    if (statementContent) {
-      statementContent.innerHTML = problem.statement
-        ? DOMPurify.sanitize(problem.statement, domPurifyConfig)
-        : '';
-      if (typeof renderMathInElement !== 'undefined') {
-        renderMathInElement(statementContent, {
-          delimiters: [{ left: '$$', right: '$$', display: true }, { left: '$', right: '$', display: false }]
-        });
+      const statementContent = document.getElementById('statementContent');
+      if (statementContent) {
+        // ⭐ 管理员可信：直接注入，不做 DOMPurify 清洗
+        statementContent.innerHTML = problem.statement || '';
+
+        // ⭐ 激活 <script>
+        executeScriptsIn(statementContent);
+
+        if (typeof renderMathInElement !== 'undefined') {
+          renderMathInElement(statementContent, {
+            delimiters: [{ left: '$$', right: '$$', display: true }, { left: '$', right: '$', display: false }]
+          });
+        }
+        mountPdfQuizSplit();
+        mountMcQuiz();
       }
-      mountPdfQuizSplit();
-      mountMcQuiz();
-    }
 
     const isFav = window.favorites.has(problemId);
     const currentState = userStates[problemId] || 'not_started';

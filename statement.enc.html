@@ -1,0 +1,91 @@
+<div id="ojenc-10272013" class="oj-enc">
+  <pre class="oj-enc-cipher" style="white-space:pre-wrap;word-break:break-all;font-size:12px;color:#888;">1GdSVl5ByyoprMv35D8EfDGMGfaN4VY6MAC+kQMhqZ9UXc7Tj1YEAtAr+JSOK4mXt3iZHarkFa9Cxc8i85huLHVp3onC0WtVQI/MvVXeoxMScbuutq055+j2RqK78TQubLlMKldwmuqAxKbr57v7ABwO+c0RJl75nfEwt2ZfUEXygksHfLSf96riU4KSsvmAbU7ZT8oiFdQz8ri03K+xTmUN1NT4Ei4Vod8e1PNfCJqe9yTsUdPaDjUmw92CXE9mtQlUXYTiz3i5kvVbe3X30svA5u3NOAoF8pxOkcHqJBiPgFR5lA/1xfPTTwjyU2fLXzPuTFenS+i/g6CGrmuyGv1hlb3t/onnh+1FOlM5hYV8oZXJ+n6gasYuB9WGBXGeWj3pgGWpc5QDZQnO7XXLiJvEsf7nII3SWPK5EeD4orvL9UKTT0/pNKs=</pre>
+  <div class="oj-enc-bar" style="margin-top:8px;">
+    <input type="password" class="oj-enc-pwd" placeholder="Enter code"
+           style="padding:6px 10px;border:1px solid #ccc;border-radius:4px;">
+    <button type="button" class="oj-enc-btn"
+            style="padding:6px 14px;margin-left:6px;border:1px solid #ccc;border-radius:4px;cursor:pointer;">decode</button>
+  </div>
+  <div class="oj-enc-out" style="display:none;"></div>
+  <script>
+  (function () {
+    var root = document.getElementById('ojenc-10272013');
+    if (!root) return;
+
+    var cipherEl = root.querySelector('.oj-enc-cipher');
+    var barEl    = root.querySelector('.oj-enc-bar');
+    var pwdEl    = root.querySelector('.oj-enc-pwd');
+    var btnEl    = root.querySelector('.oj-enc-btn');
+    var outEl    = root.querySelector('.oj-enc-out');
+    var B64      = cipherEl.textContent.replace(/\s+/g, '');
+
+    function renderMath(el) {
+      var delims = [
+        { left: '$$', right: '$$', display: true },
+        { left: '$',  right: '$',  display: false },
+        { left: '\\[', right: '\\]', display: true },
+        { left: '\\(', right: '\\)', display: false }
+      ];
+      if (typeof window.renderMathInElement === 'function') {
+        try { window.renderMathInElement(el, { delimiters: delims, throwOnError: false }); } catch (e) {}
+        return;
+      }
+      if (window.katex && typeof window.katex.renderToString === 'function') {
+        el.innerHTML = el.innerHTML.replace(/\$\$([\s\S]+?)\$\$|\$([^$\n]+?)\$/g, function (m, d, s) {
+          try {
+            return window.katex.renderToString(d != null ? d : s, {
+              displayMode: d != null,
+              throwOnError: false
+            });
+          } catch (e) { return m; }
+        });
+        return;
+      }
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise([el]);
+      }
+    }
+
+    async function decode() {
+      var pwd = (pwdEl.value || '').trim();
+      if (!pwd) return;
+      if (!window.crypto || !window.crypto.subtle) return;
+
+      try {
+        var bin  = atob(B64);
+        var blob = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) blob[i] = bin.charCodeAt(i);
+
+        var salt = blob.subarray(0, 16);
+        var iv   = blob.subarray(16, 28);
+        var data = blob.subarray(28);
+
+        var enc = new TextEncoder();
+        var baseKey = await crypto.subtle.importKey(
+          'raw', enc.encode(pwd), 'PBKDF2', false, ['deriveKey']
+        );
+        var key = await crypto.subtle.deriveKey(
+          { name: 'PBKDF2', salt: salt, iterations: 200000, hash: 'SHA-256' },
+          baseKey,
+          { name: 'AES-GCM', length: 256 },
+          false,
+          ['decrypt']
+        );
+        var ptBuf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, key, data);
+        var html  = new TextDecoder().decode(ptBuf);
+
+        cipherEl.style.display = 'none';
+        barEl.style.display = 'none';
+        outEl.style.display = '';
+        outEl.innerHTML = html;
+        renderMath(outEl);
+      } catch (e) {}
+    }
+
+    btnEl.addEventListener('click', decode);
+    pwdEl.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); decode(); }
+    });
+  })();
+  </script>
+</div>
