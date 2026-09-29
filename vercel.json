@@ -115,5 +115,11 @@
     
 
     { "source": "/(.*)", "destination": "/404.html" }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron?action=dailyBackup",
+      "schedule": "0 18 * * *"
+    }
   ]
 }
