@@ -1,5 +1,5 @@
 ﻿// api/admin.js
-import { connectToDatabase } from './db.js';
+import { connectToDatabase } from './_db.js';
 import { auditLog } from '../lib/audit.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';

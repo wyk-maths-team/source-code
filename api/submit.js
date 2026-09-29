@@ -9,7 +9,7 @@
 //  6. Hook achievements & respond
 // ═══════════════════════════════════════════════════════════
 
-import { connectToDatabase } from './db.js';
+import { connectToDatabase } from './_db.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { runCustomLogic } from '../lib/logic-runner.js';

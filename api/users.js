@@ -1,5 +1,5 @@
 ﻿// api/users.js
-import { connectToDatabase } from './db.js';
+import { connectToDatabase } from './_db.js';
 import { verifyToken } from '../lib/auth.js';
 import bcrypt from 'bcrypt';
 import { applyRateLimit } from '../lib/rateLimit.js';

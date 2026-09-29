@@ -1,7 +1,7 @@
 // api/auth.js
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
-import { connectToDatabase } from './db.js';
+import { connectToDatabase } from './_db.js';
 import { auditLog } from '../lib/audit.js';
 
 /**
