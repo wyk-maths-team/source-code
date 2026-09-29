@@ -7,6 +7,10 @@ import { sanitizeHTML } from '../lib/sanitize.js';
 import bcrypt from 'bcrypt';
 import fs from 'fs';
 import path from 'path';
+import * as nodeCrypto      from 'crypto';
+import * as nodeUtil        from 'util';
+import * as nodeQuerystring from 'querystring';
+import * as nodeUrl         from 'url';
 const allowedCollections = ['problems', 'users', 'submissions', 'userstats', 'updates', 'contests', 'contest_results', 'metadata'];
 
 const ALLOWED_COLLECTIONS = ['problems', 'users', 'submissions', 'userstats', 'updates', 'contests', 'contest_results', 'metadata'];
@@ -182,7 +186,7 @@ if (action === 'backupDatabase') {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const ts = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
-  const backupDir = `backup/database/${ts}`;
+  const backupDir = `database/${ts}`;
 
   try {
     const { uploadJsonFile } = await import('../lib/github-upload.js');
@@ -346,10 +350,17 @@ if (action === 'dumpDatabase') {
       console.error = (...args) => pushLog('[ERROR] ', args);
 
       // ⭐ 3. require 白名单
-      const SAFE_MODULES = new Set(['crypto', 'util', 'querystring', 'url']);
+      const SAFE_MODULES = {
+        crypto:      nodeCrypto,
+        util:        nodeUtil,
+        querystring: nodeQuerystring,
+        url:         nodeUrl,
+      };
       const safeRequire = (name) => {
-        if (!SAFE_MODULES.has(name)) throw new Error(`Module '${name}' is not allowed`);
-        return require(name);
+        if (!Object.prototype.hasOwnProperty.call(SAFE_MODULES, name)) {
+          throw new Error(`Module '${name}' is not allowed`);
+        }
+        return SAFE_MODULES[name];
       };
 
       // ⭐ 4. process 代理：只读、只暴露无害字段
