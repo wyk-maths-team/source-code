@@ -2,13 +2,29 @@
 (function() {
   const urlParams = new URLSearchParams(window.location.search);
   const token = urlParams.get('token');
-  if (token) {
-    localStorage.setItem('auth_token', token);   // ← 改成和 getToken() 一致
-    const newUrl = location.pathname + location.search.replace(/[?&]token=[^&]*/, '').replace(/^&/, '?');
-    history.replaceState({}, document.title, newUrl);
-    location.reload();
-    return;
+  if (!token) return;
+
+  // ⭐ 解析 payload，判断是不是真正的登录 token
+  let payload;
+  try {
+    payload = JSON.parse(atob(token.split('.')[1]));
+  } catch {
+    return;   // 不是合法 JWT，不管
   }
+
+  // setup / reset token 有 action 字段，不是登录 token → 忽略
+  if (payload.action === 'setup' || payload.action === 'reset') {
+    return;   // ⭐ 让页面自己处理 URL 里的 token
+  }
+
+  // 真登录 token 必须有 username 和 role
+  if (!payload.username || !payload.role) return;
+
+  // 正常登录流程
+  localStorage.setItem('auth_token', token);
+  const newUrl = location.pathname + location.search.replace(/[?&]token=[^&]*/, '').replace(/^&/, '?');
+  history.replaceState({}, document.title, newUrl);
+  location.reload();
 })();
 let currentUser = null;
 
@@ -216,3 +232,51 @@ window.getCurrentUser = getCurrentUser;
 window.login = login;
 window.logout = logout;
 window.apiCall = apiCall;
+// ═══════════════════════════════════════════════════════
+// ⭐ 跨页过渡：从登录页跳过来时，播放"揭幕"动画
+// ═══════════════════════════════════════════════════════
+(function () {
+  let shouldPlay = false;
+  try {
+    shouldPlay = sessionStorage.getItem('__loginTransition') === '1';
+    if (shouldPlay) sessionStorage.removeItem('__loginTransition');
+  } catch { /* 隐私模式忽略 */ }
+  if (!shouldPlay) return;
+
+  const play = () => {
+    const veil = document.createElement('div');
+    veil.style.cssText = [
+      'position:fixed', 'inset:0', 'z-index:99999',
+      'background:var(--accent,#337ab7)',
+      'pointer-events:none',
+      'clip-path:circle(160% at 50% 50%)',
+    ].join(';');
+
+    // 光晕层
+    const glow = document.createElement('div');
+    glow.style.cssText = [
+      'position:absolute', 'inset:0',
+      'background:radial-gradient(circle at 50% 50%,rgba(255,255,255,.28) 0%,transparent 55%)',
+      'opacity:.9',
+      'transition:opacity .6s ease',
+    ].join(';');
+    veil.appendChild(glow);
+
+    document.body.appendChild(veil);
+
+    // 下一帧开始收缩
+    requestAnimationFrame(() => {
+      veil.style.transition = 'clip-path .65s cubic-bezier(.4,0,.2,1)';
+      glow.style.opacity = '0';
+      veil.style.clipPath = 'circle(0% at 50% 50%)';
+
+      setTimeout(() => veil.remove(), 720);
+    });
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', play);
+  } else {
+    play();
+  }
+})();

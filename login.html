@@ -199,7 +199,55 @@
 }
 @keyframes loginSpin { to { transform: rotate(360deg); } }
 .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.login-btn.loading:disabled { opacity: 1; cursor: wait; }
+.login-btn.loading {
+  background: #7a99b8; cursor: wait;
+}
+.login-btn.loading::after {
+  content: ''; display: inline-block;
+  width: 12px; height: 12px; margin-left: 8px;
+  border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
+  border-radius: 50%; vertical-align: -2px;
+  animation: loginSpin .7s linear infinite;
+}
+@keyframes loginSpin { to { transform: rotate(360deg); } }
+/* ⭐ 登录成功过渡 */
+.login-card {
+  transition: transform .35s cubic-bezier(.4,0,.2,1),
+              opacity .35s ease;
+}
+.login-card.sinking {
+  transform: scale(.94) translateY(8px);
+  opacity: .65;
+}
+
+#loginVeil {
+  position: fixed; inset: 0; z-index: 99999;
+  background: var(--accent, #337ab7);
+  pointer-events: none;
+  display: none;
+}
+#loginVeil.active {
+  display: block;
+  animation: veilExpand .65s cubic-bezier(.4,0,.2,1) forwards;
+}
+@keyframes veilExpand {
+  0%   { clip-path: circle(0% at var(--fx, 50%) var(--fy, 50%)); }
+  100% { clip-path: circle(160% at var(--fx, 50%) var(--fy, 50%)); }
+}
+
+/* 光晕叠加，让遮罩不那么单调 */
+#loginVeil::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at var(--fx,50%) var(--fy,50%),
+                              rgba(255,255,255,.28) 0%, transparent 55%);
+  opacity: .9;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #loginVeil.active { animation-duration: .01s; }
+  .login-card { transition: none; }
+}
   </style>
 
   <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
@@ -213,6 +261,7 @@
 
 </head>
 <body class="index-body">
+  <div id="loginVeil"></div>
   <div id="appContainer">
     <header class="topbar" id="topbarContainer"></header>
     <aside class="sidebar" id="sidebarContainer"></aside>
@@ -270,50 +319,63 @@
     const loginForm = document.getElementById('loginForm');
     const loginError = document.getElementById('loginError');
 
-    loginForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
+loginForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
 
-      const username = document.getElementById('username').value.trim();
-      const password = document.getElementById('password').value.trim();
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value.trim();
 
-      if (!username || !password) {
-        showError('Please enter both username and password.');
-        return;
-      }
+  if (!username || !password) {
+    showError('Please enter both username and password.');
+    return;
+  }
 
-      const btn = document.getElementById('loginBtn');
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btn.textContent = 'Signing in';
+  hideError();
 
-      // ⭐ 立即锁定 UI
-      btn.disabled = true;
-      btn.classList.add('loading');
-      btn.textContent = 'Signing in';
-      hideError();
+  // 让浏览器先渲染 disabled 状态
+  await new Promise(r => requestAnimationFrame(() => r()));
 
-      // ⭐ 让浏览器先重绘一帧，再发起请求
-      await new Promise(r => requestAnimationFrame(() => r()));
+  try {
+    if (typeof window.login !== 'function') throw new Error('Login function not available');
+    const result = await window.login(username, password);
 
-      try {
-        if (typeof window.login !== 'function') {
-          throw new Error('Login function not available');
-        }
-        const result = await window.login(username, password);
-        if (result.success) {
-          const redirect = new URLSearchParams(window.location.search).get('redirect') || '/';
-          window.location.href = redirect;
-          return;   // ⭐ 成功跳转 → 不解锁按钮
-        }
-        showError(result.message || 'Invalid username or password.');
-      } catch (err) {
-        console.error('Login error:', err);
-        showError('Network error. Please try again.');
-      }
+    if (result.success) {
+      const redirect = new URLSearchParams(window.location.search).get('redirect') || '/';
 
-      // 只有失败才会走到这
-      btn.disabled = false;
-      btn.classList.remove('loading');
-      btn.textContent = 'Sign In';
-    });
-        
+      // ⭐ 1. 卡片轻微下沉
+      const card = document.querySelector('.login-card');
+      if (card) card.classList.add('sinking');
+
+      // ⭐ 2. 遮罩从按钮位置扩散铺满
+      const rect = btn.getBoundingClientRect();
+      const veil = document.getElementById('loginVeil');
+      veil.style.setProperty('--fx', (rect.left + rect.width  / 2) + 'px');
+      veil.style.setProperty('--fy', (rect.top  + rect.height / 2) + 'px');
+      veil.classList.add('active');
+
+      // ⭐ 3. 记住状态，主页那边要用来"揭幕"
+      try { sessionStorage.setItem('__loginTransition', '1'); } catch {}
+
+      // ⭐ 4. 动画跑完再跳
+      setTimeout(() => { window.location.href = redirect; }, 680);
+      return;   // ⚠️ 走这条路不恢复按钮
+    }
+
+    showError(result.message || 'Invalid username or password.');
+  } catch (err) {
+    console.error('Login error:', err);
+    showError('Network error. Please try again.');
+  }
+
+  // 只有失败才会走到这里
+  btn.disabled = false;
+  btn.classList.remove('loading');
+  btn.textContent = 'Sign In';
+});
 function showError(msg) {
       loginError.textContent = msg;
       loginError.style.display = 'block';
