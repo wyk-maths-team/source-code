@@ -41,19 +41,21 @@ export default async function handler(req, res) {
   const action = req.query.action || (req.body && req.body.action);
 
   // ===== 1. 發起微軟登入 =====
-    if (action === 'microsoft') {
+  if (action === 'microsoft') {
     const clientId = process.env.MICROSOFT_CLIENT_ID;
     const redirectUri = process.env.MICROSOFT_REDIRECT_URI;
     const tenant = process.env.MICROSOFT_TENANT || 'common';
 
-    // ⭐ 產生 state 並存到 HttpOnly cookie
+    // ⭐ 新增：区分登录 / 重置模式
+    const mode = req.query.mode === 'reset' ? 'reset' : 'login';
+
     const state = (await import('crypto')).randomBytes(16).toString('hex');
     setCookie(res, 'oauth_state', state, {
-      path: '/',
-      maxAge: 600,        // 10 分鐘
-      httpOnly: true,
-      secure: true,
-      sameSite: 'Lax',
+      path: '/', maxAge: 600, httpOnly: true, secure: true, sameSite: 'Lax',
+    });
+    // ⭐ 新增：记住这次 OAuth 是哪种用途
+    setCookie(res, 'oauth_mode', mode, {
+      path: '/', maxAge: 600, httpOnly: true, secure: true, sameSite: 'Lax',
     });
 
     const authUrl = `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/authorize?` +
@@ -68,9 +70,11 @@ export default async function handler(req, res) {
     if (action === 'callback') {
     const { code, state } = req.query;
     const cookieState = getCookie(req, 'oauth_state');
+    const mode = getCookie(req, 'oauth_mode') || 'login';   // ⭐
 
     // ⭐ 無論成功失敗，先清掉 cookie
     setCookie(res, 'oauth_state', '', { path: '/', maxAge: 0 });
+    setCookie(res, 'oauth_mode',  '', { path: '/', maxAge: 0 });   // ⭐
 
     if (!code) return res.status(400).send('Missing code');
     if (!state || !cookieState || state !== cookieState) {
@@ -108,13 +112,27 @@ export default async function handler(req, res) {
       const realName = extractRealName(msDisplayName);
 
       if (!email || !email.endsWith('@' + allowedDomain)) {
+        if (mode === 'reset') {
+          return res.redirect(`/auth/forgot-password?error=domain`);
+        }
         return res.status(403).send(`Only @${allowedDomain} emails are allowed.`);
       }
 
       const username = email.split('@')[0];
       const db = await connectToDatabase();
       const existingUser = await db.collection('users').findOne({ username });
-
+      // ⭐ Reset 模式：走专用分支，不登录
+      if (mode === 'reset') {
+        if (!existingUser) {
+          return res.redirect(`/auth/forgot-password?error=not_registered`);
+        }
+        const resetToken = jwt.sign(
+          { username, action: 'reset' },
+          process.env.JWT_SECRET,
+          { expiresIn: '15m' }
+        );
+        return res.redirect(`/auth/reset-password?token=${resetToken}`);
+      }
       if (!existingUser) {
         // 新用戶：帶上 displayName 與 realName 到 setup 頁面
         const setupToken = jwt.sign(
@@ -132,10 +150,6 @@ export default async function handler(req, res) {
       } else {
         // 老用戶：同步 displayName 與 realName（微軟是權威來源）
         const updateFields = {};
-        const targetDisplayName = msDisplayName || existingUser.displayName || username;
-        if (existingUser.displayName !== targetDisplayName) {
-          updateFields.displayName = targetDisplayName;
-        }
         if (realName && existingUser.realName !== realName) {
           updateFields.realName = realName;
         }
@@ -143,14 +157,11 @@ export default async function handler(req, res) {
           await db.collection('users').updateOne({ username }, { $set: updateFields });
         }
 
-        const finalDisplayName = updateFields.displayName
-          || existingUser.displayName
-          || username;
 
         const loginToken = jwt.sign({
           username: existingUser.username,
           role: existingUser.role || 'student',
-          displayName: finalDisplayName,
+          displayName: existingUser.displayName || username,
           pfp: existingUser.pfp || ''
         }, process.env.JWT_SECRET, { expiresIn: '7d' });
         return res.redirect(`/?token=${loginToken}`);
@@ -198,6 +209,48 @@ export default async function handler(req, res) {
     }
     return;
   }
+  // ===== 4. 完成密码重设 =====
+if (action === 'complete-reset') {
+  if (req.method !== 'POST') return res.status(405).end();
+
+  const { token, password } = req.body || {};
+  if (!token || !password) {
+    return res.status(400).json({ success: false, message: 'Missing fields' });
+  }
+  if (password.length < 4) {
+    return res.status(400).json({ success: false, message: 'Password too short (min 4 chars)' });
+  }
+  if (password.length > 128) {
+    return res.status(400).json({ success: false, message: 'Password too long (max 128 chars)' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.action !== 'reset') throw new Error('Invalid token');
+
+    const db = await connectToDatabase();
+    const user = await db.collection('users').findOne({ username: decoded.username });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const hashed = await bcrypt.hash(password, 10);
+    await db.collection('users').updateOne(
+      { username: decoded.username },
+      { $set: { password: hashed, passwordResetAt: new Date() } }
+    );
+
+    // 审计（用 warn 级，Discord 会通知）
+    await auditLog(db, 'password_reset_via_microsoft', {
+      username: decoded.username,
+    }, decoded.username, 'warn').catch(() => {});
+
+    return res.json({ success: true });
+  } catch (err) {
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ success: false, message: 'Reset link expired. Try again.' });
+    }
+    return res.status(401).json({ success: false, message: 'Invalid token' });
+  }
+}
 
   res.status(400).json({ error: 'Invalid action' });
 }
