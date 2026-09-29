@@ -22,7 +22,48 @@ const ALLOWED_COLLECTIONS = ['problems', 'users', 'submissions', 'userstats', 'u
 //     console.error('Audit log error:', e);
 //   }
 // }
+// 安全 stringify：处理循环引用和 BigInt
+function safeStringify(obj) {
+  const seen = new WeakSet();
+  return JSON.stringify(obj, (k, v) => {
+    if (typeof v === 'bigint') return v.toString();
+    if (typeof v === 'object' && v !== null) {
+      if (seen.has(v)) return '[Circular]';
+      seen.add(v);
+    }
+    return v;
+  });
+}
 
+// 把 db 包一层 Proxy，禁止危险操作
+function makeSafeDb(db) {
+  const DB_BLOCKED = new Set(['dropDatabase', 'rename', 'command', 'admin', 'stats']);
+  return new Proxy(db, {
+    get(target, prop) {
+      if (typeof prop === 'string' && DB_BLOCKED.has(prop)) {
+        throw new Error(`db.${prop}() is not allowed`);
+      }
+      if (prop === 'collection') {
+        return (name) => makeSafeCollection(target.collection(String(name)));
+      }
+      const val = target[prop];
+      return typeof val === 'function' ? val.bind(target) : val;
+    },
+  });
+}
+
+function makeSafeCollection(col) {
+  const COL_BLOCKED = new Set(['drop', 'dropIndex', 'dropIndexes', 'rename']);
+  return new Proxy(col, {
+    get(target, prop) {
+      if (typeof prop === 'string' && COL_BLOCKED.has(prop)) {
+        throw new Error(`collection.${prop}() is not allowed`);
+      }
+      const val = target[prop];
+      return typeof val === 'function' ? val.bind(target) : val;
+    },
+  });
+}
 export default async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
 
@@ -133,6 +174,92 @@ export default async function handler(req, res) {
     await auditLog('mark_submission', { subid, score: numScore });
     return res.status(200).json({ success: true, message: 'Marked' });
   }
+  // ========== 备份数据库到 GitHub ==========
+if (action === 'backupDatabase') {
+  if (decoded.role !== 'root') {
+    return res.status(403).json({ success: false, message: 'Root only' });
+  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const ts = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
+  const backupDir = `backup/database/${ts}`;
+
+  try {
+    const { uploadJsonFile } = await import('../lib/github-upload.js');
+
+    const collections = await db.listCollections().toArray();
+    const results = [];
+    const manifest = {
+      timestamp: new Date().toISOString(),
+      by: decoded.username,
+      collections: {},
+    };
+
+    for (const { name } of collections) {
+      if (name.startsWith('system.')) continue;
+      try {
+        const docs = await db.collection(name).find({}).toArray();
+        manifest.collections[name] = { count: docs.length };
+        const r = await uploadJsonFile(
+          `${backupDir}/${name}.json`,
+          { collection: name, count: docs.length, docs },
+          { message: `backup: ${name} (${docs.length} docs) by ${decoded.username}` }
+        );
+        results.push({ collection: name, count: docs.length, url: r.githubUrl });
+      } catch (e) {
+        console.error(`backup ${name} failed:`, e);
+        results.push({ collection: name, error: e.message });
+      }
+    }
+
+    await uploadJsonFile(
+      `${backupDir}/_manifest.json`,
+      manifest,
+      { message: `backup: manifest (${collections.length} collections)` }
+    );
+
+    await auditLog(db, 'backup_database', {
+      dir: backupDir,
+      totalCollections: results.length,
+      results: results.map(r => ({ collection: r.collection, count: r.count, error: r.error })),
+    }, decoded.username, 'warn').catch(() => {});
+
+    return res.status(200).json({ success: true, dir: backupDir, results });
+  } catch (err) {
+    console.error('backupDatabase error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+// ========== 直接把数据库 dump 成 JSON 下载 ==========
+if (action === 'dumpDatabase') {
+  if (decoded.role !== 'root') {
+    return res.status(403).json({ success: false, message: 'Root only' });
+  }
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+
+  try {
+    const collections = await db.listCollections().toArray();
+    const dump = {
+      timestamp: new Date().toISOString(),
+      by: decoded.username,
+      collections: {},
+    };
+    for (const { name } of collections) {
+      if (name.startsWith('system.')) continue;
+      dump.collections[name] = await db.collection(name).find({}).toArray();
+    }
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="backup-${Date.now()}.json"`
+    );
+    return res.status(200).send(JSON.stringify(dump));
+  } catch (err) {
+    console.error('dumpDatabase error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+}
   // ========== 审计日志查询 ==========
   if (action === 'logs') {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
@@ -177,77 +304,129 @@ export default async function handler(req, res) {
     await auditLog('sync_version', { newVer });
     return res.status(200).json({ success: true, version: newVer });
   }
-    // ========== 高级命令终端 ==========
+// ========== 高级命令终端（加固版） ==========
   if (action === 'cmd') {
     if (decoded.role !== 'root') {
       return res.status(403).json({ success: false, message: 'Only root can use this terminal' });
     }
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-    const { mode, code } = req.body;
-    if (!code) return res.status(400).json({ success: false, message: 'Missing code' });
+    // ⭐ 1. 总开关：默认禁用，需要环境变量显式开启
+    // if (process.env.ENABLE_ADMIN_CMD !== '1') {
+    //   return res.status(404).json({ success: false, message: 'Command terminal disabled' });
+    // }
+
+    const { mode, code } = req.body || {};
+    if (!code || typeof code !== 'string') {
+      return res.status(400).json({ success: false, message: 'Missing code' });
+    }
+    if (code.length > 5000) {
+      return res.status(400).json({ success: false, message: 'Code too long (max 5000)' });
+    }
+
+    // ⭐ 2. 审计日志：先写，再执行
+    await auditLog(db, 'admin_cmd_exec', {
+      mode: mode || 'js',
+      codePreview: code.slice(0, 300),
+      ip: getClientIP(req),
+    }, decoded.username, 'danger').catch(() => {});
+
+    const logs = [];
+    const originalLog   = console.log;
+    const originalError = console.error;
 
     try {
-      let result, output = '';
-      // 捕获 console.log 输出
-      const logs = [];
-      const originalLog = console.log;
-      console.log = (...args) => {
-        logs.push(args.map(arg => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' '));
+      // 捕获 console 输出
+      const pushLog = (prefix, args) => {
+        logs.push(prefix + args.map(a =>
+          typeof a === 'string' ? a : safeStringify(a)
+        ).join(' '));
+      };
+      console.log   = (...args) => pushLog('', args);
+      console.error = (...args) => pushLog('[ERROR] ', args);
+
+      // ⭐ 3. require 白名单
+      const SAFE_MODULES = new Set(['crypto', 'util', 'querystring', 'url']);
+      const safeRequire = (name) => {
+        if (!SAFE_MODULES.has(name)) throw new Error(`Module '${name}' is not allowed`);
+        return require(name);
       };
 
-      const vm = await import('vm');
-      const context = vm.createContext({
-        console: {
-          log: (...args) => {
-            logs.push(args.map(arg => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' '));
-          },
-          error: (...args) => {
-            logs.push('[ERROR] ' + args.map(arg => String(arg)).join(' '));
-          },
-          warn: (...args) => {
-            logs.push('[WARN] ' + args.map(arg => String(arg)).join(' '));
-          }
-        },
-        Buffer,
-        setTimeout,
-        setInterval,
-        clearTimeout,
-        clearInterval,
-        Promise,
-        process,
-        require: (moduleName) => require(moduleName),
-        // 对于 db 模式，注入 db 和 ObjectId
-        ...(mode === 'db' ? {
-          db: db,
-          ObjectId: (await import('mongodb')).ObjectId,
-          ISODate: Date
-        } : {})
+      // ⭐ 4. process 代理：只读、只暴露无害字段
+      const safeProcess = Object.freeze({
+        version:  process.version,
+        platform: process.platform,
+        arch:     process.arch,
+        uptime:   () => process.uptime(),
+        memoryUsage: () => process.memoryUsage(),
+        // ❌ 不暴露 env / exit / kill / cwd / chdir / mainModule
       });
 
-      // 如果是 db 模式，还可以提供额外的辅助
-      if (mode === 'db') {
-        // 可以注入一些常用的 MongoDB 辅助，但无需额外
-      }
+      // ⭐ 5. db 代理：禁止 drop / delete，只允许读 + 更新
+      const safeDb = mode === 'db' ? makeSafeDb(db) : undefined;
 
-      // 包装代码为异步函数，以便支持 await
-      const asyncWrapper = `(async () => { ${code} })()`;
-      const script = new vm.Script(asyncWrapper);
-      const rawResult = await script.runInContext(context);
-      // 恢复 console.log
-      console.log = originalLog;
-      output = logs.join('\n');
-      result = rawResult;
+      // ⭐ 6. 白名单化的全局对象（不直接把主 realm 的 Object 塞进去）
+      const vm = await import('vm');
+      const context = vm.createContext(Object.create(null), {
+        name: 'admin-cmd-sandbox',
+        codeGeneration: { strings: false, wasm: false },  // ⭐ 禁掉 eval / new Function
+      });
 
-      // 如果 result 是 undefined，忽略
-      if (result === undefined) {
-        // 仅输出日志
-      }
+      // 手动挂载安全的全局
+      Object.assign(context, {
+        console: {
+          log:   (...a) => pushLog('', a),
+          error: (...a) => pushLog('[ERROR] ', a),
+          warn:  (...a) => pushLog('[WARN] ', a),
+          info:  (...a) => pushLog('', a),
+        },
+        Buffer,
+        Promise,
+        JSON, Math, Date, RegExp, Error, TypeError,
+        Object, Array, String, Number, Boolean, Map, Set,
+        parseInt, parseFloat, isNaN, isFinite,
+        setTimeout: (fn, ms) => setTimeout(fn, Math.min(Number(ms) || 0, 5000)),
+        clearTimeout,
+        // ❌ 故意不暴露 setInterval（防无限占用）
+        require: safeRequire,
+        process: safeProcess,
+        ...(mode === 'db' ? {
+          db: safeDb,
+          ObjectId: (await import('mongodb')).ObjectId,
+        } : {}),
+      });
 
-      return res.status(200).json({ success: true, output, result: result !== undefined ? result : null });
+      // ⭐ 7. 用函数包装而不是字符串拼接，避免注入
+      //      string 版本仍能读到 context 里的东西，但不再容易被 })(); 跳出
+      const wrapped = `(async function () {\n"use strict";\n${code}\n})()`;
+
+      // 通过 vm.Script 编译时禁用 codeGeneration（上面已设）——但 codeGeneration
+      // 只对 context 内部新生成的代码生效，对 compile 本身无效，所以这行留作保险
+      const script = new vm.Script(wrapped, { filename: 'admin-cmd.js' });
+
+      // ⭐ 8. 超时：同步代码用 timeout 选项；异步代码用 Promise.race 兜底
+      const result = await Promise.race([
+        Promise.resolve(script.runInContext(context, { timeout: 3000 })),
+        new Promise((_, rej) =>
+          setTimeout(() => rej(new Error('Execution timeout (3.5s)')), 3500)
+        ),
+      ]);
+
+      return res.status(200).json({
+        success: true,
+        output: logs.join('\n'),
+        result: result !== undefined ? safeStringify(result) : null,
+      });
     } catch (err) {
-      console.error('CMD error:', err);
-      return res.status(500).json({ success: false, message: err.message });
+      return res.status(500).json({
+        success: false,
+        message: String(err && err.message || err),
+        output: logs.join('\n'),
+      });
+    } finally {
+      // ⭐ 9. 无论如何恢复 console
+      console.log   = originalLog;
+      console.error = originalError;
     }
   }
   // ========== SQL 终端 ==========

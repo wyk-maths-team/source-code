@@ -521,6 +521,33 @@
       background: rgba(74,144,217,.15);
       color: var(--accent);
     }
+    .danger-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  border: 1px solid rgba(220,50,50,.22);
+  border-radius: 10px;
+  background: var(--card-bg);
+}
+.danger-block + .danger-block { margin-top: 14px; }
+.danger-block-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--danger);
+}
+.danger-block-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+@media (max-width: 600px) {
+  .danger-block-actions { flex-direction: column; }
+  .danger-block-actions .btn-purge { width: 100%; justify-content: center; }
+}
   </style>
   <!-- ⭐ PWA（必須靜態寫入 <head>，不能靠 JS 動態注入） -->
   <link rel="manifest" href="/manifest.json">
@@ -650,13 +677,49 @@
             </a>
           </div>
         </section>
+        <!-- ═══════════ CDN Cache ═══════════ -->
+        <section class="dash-section">
+          <h2><i class="fas fa-cloud-arrow-up"></i> CDN Cache</h2>
+          <div class="danger-zone unlocked" style="border-color: rgba(74,144,217,.35); background: rgba(74,144,217,.03);">
+            <div class="danger-body">
+              <p class="danger-desc" style="color: var(--text-secondary);">
+                <i class="fas fa-circle-info" style="color: var(--accent);"></i>
+                <span>
+                  Purge jsDelivr's cached copies of <b>all files except <code>static/</code></b>.
+                  Users will re-download the latest CSS / JS on next visit.
+                </span>
+              </p>
 
+              <div class="purge-checklist-toolbar">
+                <span class="purge-catalog-status loading" id="purgeCatalogStatus">Loading catalog…</span>
+                <button class="purge-reload-btn" id="purgeReloadBtn" type="button" title="Reload from GitHub">
+                  <i class="fas fa-rotate"></i> Reload
+                </button>
+              </div>
+
+              <div class="purge-checklist" id="purgeChecklist"></div>
+
+              <div class="purge-actions">
+                <button class="btn-purge" id="purgeSelectedBtn" disabled>
+                  <i class="fas fa-broom btn-icon"></i>
+                  <span>Cleared(0)</span>
+                </button>
+                <button class="btn-purge btn-purge-all" id="purgeAllBtn">
+                  <i class="fas fa-radiation btn-icon"></i>
+                  <span>Clear all (except static)</span>
+                </button>
+                <span class="purge-cooldown-info" id="purgeCooldownInfo"></span>
+              </div>
+
+              <pre class="purge-log" id="purgeLog"></pre>
+            </div>
+          </div>
+        </section>
         <!-- ═══════════ 危險區域 ═══════════ -->
         <section class="dash-section danger-section">
           <h2><i class="fas fa-triangle-exclamation"></i> Danger Zone</h2>
 
           <div class="danger-zone locked" id="dangerZone">
-            <!-- 灰色迷霧 -->
             <div class="danger-mist" id="dangerMist">
               <i class="fas fa-lock"></i>
               <div class="mist-title">Danger Zone</div>
@@ -666,37 +729,51 @@
             <div class="danger-body">
               <div class="danger-unlocked-badge">
                 <i class="fas fa-unlock"></i>
-                <span>Unlocked, double confirm</span>
+                <span>Unlocked — irreversible actions below</span>
               </div>
 
-              <p class="danger-desc">
-                <i class="fas fa-circle-info"></i>
-                <span>Select the files you want to purge.</span>
-              </p>
-              <!-- ⭐ 清單工具列 -->
-              <div class="purge-checklist-toolbar">
-                <span class="purge-catalog-status loading" id="purgeCatalogStatus">載入清單…</span>
-                <button class="purge-reload-btn" id="purgeReloadBtn" type="button" title="重新拉取 GitHub 文件樹">
-                  <i class="fas fa-rotate"></i> Reload
-                </button>
+              <!-- 数据库备份 -->
+              <div class="danger-block">
+                <div class="danger-block-title">
+                  <i class="fas fa-database"></i> Database Backup
+                </div>
+                <p class="danger-desc">
+                  <i class="fas fa-circle-info"></i>
+                  <span>Dumps every collection (except <code>system.*</code>) into the
+                  <code>backup/database/&lt;timestamp&gt;/</code> folder of the resources repo.</span>
+                </p>
+                <div class="danger-block-actions">
+                  <button class="btn-purge" id="backupToGithubBtn">
+                    <i class="fas fa-cloud-arrow-up"></i>
+                    <span>Backup to GitHub</span>
+                  </button>
+                  <button class="btn-purge btn-purge-all" id="backupDownloadBtn">
+                    <i class="fas fa-download"></i>
+                    <span>Download as JSON</span>
+                  </button>
+                </div>
+                <pre class="purge-log" id="backupLog"></pre>
               </div>
 
-              <!-- ⭐ 動態生成的複選清單 -->
-              <div class="purge-checklist" id="purgeChecklist"></div>
-
-              <div class="purge-actions">
-                <button class="btn-purge" id="purgeSelectedBtn" disabled>
-                  <i class="fas fa-broom btn-icon"></i>
-                  <span>Clear(0)</span>
-                </button>
-                <button class="btn-purge btn-purge-all" id="purgeAllBtn">
-                  <i class="fas fa-radiation btn-icon"></i>
-                  <span>Clear all</span>
-                </button>
-                <span class="purge-cooldown-info" id="purgeCooldownInfo"></span>
+              <!-- 高权限终端 -->
+              <div class="danger-block" id="rootOnlyDangerBlock" hidden>
+                <div class="danger-block-title">
+                  <i class="fas fa-terminal"></i> High-privilege Terminals
+                </div>
+                <p class="danger-desc">
+                  <i class="fas fa-circle-info"></i>
+                  <span>These allow arbitrary database and JavaScript execution.
+                  Only root should ever touch them.</span>
+                </p>
+                <div class="danger-block-actions">
+                  <a href="/admin/sql" class="btn-purge" style="text-decoration:none;">
+                    <i class="fas fa-database"></i> <span>SQL Terminal</span>
+                  </a>
+                  <a href="/admin/cmd" class="btn-purge" style="text-decoration:none;">
+                    <i class="fas fa-code"></i> <span>CMD Terminal</span>
+                  </a>
+                </div>
               </div>
-
-              <pre class="purge-log" id="purgeLog"></pre>
             </div>
           </div>
         </section>
@@ -735,6 +812,9 @@
       if (user.role === 'root') {
         const section = document.getElementById('rootOnlySection');
         if (section) section.hidden = false;
+        // ⭐ 新增
+        const dangerRootBlock = document.getElementById('rootOnlyDangerBlock');
+        if (dangerRootBlock) dangerRootBlock.hidden = false;
       }
     })();
 
@@ -842,8 +922,9 @@
 
     // ── flat paths → catalog 結構 ──
     function buildCatalogFromPaths(paths) {
+      const kept = paths.filter(p => !p.startsWith('static/'));
       const groups = {};
-      for (const p of paths) {
+      for (const p of kept) {
         const slash = p.indexOf('/');
         if (slash === -1) {
           (groups._root = groups._root || []).push(p);
@@ -1051,7 +1132,7 @@
       container.querySelectorAll('input[data-file]:checked').forEach(cb => {
         files.push(cb.dataset.file);
       });
-      return files;
+      return filterPurgeList(files);   // ⭐ 过滤
     }
 
     // ── 單一 URL 清空 ──
@@ -1080,7 +1161,15 @@
         }
       }
     }
-
+    // ⭐ 新增：排除 static/ 目录
+    function filterPurgeList(files) {
+      return files.filter(f => {
+        // 通配符 static/* 也排除
+        if (f === 'static/*') return false;
+        if (f.startsWith('static/')) return false;
+        return true;
+      });
+    }
     // ── 執行清空 ──
     async function runPurge(files, label) {
       if (!files.length) return;
@@ -1175,7 +1264,7 @@
           alert(`請稍候 ${Math.ceil(getCooldownRemaining() / 1000)} 秒後再試。`);
           return;
         }
-        const allFiles = currentCatalog.flatMap(c => c.files);
+        const allFiles = filterPurgeList(currentCatalog.flatMap(c => c.files));
         const ok = confirm(
           `⚠️  確認清除全部 ${allFiles.length} 個 CDN 檔案？\n\n` +
           '這將會清除整個 resources repo 的快取。\n' +
@@ -1199,6 +1288,102 @@
     bindPurgeButtons();
     refreshCooldownUI();
     initCatalog();   // ⭐ 異步
+    // ═══════════════════════════════════════════════════════
+//              Danger Zone: Database Backup
+// ═══════════════════════════════════════════════════════
+(function () {
+  const logEl = document.getElementById('backupLog');
+  const ghBtn = document.getElementById('backupToGithubBtn');
+  const dlBtn = document.getElementById('backupDownloadBtn');
+  if (!logEl || !ghBtn || !dlBtn) return;
+
+  function log(text, cls = '') {
+    logEl.classList.add('visible');
+    const p = document.createElement('p');
+    p.className = 'log-line' + (cls ? ' ' + cls : '');
+    p.textContent = text;
+    logEl.appendChild(p);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function clear() {
+    logEl.innerHTML = '';
+    logEl.classList.add('visible');
+  }
+
+  const token = () => localStorage.getItem('token') || '';
+
+  // ── 备份到 GitHub ──
+  ghBtn.addEventListener('click', async () => {
+    const ok = confirm(
+      '⚠️  Backup database to GitHub?\n\n' +
+      'Every collection will be dumped to backup/database/<timestamp>/.'
+    );
+    if (!ok) return;
+
+    clear();
+    log(`[${new Date().toLocaleTimeString()}] Backup started…`, 'log-info');
+    ghBtn.disabled = true;
+
+    try {
+      const res = await fetch('/api/admin?action=backupDatabase', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token() },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        log(`✗ ${data.message || 'Failed'}`, 'log-err');
+        return;
+      }
+      log(`✓ Backup folder: ${data.dir}`, 'log-ok');
+      for (const r of data.results) {
+        if (r.error) log(`   ✗ ${r.collection}: ${r.error}`, 'log-err');
+        else log(`   ✓ ${r.collection}: ${r.count} docs → ${r.url}`, 'log-ok');
+      }
+    } catch (err) {
+      log(`✗ ${err.message}`, 'log-err');
+    } finally {
+      ghBtn.disabled = false;
+    }
+  });
+
+  // ── 下载到本地 ──
+  dlBtn.addEventListener('click', async () => {
+    const ok = confirm(
+      '⚠️  Download entire database as JSON?\n\n' +
+      'Large databases may exceed browser/server limits.\n' +
+      'Continue?'
+    );
+    if (!ok) return;
+
+    clear();
+    log(`[${new Date().toLocaleTimeString()}] Preparing dump…`, 'log-info');
+    dlBtn.disabled = true;
+
+    try {
+      const res = await fetch('/api/admin?action=dumpDatabase', {
+        headers: { 'Authorization': 'Bearer ' + token() },
+      });
+      if (!res.ok) {
+        log(`✗ HTTP ${res.status}`, 'log-err');
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `backup-${new Date().toISOString().slice(0,19).replace(/[:.]/g,'-')}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      log(`✓ Downloaded ${(blob.size / 1024 / 1024).toFixed(2)} MB`, 'log-ok');
+    } catch (err) {
+      log(`✗ ${err.message}`, 'log-err');
+    } finally {
+      dlBtn.disabled = false;
+    }
+  });
+})();
   </script>
 </body>
 </html>
