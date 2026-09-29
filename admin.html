@@ -663,20 +663,7 @@
           </div>
         </section>
 
-        <!-- ═══════════ 終端（僅 root） ═══════════ -->
-        <section class="dash-section" id="rootOnlySection" hidden>
-          <h2><i class="fas fa-terminal"></i> Terminal</h2>
-          <div class="dash-grid">
-            <a href="/admin/sql" class="tile">
-              <i class="tile-icon fas fa-database"></i>
-              <div class="tile-title">SQL Terminal</div>
-            </a>
-            <a href="/admin/cmd" class="tile">
-              <i class="tile-icon fas fa-code"></i>
-              <div class="tile-title">CMD</div>
-            </a>
-          </div>
-        </section>
+        
         <!-- ═══════════ CDN Cache ═══════════ -->
         <section class="dash-section">
           <h2><i class="fas fa-cloud-arrow-up"></i> CDN Cache</h2>
@@ -1310,7 +1297,7 @@
     logEl.classList.add('visible');
   }
 
-  const token = () => localStorage.getItem('token') || '';
+  const token = () => localStorage.getItem('auth_token') || '';
 
   // ── 备份到 GitHub ──
   ghBtn.addEventListener('click', async () => {
