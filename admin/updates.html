@@ -77,57 +77,7 @@
       <div class="admin-container">
         <h2>Manage Updates</h2>
 
-        <!-- ========== 编辑表单 ========== -->
-        <div class="form-section" id="editFormSection" style="display:none;">
-          <h3>Edit Update</h3>
-          <form id="editUpdateForm">
-            <input type="hidden" id="editId" />
-            <div class="form-group">
-              <label>Badge Style:
-                <select id="editBadge" required>
-                  <option value="info">Info</option>
-                  <option value="new">New</option>
-                  <option value="warning">Warning</option>
-                </select>
-              </label>
-            </div>
-            <div class="form-group">
-              <label>Badge Text: <input type="text" id="editBadgeText" required /></label>
-            </div>
-            <div class="form-group">
-              <label>Title (optional): <input type="text" id="editTitle" /></label>
-            </div>
-            <div class="form-group">
-              <label>Content (HTML / LaTeX):</label>
-              <div class="code-editor-wrapper" id="editContentWrapper">
-                <div class="code-editor-toolbar" id="editContentToolbar">
-                  <button type="button" data-insert="$...$">$...$</button>
-                  <button type="button" data-insert="$$...$$">$$...$$</button>
-                  <button type="button" data-insert="\\begin{}...\\end{}">\\begin{}...\\end{}</button>
-                  <button type="button" data-insert="\\frac{}{}">\\frac{}{}</button>
-                  <button type="button" data-insert="\\sqrt{}">\\sqrt{}</button>
-                  <button type="button" data-insert="\\sum_{}^{}">\\sum_{}^{}</button>
-                  <button type="button" data-insert="\\int_{}^{}">\\int_{}^{}</button>
-                  <button type="button" data-insert="\\text{}">\\text{}</button>
-                  <button type="button" data-insert="<...>">&lt;...&gt;</button>
-                  <button type="button" data-insert="<... />">&lt;... /&gt;</button>
-                </div>
-                <div class="editor-area">
-                  <div class="line-numbers" id="editContentLineNumbers"></div>
-                  <pre id="editContentHighlight"></pre>
-                  <textarea id="editContent" rows="4" required></textarea>
-                </div>
-              </div>
-            </div>
-            <div class="form-group">
-              <label>
-                <input type="checkbox" id="editLocked"> Locked (only root can delete/edit)
-              </label>
-            </div>
-            <button type="submit" class="btn btn-primary">Save Changes</button>
-            <button type="button" class="btn btn-secondary" id="cancelEditBtn">Cancel</button>
-          </form>
-        </div>
+        
 
         <!-- ========== 新增表单 ========== -->
         <div class="form-section">
@@ -335,7 +285,6 @@
       }
 
       // 编辑编辑器
-      const editTextarea = document.getElementById('editContent');
       const editLineNumbers = document.getElementById('editContentLineNumbers');
       const editHighlight = document.getElementById('editContentHighlight');
       const editToolbar = document.getElementById('editContentToolbar');
@@ -377,54 +326,10 @@
         }
       } catch (err) { console.error(err); }
     }
-    window.editUpdate = async function(id) {
-      try {
-                const data = await apiCall(`/api/updates?action=adminList&id=${id}`);
-        if (data.success) {
-          const u = data.update;
-          document.getElementById('editId').value = u._id;
-          document.getElementById('editBadge').value = u.badge;
-          document.getElementById('editBadgeText').value = u.badgeText;
-          document.getElementById('editTitle').value = u.title || '';
-          // 将内容填入编辑器文本域，并触发更新
-          const editTextarea = document.getElementById('editContent');
-          editTextarea.value = u.content;
-          // 手动更新高亮和行号
-          const editLineNumbers = document.getElementById('editContentLineNumbers');
-          const editHighlight = document.getElementById('editContentHighlight');
-          updateLineNumbers(editTextarea, editLineNumbers);
-          updateHighlight(editTextarea, editHighlight);
-          document.getElementById('editLocked').checked = u.locked;
-          document.getElementById('editFormSection').style.display = 'block';
-          window.scrollTo(0, 0);
-        }
-      } catch (err) { showMessage('Failed to load update', 'error'); }
+    window.editUpdate = function(id) {
+      window.location.href = '/admin/updates/' + encodeURIComponent(id);
     };
 
-    document.getElementById('cancelEditBtn').addEventListener('click', () => {
-      document.getElementById('editFormSection').style.display = 'none';
-    });
-
-    document.getElementById('editUpdateForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const id = document.getElementById('editId').value;
-      const badge = document.getElementById('editBadge').value;
-      const badgeText = document.getElementById('editBadgeText').value.trim();
-      const title = document.getElementById('editTitle').value.trim();
-      const content = document.getElementById('editContent').value.trim();
-      const locked = document.getElementById('editLocked').checked;
-
-      try {
-        const result = await apiCall('/api/updates?action=adminUpdate', 'PUT', {
-        id, badge, badgeText, title, content, locked
-      });
-        showMessage(result.message, result.success ? 'success' : 'error');
-        if (result.success) {
-          document.getElementById('editFormSection').style.display = 'none';
-          loadUpdates();
-        }
-      } catch (err) { showMessage('Error updating', 'error'); }
-    });
 
     window.deleteUpdate = async function(id, locked) {
       if (locked && !isRoot) {

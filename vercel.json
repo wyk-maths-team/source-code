@@ -67,6 +67,7 @@
     { "source": "/admin/contests/:id", "destination": "/admin/editcontest.html" },
     { "source": "/admin/updates/:id", "destination": "/admin/editupdate.html" },
     { "source": "/admin/users/:username", "destination": "/admin/edituser.html" },
+    { "source": "/admin/updates/:id", "destination": "/editupdate.html" },
 
     { "source": "/admin/marker/:subid", "destination": "/admin/marksubmissions.html" },
     { "source": "/admin/marker", "destination": "/admin/marker.html" },
