@@ -673,6 +673,138 @@
 .cdn-zone.locked:hover .cdn-mist {
   background: linear-gradient(180deg, rgba(74,144,217,.24) 0%, rgba(74,144,217,.10) 100%);
 }
+/* ═══════════════ Danger Banner（常驻红幅） ═══════════════ */
+.danger-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 14px 20px;
+  background: linear-gradient(90deg, #7a0010 0%, #ff1744 50%, #7a0010 100%);
+  background-size: 200% 100%;
+  color: #fff;
+  font-weight: 900;
+  font-size: .95rem;
+  letter-spacing: 2px;
+  text-shadow: 0 1px 3px rgba(0,0,0,.6);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  animation: dangerPulse 2.4s ease-in-out infinite;
+  box-shadow: 0 0 20px rgba(255, 23, 68, .5);
+}
+@keyframes dangerPulse {
+  0%, 100% { background-position: 0% 50%;   box-shadow: 0 0 14px rgba(255,23,68,.4); }
+  50%      { background-position: 100% 50%; box-shadow: 0 0 30px rgba(255,23,68,.9); }
+}
+.danger-banner i { font-size: 1.2rem; }
+
+/* Danger block 里的说明文字强制红 */
+.danger-section .danger-block .danger-desc,
+.danger-section .danger-block .danger-desc i {
+  color: #ff2b2b !important;
+  font-weight: 600;
+}
+.danger-section .danger-block .danger-desc b {
+  color: #ff0033 !important;
+  font-weight: 900;
+}
+.danger-block-title { color: #ff2b2b !important; }
+
+/* ═══════════════ Re-auth Modal ═══════════════ */
+.reauth-modal {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+}
+.reauth-modal[hidden] { display: none; }
+.reauth-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.78);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.reauth-card {
+  position: relative; z-index: 1;
+  width: 400px; max-width: calc(100vw - 40px);
+  background: #1a0505;
+  border: 2px solid #ff2b2b;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 0 60px rgba(255,43,43,.55), 0 20px 60px rgba(0,0,0,.7);
+  color: #ffe5e5;
+}
+.reauth-header {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 1.05rem; font-weight: 800;
+  color: #ff2b2b; margin-bottom: 14px;
+  letter-spacing: 1.5px;
+}
+.reauth-warning {
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  background: rgba(255,43,43,.15);
+  border-left: 4px solid #ff2b2b;
+  border-radius: 4px;
+  color: #ff2b2b;
+  font-size: .85rem;
+  line-height: 1.55;
+  font-weight: 600;
+}
+.reauth-card label {
+  display: block;
+  font-size: .75rem; text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #ff8080;
+  margin: 14px 0 6px;
+  font-weight: 800;
+}
+.reauth-card input {
+  width: 100%; box-sizing: border-box;
+  padding: 10px 12px;
+  background: #2a0808;
+  border: 1px solid #ff2b2b;
+  border-radius: 6px;
+  color: #ffe5e5;
+  font-family: inherit;
+  font-size: .95rem;
+  outline: none;
+  transition: box-shadow .15s;
+}
+.reauth-card input:focus { box-shadow: 0 0 0 3px rgba(255,43,43,.35); }
+.reauth-error {
+  margin-top: 14px;
+  padding: 9px 12px;
+  background: rgba(255,43,43,.22);
+  border: 1px solid #ff2b2b;
+  border-radius: 6px;
+  color: #ff6b6b;
+  font-size: .85rem;
+  font-weight: 700;
+}
+.reauth-error[hidden] { display: none; }
+.reauth-actions { display: flex; gap: 10px; margin-top: 20px; }
+.reauth-actions button {
+  flex: 1; padding: 11px 16px;
+  border-radius: 6px;
+  font-family: inherit; font-size: .9rem; font-weight: 800;
+  cursor: pointer; transition: all .15s;
+  letter-spacing: .5px;
+}
+.reauth-cancel {
+  background: transparent;
+  border: 1px solid #ff2b2b;
+  color: #ff2b2b;
+}
+.reauth-cancel:hover { background: rgba(255,43,43,.12); }
+.reauth-verify {
+  background: #ff2b2b;
+  border: 1px solid #ff2b2b;
+  color: #fff;
+}
+.reauth-verify:hover:not(:disabled) {
+  background: #ff5555;
+  box-shadow: 0 0 20px rgba(255,43,43,.7);
+}
+.reauth-verify:disabled { opacity: .5; cursor: not-allowed; }
   </style>
   <!-- ⭐ PWA（必須靜態寫入 <head>，不能靠 JS 動態注入） -->
   <link rel="manifest" href="/manifest.json">
@@ -846,6 +978,11 @@
             </div>
 
             <div class="danger-body">
+              <div class="danger-banner">
+                <i class="fas fa-skull-crossbones"></i>
+                <span>DESTRUCTIVE OPERATIONS — READ EVERYTHING BEFORE CLICKING</span>
+                <i class="fas fa-skull-crossbones"></i>
+              </div>
               <div class="danger-unlocked-badge">
                 <i class="fas fa-unlock"></i>
                 <span>Unlocked — irreversible actions below</span>
@@ -1626,10 +1763,44 @@
 
   reloadBtn.addEventListener('click', loadBackups);
 
-  restoreBtn.addEventListener('click', async () => {
+    restoreBtn.addEventListener('click', async () => {
     if (!selectedDir) return;
     const b = backups.find(x => x.dir === selectedDir);
     const when = b?.isoDate ? new Date(b.isoDate).toLocaleString() : selectedDir;
+
+    clearLog();
+
+    // ⭐ STEP 0: Re-authentication
+    try {
+      log(`[${new Date().toLocaleTimeString()}] Re-authentication required…`, 'log-info');
+      await ensureReauth();
+      log(`   ✓ Identity confirmed`, 'log-ok');
+    } catch (e) {
+      log(`✗ Cancelled at re-auth step`, 'log-err');
+      return;
+    }
+
+    // ⭐ STEP 1: Backup integrity check
+    const MIN_SIZE = 5 * 1024 * 1024;   // 5 MB
+    const MIN_COLLECTIONS = 18;
+    const sizeMB = b.totalSize / 1024 / 1024;
+
+    log(`[${new Date().toLocaleTimeString()}] Integrity check on selected backup…`, 'log-info');
+    log(`   Size: ${sizeMB.toFixed(2)} MB (min required: 5.00 MB)`, 'log-info');
+    log(`   Collections: ${b.collectionCount} (min required: 18)`, 'log-info');
+
+    if (b.totalSize < MIN_SIZE) {
+      log(`✗ REFUSED — Backup is too small (${sizeMB.toFixed(2)} MB < 5 MB).`, 'log-err');
+      log(`   This usually means the backup was incomplete or interrupted.`, 'log-err');
+      log(`   Restoring from it would silently destroy data.`, 'log-err');
+      return;
+    }
+    if (b.collectionCount < MIN_COLLECTIONS) {
+      log(`✗ REFUSED — Only ${b.collectionCount} collections in backup (< 18).`, 'log-err');
+      log(`   This backup is missing entire collections and must not be restored.`, 'log-err');
+      return;
+    }
+    log(`   ✓ Backup passed integrity check`, 'log-ok');
 
     // 三重确认 #1
     const ok1 = confirm(
@@ -1731,6 +1902,106 @@
     zone.classList.add('unlocked');
   });
 })();
+// ═══════════════════════════════════════════════════════
+//              Root Re-authentication Modal
+// ═══════════════════════════════════════════════════════
+function ensureReauth() {
+  return new Promise((resolve, reject) => {
+    const modal = document.getElementById('reauthModal');
+    const userInp = document.getElementById('reauthUser');
+    const passInp = document.getElementById('reauthPass');
+    const errEl = document.getElementById('reauthError');
+    const cancelBtn = document.getElementById('reauthCancel');
+    const verifyBtn = document.getElementById('reauthVerify');
+
+    // 默认填当前登录的用户名
+    const cur = (typeof getCurrentUser === 'function' && getCurrentUser()) || {};
+    userInp.value = cur.username || '';
+    passInp.value = '';
+    errEl.hidden = true;
+    errEl.textContent = '';
+    verifyBtn.disabled = false;
+    verifyBtn.textContent = 'Verify & Continue';
+
+    modal.hidden = false;
+    setTimeout(() => (cur.username ? passInp : userInp).focus(), 50);
+
+    const cleanup = () => {
+      modal.hidden = true;
+      verifyBtn.removeEventListener('click', onVerify);
+      cancelBtn.removeEventListener('click', onCancel);
+      passInp.removeEventListener('keydown', onKey);
+      userInp.removeEventListener('keydown', onKey);
+    };
+    const onCancel = () => { cleanup(); reject(new Error('cancelled')); };
+    const onKey = (e) => { if (e.key === 'Enter') { e.preventDefault(); onVerify(); } };
+
+    const onVerify = async () => {
+      const u = userInp.value.trim();
+      const p = passInp.value;
+      if (!u || !p) {
+        errEl.textContent = 'Username and password are required';
+        errEl.hidden = false;
+        return;
+      }
+
+      verifyBtn.disabled = true;
+      verifyBtn.textContent = 'Verifying…';
+      errEl.hidden = true;
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: u, password: p }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.message || `HTTP ${res.status}`);
+        }
+        if (data.user.role !== 'root') {
+          throw new Error('This account is not root');
+        }
+        cleanup();
+        resolve(data);
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.hidden = false;
+        verifyBtn.disabled = false;
+        verifyBtn.textContent = 'Verify & Continue';
+        passInp.select();
+      }
+    };
+
+    verifyBtn.addEventListener('click', onVerify);
+    cancelBtn.addEventListener('click', onCancel);
+    passInp.addEventListener('keydown', onKey);
+    userInp.addEventListener('keydown', onKey);
+  });
+}
   </script>
+  <!-- ═══════════ Re-auth Modal ═══════════ -->
+<div class="reauth-modal" id="reauthModal" hidden>
+  <div class="reauth-backdrop"></div>
+  <div class="reauth-card">
+    <div class="reauth-header">
+      <i class="fas fa-lock"></i>
+      <span>ROOT RE-AUTHENTICATION</span>
+    </div>
+    <p class="reauth-warning">
+      ⚠️ You are about to perform a <b>DESTRUCTIVE</b> operation.
+      Enter your <b>root password</b> to prove you're really you.
+    </p>
+    <label for="reauthUser">Username</label>
+    <input type="text" id="reauthUser" autocomplete="username" spellcheck="false">
+    <label for="reauthPass">Password</label>
+    <input type="password" id="reauthPass" autocomplete="current-password">
+    <div class="reauth-error" id="reauthError" hidden></div>
+    <div class="reauth-actions">
+      <button type="button" class="reauth-cancel" id="reauthCancel">Cancel</button>
+      <button type="button" class="reauth-verify" id="reauthVerify">Verify &amp; Continue</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

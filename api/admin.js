@@ -462,12 +462,21 @@ if (action === 'restoreDatabase') {
 
     // dry-run 不写审计，真恢复写
     if (!dryRun) {
-      await auditLog(db, 'restore_database', {
-        dir,
-        totalDocs: result.totalDocs,
-        collections: result.results.map(r => r.collection),
-        errors: result.results.filter(r => r.error).map(r => ({ c: r.collection, e: r.error })),
-      }, decoded.username, 'danger').catch(() => {});
+      // ⭐ 强制安全网：恢复前先把当前状态存档
+      const preTs = `pre-restore-${new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-')}`;
+      const preDir = `database/${preTs}`;
+      const { uploadJsonFile } = await import('../lib/github-upload.js');
+
+      for (const { name } of await db.listCollections().toArray()) {
+        if (name.startsWith('system.')) continue;
+        try {
+          const docs = await db.collection(name).find({}).toArray();
+          await uploadJsonFile(`${preDir}/${name}.json`, { collection: name, count: docs.length, docs },
+            { message: `pre-restore snapshot: ${name}` });
+        } catch (e) { /* 记录但继续 */ }
+      }
+      // 记到审计日志里，方便以后找回
+      await auditLog(db, 'pre_restore_snapshot', { dir: preDir }, decoded.username, 'warn').catch(() => {});
     }
 
     return res.status(200).json({ success: true, ...result });
