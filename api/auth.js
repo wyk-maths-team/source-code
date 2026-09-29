@@ -29,7 +29,18 @@ function setCookie(res, name, value, opts = {}) {
   if (opts.httpOnly) parts.push('HttpOnly');
   if (opts.secure) parts.push('Secure');
   if (opts.sameSite) parts.push(`SameSite=${opts.sameSite}`);
-  res.setHeader('Set-Cookie', parts.join('; '));
+
+  const cookieStr = parts.join('; ');
+
+  // ⭐ 累积已有 Set-Cookie，而不是覆盖
+  const existing = res.getHeader('Set-Cookie');
+  if (!existing) {
+    res.setHeader('Set-Cookie', cookieStr);
+  } else if (Array.isArray(existing)) {
+    res.setHeader('Set-Cookie', [...existing, cookieStr]);
+  } else {
+    res.setHeader('Set-Cookie', [existing, cookieStr]);
+  }
 }
 
 function getCookie(req, name) {
