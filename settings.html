@@ -381,7 +381,7 @@
       const compact = document.getElementById('compactToggle').checked;
       const animations = document.getElementById('animationToggle').checked;
       const hideDifficulty = document.getElementById('hideDifficultyToggle').checked;
-      const uiType = document.getElementById('uiTypeSelect').value;
+      // const uiType = document.getElementById('uiTypeSelect').value;
       const showTags = document.getElementById('showTagsToggle').checked;
       const randomAnim = document.getElementById('randomAnimToggle').checked;
 
@@ -528,10 +528,24 @@
     if (currentUser && currentUser.displayName) {
       displayNameInput.value = currentUser.displayName;
     }
-    const pt = document.getElementById('pageTransitionToggle');
-pt.checked = isPageTransitionEnabled();
-pt.addEventListener('change', () => {
-  setPageTransition(pt.checked);
+document.addEventListener('DOMContentLoaded', () => {
+  const pt = document.getElementById('pageTransitionToggle');
+  if (!pt) return;
+
+  // ⭐ 防御：万一 pageload.js 加载失败
+  if (typeof isPageTransitionEnabled !== 'function') {
+    pt.checked = localStorage.getItem('pageTransition') !== 'off';
+  } else {
+    pt.checked = isPageTransitionEnabled();
+  }
+
+  pt.addEventListener('change', () => {
+    if (typeof setPageTransition === 'function') {
+      setPageTransition(pt.checked);
+    } else {
+      localStorage.setItem('pageTransition', pt.checked ? 'on' : 'off');
+    }
+  });
 });
     document.getElementById('changeNameBtn').addEventListener('click', async () => {
       const newname = displayNameInput.value.trim();
