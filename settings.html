@@ -391,12 +391,12 @@
       localStorage.setItem('compactMode', compact);
       localStorage.setItem('animations', animations);
       localStorage.setItem('hideDifficulty', hideDifficulty);
-      localStorage.setItem('uiType', uiType);
+      // localStorage.setItem('uiType', uiType);
       localStorage.setItem('randomAnimation', randomAnim);
 
       applyTheme();
       applyFontSize();
-      applyUI(uiType);
+      // applyUI(uiType);
       applyGoodUI(goodUI);
       applyCompact(compact);
       applyAnimations(animations);
@@ -405,13 +405,13 @@
       setTimeout(() => { document.getElementById('saveMessage').textContent = ''; }, 2000);
     });
 
-    function applyUI(uiType) {
-      if (uiType === 'type2') {
-        document.documentElement.classList.add('ui-type2');
-      } else {
-        document.documentElement.classList.remove('ui-type2');
-      }
-    }
+    // function applyUI(uiType) {
+    //   if (uiType === 'type2') {
+    //     document.documentElement.classList.add('ui-type2');
+    //   } else {
+    //     document.documentElement.classList.remove('ui-type2');
+    //   }
+    // }
 
     function applyGoodUI(enabled) {
       if (enabled) {
@@ -441,8 +441,8 @@
       loadSettings();
       applyTheme();
       applyFontSize();
-      const uiType = localStorage.getItem('uiType') || 'default';
-      applyUI(uiType);
+      // const uiType = localStorage.getItem('uiType') || 'default';
+      // applyUI(uiType);
       applyCompact(localStorage.getItem('compactMode') === 'true');
       applyAnimations(localStorage.getItem('animations') !== 'false');
     }
