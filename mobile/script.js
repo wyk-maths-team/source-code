@@ -2985,7 +2985,14 @@ function crashOut() {
   try {
     document.documentElement.innerHTML = `
       <head>
-        <meta charset="UTF-8">
+        
+<meta charset="UTF-8">
+<script>(function(){try{
+  if(sessionStorage.getItem('__pt')!=='in')return;
+  var t=localStorage.getItem('theme')||'light';
+  document.documentElement.style.background = t==='dark' ? '#0d1117' : '#f0f2f5';
+}catch(e){}})();</script>
+<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pageload.js" defer></script>
         <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
         <title>App Stopped</title>
         <style>
