@@ -140,9 +140,11 @@ self.addEventListener('fetch', (e) => {
           '<!doctype html>
 <meta charset="UTF-8">
 <script>(function(){try{
-  if(sessionStorage.getItem('__pt')!=='in')return;
-  var t=localStorage.getItem('theme')||'light';
-  document.documentElement.style.background = t==='dark' ? '#0d1117' : '#f0f2f5';
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+  if (localStorage.getItem('pageTransition') === 'off') return;
+  if (sessionStorage.getItem('__pt') !== 'in') return;
+  document.documentElement.style.background = (t === 'dark' ? '#0d1117' : '#f0f2f5');
 }catch(e){}})();</script>
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pageload.js" defer></script><h1 style="font-family:sans-serif;padding:2em">離線中</h1>',
           { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }

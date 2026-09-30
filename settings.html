@@ -19,9 +19,11 @@
   
 <meta charset="UTF-8" />
 <script>(function(){try{
-  if(sessionStorage.getItem('__pt')!=='in')return;
-  var t=localStorage.getItem('theme')||'light';
-  document.documentElement.style.background = t==='dark' ? '#0d1117' : '#f0f2f5';
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+  if (localStorage.getItem('pageTransition') === 'off') return;
+  if (sessionStorage.getItem('__pt') !== 'in') return;
+  document.documentElement.style.background = (t === 'dark' ? '#0d1117' : '#f0f2f5');
 }catch(e){}})();</script>
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pageload.js" defer></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
@@ -131,10 +133,13 @@
         <div class="setting-group">
           <h3>Appearance</h3>
           <div class="setting-row">
-            <span class="setting-label">UI Style</span>
-            <select id="uiTypeSelect">
-              <option value="default">Type 1 (default)</option>
-            </select>
+            <label>
+              <input type="checkbox" id="pageTransitionToggle" checked>
+              Page transitions &amp; fade effects
+            </label>
+            <div class="setting-hint" style="color:var(--text-secondary);font-size:.8rem;">
+              Smooth fade between pages. Disable if you prefer instant loads.
+            </div>
           </div>
           <div class="setting-row" id="goodUIRow">
             <span class="setting-label">???</span>
@@ -523,7 +528,11 @@
     if (currentUser && currentUser.displayName) {
       displayNameInput.value = currentUser.displayName;
     }
-
+    const pt = document.getElementById('pageTransitionToggle');
+pt.checked = isPageTransitionEnabled();
+pt.addEventListener('change', () => {
+  setPageTransition(pt.checked);
+});
     document.getElementById('changeNameBtn').addEventListener('click', async () => {
       const newname = displayNameInput.value.trim();
       const msgEl = document.getElementById('nameMessage');
