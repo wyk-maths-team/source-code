@@ -1,10 +1,8 @@
 // api/cron.js
-// 只给 Vercel Cron 调用，不走用户认证
 import { connectToDatabase } from './_db.js';
 import { auditLog } from '../lib/audit.js';
 
 export default async function handler(req, res) {
-  // ⭐ 1. 验证请求来自 Vercel Cron
   const secret = process.env.CRON_SECRET;
   if (!secret) {
     return res.status(500).json({ error: 'CRON_SECRET not configured' });

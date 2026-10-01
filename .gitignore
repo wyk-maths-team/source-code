@@ -1,2 +1,38 @@
 .vercel
 .env*
+# --------------- Secrets / Private ---------------
+private/
+.env
+.env.*
+!.env.example
+
+# --------------- Build / Dependencies ---------------
+node_modules/
+.vercel
+.next/
+dist/
+build/
+*.log
+npm-debug.log*
+
+# --------------- Editor / OS ---------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# --------------- Backup / Temp ---------------
+*.bak
+*.old
+*.orig
+*~
+temp.html
+*temp.html
+wasted.html
+
+# --------------- Local testing ---------------
+testcases/
+*.in
+*.out
+*.ans
