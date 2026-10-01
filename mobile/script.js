@@ -2993,7 +2993,7 @@ function crashOut() {
   if (localStorage.getItem('pageTransition') === 'off') return;
   if (sessionStorage.getItem('__pt') !== 'in') return;
   // ⭐ 铺的是"遮罩色"，不是页面底色
-  document.documentElement.style.background = (t === 'dark' ? '#000000' : '#1a237e');
+  document.documentElement.style.background = (t === 'dark' ? '#0d1117' : '#0f3460');
 }catch(e){}})();</script>
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pageload.js" defer></script>
         <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">

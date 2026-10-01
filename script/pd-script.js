@@ -875,12 +875,7 @@ async function initPage() {
   try {
     // ⭐ 检测是否是特殊竞赛题目（賦值到 module scope 的變數）
     SPECIAL_CONTEXT = null;   // 先重置
-    try {
-      const activeRes = await apiCall('/api/teams?action=active');
-      if (activeRes.success && activeRes.active) {
-        SPECIAL_CONTEXT = activeRes.active;
-      }
-    } catch (e) { /* ignore */ }
+
     mainContainer.innerHTML = '';
 
     const pageData = await loadPageData();

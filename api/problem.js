@@ -601,6 +601,11 @@ export default async function handler(req, res) {
         resolved: false,
         timestamp: new Date()
       });
+      await auditLog(db, 'problem_report', {
+              collection: 'reports',
+              problemId:pidStr,
+              reason:trimmedReason
+            }, req.user.username, null);   // level=null → 只寫 DB
       return res.status(201).json({ success: true, message: 'Report submitted' });
     }
 

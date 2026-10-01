@@ -137,17 +137,7 @@ self.addEventListener('fetch', (e) => {
         if (!cached) cached = await c.match('/mobile/index.html');
         if (cached) return cached;
         return new Response(
-          '<!doctype html>
-<meta charset="UTF-8">
-<script>(function(){try{
-  var t = localStorage.getItem('theme') || 'light';
-  if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
-  if (localStorage.getItem('pageTransition') === 'off') return;
-  if (sessionStorage.getItem('__pt') !== 'in') return;
-  // ⭐ 铺的是"遮罩色"，不是页面底色
-  document.documentElement.style.background = (t === 'dark' ? '#000000' : '#1a237e');
-}catch(e){}})();</script>
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pageload.js" defer></script><h1 style="font-family:sans-serif;padding:2em">離線中</h1>',
+          '<h1 style="font-family:sans-serif;padding:2em">離線中</h1>',
           { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
         );
       }

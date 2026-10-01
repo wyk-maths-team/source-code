@@ -12,7 +12,7 @@ export async function connectToDatabase() {
   client = new MongoClient(uri, {
     maxPoolSize: 5,
     minPoolSize: 0,
-    serverSelectionTimeoutMS: 3000,
+    serverSelectionTimeoutMS: 15000,
     socketTimeoutMS: 10000,
   });
   await client.connect();

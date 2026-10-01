@@ -1,19 +1,21 @@
 // resources/script/pageload.js
-// 全屏遮罩 + mobile 风格加载画面
+// 全屏遮罩 + mobile 风格加载画面（限定在 mainContent 区域）
 (function () {
   'use strict';
 
-  var KEY = '__pt';
-  var TOGGLE_KEY = 'pageTransition';
+  var KEY          = '__pt';
+  var PROGRESS_KEY = '__pt-progress';
+  var TOGGLE_KEY   = 'pageTransition';
 
-var VEIL_LIGHT = '#0f3460';   // 亮色：深蓝
-  var VEIL_DARK  = '#0d1117';   // 暗色：纯黑
+  var VEIL_LIGHT = '#0f3460';
+  var VEIL_DARK  = '#0d1117';
 
-  var COVER_LIGHT_MS = 220;
-  var COVER_DARK_MS  = 450;
+  var COVER_LIGHT_MS = 150;
+  var COVER_DARK_MS  = 270;
   var HOLD_MS        = 500;
   var REVEAL_MS      = 400;
-  var PROGRESS_TO_80 = 550;
+  var PROGRESS_TO_80 = 350;
+  var COVER_TARGET   = 65;   // 离开时进度条上限（不要太高，方便衔接）
 
   function isEnabled() {
     try { return localStorage.getItem(TOGGLE_KEY) !== 'off'; } catch (e) { return true; }
@@ -26,6 +28,36 @@ var VEIL_LIGHT = '#0f3460';   // 亮色：深蓝
     return themeMode() === 'dark' ? VEIL_DARK : VEIL_LIGHT;
   }
 
+  // ── 找 mainContent 容器 ──
+  function findMainContainer() {
+    return document.getElementById('mainContent')
+        || document.getElementById('ml-content')
+        || document.querySelector('main.main-content')
+        || document.querySelector('.main-content')
+        || document.querySelector('main')
+        || null;
+  }
+
+  // ── 把遮罩定位到 mainContent 区域 ──
+  function positionOverlay(veil) {
+    var container = findMainContainer();
+    if (!container) {
+      veil.style.position = 'fixed';
+      veil.style.left = '0';
+      veil.style.top = '0';
+      veil.style.width = '100vw';
+      veil.style.height = '100vh';
+      return;
+    }
+    var r = container.getBoundingClientRect();
+    veil.style.position = 'fixed';
+    veil.style.left   = Math.max(0, r.left)   + 'px';
+    veil.style.top    = Math.max(0, r.top)    + 'px';
+    veil.style.width  = Math.max(0, r.width)  + 'px';
+    veil.style.height = Math.max(0, r.height) + 'px';
+  }
+
+  // ── CSS ──
   var _cssDone = false;
   function injectCSS() {
     if (_cssDone) return;
@@ -34,13 +66,15 @@ var VEIL_LIGHT = '#0f3460';   // 亮色：深蓝
     s.setAttribute('data-pt-style', '1');
     s.textContent = [
       '#__pt-veil{',
-        'position:fixed;inset:0;z-index:2147483647;',
+        'z-index:2147483647;',
         'display:flex;align-items:center;justify-content:center;',
         'opacity:0;pointer-events:none;will-change:opacity;',
         '-webkit-tap-highlight-color:transparent;',
         'transition:opacity .25s ease;',
         'color:#e6edf3;',
-        'font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;',
+        // 字体加 !important，防页面样式干扰
+        'font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif !important;',
+        'overflow:hidden;',
       '}',
       '#__pt-veil.__pt-instant{transition:none !important}',
       '#__pt-veil .pt-box{text-align:center;width:min(280px,80vw)}',
@@ -50,6 +84,7 @@ var VEIL_LIGHT = '#0f3460';   // 亮色：深蓝
       '#__pt-veil .pt-title{',
         'font-size:15px;font-weight:600;color:#e6edf3;',
         'margin-bottom:24px;letter-spacing:.3px;',
+        'font-family:inherit !important;',
       '}',
       '#__pt-veil .pt-bar{',
         'height:3px;background:rgba(255,255,255,.16);',
@@ -61,16 +96,32 @@ var VEIL_LIGHT = '#0f3460';   // 亮色：深蓝
         'border-radius:2px;',
       '}',
       '#__pt-veil .pt-pct{',
-        'font-size:11px;font-family:"SF Mono",Consolas,monospace;',
+        'font-size:11px;font-family:"SF Mono",Consolas,monospace !important;',
         'color:rgba(255,255,255,.55);letter-spacing:.5px;',
       '}',
-      'html.__pt-lock,html.__pt-lock body{overflow:hidden!important}',
     ].join('');
     document.head.appendChild(s);
   }
 
+  // ── 单例遮罩 + resize 跟踪 ──
+  var _currentVeil = null;
+  var _resizeHandler = null;
+
+  function cleanupResize() {
+    if (_resizeHandler) {
+      window.removeEventListener('resize', _resizeHandler);
+      _resizeHandler = null;
+    }
+  }
+
   function buildVeil() {
     injectCSS();
+
+    // 清掉可能的旧遮罩
+    var old = document.getElementById('__pt-veil');
+    if (old) old.remove();
+    cleanupResize();
+
     var v = document.createElement('div');
     v.id = '__pt-veil';
     v.style.background = veilColor();
@@ -81,7 +132,16 @@ var VEIL_LIGHT = '#0f3460';   // 亮色：深蓝
         '<div class="pt-bar"><div class="pt-fill"></div></div>' +
         '<div class="pt-pct">0%</div>' +
       '</div>';
-    document.documentElement.appendChild(v);
+
+    // ⭐ append 到 body（不 append 到 mainContent，见注释）
+    document.body.appendChild(v);
+
+    // ⭐ 定位到 mainContent 区域
+    positionOverlay(v);
+    _resizeHandler = function () { positionOverlay(v); };
+    window.addEventListener('resize', _resizeHandler);
+
+    _currentVeil = v;
     return {
       veil: v,
       fill: v.querySelector('.pt-fill'),
@@ -95,13 +155,19 @@ var VEIL_LIGHT = '#0f3460';   // 亮色：深蓝
     function tick(now) {
       var t = Math.min(1, (now - start) / duration);
       var eased = 1 - Math.pow(1 - t, 3);
-      var v = from + (to - from) * eased;
-      res.fill.style.width = v + '%';
-      if (res.pctEl) res.pctEl.textContent = Math.floor(v) + '%';
+      var val = from + (to - from) * eased;
+      res.fill.style.width = val + '%';
+      if (res.pctEl) res.pctEl.textContent = Math.floor(val) + '%';
       if (t < 1) requestAnimationFrame(tick);
       else if (cb) cb();
     }
     requestAnimationFrame(tick);
+  }
+
+  // ⭐ 立即设置进度条值（无过渡）
+  function setProgressInstant(res, value) {
+    res.fill.style.width = value + '%';
+    if (res.pctEl) res.pctEl.textContent = Math.floor(value) + '%';
   }
 
   // ── 离开页面 ──
@@ -120,10 +186,16 @@ var VEIL_LIGHT = '#0f3460';   // 亮色：深蓝
     v.style.transition = 'opacity ' + duration + 'ms cubic-bezier(.4,0,.2,1)';
     v.style.opacity = '1';
 
-    animateProgress(res, 0, 70, duration + 100);
+    // 0 → COVER_TARGET
+    animateProgress(res, 0, COVER_TARGET, duration + 100);
 
     setTimeout(function () {
-      try { sessionStorage.setItem(KEY, 'in'); } catch (e) {}
+      // ⭐ 存实际到达的值（不是目标值）
+      var current = parseFloat(res.fill.style.width) || 0;
+      try {
+        sessionStorage.setItem(KEY, 'in');
+        sessionStorage.setItem(PROGRESS_KEY, String(current));
+      } catch (e) {}
       window.location.href = url;
     }, duration + 30);
   }
@@ -133,28 +205,39 @@ var VEIL_LIGHT = '#0f3460';   // 亮色：深蓝
     var res = buildVeil();
     var v = res.veil;
 
+    // ⭐ 恢复上次的进度值
+    var startValue = 0;
+    try {
+      startValue = parseFloat(sessionStorage.getItem(PROGRESS_KEY)) || 0;
+      sessionStorage.removeItem(PROGRESS_KEY);
+    } catch (e) {}
+    startValue = Math.max(0, Math.min(100, startValue));
+
     v.classList.add('__pt-instant');
     v.style.opacity = '1';
     void v.offsetWidth;
     v.classList.remove('__pt-instant');
 
-    document.documentElement.classList.add('__pt-lock');
+    // ⭐ 立即设置进度条到上次的值（无过渡，视觉上无缝）
+    setProgressInstant(res, startValue);
 
-    animateProgress(res, 0, 80, PROGRESS_TO_80);
+    // 从 startValue 继续冲向 80
+    animateProgress(res, startValue, Math.max(startValue, 80), PROGRESS_TO_80);
 
     var finished = false;
     function finish() {
       if (finished) return;
       finished = true;
 
-      var cur = parseFloat(res.fill.style.width) || 0;
+      var cur = parseFloat(res.fill.style.width) || startValue;
       animateProgress(res, cur, 100, 220, function () {
         setTimeout(function () {
           v.style.transition = 'opacity ' + REVEAL_MS + 'ms ease';
           v.style.opacity = '0';
           setTimeout(function () {
             if (v.parentNode) v.parentNode.removeChild(v);
-            document.documentElement.classList.remove('__pt-lock');
+            if (_currentVeil === v) _currentVeil = null;
+            cleanupResize();
             document.documentElement.style.background = '';
           }, REVEAL_MS + 50);
         }, HOLD_MS);
@@ -171,6 +254,7 @@ var VEIL_LIGHT = '#0f3460';   // 亮色：深蓝
     }
   }
 
+  // ── 链接拦截 ──
   function installLinkInterceptor() {
     document.addEventListener('click', function (e) {
       if (!isEnabled()) return;
@@ -200,7 +284,10 @@ var VEIL_LIGHT = '#0f3460';   // 亮色：深蓝
 
   function onReady() {
     if (!isEnabled()) {
-      try { sessionStorage.removeItem(KEY); } catch (e) {}
+      try {
+        sessionStorage.removeItem(KEY);
+        sessionStorage.removeItem(PROGRESS_KEY);
+      } catch (e) {}
       document.documentElement.style.background = '';
       installLinkInterceptor();
       return;
@@ -212,8 +299,13 @@ var VEIL_LIGHT = '#0f3460';   // 亮色：深蓝
       if (came) sessionStorage.removeItem(KEY);
     } catch (e) {}
 
-    if (came) playReveal();
-    else document.documentElement.style.background = '';
+    if (came) {
+      playReveal();
+    } else {
+      // 不是过渡来的 → 清掉任何残留进度
+      try { sessionStorage.removeItem(PROGRESS_KEY); } catch (e) {}
+      document.documentElement.style.background = '';
+    }
 
     installLinkInterceptor();
   }
@@ -224,15 +316,18 @@ var VEIL_LIGHT = '#0f3460';   // 亮色：深蓝
     onReady();
   }
 
+  // bfcache 恢复清理
   window.addEventListener('pageshow', function (e) {
     if (e.persisted) {
       document.documentElement.classList.remove('__pt-lock');
       var v = document.getElementById('__pt-veil');
       if (v) v.remove();
+      cleanupResize();
       document.documentElement.style.background = '';
     }
   });
 
+  // ── 对外 API ──
   window.navigate = function (url) {
     if (!isEnabled()) { window.location.href = url; return; }
     playCover(url);
@@ -240,11 +335,14 @@ var VEIL_LIGHT = '#0f3460';   // 亮色：深蓝
   window.setPageTransition = function (enable) {
     try { localStorage.setItem(TOGGLE_KEY, enable ? 'on' : 'off'); } catch (e) {}
     if (!enable) {
-      try { sessionStorage.removeItem(KEY); } catch (e) {}
+      try {
+        sessionStorage.removeItem(KEY);
+        sessionStorage.removeItem(PROGRESS_KEY);
+      } catch (e) {}
       document.documentElement.style.background = '';
-      document.documentElement.classList.remove('__pt-lock');
       var v = document.getElementById('__pt-veil');
       if (v) v.remove();
+      cleanupResize();
     }
   };
   window.isPageTransitionEnabled = isEnabled;
