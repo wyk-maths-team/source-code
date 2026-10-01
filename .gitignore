@@ -7,13 +7,13 @@ private/
 !.env.example
 
 # --------------- Build / Dependencies ---------------
-node_modules/
-.vercel
-.next/
-dist/
-build/
-*.log
-npm-debug.log*
+
+# .vercel
+# .next/
+# dist/
+# build/
+# *.log
+# npm-debug.log*
 
 # --------------- Editor / OS ---------------
 .DS_Store
