@@ -5,10 +5,9 @@ import { auditLog } from '../lib/audit.js';
 import { connectToDatabase } from './_db.js';
 
 const FOLDER = 'static/reports/doc';
-const MAX_BYTES = 25 * 1024 * 1024;      // 25 MB
-const RATE_MAX_PER_HOUR = 200;            // 每用户每小时
+const MAX_BYTES = 25 * 1024 * 1024;
+const RATE_MAX_PER_HOUR = 200;
 
-// 进程内计数（Vercel 多实例会各自计数，但够用）
 const _counts = new Map();
 function checkUploadRate(user) {
   const now = Date.now();
@@ -28,7 +27,7 @@ export default async function handler(req, res) {
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
-  // ═══ LIST ═══
+  // ═══════════════ LIST ═══════════════
   if (req.method === 'GET') {
     try {
       const { listFilesInFolder } = await import('../lib/github-upload.js');
@@ -40,17 +39,38 @@ export default async function handler(req, res) {
       const base = `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${branch}/${FOLDER}/`;
 
       const files = names
-        .map(name => ({
-          name,
-          url: base + encodeURIComponent(name).replace(/%2F/g, '/'),
-          // 时间戳前缀：{ts}_{user}_{name}
-          uploadedAt: Number(name.split('_')[0]) || 0,
-          uploadedBy: (name.split('_')[1] || '').replace(/_/g, ' '),
-          displayName: name.split('_').slice(2).join('_'),
-        }))
+        .map(name => {
+          const parts = name.split('_');
+          return {
+            name,
+            url: base + encodeURIComponent(name).replace(/%2F/g, '/'),
+            uploadedAt: Number(parts[0]) || 0,
+            uploadedBy: (parts[1] || '').replace(/_/g, ' '),
+            displayName: parts.slice(2).join('_') || name,
+          };
+        })
         .sort((a, b) => b.uploadedAt - a.uploadedAt);
 
-      res.setHeader('Cache-Control', 'private, max-age=30');
+      // ⭐ 加载已解决状态
+      try {
+        const db = await connectToDatabase();
+        const allNames = files.map(f => f.name);
+        const metas = await db.collection('igem_reports')
+          .find({ filename: { $in: allNames } })
+          .toArray();
+        const metaMap = Object.fromEntries(metas.map(m => [m.filename, m]));
+        for (const f of files) {
+          const m = metaMap[f.name];
+          f.resolved = !!(m && m.resolved);
+          f.resolvedBy = (m && m.resolvedBy) || '';
+          f.resolvedAt = (m && m.resolvedAt) || null;
+        }
+      } catch (e) {
+        console.warn('[igemreport] load resolved state failed:', e.message);
+        for (const f of files) f.resolved = false;
+      }
+
+      res.setHeader('Cache-Control', 'private, max-age=15');
       return res.status(200).json({ success: true, files, count: files.length });
     } catch (err) {
       console.error('[igemreport] list failed:', err);
@@ -58,7 +78,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // ═══ UPLOAD ═══
+  // ═══════════════ UPLOAD ═══════════════
   if (req.method === 'POST') {
     const { filename, dataUrl } = req.body || {};
     if (!filename || !dataUrl) {
@@ -81,7 +101,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // 生成安全文件名：{ts}_{user}_{原名}
     const ts = Date.now();
     const userSafe = String(decoded.username).replace(/[^A-Za-z0-9_-]/g, '_');
     const origExt = (String(filename).match(/\.([A-Za-z0-9]{1,10})$/) || [,''])[1].toLowerCase();
@@ -93,7 +112,26 @@ export default async function handler(req, res) {
       const { uploadAnyFile } = await import('../lib/github-upload.js');
       const r = await uploadAnyFile(base64, { folder: FOLDER, filename: finalName });
 
-      // 审计（异步，不阻塞响应）
+      // ⭐ 初始化 DB 记录
+      try {
+        const db = await connectToDatabase();
+        await db.collection('igem_reports').updateOne(
+          { filename: finalName },
+          {
+            $setOnInsert: {
+              filename: finalName,
+              resolved: false,
+              createdAt: new Date(),
+              createdBy: decoded.username,
+            },
+          },
+          { upsert: true }
+        );
+      } catch (e) {
+        console.warn('[igemreport] init db failed:', e.message);
+      }
+
+      // 审计（异步）
       connectToDatabase()
         .then(db => auditLog(db, 'igem_report_upload', {
           filename: finalName, size: bytes, mime,
@@ -109,10 +147,40 @@ export default async function handler(req, res) {
           mime,
           uploadedAt: ts,
           uploadedBy: userSafe,
+          displayName: filename,
+          resolved: false,
         },
       });
     } catch (err) {
       console.error('[igemreport] upload failed:', err);
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
+
+  // ═══════════════ TOGGLE RESOLVED ═══════════════
+  if (req.method === 'PUT') {
+    const { filename, resolved } = req.body || {};
+    if (!filename || typeof resolved !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'Missing filename or resolved' });
+    }
+
+    try {
+      const db = await connectToDatabase();
+      await db.collection('igem_reports').updateOne(
+        { filename },
+        {
+          $set: {
+            resolved,
+            resolvedBy: decoded.username,
+            resolvedAt: resolved ? new Date() : null,
+          },
+          $setOnInsert: { filename, createdAt: new Date() },
+        },
+        { upsert: true }
+      );
+      return res.status(200).json({ success: true, filename, resolved });
+    } catch (err) {
+      console.error('[igemreport] toggle failed:', err);
       return res.status(500).json({ success: false, message: err.message });
     }
   }
