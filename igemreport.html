@@ -339,9 +339,22 @@
           </div>
         </div>
       </div>
+      <div class="ig-lightbox" id="igLightbox" aria-hidden="true">
+  <button class="ig-lightbox-close" id="igLightboxClose" aria-label="關閉">
+    <i class="fas fa-times"></i>
+  </button>
+  <button class="ig-lightbox-prev" id="igLightboxPrev" aria-label="上一張">
+    <i class="fas fa-chevron-left"></i>
+  </button>
+  <img id="igLightboxImg" alt="" />
+  <button class="ig-lightbox-next" id="igLightboxNext" aria-label="下一張">
+    <i class="fas fa-chevron-right"></i>
+  </button>
+  <div class="ig-lightbox-caption" id="igLightboxCaption"></div>
+</div>
     </main>
   </div>
-
+  
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
@@ -748,18 +761,6 @@ document.addEventListener('keydown', e => {
     loadFiles();
   </script>
   <!-- ⭐ Lightbox -->
-<div class="ig-lightbox" id="igLightbox" aria-hidden="true">
-  <button class="ig-lightbox-close" id="igLightboxClose" aria-label="關閉">
-    <i class="fas fa-times"></i>
-  </button>
-  <button class="ig-lightbox-prev" id="igLightboxPrev" aria-label="上一張">
-    <i class="fas fa-chevron-left"></i>
-  </button>
-  <img id="igLightboxImg" alt="" />
-  <button class="ig-lightbox-next" id="igLightboxNext" aria-label="下一張">
-    <i class="fas fa-chevron-right"></i>
-  </button>
-  <div class="ig-lightbox-caption" id="igLightboxCaption"></div>
-</div>
+
 </body>
 </html>
