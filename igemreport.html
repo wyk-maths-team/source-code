@@ -90,6 +90,59 @@
     .ig-item { flex-wrap: wrap; }
     .ig-item-actions { width: 100%; justify-content: flex-end; }
   }
+  /* 选择按钮（label 包裹 input） */
+.ig-pick-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 20px; margin-top: 14px;
+  background: var(--accent); color: #fff;
+  border-radius: 8px; font-weight: 600; font-size: .9rem;
+  cursor: pointer; transition: filter .12s;
+  user-select: none;
+}
+.ig-pick-btn:hover { filter: brightness(1.08); }
+.ig-pick-btn:active { transform: scale(.97); }
+
+/* 待上传队列 */
+.ig-queue {
+  margin-top: 1rem; padding: 14px 16px;
+  background: var(--card-bg); border: 1px solid var(--border-color);
+  border-radius: 10px;
+}
+.ig-queue-head {
+  display: flex; align-items: center; gap: 6px;
+  font-size: .9rem; font-weight: 700; margin-bottom: 10px;
+}
+.ig-queue-clear {
+  margin-left: auto; padding: 3px 10px; font-size: .78rem;
+  border: 1px solid var(--border-color); border-radius: 5px;
+  background: none; color: var(--text-secondary); cursor: pointer;
+}
+.ig-queue-clear:hover { border-color: var(--danger); color: var(--danger); }
+.ig-queue-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.ig-queue-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-radius: 6px;
+  background: rgba(74,144,217,.05);
+  border: 1px solid rgba(74,144,217,.15);
+  font-size: .85rem;
+}
+.ig-queue-item i.ico { color: var(--accent); flex-shrink: 0; }
+.ig-queue-item .name { flex: 1; min-width: 0; word-break: break-all; }
+.ig-queue-item .size { color: var(--text-secondary); font-size: .78rem; flex-shrink: 0; }
+.ig-queue-item .rm {
+  flex-shrink: 0; background: none; border: none; cursor: pointer;
+  color: var(--text-secondary); padding: 2px 6px; font-size: .8rem;
+}
+.ig-queue-item .rm:hover { color: var(--danger); }
+.ig-submit-btn {
+  width: 100%; padding: 12px; border-radius: 8px; border: none;
+  background: var(--accent); color: #fff;
+  font-size: .95rem; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: filter .12s;
+}
+.ig-submit-btn:hover:not(:disabled) { filter: brightness(1.08); }
+.ig-submit-btn:disabled { opacity: .55; cursor: not-allowed; }
 </style>
 </head>
 <body class="index-body">
@@ -99,46 +152,67 @@
     <main class="main-content" id="mainContent">
       <div class="ig-wrap">
         <div class="ig-hero">
-          <h1><i class="fas fa-flask" style="color:var(--accent);margin-right:8px"></i>iGEM Reports</h1>
-          <p>上傳你的報告、文檔、圖片——所有人可見。檔案透過 CDN 加速下載。</p>
-        </div>
+  <h1><i class="fas fa-flask" style="color:var(--accent);margin-right:8px"></i>iGEM Reports</h1>
+  <p>上傳報告、文檔、圖片——所有人可見。檔案透過 CDN 加速下載。</p>
+</div>
 
-        <div class="ig-drop" id="igDrop">
-          <i class="fas fa-cloud-arrow-up"></i>
-          <div class="ig-drop-title">拖拽檔案到此處</div>
-          <div class="ig-drop-sub">或點擊選擇檔案 · 單檔上限 25 MB</div>
-          <input type="file" id="igFile" hidden multiple />
-        </div>
+<!-- 选择文件区 -->
+<div class="ig-drop" id="igDrop">
+  <i class="fas fa-cloud-arrow-up"></i>
+  <div class="ig-drop-title">拖拽檔案到此處</div>
+  <div class="ig-drop-sub">或</div>
+  <label class="ig-pick-btn" for="igFile">
+    <i class="fas fa-folder-open"></i> 選擇檔案
+  </label>
+  <input type="file" id="igFile" multiple style="position:absolute;left:-9999px;opacity:0;width:1px;height:1px" />
+</div>
 
-        <div class="ig-paste">
-          <div class="ig-paste-label">
-            <i class="fas fa-paste" style="margin-right:5px;opacity:.7"></i>
-            或者直接 Ctrl + V 貼上（截圖 / 複製的檔案）
-          </div>
-          <textarea class="ig-paste-input" id="igPaste"
-            placeholder="點此處，然後按 Ctrl + V 貼上檔案或截圖…"></textarea>
-        </div>
+<!-- 粘贴区 -->
+<div class="ig-paste">
+  <div class="ig-paste-label">
+    <i class="fas fa-paste" style="margin-right:5px;opacity:.7"></i>
+    或者在此貼上（Ctrl + V）：截圖、複製的檔案
+  </div>
+  <textarea class="ig-paste-input" id="igPaste"
+    placeholder="點此處，然後按 Ctrl + V 貼上檔案或截圖…"></textarea>
+</div>
 
-        <div class="ig-progress" id="igProgress">
-          <i class="fas fa-spinner"></i>
-          <span id="igProgressText">上傳中…</span>
-        </div>
+<!-- 待上传队列 -->
+<div class="ig-queue" id="igQueue" style="display:none">
+  <div class="ig-queue-head">
+    <i class="fas fa-list" style="margin-right:6px;opacity:.7"></i>
+    待上傳 <span id="igQueueCount">0</span> 個檔案
+    <button class="ig-queue-clear" id="igQueueClear" type="button">清空</button>
+  </div>
+  <div class="ig-queue-list" id="igQueueList"></div>
+  <button class="ig-submit-btn" id="igSubmit" type="button">
+    <i class="fas fa-cloud-arrow-up"></i> 提交上傳
+  </button>
+</div>
 
-        <div class="ig-msg" id="igMsg"></div>
+<!-- 进度 / 消息 -->
+<div class="ig-progress" id="igProgress">
+  <i class="fas fa-spinner"></i>
+  <span id="igProgressText">上傳中…</span>
+</div>
 
-        <div class="ig-section">
-          <h2>
-            <i class="fas fa-folder-open" style="opacity:.7"></i>
-            所有檔案 <span class="ig-count" id="igCount"></span>
-            <button class="ig-refresh" id="igRefresh" title="重新整理">
-              <i class="fas fa-rotate"></i> Refresh
-            </button>
-          </h2>
-          <div class="ig-list" id="igList">
-            <div class="ig-empty"><i class="fas fa-spinner fa-spin"></i> 載入中…</div>
-          </div>
-        </div>
+<div class="ig-msg" id="igMsg"></div>
+
+<!-- 列表 -->
+<div class="ig-section">
+  <h2>
+    <i class="fas fa-folder-open" style="opacity:.7"></i>
+    所有檔案 <span class="ig-count" id="igCount"></span>
+    <button class="ig-refresh" id="igRefresh" title="重新整理">
+      <i class="fas fa-rotate"></i> Refresh
+    </button>
+  </h2>
+  <div class="ig-list" id="igList">
+    <div class="ig-empty"><i class="fas fa-spinner fa-spin"></i> 載入中…</div>
+  </div>
+</div>
       </div>
+      
     </main>
   </div>
 
@@ -147,223 +221,284 @@
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
 
-  <script>
-    if (!isLoggedIn()) {
-      window.location.href = '/index.html';
-    }
+ <script>
+  if (!isLoggedIn()) window.location.href = '/index.html';
 
-    const dropEl   = document.getElementById('igDrop');
-    const fileEl   = document.getElementById('igFile');
-    const pasteEl  = document.getElementById('igPaste');
-    const progEl   = document.getElementById('igProgress');
-    const progTxt  = document.getElementById('igProgressText');
-    const msgEl    = document.getElementById('igMsg');
-    const listEl   = document.getElementById('igList');
-    const countEl  = document.getElementById('igCount');
-    const refreshEl= document.getElementById('igRefresh');
+  const dropEl    = document.getElementById('igDrop');
+  const fileEl    = document.getElementById('igFile');
+  const pasteEl   = document.getElementById('igPaste');
+  const progEl    = document.getElementById('igProgress');
+  const progTxt   = document.getElementById('igProgressText');
+  const msgEl     = document.getElementById('igMsg');
+  const listEl    = document.getElementById('igList');
+  const countEl   = document.getElementById('igCount');
+  const refreshEl = document.getElementById('igRefresh');
+  const queueEl   = document.getElementById('igQueue');
+  const queueListEl = document.getElementById('igQueueList');
+  const queueCountEl = document.getElementById('igQueueCount');
+  const queueClearEl = document.getElementById('igQueueClear');
+  const submitEl  = document.getElementById('igSubmit');
 
-    const MAX_BYTES = 25 * 1024 * 1024;
-    let uploading = 0;
+  const MAX_BYTES = 25 * 1024 * 1024;
 
-    // ═══ 工具 ═══
-    function fmtSize(bytes) {
-      if (bytes < 1024) return bytes + ' B';
-      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-      return (bytes / 1024 / 1024).toFixed(2) + ' MB';
-    }
-    function fmtTime(ts) {
-      if (!ts) return '';
-      const d = new Date(ts);
-      const pad = n => String(n).padStart(2, '0');
-      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    }
-    function iconFor(name) {
-      const ext = (name.match(/\.([A-Za-z0-9]+)$/) || [,''])[1].toLowerCase();
-      if (['png','jpg','jpeg','gif','webp','bmp','svg'].includes(ext)) return 'fa-file-image';
-      if (ext === 'pdf') return 'fa-file-pdf';
-      if (['doc','docx'].includes(ext)) return 'fa-file-word';
-      if (['xls','xlsx','csv'].includes(ext)) return 'fa-file-excel';
-      if (['ppt','pptx'].includes(ext)) return 'fa-file-powerpoint';
-      if (['zip','rar','7z','tar','gz'].includes(ext)) return 'fa-file-zipper';
-      if (['mp4','mov','avi','mkv','webm'].includes(ext)) return 'fa-file-video';
-      if (['mp3','wav','ogg','m4a'].includes(ext)) return 'fa-file-audio';
-      if (['js','ts','py','cpp','c','java','html','css'].includes(ext)) return 'fa-file-code';
-      return 'fa-file';
-    }
-    function escapeHtml(s) {
-      return String(s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
-    }
-    function showMsg(text, type = 'ok') {
-      msgEl.textContent = text;
-      msgEl.className = 'ig-msg show ' + type;
-      clearTimeout(showMsg._t);
-      showMsg._t = setTimeout(() => msgEl.className = 'ig-msg', 5000);
-    }
-    function showProgress(text) {
-      uploading++;
-      progTxt.textContent = text || '上傳中…';
-      progEl.classList.add('show');
-    }
-    function hideProgress() {
-      uploading = Math.max(0, uploading - 1);
-      if (uploading === 0) progEl.classList.remove('show');
-    }
+  // ⭐ 待上传队列
+  let queue = [];   // [{ file, id }]
+  let nextId = 1;
+  let uploading = false;
 
-    // ═══ 文件读取 ═══
-    function readAsDataUrl(file) {
-      return new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(r.result);
-        r.onerror = () => reject(new Error('讀取失敗'));
-        r.readAsDataURL(file);
-      });
+  // ═══════ 工具 ═══════
+  function fmtSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+  }
+  function fmtTime(ts) {
+    if (!ts) return '';
+    const d = new Date(ts), pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function iconFor(name) {
+    const ext = (String(name).match(/\.([A-Za-z0-9]+)$/) || [,''])[1].toLowerCase();
+    if (['png','jpg','jpeg','gif','webp','bmp','svg'].includes(ext)) return 'fa-file-image';
+    if (ext === 'pdf') return 'fa-file-pdf';
+    if (['doc','docx'].includes(ext)) return 'fa-file-word';
+    if (['xls','xlsx','csv'].includes(ext)) return 'fa-file-excel';
+    if (['ppt','pptx'].includes(ext)) return 'fa-file-powerpoint';
+    if (['zip','rar','7z','tar','gz'].includes(ext)) return 'fa-file-zipper';
+    if (['mp4','mov','avi','mkv','webm'].includes(ext)) return 'fa-file-video';
+    if (['mp3','wav','ogg','m4a'].includes(ext)) return 'fa-file-audio';
+    if (['js','ts','py','cpp','c','java','html','css'].includes(ext)) return 'fa-file-code';
+    return 'fa-file';
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+  }
+  function showMsg(text, type = 'ok') {
+    msgEl.textContent = text;
+    msgEl.className = 'ig-msg show ' + type;
+    clearTimeout(showMsg._t);
+    showMsg._t = setTimeout(() => msgEl.className = 'ig-msg', 6000);
+  }
+  function setProgress(text) {
+    if (text == null) { progEl.classList.remove('show'); return; }
+    progTxt.textContent = text;
+    progEl.classList.add('show');
+  }
+
+  // ═══════ 队列 ═══════
+  function addFiles(fileList) {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    let added = 0, skipped = 0;
+    for (const f of files) {
+      if (f.size > MAX_BYTES) { skipped++; continue; }
+      queue.push({ file: f, id: nextId++ });
+      added++;
     }
+    renderQueue();
+    if (added) showMsg(`✓ 已加入 ${added} 個檔案到待上傳佇列`, 'ok');
+    if (skipped) showMsg(`⚠️ ${skipped} 個檔案太大（> 25 MB），已跳過`, 'err');
+  }
 
-    // ═══ 上传 ═══
-    async function uploadFile(file) {
-      if (!file) return;
-      if (file.size > MAX_BYTES) {
-        showMsg(`「${file.name}」太大（${fmtSize(file.size)} > 25 MB）`, 'err');
-        return;
-      }
+  function removeFile(id) {
+    queue = queue.filter(x => x.id !== id);
+    renderQueue();
+  }
 
-      showProgress(`上傳「${file.name}」(${fmtSize(file.size)})…`);
+  function renderQueue() {
+    if (queue.length === 0) {
+      queueEl.style.display = 'none';
+      queueListEl.innerHTML = '';
+      queueCountEl.textContent = '0';
+      return;
+    }
+    queueEl.style.display = '';
+    queueCountEl.textContent = queue.length;
+    queueListEl.innerHTML = queue.map(x => `
+      <div class="ig-queue-item">
+        <i class="ico fas ${iconFor(x.file.name)}"></i>
+        <span class="name">${esc(x.file.name)}</span>
+        <span class="size">${fmtSize(x.file.size)}</span>
+        <button class="rm" data-id="${x.id}" title="移除">✕</button>
+      </div>
+    `).join('');
+    queueListEl.querySelectorAll('.rm').forEach(b => {
+      b.onclick = () => removeFile(Number(b.dataset.id));
+    });
+  }
+
+  // ═══════ 上传 ═══════
+  function readAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = () => reject(new Error('讀取失敗'));
+      r.readAsDataURL(file);
+    });
+  }
+
+  async function uploadOne(file) {
+    const dataUrl = await readAsDataUrl(file);
+    return await apiCall('/api/igemreport', 'POST', {
+      filename: file.name,
+      dataUrl,
+    });
+  }
+
+  async function submitQueue() {
+    if (uploading || queue.length === 0) return;
+    uploading = true;
+    submitEl.disabled = true;
+    submitEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 上傳中…';
+
+    const total = queue.length;
+    let ok = 0, fail = 0;
+    const failed = [];   // 保留失败项
+
+    for (let i = 0; i < total; i++) {
+      const item = queue[i];
+      setProgress(`(${i + 1}/${total}) 上傳「${item.file.name}」…`);
       try {
-        const dataUrl = await readAsDataUrl(file);
-        const res = await apiCall('/api/igemreport', 'POST', {
-          filename: file.name,
-          dataUrl,
-        });
+        const res = await uploadOne(item.file);
         if (res && res.success) {
-          showMsg(`✓ 已上傳：${res.file.name}`, 'ok');
-          // 乐观插入到列表顶部
+          ok++;
           prependFile({
             name: res.file.name,
             url: res.file.url,
             uploadedAt: res.file.uploadedAt,
-            uploadedBy: currentUser?.username || '',
-            displayName: file.name,
+            uploadedBy: (getCurrentUser() || {}).username || '',
+            displayName: item.file.name,
           });
         } else {
-          showMsg('上傳失敗：' + (res?.message || 'unknown'), 'err');
+          fail++;
+          failed.push(item);
         }
       } catch (err) {
-        showMsg('上傳錯誤：' + err.message, 'err');
-      } finally {
-        hideProgress();
+        fail++;
+        failed.push(item);
       }
     }
 
-    async function uploadFiles(list) {
-      for (const f of list) {
-        await uploadFile(f);
-      }
-    }
+    setProgress(null);
+    uploading = false;
+    submitEl.disabled = false;
+    submitEl.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> 提交上傳';
 
-    // ═══ 列表 ═══
-    function prependFile(f) {
-      const empty = listEl.querySelector('.ig-empty');
-      if (empty) empty.remove();
-      listEl.insertAdjacentHTML('afterbegin', renderItem(f));
-      bindItemActions(listEl.firstElementChild);
-      countEl.textContent = `(${listEl.children.length})`;
-    }
+    queue = failed;
+    renderQueue();
 
-    function renderItem(f) {
-      const size = f.size ? ` · ${fmtSize(f.size)}` : '';
-      const user = f.uploadedBy ? ` · ${escapeHtml(f.uploadedBy)}` : '';
-      const time = f.uploadedAt ? fmtTime(f.uploadedAt) : '';
-      return `
-        <div class="ig-item">
-          <i class="ig-item-icon fas ${iconFor(f.name)}"></i>
-          <div class="ig-item-main">
-            <div class="ig-item-name">${escapeHtml(f.displayName || f.name)}</div>
-            <div class="ig-item-meta">${time}${user}${size}</div>
-          </div>
-          <div class="ig-item-actions">
-            <a class="ig-btn" href="${escapeHtml(f.url)}" target="_blank" rel="noopener">
-              <i class="fas fa-eye"></i> 開啟
-            </a>
-            <a class="ig-btn" href="${escapeHtml(f.url)}" download>
-              <i class="fas fa-download"></i> 下載
-            </a>
-          </div>
+    if (fail === 0) {
+      showMsg(`✓ 全部上傳成功（${ok} 個）`, 'ok');
+    } else if (ok === 0) {
+      showMsg(`✗ 全部失敗（${fail} 個），已保留在佇列`, 'err');
+    } else {
+      showMsg(`部分成功：${ok} 成功 / ${fail} 失敗。失敗項已留在佇列。`, 'err');
+    }
+  }
+
+  // ═══════ 列表 ═══════
+  function prependFile(f) {
+    const empty = listEl.querySelector('.ig-empty');
+    if (empty) empty.remove();
+    listEl.insertAdjacentHTML('afterbegin', renderItem(f));
+    countEl.textContent = `(${listEl.children.length})`;
+  }
+
+  function renderItem(f) {
+    const size = f.size ? ` · ${fmtSize(f.size)}` : '';
+    const user = f.uploadedBy ? ` · ${esc(f.uploadedBy)}` : '';
+    const time = f.uploadedAt ? fmtTime(f.uploadedAt) : '';
+    return `
+      <div class="ig-item">
+        <i class="ig-item-icon fas ${iconFor(f.name)}"></i>
+        <div class="ig-item-main">
+          <div class="ig-item-name">${esc(f.displayName || f.name)}</div>
+          <div class="ig-item-meta">${time}${user}${size}</div>
         </div>
-      `;
-    }
+        <div class="ig-item-actions">
+          <a class="ig-btn" href="${esc(f.url)}" target="_blank" rel="noopener">
+            <i class="fas fa-eye"></i> 開啟
+          </a>
+          <a class="ig-btn" href="${esc(f.url)}" download>
+            <i class="fas fa-download"></i> 下載
+          </a>
+        </div>
+      </div>
+    `;
+  }
 
-    function bindItemActions(el) {
-      // 现在的实现不需要额外绑定,链接自带行为
+  async function loadFiles() {
+    listEl.innerHTML = '<div class="ig-empty"><i class="fas fa-spinner fa-spin"></i> 載入中…</div>';
+    try {
+      const res = await apiCall('/api/igemreport', 'GET');
+      if (!res || !res.success) throw new Error(res?.message || 'load failed');
+      const files = res.files || [];
+      if (!files.length) {
+        listEl.innerHTML = '<div class="ig-empty"><i class="fas fa-inbox" style="font-size:2rem;display:block;margin-bottom:8px;opacity:.4"></i>還沒有任何檔案</div>';
+        countEl.textContent = '';
+        return;
+      }
+      listEl.innerHTML = files.map(renderItem).join('');
+      countEl.textContent = `(${files.length})`;
+    } catch (err) {
+      listEl.innerHTML = `<div class="ig-empty" style="color:var(--danger)">載入失敗：${esc(err.message)}</div>`;
     }
+  }
 
-    async function loadFiles() {
-      listEl.innerHTML = '<div class="ig-empty"><i class="fas fa-spinner fa-spin"></i> 載入中…</div>';
-      try {
-        const res = await apiCall('/api/igemreport', 'GET');
-        if (!res || !res.success) throw new Error(res?.message || 'load failed');
-        const files = res.files || [];
-        if (!files.length) {
-          listEl.innerHTML = '<div class="ig-empty"><i class="fas fa-inbox" style="font-size:2rem;display:block;margin-bottom:8px;opacity:.4"></i>還沒有任何檔案</div>';
-          countEl.textContent = '';
-          return;
-        }
-        listEl.innerHTML = files.map(renderItem).join('');
-        countEl.textContent = `(${files.length})`;
-      } catch (err) {
-        listEl.innerHTML = `<div class="ig-empty" style="color:var(--danger)">載入失敗：${escapeHtml(err.message)}</div>`;
+  // ═══════ 事件 ═══════
+  // 选择文件 → 加入队列（不直接上传）
+  fileEl.addEventListener('change', () => {
+    addFiles(fileEl.files);
+    fileEl.value = '';
+  });
+
+  // 拖拽
+  dropEl.addEventListener('dragover', e => { e.preventDefault(); dropEl.classList.add('dragover'); });
+  dropEl.addEventListener('dragleave', () => dropEl.classList.remove('dragover'));
+  dropEl.addEventListener('drop', e => {
+    e.preventDefault();
+    dropEl.classList.remove('dragover');
+    addFiles(e.dataTransfer?.files);
+  });
+
+  // 粘贴：只有真的有文件时才拦截
+  function handlePaste(e) {
+    const cd = e.clipboardData;
+    if (!cd) return;
+    const files = [];
+    for (let i = 0; i < cd.items.length; i++) {
+      const it = cd.items[i];
+      if (it.kind === 'file') {
+        const f = it.getAsFile();
+        if (f) files.push(f);
       }
     }
+    if (!files.length) return;   // 只有文本 → 不拦截
+    e.preventDefault();
+    addFiles(files);
+  }
+  pasteEl.addEventListener('paste', handlePaste);
+  document.addEventListener('paste', e => {
+    if (e.target === pasteEl) return;
+    const tag = (e.target.tagName || '').toUpperCase();
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    handlePaste(e);
+  });
 
-    // ═══ 交互 ═══
-    dropEl.addEventListener('click', () => fileEl.click());
-    fileEl.addEventListener('change', () => {
-      const files = Array.from(fileEl.files || []);
-      fileEl.value = '';
-      if (files.length) uploadFiles(files);
-    });
+  // 提交
+  submitEl.addEventListener('click', submitQueue);
+  queueClearEl.addEventListener('click', () => {
+    if (!queue.length) return;
+    if (!confirm(`清空待上傳佇列（${queue.length} 個檔案）？`)) return;
+    queue = [];
+    renderQueue();
+  });
 
-    dropEl.addEventListener('dragover', e => { e.preventDefault(); dropEl.classList.add('dragover'); });
-    dropEl.addEventListener('dragleave', () => dropEl.classList.remove('dragover'));
-    dropEl.addEventListener('drop', e => {
-      e.preventDefault(); dropEl.classList.remove('dragover');
-      const files = Array.from(e.dataTransfer?.files || []);
-      if (files.length) uploadFiles(files);
-    });
+  refreshEl.addEventListener('click', loadFiles);
 
-    // 粘贴（textarea + 全局）
-    function extractFilesFromClipboard(cd) {
-      if (!cd) return [];
-      const out = [];
-      for (let i = 0; i < cd.items.length; i++) {
-        const it = cd.items[i];
-        if (it.kind === 'file') {
-          const f = it.getAsFile();
-          if (f) out.push(f);
-        }
-      }
-      return out;
-    }
-
-    async function handlePaste(e) {
-      const files = extractFilesFromClipboard(e.clipboardData);
-      if (!files.length) return;      // 剪贴板无文件 → 不拦截（允许文本粘贴）
-      e.preventDefault();
-      await uploadFiles(files);
-    }
-    pasteEl.addEventListener('paste', handlePaste);
-    document.addEventListener('paste', e => {
-      if (e.target === pasteEl) return;
-      // 忽略输入框里的粘贴（比如管理员在搜索框粘贴）
-      const tag = (e.target.tagName || '').toUpperCase();
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-      handlePaste(e);
-    });
-
-    refreshEl.addEventListener('click', loadFiles);
-
-    // ═══ 初始化 ═══
-    const currentUser = getCurrentUser();
-    loadFiles();
-  </script>
+  // ═══════ 启动 ═══════
+  renderQueue();
+  loadFiles();
+</script>
 </body>
 </html>
