@@ -197,6 +197,83 @@
     .ig-item { flex-wrap: wrap; }
     .ig-item-actions { width: 100%; justify-content: flex-end; }
   }
+/* hover 卡片效果 */
+.ig-item {
+  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease, background .15s;
+}
+.ig-item:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: 0 6px 20px rgba(74,144,217,.14);
+}
+.ig-item.resolved:hover {
+  box-shadow: 0 6px 20px rgba(76,175,80,.18);
+}
+
+/* 缩略图点击光标 */
+.ig-item-thumb { cursor: zoom-in; }
+
+/* Lightbox */
+.ig-lightbox {
+  position: fixed; inset: 0; z-index: 9999;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.85);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  padding: 40px 24px;
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+.ig-lightbox.show { display: flex; opacity: 1; }
+.ig-lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 10px 60px rgba(0,0,0,.7);
+  transform: scale(.96);
+  transition: transform .2s cubic-bezier(.34,1.56,.64,1);
+}
+.ig-lightbox.show img { transform: scale(1); }
+.ig-lightbox-close {
+  position: absolute;
+  top: 20px; right: 24px;
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.14);
+  color: #fff; font-size: 1.2rem;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; border: none;
+  transition: background .15s, transform .15s;
+}
+.ig-lightbox-close:hover { background: rgba(255,255,255,.28); transform: scale(1.08); }
+.ig-lightbox-caption {
+  position: absolute;
+  bottom: 20px; left: 50%; transform: translateX(-50%);
+  color: rgba(255,255,255,.85);
+  font-size: .85rem;
+  background: rgba(0,0,0,.5);
+  padding: 6px 14px; border-radius: 20px;
+  max-width: 90vw;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  pointer-events: none;
+}
+.ig-lightbox-prev,
+.ig-lightbox-next {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 46px; height: 46px; border-radius: 50%;
+  background: rgba(255,255,255,.14);
+  color: #fff; font-size: 1.1rem;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; border: none;
+  transition: background .15s;
+}
+.ig-lightbox-prev { left: 20px; }
+.ig-lightbox-next { right: 20px; }
+.ig-lightbox-prev:hover,
+.ig-lightbox-next:hover { background: rgba(255,255,255,.28); }
+.ig-lightbox-prev[hidden],
+.ig-lightbox-next[hidden] { display: none; }
 </style>
 </head>
 <body class="index-body">
@@ -452,12 +529,11 @@
       const time = f.uploadedAt ? fmtTime(f.uploadedAt) : '';
       const resolved = !!f.resolved;
 
-      const preview = isImage(f.name)
-        ? `<a class="ig-item-thumb" href="${esc(f.url)}" target="_blank" rel="noopener">
-             <img src="${esc(f.url)}" alt="${esc(f.displayName || f.name)}" loading="lazy" />
-           </a>`
-        : `<i class="ig-item-icon fas ${iconFor(f.name)}"></i>`;
-
+const preview = isImage(f.name)
+  ? `<div class="ig-item-thumb" data-img="${esc(f.url)}" data-caption="${esc(f.displayName || f.name)}">
+       <img src="${esc(f.url)}" alt="${esc(f.displayName || f.name)}" loading="lazy" />
+     </div>`
+  : `<i class="ig-item-icon fas ${iconFor(f.name)}"></i>`;
       return `
         <div class="ig-item${resolved ? ' resolved' : ''}" data-filename="${esc(f.name)}">
           ${preview}
@@ -583,10 +659,107 @@
       renderQueue();
     });
     refreshEl.addEventListener('click', loadFiles);
+// ═══════ Lightbox ═══════
+const lightbox      = document.getElementById('igLightbox');
+const lightboxImg   = document.getElementById('igLightboxImg');
+const lightboxCap   = document.getElementById('igLightboxCaption');
+const lightboxClose = document.getElementById('igLightboxClose');
+const lightboxPrev  = document.getElementById('igLightboxPrev');
+const lightboxNext  = document.getElementById('igLightboxNext');
 
+let lbImages = [];   // [{ url, caption }]
+let lbIndex  = 0;
+
+function openLightbox(url, caption) {
+  // 收集当前列表里所有图片（用于左右切换）
+  lbImages = Array.from(listEl.querySelectorAll('.ig-item-thumb[data-img]'))
+    .map(el => ({ url: el.dataset.img, caption: el.dataset.caption || '' }));
+  lbIndex = lbImages.findIndex(x => x.url === url);
+  if (lbIndex < 0) {
+    lbImages = [{ url, caption: caption || '' }];
+    lbIndex = 0;
+  }
+  showLightbox();
+}
+
+function showLightbox() {
+  const item = lbImages[lbIndex];
+  if (!item) return;
+  lightboxImg.src = item.url;
+  lightboxImg.alt = item.caption;
+  lightboxCap.textContent = item.caption;
+  lightboxCap.style.display = item.caption ? '' : 'none';
+
+  // 单张图时隐藏左右箭头
+  const single = lbImages.length <= 1;
+  lightboxPrev.hidden = single;
+  lightboxNext.hidden = single;
+
+  lightbox.classList.add('show');
+  lightbox.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+  lightbox.classList.remove('show');
+  lightbox.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+  // 延迟清空 src，避免关闭动画闪烁
+  setTimeout(() => { lightboxImg.src = ''; }, 220);
+}
+
+function prevImage() {
+  if (lbImages.length <= 1) return;
+  lbIndex = (lbIndex - 1 + lbImages.length) % lbImages.length;
+  showLightbox();
+}
+function nextImage() {
+  if (lbImages.length <= 1) return;
+  lbIndex = (lbIndex + 1) % lbImages.length;
+  showLightbox();
+}
+
+// 事件：列表里任何缩略图被点击
+listEl.addEventListener('click', e => {
+  const thumb = e.target.closest('.ig-item-thumb[data-img]');
+  if (!thumb) return;
+  e.preventDefault();
+  openLightbox(thumb.dataset.img, thumb.dataset.caption);
+});
+
+// 关闭
+lightboxClose.addEventListener('click', closeLightbox);
+lightbox.addEventListener('click', e => {
+  // 点击背景关闭；点击图片本身不关
+  if (e.target === lightbox) closeLightbox();
+});
+lightboxPrev.addEventListener('click', e => { e.stopPropagation(); prevImage(); });
+lightboxNext.addEventListener('click', e => { e.stopPropagation(); nextImage(); });
+
+// 键盘
+document.addEventListener('keydown', e => {
+  if (!lightbox.classList.contains('show')) return;
+  if (e.key === 'Escape') closeLightbox();
+  if (e.key === 'ArrowLeft') prevImage();
+  if (e.key === 'ArrowRight') nextImage();
+});
     // ═══════ 启动 ═══════
     renderQueue();
     loadFiles();
   </script>
+  <!-- ⭐ Lightbox -->
+<div class="ig-lightbox" id="igLightbox" aria-hidden="true">
+  <button class="ig-lightbox-close" id="igLightboxClose" aria-label="關閉">
+    <i class="fas fa-times"></i>
+  </button>
+  <button class="ig-lightbox-prev" id="igLightboxPrev" aria-label="上一張">
+    <i class="fas fa-chevron-left"></i>
+  </button>
+  <img id="igLightboxImg" alt="" />
+  <button class="ig-lightbox-next" id="igLightboxNext" aria-label="下一張">
+    <i class="fas fa-chevron-right"></i>
+  </button>
+  <div class="ig-lightbox-caption" id="igLightboxCaption"></div>
+</div>
 </body>
 </html>
