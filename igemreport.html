@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>iGEM Reports - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<style>
+  .ig-wrap { max-width: 900px; margin: 0 auto; }
+  .ig-hero { margin-bottom: 1.2rem; }
+  .ig-hero h1 { margin: 0 0 .3rem; font-size: 1.6rem; }
+  .ig-hero p { margin: 0; color: var(--text-secondary); font-size: .9rem; }
+
+  .ig-drop {
+    background: var(--card-bg); border: 2px dashed var(--border-color);
+    border-radius: 12px; padding: 2.5rem 1.5rem; text-align: center;
+    cursor: pointer; transition: all .15s;
+  }
+  .ig-drop:hover, .ig-drop.dragover { border-color: var(--accent); background: rgba(74,144,217,.05); }
+  .ig-drop i { font-size: 2.6rem; color: var(--accent); margin-bottom: .8rem; display: block; }
+  .ig-drop-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 4px; }
+  .ig-drop-sub { color: var(--text-secondary); font-size: .82rem; line-height: 1.5; }
+
+  /* 粘贴区域（含 textarea 让用户能聚焦） */
+  .ig-paste {
+    margin-top: 1rem; background: var(--card-bg);
+    border: 1px solid var(--border-color); border-radius: 10px; padding: 14px;
+  }
+  .ig-paste-label { font-size: .8rem; color: var(--text-secondary); margin-bottom: 6px; font-weight: 600; }
+  .ig-paste-input {
+    width: 100%; min-height: 70px; padding: 10px 14px;
+    border: 2px dashed var(--border-color); border-radius: 6px;
+    background: rgba(74,144,217,.04); color: var(--text-secondary);
+    font-family: inherit; font-size: .85rem; line-height: 1.5;
+    resize: vertical; outline: none; box-sizing: border-box;
+  }
+  .ig-paste-input:focus { border-color: var(--accent); border-style: solid; }
+
+  .ig-progress {
+    display: none; margin-top: 1rem; padding: 12px 16px;
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-radius: 8px; font-size: .88rem; color: var(--accent);
+    align-items: center; gap: 10px;
+  }
+  .ig-progress.show { display: flex; }
+  .ig-progress i { animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .ig-msg {
+    margin-top: .8rem; padding: 10px 14px; border-radius: 8px;
+    font-size: .88rem; display: none;
+  }
+  .ig-msg.show { display: block; }
+  .ig-msg.ok { background: rgba(76,175,80,.12); color: #2e7d32; border: 1px solid rgba(76,175,80,.3); }
+  .ig-msg.err { background: rgba(248,81,73,.12); color: #c62828; border: 1px solid rgba(248,81,73,.3); }
+
+  .ig-section { margin-top: 2rem; }
+  .ig-section h2 { font-size: 1.05rem; margin-bottom: .8rem; display: flex; align-items: center; gap: 8px; }
+  .ig-count { color: var(--text-secondary); font-size: .82rem; font-weight: 400; }
+  .ig-refresh { margin-left: auto; background: none; border: 1px solid var(--border-color); padding: 4px 10px; border-radius: 5px; cursor: pointer; color: var(--text-primary); font-size: .78rem; }
+  .ig-refresh:hover { border-color: var(--accent); color: var(--accent); }
+
+  .ig-list { display: flex; flex-direction: column; gap: 8px; }
+  .ig-item {
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-radius: 8px; padding: 12px 14px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .ig-item-icon { font-size: 1.4rem; color: var(--accent); flex-shrink: 0; width: 24px; text-align: center; }
+  .ig-item-main { flex: 1; min-width: 0; }
+  .ig-item-name { font-weight: 600; font-size: .92rem; word-break: break-all; }
+  .ig-item-meta { font-size: .75rem; color: var(--text-secondary); margin-top: 2px; }
+  .ig-item-actions { flex-shrink: 0; display: flex; gap: 6px; }
+  .ig-btn {
+    padding: 5px 12px; border-radius: 5px; border: 1px solid var(--border-color);
+    background: var(--card-bg); color: var(--text-primary);
+    font-size: .8rem; font-weight: 600; text-decoration: none; cursor: pointer;
+    transition: all .12s; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .ig-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .ig-empty { text-align: center; padding: 2rem; color: var(--text-secondary); font-size: .9rem; }
+
+  @media (max-width: 600px) {
+    .ig-drop { padding: 2rem 1rem; }
+    .ig-item { flex-wrap: wrap; }
+    .ig-item-actions { width: 100%; justify-content: flex-end; }
+  }
+</style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="ig-wrap">
+        <div class="ig-hero">
+          <h1><i class="fas fa-flask" style="color:var(--accent);margin-right:8px"></i>iGEM Reports</h1>
+          <p>上傳你的報告、文檔、圖片——所有人可見。檔案透過 CDN 加速下載。</p>
+        </div>
+
+        <div class="ig-drop" id="igDrop">
+          <i class="fas fa-cloud-arrow-up"></i>
+          <div class="ig-drop-title">拖拽檔案到此處</div>
+          <div class="ig-drop-sub">或點擊選擇檔案 · 單檔上限 25 MB</div>
+          <input type="file" id="igFile" hidden multiple />
+        </div>
+
+        <div class="ig-paste">
+          <div class="ig-paste-label">
+            <i class="fas fa-paste" style="margin-right:5px;opacity:.7"></i>
+            或者直接 Ctrl + V 貼上（截圖 / 複製的檔案）
+          </div>
+          <textarea class="ig-paste-input" id="igPaste"
+            placeholder="點此處，然後按 Ctrl + V 貼上檔案或截圖…"></textarea>
+        </div>
+
+        <div class="ig-progress" id="igProgress">
+          <i class="fas fa-spinner"></i>
+          <span id="igProgressText">上傳中…</span>
+        </div>
+
+        <div class="ig-msg" id="igMsg"></div>
+
+        <div class="ig-section">
+          <h2>
+            <i class="fas fa-folder-open" style="opacity:.7"></i>
+            所有檔案 <span class="ig-count" id="igCount"></span>
+            <button class="ig-refresh" id="igRefresh" title="重新整理">
+              <i class="fas fa-rotate"></i> Refresh
+            </button>
+          </h2>
+          <div class="ig-list" id="igList">
+            <div class="ig-empty"><i class="fas fa-spinner fa-spin"></i> 載入中…</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+    if (!isLoggedIn()) {
+      window.location.href = '/index.html';
+    }
+
+    const dropEl   = document.getElementById('igDrop');
+    const fileEl   = document.getElementById('igFile');
+    const pasteEl  = document.getElementById('igPaste');
+    const progEl   = document.getElementById('igProgress');
+    const progTxt  = document.getElementById('igProgressText');
+    const msgEl    = document.getElementById('igMsg');
+    const listEl   = document.getElementById('igList');
+    const countEl  = document.getElementById('igCount');
+    const refreshEl= document.getElementById('igRefresh');
+
+    const MAX_BYTES = 25 * 1024 * 1024;
+    let uploading = 0;
+
+    // ═══ 工具 ═══
+    function fmtSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+    }
+    function fmtTime(ts) {
+      if (!ts) return '';
+      const d = new Date(ts);
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+    function iconFor(name) {
+      const ext = (name.match(/\.([A-Za-z0-9]+)$/) || [,''])[1].toLowerCase();
+      if (['png','jpg','jpeg','gif','webp','bmp','svg'].includes(ext)) return 'fa-file-image';
+      if (ext === 'pdf') return 'fa-file-pdf';
+      if (['doc','docx'].includes(ext)) return 'fa-file-word';
+      if (['xls','xlsx','csv'].includes(ext)) return 'fa-file-excel';
+      if (['ppt','pptx'].includes(ext)) return 'fa-file-powerpoint';
+      if (['zip','rar','7z','tar','gz'].includes(ext)) return 'fa-file-zipper';
+      if (['mp4','mov','avi','mkv','webm'].includes(ext)) return 'fa-file-video';
+      if (['mp3','wav','ogg','m4a'].includes(ext)) return 'fa-file-audio';
+      if (['js','ts','py','cpp','c','java','html','css'].includes(ext)) return 'fa-file-code';
+      return 'fa-file';
+    }
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+    }
+    function showMsg(text, type = 'ok') {
+      msgEl.textContent = text;
+      msgEl.className = 'ig-msg show ' + type;
+      clearTimeout(showMsg._t);
+      showMsg._t = setTimeout(() => msgEl.className = 'ig-msg', 5000);
+    }
+    function showProgress(text) {
+      uploading++;
+      progTxt.textContent = text || '上傳中…';
+      progEl.classList.add('show');
+    }
+    function hideProgress() {
+      uploading = Math.max(0, uploading - 1);
+      if (uploading === 0) progEl.classList.remove('show');
+    }
+
+    // ═══ 文件读取 ═══
+    function readAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = () => reject(new Error('讀取失敗'));
+        r.readAsDataURL(file);
+      });
+    }
+
+    // ═══ 上传 ═══
+    async function uploadFile(file) {
+      if (!file) return;
+      if (file.size > MAX_BYTES) {
+        showMsg(`「${file.name}」太大（${fmtSize(file.size)} > 25 MB）`, 'err');
+        return;
+      }
+
+      showProgress(`上傳「${file.name}」(${fmtSize(file.size)})…`);
+      try {
+        const dataUrl = await readAsDataUrl(file);
+        const res = await apiCall('/api/igemreport', 'POST', {
+          filename: file.name,
+          dataUrl,
+        });
+        if (res && res.success) {
+          showMsg(`✓ 已上傳：${res.file.name}`, 'ok');
+          // 乐观插入到列表顶部
+          prependFile({
+            name: res.file.name,
+            url: res.file.url,
+            uploadedAt: res.file.uploadedAt,
+            uploadedBy: currentUser?.username || '',
+            displayName: file.name,
+          });
+        } else {
+          showMsg('上傳失敗：' + (res?.message || 'unknown'), 'err');
+        }
+      } catch (err) {
+        showMsg('上傳錯誤：' + err.message, 'err');
+      } finally {
+        hideProgress();
+      }
+    }
+
+    async function uploadFiles(list) {
+      for (const f of list) {
+        await uploadFile(f);
+      }
+    }
+
+    // ═══ 列表 ═══
+    function prependFile(f) {
+      const empty = listEl.querySelector('.ig-empty');
+      if (empty) empty.remove();
+      listEl.insertAdjacentHTML('afterbegin', renderItem(f));
+      bindItemActions(listEl.firstElementChild);
+      countEl.textContent = `(${listEl.children.length})`;
+    }
+
+    function renderItem(f) {
+      const size = f.size ? ` · ${fmtSize(f.size)}` : '';
+      const user = f.uploadedBy ? ` · ${escapeHtml(f.uploadedBy)}` : '';
+      const time = f.uploadedAt ? fmtTime(f.uploadedAt) : '';
+      return `
+        <div class="ig-item">
+          <i class="ig-item-icon fas ${iconFor(f.name)}"></i>
+          <div class="ig-item-main">
+            <div class="ig-item-name">${escapeHtml(f.displayName || f.name)}</div>
+            <div class="ig-item-meta">${time}${user}${size}</div>
+          </div>
+          <div class="ig-item-actions">
+            <a class="ig-btn" href="${escapeHtml(f.url)}" target="_blank" rel="noopener">
+              <i class="fas fa-eye"></i> 開啟
+            </a>
+            <a class="ig-btn" href="${escapeHtml(f.url)}" download>
+              <i class="fas fa-download"></i> 下載
+            </a>
+          </div>
+        </div>
+      `;
+    }
+
+    function bindItemActions(el) {
+      // 现在的实现不需要额外绑定,链接自带行为
+    }
+
+    async function loadFiles() {
+      listEl.innerHTML = '<div class="ig-empty"><i class="fas fa-spinner fa-spin"></i> 載入中…</div>';
+      try {
+        const res = await apiCall('/api/igemreport', 'GET');
+        if (!res || !res.success) throw new Error(res?.message || 'load failed');
+        const files = res.files || [];
+        if (!files.length) {
+          listEl.innerHTML = '<div class="ig-empty"><i class="fas fa-inbox" style="font-size:2rem;display:block;margin-bottom:8px;opacity:.4"></i>還沒有任何檔案</div>';
+          countEl.textContent = '';
+          return;
+        }
+        listEl.innerHTML = files.map(renderItem).join('');
+        countEl.textContent = `(${files.length})`;
+      } catch (err) {
+        listEl.innerHTML = `<div class="ig-empty" style="color:var(--danger)">載入失敗：${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    // ═══ 交互 ═══
+    dropEl.addEventListener('click', () => fileEl.click());
+    fileEl.addEventListener('change', () => {
+      const files = Array.from(fileEl.files || []);
+      fileEl.value = '';
+      if (files.length) uploadFiles(files);
+    });
+
+    dropEl.addEventListener('dragover', e => { e.preventDefault(); dropEl.classList.add('dragover'); });
+    dropEl.addEventListener('dragleave', () => dropEl.classList.remove('dragover'));
+    dropEl.addEventListener('drop', e => {
+      e.preventDefault(); dropEl.classList.remove('dragover');
+      const files = Array.from(e.dataTransfer?.files || []);
+      if (files.length) uploadFiles(files);
+    });
+
+    // 粘贴（textarea + 全局）
+    function extractFilesFromClipboard(cd) {
+      if (!cd) return [];
+      const out = [];
+      for (let i = 0; i < cd.items.length; i++) {
+        const it = cd.items[i];
+        if (it.kind === 'file') {
+          const f = it.getAsFile();
+          if (f) out.push(f);
+        }
+      }
+      return out;
+    }
+
+    async function handlePaste(e) {
+      const files = extractFilesFromClipboard(e.clipboardData);
+      if (!files.length) return;      // 剪贴板无文件 → 不拦截（允许文本粘贴）
+      e.preventDefault();
+      await uploadFiles(files);
+    }
+    pasteEl.addEventListener('paste', handlePaste);
+    document.addEventListener('paste', e => {
+      if (e.target === pasteEl) return;
+      // 忽略输入框里的粘贴（比如管理员在搜索框粘贴）
+      const tag = (e.target.tagName || '').toUpperCase();
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      handlePaste(e);
+    });
+
+    refreshEl.addEventListener('click', loadFiles);
+
+    // ═══ 初始化 ═══
+    const currentUser = getCurrentUser();
+    loadFiles();
+  </script>
+</body>
+</html>
