@@ -161,10 +161,12 @@ async function findUserActiveContests(db, username, now) {
 async function finishSubmit(db, username, result, context = {}) {
   try {
     if (/^\d+$/.test(username)) return result;
-    const { updateStreak, checkAchievements } = await import('../lib/achievements.js');
+
+    const { updateStreak, checkAchievements, expandAchievementInfo } =
+      await import('../lib/achievements.js');
+
     await updateStreak(db, username);
 
-    // ⭐ 若给了 problemId 但没给 problemSubmitCount，自动补
     if (context.justAC && context.problemId && context.problemSubmitCount === undefined) {
       context.problemSubmitCount = await db.collection('submissions').countDocuments({
         username,
@@ -172,8 +174,12 @@ async function finishSubmit(db, username, result, context = {}) {
       });
     }
 
-    const unlocked = await checkAchievements(db, username, { trigger: 'submit', ...context });
-    if (unlocked.length) result.unlockedAchievements = unlocked;
+    const unlockedIds = await checkAchievements(db, username, { trigger: 'submit', ...context });
+
+    // ⭐ 展开成完整对象返回给前端
+    if (unlockedIds.length) {
+      result.unlockedAchievements = expandAchievementInfo(unlockedIds);
+    }
   } catch (e) {
     console.error('[achievements]', e);
   }

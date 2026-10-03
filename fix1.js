@@ -10,7 +10,8 @@ const ROOT = __dirname;
 const WRITE = process.argv.includes('--write');
 
 // 要注入的標籤
-const INJECT = `  <!-- ⭐ PWA（必須靜態寫入 <head>，不能靠 JS 動態注入） -->
+const INJECT = `  <!-- ⭐ PWA（必須靜態寫入 <head>
+<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/arch-render.js"></script>，不能靠 JS 動態注入） -->
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#1a1a2e">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">

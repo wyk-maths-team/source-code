@@ -1424,6 +1424,7 @@ function bindSubmitEvent() {
         }
         updateProblemDetailIcon(problemId, currentProblemName);
       }
+      if (r.unlockedAchievements) showAchievementToasts(r.unlockedAchievements);
     } catch (err) {
       console.error('[submit] failed:', err);
       spinner.style.display = 'none';
