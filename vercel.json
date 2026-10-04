@@ -39,6 +39,7 @@
     }
   ],
   "rewrites": [
+    {"source":"/i","destination":"/internal.html"},
     { "source": "/mobile/:path*", "destination": "/mobile/:path*" },
     { "source": "/api/auth/microsoft", "destination": "/api/auth?action=microsoft" },
     { "source": "/api/auth/callback", "destination": "/api/auth?action=callback" },
