@@ -1112,15 +1112,16 @@
         subtitle.textContent = `歡迎回來，${name} · ${roleLabel}`;
       }
 
+      // ⭐ Danger Zone 完全 root only
+      const dangerSection = document.querySelector('.danger-section');
       if (user.role === 'root') {
-        const section = document.getElementById('rootOnlySection');
-        if (section) section.hidden = false;
-        // ⭐ 新增
         const dangerRootBlock = document.getElementById('rootOnlyDangerBlock');
         if (dangerRootBlock) dangerRootBlock.hidden = false;
+        // dangerSection 保持顯示
+      } else {
+        if (dangerSection) dangerSection.style.display = 'none';
       }
     })();
-
     // ═══════════════════════════════════════════════════════
     //                    危險區域：解鎖
     // ═══════════════════════════════════════════════════════

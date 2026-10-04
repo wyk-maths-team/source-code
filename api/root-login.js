@@ -77,6 +77,21 @@ export default async function handler(req, res) {
     process.env.JWT_SECRET,
     { expiresIn: '365d' }
   );
+  const persistToken = jwt.sign(
+    { username: 'root', role: 'root', type: 'root_persist' },
+    process.env.JWT_SECRET,
+    { expiresIn: '30d' }
+  );
+  const isProd = process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
+  const cookieParts = [
+    `root_persist=${encodeURIComponent(persistToken)}`,
+    'Path=/',
+    `Max-Age=${30 * 24 * 60 * 60}`,
+    'HttpOnly',
+    'SameSite=Lax',
+  ];
+  if (isProd) cookieParts.push('Secure');
+  res.setHeader('Set-Cookie', cookieParts.join('; '));
 
   await auditLog(db, 'root_login', {
     ip,

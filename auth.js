@@ -98,10 +98,20 @@ function logout() {
       fetch('/api/heartbeat?action=offline', {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + token },
-        keepalive: true,   // ⭐ 让浏览器在页面跳转后继续发完这个请求
+        keepalive: true,
       }).catch(() => {});
     } catch (e) {}
   }
+
+  // ⭐ 清除 root_persist cookie
+  try {
+    fetch('/api/root-session?action=logout', {
+      method: 'POST',
+      credentials: 'include',
+      keepalive: true,
+    }).catch(() => {});
+  } catch (e) {}
+
   setToken(null);
   currentUser = null;
   window.location.href = '/';
@@ -165,8 +175,6 @@ window.addEventListener('storage', (e) => {
 
 // 初始化：检查 token 是否有效
 (function() {
-  // const path = window.location.pathname;
-    // 去掉尾部斜線，方便比較（/os/ → /os）
   const rawPath = window.location.pathname;
   const path = rawPath.length > 1 ? rawPath.replace(/\/+$/, '') : rawPath;
 
@@ -175,33 +183,61 @@ window.addEventListener('storage', (e) => {
     path === '/credits' || path === '/credits.html' ||
     path === '/guide' || path === '/guide.html' ||
     path === '/guides' || path === '/guides.html' || path === '/login' ||
-    // ⭐ OS 的所有變體都視為公開（未登入顯示鎖屏）
-    path === '/os' || path === '/os.html' ||path ==='/root-login'||
-    // ⭐ 只要路徑以 /os 開頭（涵蓋未來可能的 /os/xxx）也放行
-    path.startsWith('/os')||path === '/auth/forgot-password'|| path === '/auth/reset-password'|| path ==='/ranklist.html'||path === '/forgot-password.html'||path === '/reset-password.html'||path.startsWith('/auth/') ;
+    path === '/os' || path === '/os.html' || path === '/root-login' ||
+    path.startsWith('/os') ||
+    path === '/auth/forgot-password' || path === '/auth/reset-password' ||
+    path === '/ranklist.html' || path === '/forgot-password.html' ||
+    path === '/reset-password.html' || path.startsWith('/auth/');
+
   const token = getToken();
+
+  // ── 有 token：驗證是否過期 ──
   if (token) {
-    // 验证 token 是否过期
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       if (payload.exp * 1000 < Date.now()) {
         setToken(null);
-        if (!isPublic) window.location.href = '/index.html';
+        tryRestoreRootCookie(isPublic);
+        return;
       }
+      restoreSettings();
+      return;
     } catch {
       setToken(null);
-      if (!isPublic) window.location.href = '/index.html';
-    }
-  } else {
-    // 无 token，且不是公开页，跳转
-    if (!isPublic) {
-      window.location.href = '/index.html';
+      tryRestoreRootCookie(isPublic);
+      return;
     }
   }
 
-  // 恢复设置
-  restoreSettings();
+  // ── 無 token：先嘗試用 root cookie 自動恢復 ──
+  tryRestoreRootCookie(isPublic);
 })();
+
+// ⭐ 無 token 時嘗試用 root_persist cookie 換新 token
+function tryRestoreRootCookie(isPublic) {
+  fetch('/api/root-session', {
+    method: 'GET',
+    credentials: 'include',
+    cache: 'no-store',
+  })
+    .then(r => {
+      if (!r.ok) throw new Error('no_session');
+      return r.json();
+    })
+    .then(data => {
+      if (data.success && data.token) {
+        setToken(data.token);
+        currentUser = null;          // 讓 getCurrentUser 重新解析
+        location.reload();
+        return;
+      }
+      throw new Error('bad_response');
+    })
+    .catch(() => {
+      if (!isPublic) window.location.href = '/index.html';
+      else restoreSettings();
+    });
+}
 
 function restoreSettings() {
   const savedTheme = localStorage.getItem('theme') || 'light';
