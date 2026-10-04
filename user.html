@@ -126,6 +126,13 @@
     .profile-meta .btn-link.purple {
       background: #7d5bb0;
     }
+    .profile-meta .btn-link.purple.offline {
+      background: #8a7a9a;   /* 灰紫，視覺上弱一點但不至於像 disabled */
+      opacity: 0.75;
+    }
+    .profile-meta .btn-link.purple.offline:hover {
+      opacity: 1;
+    }
     .profile-stats {
       display: flex;
       gap: 1.2rem;
@@ -848,8 +855,16 @@ function fmtRelative(ts) {
         refresh();
         const pkBtn = document.getElementById('pkInviteBtn');
         const myName = (getCurrentUser() || {}).username;
-        if (pkBtn && data.online && data.username !== myName) {
-          pkBtn.style.display = '';
+
+        if (pkBtn && data.username !== myName) {
+          // ⭐ 离线时按钮加个提示样式（但仍然可点）
+          if (!data.online) {
+            pkBtn.title = 'Opponent is offline — invite will still be sent';
+            pkBtn.classList.add('offline');
+          } else {
+            pkBtn.title = 'Invite to PK';
+          }
+
           pkBtn.addEventListener('click', async () => {
             pkBtn.disabled = true;
             const oldHtml = pkBtn.innerHTML;
@@ -857,10 +872,12 @@ function fmtRelative(ts) {
             try {
               const res = await apiCall('/api/pk?action=invite', 'POST', { to: data.username });
               if (res.success) {
-                // window.location.href = `/pk/waiting?invite=${encodeURIComponent(res.invite.id)}`;
                 if (typeof showPKInviteShare === 'function') {
                   showPKInviteShare(res.invite);
                 }
+                // 分享卡片彈出後，按鈕可以復原（用戶可能想再分享一次）
+                pkBtn.disabled = false;
+                pkBtn.innerHTML = oldHtml;
               } else {
                 alert(res.message || 'Failed');
                 pkBtn.disabled = false;
@@ -873,7 +890,7 @@ function fmtRelative(ts) {
             }
           });
         }
-                // ⭐ 异步加载成就
+                
         (async () => {
           const achContainer = document.getElementById('achievementsContainer');
           if (!achContainer) return;

@@ -47,7 +47,10 @@
   }
 
   // ── 主入口
-  window.showPKInviteShare = function (invite) {
+  // 用法：showPKInviteShare(invite, { opponentOnline: true/false })
+  window.showPKInviteShare = function (invite, opts) {
+    opts = opts || {};
+
     if (!invite || !invite.id) {
       console.warn('[share-invite] invalid invite');
       return;
@@ -55,6 +58,7 @@
 
     const shareUrl = `${location.origin}/pk/invite?id=${encodeURIComponent(invite.id)}`;
     const toName   = invite.toDisplay || invite.to || 'your opponent';
+    const opponentOnline = opts.opponentOnline !== false;   // 預設視為在線
 
     // 移除舊彈窗
     const old = document.getElementById('pk-share-overlay');
@@ -159,19 +163,27 @@
         #pk-share-overlay .pk-share-hint {
           font-size: .78rem; color: var(--text-secondary, #888);
           line-height: 1.5;
-        }
-        #pk-share-overlay .pk-share-hint strong {
-          color: var(--accent, #4a90d9);
-        }
-                  #pk-share-overlay .pk-share-hint {
-          font-size: .78rem; color: var(--text-secondary, #888);
-          line-height: 1.5;
           margin-bottom: 18px;
         }
         #pk-share-overlay .pk-share-hint strong {
           color: var(--accent, #4a90d9);
         }
-        /* ⭐ 新增：Go to waiting room */
+        /* ⭐ 離線提示 */
+        #pk-share-overlay .pk-share-offline {
+          display: none;
+          align-items: center; gap: 8px;
+          padding: 8px 12px;
+          background: rgba(240,173,78,.12);
+          border: 1px solid rgba(240,173,78,.35);
+          border-radius: 8px;
+          font-size: .78rem;
+          color: #b37700;
+          margin-bottom: 14px;
+          text-align: left;
+        }
+        #pk-share-overlay .pk-share-offline.show { display: flex; }
+        #pk-share-overlay .pk-share-offline i { flex-shrink: 0; }
+        /* ⭐ Go to waiting room */
         #pk-share-overlay .pk-share-wait {
           display: inline-flex; align-items: center; gap: 8px;
           padding: 10px 22px;
@@ -216,6 +228,10 @@
         <div class="pk-share-hint">
           Or let them scan the QR code — expires in <strong>10 minutes</strong>
         </div>
+        <div class="pk-share-offline" id="pkShareOffline">
+          <i class="fas fa-circle-info"></i>
+          <span>Opponent is currently offline — they'll see this when they next log in</span>
+        </div>
         <button type="button" class="pk-share-wait" id="pkShareWait">
           <i class="fas fa-hourglass-half"></i> Go to waiting room
         </button>
@@ -223,9 +239,14 @@
     `;
     document.body.appendChild(overlay);
 
+    // ⭐ 離線提示（在線時不顯示）
+    if (!opponentOnline) {
+      overlay.querySelector('#pkShareOffline').classList.add('show');
+    }
+
     // ── 事件綁定
-    const closeBtn = overlay.querySelector('.pk-share-close');
-    const copyBtn  = overlay.querySelector('#pkShareCopy');
+    const closeBtn  = overlay.querySelector('.pk-share-close');
+    const copyBtn   = overlay.querySelector('#pkShareCopy');
     const linkInput = overlay.querySelector('#pkShareLink');
 
     function close() { overlay.remove(); }
@@ -259,20 +280,18 @@
         alert('Copy failed — please select and copy manually.');
       }
     });
-        overlay.querySelector('#pkShareWait').addEventListener('click', () => {
+
+    overlay.querySelector('#pkShareWait').addEventListener('click', () => {
       window.location.href = `/pk/waiting?invite=${encodeURIComponent(invite.id)}`;
     });
 
     // ── 非同步生成 QR
-        // ── 非同步生成 QR
     const qrEl = overlay.querySelector('#pkShareQr');
     loadQRLib()
       .then((qrcode) => {
         const qr = qrcode(0, 'M');   // 0 = 自動選型，M = 中等容錯
         qr.addData(shareUrl);
         qr.make();
-        // createDataURL(cellSize, margin)
-        // cellSize=6 → 約 400px 見方；margin=12 → 白邊 2 cell
         const dataUrl = qr.createDataURL(6, 12);
         qrEl.innerHTML = `<img src="${dataUrl}" alt="QR code" />`;
       })
