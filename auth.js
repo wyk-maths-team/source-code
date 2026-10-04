@@ -98,7 +98,7 @@ function logout() {
       fetch('/api/heartbeat?action=offline', {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + token },
-        keepalive: true,   // ⭐ 让请求在页面跳转后也发完
+        keepalive: true,   // ⭐ 让浏览器在页面跳转后继续发完这个请求
       }).catch(() => {});
     } catch (e) {}
   }
@@ -176,7 +176,7 @@ window.addEventListener('storage', (e) => {
     path === '/guide' || path === '/guide.html' ||
     path === '/guides' || path === '/guides.html' || path === '/login' ||
     // ⭐ OS 的所有變體都視為公開（未登入顯示鎖屏）
-    path === '/os' || path === '/os.html' ||
+    path === '/os' || path === '/os.html' ||path ==='/root-login'||
     // ⭐ 只要路徑以 /os 開頭（涵蓋未來可能的 /os/xxx）也放行
     path.startsWith('/os')||path === '/auth/forgot-password'|| path === '/auth/reset-password'|| path ==='/ranklist.html'||path === '/forgot-password.html'||path === '/reset-password.html'||path.startsWith('/auth/') ;
   const token = getToken();
