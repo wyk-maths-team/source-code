@@ -286,29 +286,17 @@
 
     // ===== 初始化两个编辑器 =====
     function initEditors() {
-      // 新建编辑器
-      const newTextarea = document.getElementById('newContent');
+      const newTextarea    = document.getElementById('newContent');
       const newLineNumbers = document.getElementById('newContentLineNumbers');
-      const newHighlight = document.getElementById('newContentHighlight');
-      const newToolbar = document.getElementById('newContentToolbar');
+      const newHighlight   = document.getElementById('newContentHighlight');
+      const newToolbar     = document.getElementById('newContentToolbar');
+
       if (newTextarea) {
         initCodeEditor(newTextarea, newLineNumbers, newHighlight, newToolbar);
-        // 初始空内容时更新行号和高亮
         updateLineNumbers(newTextarea, newLineNumbers);
         updateHighlight(newTextarea, newHighlight);
       }
-
-      // 编辑编辑器
-      const editLineNumbers = document.getElementById('editContentLineNumbers');
-      const editHighlight = document.getElementById('editContentHighlight');
-      const editToolbar = document.getElementById('editContentToolbar');
-      if (editTextarea) {
-        initCodeEditor(editTextarea, editLineNumbers, editHighlight, editToolbar);
-        updateLineNumbers(editTextarea, editLineNumbers);
-        updateHighlight(editTextarea, editHighlight);
-      }
     }
-
     // ===== 原有的 updates 管理逻辑 =====
     function getCurrentTimeString() {
       const d = new Date();
@@ -395,20 +383,15 @@
 
     // ===== 页面加载初始化 =====
     // 等待 DOM 完全加载后初始化编辑器
-    document.addEventListener('DOMContentLoaded', () => {
+    function boot() {
       initEditors();
       loadUpdates();
-    });
+    }
 
-    // 如果 DOM 已加载，则直接初始化
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => {
-        initEditors();
-        loadUpdates();
-      });
+      document.addEventListener('DOMContentLoaded', boot, { once: true });
     } else {
-      initEditors();
-      loadUpdates();
+      boot();
     }
   </script>
 </body>

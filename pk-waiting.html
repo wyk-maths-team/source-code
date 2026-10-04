@@ -67,7 +67,7 @@
           <div class="pk-wait-icon"><i class="fas fa-hourglass-half"></i></div>
           <div class="pk-wait-title">Waiting for confirmation</div>
           <div class="pk-wait-sub" id="pkWaitSub">Invitation sent</div>
-          <div class="pk-wait-count" id="pkWaitCount">2:00</div>
+          <div class="pk-wait-count" id="pkWaitCount">10:00</div>
           <div class="pk-wait-bar"><div class="pk-wait-bar-fill" id="pkWaitBar" style="width:0%"></div></div>
           <button class="pk-cancel-btn" id="pkCancelBtn">
             <i class="fas fa-times"></i> Cancel
@@ -88,6 +88,12 @@
     const params = new URLSearchParams(location.search);
     const inviteId = params.get('invite');
         // ⭐ 拉邀请里的 toDisplay 显示对方名字
+    
+    if (!inviteId) {
+      document.getElementById('mainContent').innerHTML =
+        '<div style="text-align:center;padding:60px;color:var(--danger)">Invalid</div>';
+      throw new Error('No inviteId');
+    }
     (async () => {
       try {
         const data = await apiCall(`/api/pk?action=invite-status&inviteId=${encodeURIComponent(inviteId)}`);
@@ -97,42 +103,41 @@
         }
       } catch {}
     })();
-    if (!inviteId) {
-      document.getElementById('mainContent').innerHTML =
-        '<div style="text-align:center;padding:60px;color:var(--danger)">Invalid</div>';
-      throw new Error('No inviteId');
-    }
-
-    const countEl = document.getElementById('pkWaitCount');
-    const barEl   = document.getElementById('pkWaitBar');
-    const subEl   = document.getElementById('pkWaitSub');
+        const countEl  = document.getElementById('pkWaitCount');
+    const barEl    = document.getElementById('pkWaitBar');
+    const subEl    = document.getElementById('pkWaitSub');
     const cancelBtn = document.getElementById('pkCancelBtn');
 
-    const TOTAL_MS = 120_000;
-    let startAt = null;          // ⭐ 等拿到服务端时间再算
+    let expiresAt = null;      // ⭐ 由服務端提供
+    let createdAt = null;      // ⭐ 用來算進度條
     let ended = false;
 
     function tick() {
       if (ended) return;
-      if (startAt === null) {
-        // 还没拿到服务端时间 → 显示 "2:00" 占位
-        countEl.textContent = '2:00';
+      if (expiresAt === null) {
+        countEl.textContent = '10:00';   // 佔位，等 poll 拿到真實值
         return;
       }
-      const elapsed = Date.now() - startAt;
-      const remaining = Math.max(0, TOTAL_MS - elapsed);
+      const remaining = Math.max(0, expiresAt - Date.now());
       const sec = Math.ceil(remaining / 1000);
       const m = Math.floor(sec / 60);
       const s = sec % 60;
       countEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
-      barEl.style.width = Math.min(100, (elapsed / TOTAL_MS) * 100) + '%';
+
+      if (createdAt !== null) {
+        const total   = expiresAt - createdAt;
+        const elapsed = Date.now() - createdAt;
+        barEl.style.width = Math.min(100, (elapsed / total) * 100) + '%';
+      }
+
       if (remaining <= 0) {
         ended = true;
         countEl.textContent = '0:00';
-        subEl.textContent = '对方未响应，邀请已过期';
-        cancelBtn.innerHTML = '返回';
+        subEl.textContent = 'Expired';
+        cancelBtn.innerHTML = 'Back';
       }
     }
+
     async function poll() {
       if (ended) return;
       try {
@@ -140,27 +145,30 @@
         if (!data.success) return;
         const inv = data.invite;
 
-        // ⭐ 首次拿到 createdAt → 初始化 startAt
-        if (startAt === null && inv.createdAt) {
-          startAt = new Date(inv.createdAt).getTime();
+        // ⭐ 首次拿到時間戳
+        if (expiresAt === null && inv.expiresAt) {
+          expiresAt = new Date(inv.expiresAt).getTime();
+        }
+        if (createdAt === null && inv.createdAt) {
+          createdAt = new Date(inv.createdAt).getTime();
         }
 
         if (inv.status === 'accepted' && inv.roomId) {
           ended = true;
-          subEl.textContent = '对方已接受，正在进入房间…';
+          subEl.textContent = 'Accepted';
           setTimeout(() => {
             window.location.href = `/pk/room?id=${encodeURIComponent(inv.roomId)}`;
           }, 400);
         } else if (inv.status === 'declined') {
           ended = true;
-          subEl.textContent = '对方拒绝了邀请';
+          subEl.textContent = 'Rejected';
           countEl.textContent = '—';
-          cancelBtn.innerHTML = '返回';
+          cancelBtn.innerHTML = 'Back';
         } else if (inv.status === 'expired') {
           ended = true;
-          subEl.textContent = '邀请已过期';
+          subEl.textContent = 'Expired';
           countEl.textContent = '0:00';
-          cancelBtn.innerHTML = '返回';
+          cancelBtn.innerHTML = 'Back';
         }
       } catch {}
     }

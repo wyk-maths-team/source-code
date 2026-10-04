@@ -120,6 +120,7 @@
     { "source": "/pk/room",    "destination": "/pk-room.html" },
     { "source": "/pk/waiting", "destination": "/pk-waiting.html" },
     { "source": "/pk/room",    "destination": "/pk-room.html" },
+    { "source": "/pk/invite", "destination": "/pk-invite.html" },
     { "source": "/admin/pkproblems",        "destination": "/admin/pkproblems.html" },
     { "source": "/admin/pkproblems/:id", "destination": "/admin/editpkproblem.html" },
     

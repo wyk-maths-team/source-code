@@ -30,6 +30,7 @@
   document.documentElement.style.background = (t === 'dark' ? '#0d1117' : '#0f3460');
 }catch(e){}})();</script>
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pageload.js" defer></script>
+<script src="/script/share-invite.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>User Profile - WYK Maths Team</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -856,7 +857,10 @@ function fmtRelative(ts) {
             try {
               const res = await apiCall('/api/pk?action=invite', 'POST', { to: data.username });
               if (res.success) {
-                window.location.href = `/pk/waiting?invite=${encodeURIComponent(res.invite.id)}`;
+                // window.location.href = `/pk/waiting?invite=${encodeURIComponent(res.invite.id)}`;
+                if (typeof showPKInviteShare === 'function') {
+                  showPKInviteShare(res.invite);
+                }
               } else {
                 alert(res.message || 'Failed');
                 pkBtn.disabled = false;

@@ -6,7 +6,7 @@ import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';
 import crypto from 'crypto';
 
-const INVITE_TTL_MS = 2 * 60 * 1000;   // 2 分钟
+const INVITE_TTL_MS = 10 * 60 * 1000;   // 2 分钟
 // ⭐ PK 房间锁与冷却
 const PK_LOCK_TTL_MS     = 4 * 60 * 1000;   // 4 分钟看题上限
 const PK_COOLDOWN_MS     = 1 * 60 * 1000;   // 答错后自己冷却 1 分钟
