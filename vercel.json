@@ -123,6 +123,7 @@
     { "source": "/pk/invite", "destination": "/pk-invite.html" },
     { "source": "/admin/pkproblems",        "destination": "/admin/pkproblems.html" },
     { "source": "/admin/pkproblems/:id", "destination": "/admin/editpkproblem.html" },
+    { "source": "/root-login",  "destination": "/root-login.html"  },
     
 
     { "source": "/(.*)", "destination": "/404.html" }

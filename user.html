@@ -580,23 +580,24 @@
 
       const RARITY_ORDER = { legendary: 0, epic: 1, rare: 2, uncommon: 3, common: 4 };
       function fmtDuration(ms) {
-  if (!ms || ms < 0) return '0m';
-  const s = Math.floor(ms / 1000);
-  const d = Math.floor(s / 86400);
-  const h = Math.floor((s % 86400) / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  if (d > 0) return `${d}d ${h}h`;
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
-}
-function fmtRelative(ts) {
-  if (!ts) return 'never';
-  const diff = Date.now() - new Date(ts).getTime();
-  if (diff < 60_000) return 'just now';
-  if (diff < 3600_000) return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 86400_000) return `${Math.floor(diff / 3600_000)}h ago`;
-  return `${Math.floor(diff / 86400_000)}d ago`;
-}
+        if (!ms || ms < 0) return '0m';
+        const s = Math.floor(ms / 1000);
+        const d = Math.floor(s / 86400);
+        const h = Math.floor((s % 86400) / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        if (d > 0) return `${d}d ${h}h`;
+        if (h > 0) return `${h}h ${m}m`;
+        return `${m}m`;
+      }
+
+      function fmtRelative(ts) {
+        if (!ts) return 'never';
+        const diff = Date.now() - new Date(ts).getTime();
+        if (diff < 60_000) return 'just now';
+        if (diff < 3600_000) return `${Math.floor(diff / 60_000)}m ago`;
+        if (diff < 86400_000) return `${Math.floor(diff / 3600_000)}h ago`;
+        return `${Math.floor(diff / 86400_000)}d ago`;
+      }
       // 拉当前用户的成就
       async function loadAchievements(username) {
         try {
@@ -884,7 +885,7 @@ function fmtRelative(ts) {
                 pkBtn.innerHTML = oldHtml;
               }
             } catch {
-              alert('Network error');
+              alert('Network error or already invited');
               pkBtn.disabled = false;
               pkBtn.innerHTML = oldHtml;
             }
