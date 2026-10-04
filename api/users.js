@@ -588,9 +588,11 @@ export default async function handler(req, res) {
       }
 
       const HEARTBEAT_MS = Number(process.env.ONLINE_HEARTBEAT_MS) || 5 * 60 * 1000;
+      const TIMEOUT_MS   = Number(process.env.ONLINE_TIMEOUT_MS)   || HEARTBEAT_MS + 2 * 60 * 1000;
 const heartbeats = Number(user?.heartbeatCount) || 0;
 const totalOnlineMs = heartbeats * HEARTBEAT_MS;
-
+const lastSeenMs   = user?.lastSeenAt ? new Date(user.lastSeenAt).getTime() : 0;
+const online = lastSeenMs > 0 && (Date.now() - lastSeenMs) < TIMEOUT_MS;
 return res.status(200).json({
   success: true,
   username,
@@ -601,6 +603,7 @@ return res.status(200).json({
   totalProblems: problems.length,
   attempted,
   allProblemIds: problems.map(p => p.id),
+  online,
   // ⭐ 新增
   totalOnlineMs,
   lastSeenAt: user?.lastSeenAt || null,

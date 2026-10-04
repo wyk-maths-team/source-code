@@ -501,7 +501,7 @@
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/heartbeat.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
 <script src="/script/heartbeat.js"></script>
-
+<script src="/script/pk-invite.js"></script>
     <script>
     (function() {
       if (typeof isLoggedIn === 'function' && !isLoggedIn()) {
@@ -745,11 +745,11 @@ function fmtRelative(ts) {
       }
 
       function renderProfile(data) {
-        const {
-  username, displayName, realName, totalPassed, totalProblems,
-  attempted, allProblemIds, pfp,
-  totalOnlineMs, lastSeenAt
-} = data;
+                const {
+          username, displayName, realName, totalPassed, totalProblems,
+          attempted, allProblemIds, pfp,
+          totalOnlineMs, lastSeenAt
+        } = data;
 
         const currentUser = getCurrentUser() || {};
         const isAdmin = currentUser.role === 'admin' || currentUser.role === 'root';
@@ -785,6 +785,9 @@ function fmtRelative(ts) {
                 <div class="profile-meta">
                   <span class="meta-badge">Username: ${escapeHtml(username)}</span>
                   <a href="/submissions/user/${encodeURIComponent(username)}" class="btn-link">Submissions</a>
+                  <button class="btn-link purple" id="pkInviteBtn" style="display:none;">
+                    <i class="fas fa-swords"></i>Invite
+                  </button>
                 </div>
                 <div class="profile-stats">
                   <span>Solved: <span class="passed">${totalPassed}</span> / ${totalProblems}</span>
@@ -842,6 +845,30 @@ function fmtRelative(ts) {
           refresh();
         });
         refresh();
+        const pkBtn = document.getElementById('pkInviteBtn');
+        const myName = (getCurrentUser() || {}).username;
+        if (pkBtn && data.online && data.username !== myName) {
+          pkBtn.style.display = '';
+          pkBtn.addEventListener('click', async () => {
+            pkBtn.disabled = true;
+            const oldHtml = pkBtn.innerHTML;
+            pkBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
+            try {
+              const res = await apiCall('/api/pk?action=invite', 'POST', { to: data.username });
+              if (res.success) {
+                window.location.href = `/pk/waiting?invite=${encodeURIComponent(res.invite.id)}`;
+              } else {
+                alert(res.message || 'Failed');
+                pkBtn.disabled = false;
+                pkBtn.innerHTML = oldHtml;
+              }
+            } catch {
+              alert('Network error');
+              pkBtn.disabled = false;
+              pkBtn.innerHTML = oldHtml;
+            }
+          });
+        }
                 // ⭐ 异步加载成就
         (async () => {
           const achContainer = document.getElementById('achievementsContainer');

@@ -116,6 +116,12 @@
     { "source": "/os", "destination": "/mobile/index.html" },
     { "source": "/ac", "destination": "/zz.html" },
     { "source": "/fac", "destination": "/zzz.html" },
+    { "source": "/pk/waiting", "destination": "/pk-waiting.html" },
+    { "source": "/pk/room",    "destination": "/pk-room.html" },
+    { "source": "/pk/waiting", "destination": "/pk-waiting.html" },
+    { "source": "/pk/room",    "destination": "/pk-room.html" },
+    { "source": "/admin/pkproblems",        "destination": "/admin/pkproblems.html" },
+    { "source": "/admin/pkproblems/:id", "destination": "/admin/editpkproblem.html" },
     
 
     { "source": "/(.*)", "destination": "/404.html" }

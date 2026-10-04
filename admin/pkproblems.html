@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PK Problems - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<style>
+  .pkp-wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  .pkp-card {
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-radius: 12px; padding: 20px;
+  }
+  .pkp-head {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 12px; flex-wrap: wrap; margin-bottom: 16px;
+  }
+  .pkp-head h1 {
+    margin: 0; font-size: 1.35rem;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .pkp-search {
+    display: flex; gap: 8px; flex: 1; max-width: 320px;
+  }
+  .pkp-search input {
+    flex: 1; padding: 8px 12px;
+    border: 1px solid var(--border-color); border-radius: 6px;
+    background: var(--card-bg); color: var(--text-primary);
+    font-family: inherit; font-size: .9rem;
+  }
+  .pkp-search input:focus { outline: none; border-color: var(--accent); }
+  .pkp-table {
+    width: 100%; border-collapse: collapse;
+    font-size: .88rem;
+  }
+  .pkp-table th, .pkp-table td {
+    padding: 8px 10px; border-bottom: 1px solid var(--border-color);
+    text-align: left;
+  }
+  .pkp-table th {
+    background: rgba(0,0,0,.03);
+    font-weight: 700; font-size: .78rem;
+    text-transform: uppercase; letter-spacing: .5px;
+    color: var(--text-secondary);
+  }
+  [data-theme="dark"] .pkp-table th { background: rgba(255,255,255,.03); }
+  .pkp-table tr:hover td { background: rgba(74,144,217,.05); }
+  .pkp-id {
+    font-family: 'Consolas', monospace;
+    font-weight: 700; color: var(--accent);
+  }
+  .pkp-stmt {
+    max-width: 480px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: var(--text-secondary); font-size: .82rem;
+  }
+  .pkp-ans {
+    font-family: 'Consolas', monospace;
+    font-weight: 700;
+    color: #2e7d32;
+  }
+  [data-theme="dark"] .pkp-ans { color: #8fdf8f; }
+  .pkp-edit {
+    padding: 4px 12px;
+    background: var(--accent); color: #fff;
+    border-radius: 5px; text-decoration: none;
+    font-weight: 600; font-size: .8rem;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .pkp-edit:hover { filter: brightness(1.1); }
+  .pkp-loading { text-align: center; padding: 40px; color: var(--text-secondary); }
+  .pkp-empty { text-align: center; padding: 40px; color: var(--text-secondary); font-style: italic; }
+</style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="pkp-wrap">
+        <div class="pkp-card">
+          <div class="pkp-head">
+            <h1>
+              <i class="fas fa-swords" style="color:var(--accent)"></i>
+              PK Problems
+              <span id="pkpCount" style="font-size:.82rem;color:var(--text-secondary);font-weight:400;"></span>
+            </h1>
+            <div class="pkp-search">
+              <input type="text" id="pkpSearch" placeholder="Search by ID or statement…" />
+              <button class="btn btn-primary" id="pkpSearchBtn" style="padding:6px 14px;">
+                <i class="fas fa-search"></i>
+              </button>
+            </div>
+          </div>
+
+          <div id="pkpBody">
+            <div class="pkp-loading"><i class="fas fa-spinner fa-spin"></i> Loading…</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+    const me = getCurrentUser();
+    if (!isLoggedIn() || (me?.role !== 'admin' && me?.role !== 'root')) {
+      window.location.href = '/index.html';
+      throw new Error('Forbidden');
+    }
+
+    const bodyEl = document.getElementById('pkpBody');
+    const countEl = document.getElementById('pkpCount');
+    const searchEl = document.getElementById('pkpSearch');
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+    }
+    function stripHtml(html) {
+      const d = document.createElement('div');
+      d.innerHTML = html;
+      return (d.textContent || '').trim();
+    }
+
+    async function load(q) {
+      bodyEl.innerHTML = '<div class="pkp-loading"><i class="fas fa-spinner fa-spin"></i> Loading…</div>';
+      try {
+        const url = `/api/admin-pkproblem?action=list` + (q ? `&q=${encodeURIComponent(q)}` : '');
+        const data = await apiCall(url);
+        if (!data.success) throw new Error(data.message);
+
+        const items = data.items || [];
+        countEl.textContent = `(${data.total})`;
+
+        if (!items.length) {
+          bodyEl.innerHTML = '<div class="pkp-empty">No problems found</div>';
+          return;
+        }
+
+        bodyEl.innerHTML = `
+          <table class="pkp-table">
+            <thead>
+              <tr>
+                <th style="width:110px;">ID</th>
+                <th>Statement</th>
+                <th style="width:70px;">Ans</th>
+                <th style="width:90px;">Choices</th>
+                <th style="width:90px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map(p => `
+                <tr>
+                  <td class="pkp-id">${esc(p.id)}</td>
+                  <td class="pkp-stmt" title="${esc(stripHtml(p.statement))}">${esc(stripHtml(p.statement))}</td>
+                  <td class="pkp-ans">${esc(p.ans)}</td>
+                  <td style="color:var(--text-secondary);font-size:.82rem;">
+                    ${Array.isArray(p.choice) ? p.choice.length : 0} options
+                  </td>
+                  <td>
+                    <a href="/admin/pkproblems/${encodeURIComponent(p.id)}" class="pkp-edit">
+                      <i class="fas fa-pen"></i> Edit
+                    </a>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      } catch (err) {
+        bodyEl.innerHTML = `<div class="pkp-empty" style="color:var(--danger)">Error: ${esc(err.message)}</div>`;
+      }
+    }
+
+    let _t = null;
+    searchEl.addEventListener('input', () => {
+      clearTimeout(_t);
+      _t = setTimeout(() => load(searchEl.value.trim()), 300);
+    });
+    document.getElementById('pkpSearchBtn').addEventListener('click', () => {
+      load(searchEl.value.trim());
+    });
+    searchEl.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); load(searchEl.value.trim()); }
+    });
+
+    load('');
+  </script>
+</body>
+</html>

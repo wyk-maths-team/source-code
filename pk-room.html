@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Competition - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<!-- ⭐ 新增 KaTeX -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/auto-render.min.js"></script>
+<style>
+  .pk-room-wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
+
+  /* ═══════════ Header ═══════════ */
+  .pk-room-header {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-radius: 12px; padding: 14px 20px; margin-bottom: 16px;
+    flex-wrap: wrap; gap: 12px;
+  }
+  .pk-room-vs { display: flex; align-items: center; gap: 16px; font-size: 1.1rem; font-weight: 800; }
+  .pk-room-player { display: flex; align-items: center; gap: 8px; }
+  .pk-room-player.me    { color: #e74c3c; }
+  .pk-room-player.other { color: #3498db; }
+  .pk-room-player .pcount {
+    font-size: .78rem; font-weight: 600; opacity: .75;
+    padding: 2px 8px; border-radius: 10px;
+    background: rgba(255,255,255,.08);
+  }
+  .pk-room-timer {
+    font-size: 1.6rem; font-family: 'Consolas', monospace; font-weight: 800;
+    color: var(--accent);
+  }
+  .pk-room-year {
+    font-size: .82rem; color: var(--text-secondary);
+    font-family: 'Consolas', monospace;
+  }
+
+  /* ═══════════ Map ═══════════ */
+  .pk-map {
+    position: relative;
+    background: linear-gradient(180deg, #0a1628 0%, #0d1e35 100%);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    overflow: hidden;
+    height: 720px;
+    user-select: none;
+  }
+  [data-theme="light"] .pk-map {
+    background: linear-gradient(180deg, #e8f0fa 0%, #d0e2f5 100%);
+  }
+
+  /* 星点背景 */
+  .pk-map::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(120,180,255,.12) 0%, transparent 2px),
+      radial-gradient(circle at 70% 60%, rgba(120,180,255,.10) 0%, transparent 1.5px),
+      radial-gradient(circle at 45% 15%, rgba(120,180,255,.08) 0%, transparent 1.5px),
+      radial-gradient(circle at 85% 80%, rgba(120,180,255,.14) 0%, transparent 2px),
+      radial-gradient(circle at 10% 75%, rgba(120,180,255,.10) 0%, transparent 2px);
+    background-size: 300px 300px;
+    pointer-events: none;
+  }
+
+  /* SVG 连线层 */
+  .pk-map-svg {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  .pk-map-svg line {
+    stroke: rgba(120,180,255,.25);
+    stroke-width: 2;
+    transition: stroke .3s;
+  }
+  .pk-map-svg line.active { stroke: rgba(120,180,255,.55); }
+
+  /* ═══════════ Island ═══════════ */
+  .island {
+    position: absolute;
+    width: 130px; height: 130px;
+    transform: translate(-50%, -50%);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: transform .25s cubic-bezier(.34,1.56,.64,1), filter .2s;
+    z-index: 2;
+  }
+  .island:hover:not(.locked) { transform: translate(-50%, -50%) scale(1.08); }
+  .island.locked {
+    cursor: not-allowed;
+    opacity: .6;
+  }
+
+  .island-circle {
+    width: 110px; height: 110px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #1e3a5f, #0a1628);
+    border: 3px solid rgba(120,180,255,.35);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    box-shadow:
+      0 8px 24px rgba(0,0,0,.4),
+      inset 0 2px 8px rgba(120,180,255,.15);
+    position: relative;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  [data-theme="light"] .island-circle {
+    background: radial-gradient(circle at 30% 30%, #f4f8fe, #c8ddf5);
+    border-color: rgba(74,144,217,.4);
+    box-shadow:
+      0 8px 24px rgba(74,144,217,.2),
+      inset 0 2px 8px rgba(74,144,217,.1);
+  }
+
+  .island.locked .island-circle {
+    border-color: rgba(120,120,120,.35);
+    background: radial-gradient(circle at 30% 30%, #2a2a35, #1a1a25);
+    box-shadow:
+      0 8px 24px rgba(0,0,0,.4),
+      inset 0 2px 8px rgba(100,100,100,.15);
+  }
+  [data-theme="light"] .island.locked .island-circle {
+    background: radial-gradient(circle at 30% 30%, #e8e8ec, #d0d0d4);
+  }
+  /* 区域被占时的边缘光 */
+  .island.owned-host  .island-circle {
+    border-color: #e74c3c;
+    box-shadow:
+      0 8px 24px rgba(0,0,0,.4),
+      0 0 24px rgba(231,76,60,.5),
+      inset 0 2px 8px rgba(231,76,60,.2);
+  }
+  .island.owned-guest .island-circle {
+    border-color: #3498db;
+    box-shadow:
+      0 8px 24px rgba(0,0,0,.4),
+      0 0 24px rgba(52,152,219,.5),
+      inset 0 2px 8px rgba(52,152,219,.2);
+  }
+  .island.contested .island-circle {
+    border-color: #f0ad4e;
+    box-shadow:
+      0 8px 24px rgba(0,0,0,.4),
+      0 0 24px rgba(240,173,78,.5),
+      inset 0 2px 8px rgba(240,173,78,.2);
+  }
+
+  .island-num {
+    font-size: 1.5rem; font-weight: 900;
+    font-family: 'Consolas', monospace;
+    color: #fff; line-height: 1;
+    text-shadow: 0 2px 4px rgba(0,0,0,.5);
+  }
+  [data-theme="light"] .island-num {
+    color: #1a3a5c;
+    text-shadow: 0 1px 2px rgba(255,255,255,.5);
+  }
+  .island-part {
+    font-size: .62rem; font-weight: 700;
+    letter-spacing: 1px;
+    opacity: .6;
+    margin-top: 2px;
+    color: #8fbbff;
+  }
+  [data-theme="light"] .island-part { color: #4a6a8a; }
+  .island.locked .island-num,
+  .island.locked .island-part {
+    color: #666;
+    text-shadow: none;
+  }
+  /* 5 格状态点 */
+  .island-slots {
+    display: flex; gap: 3px;
+    margin-top: 8px;
+  }
+  .island-slots .s {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(120,180,255,.25);
+    border: 1px solid rgba(120,180,255,.4);
+  }
+  .island-slots .s.host  { background: #e74c3c; border-color: #e74c3c; }
+  .island-slots .s.guest { background: #3498db; border-color: #3498db; }
+
+  /* 锁定图标 */
+  .island-lock {
+    position: absolute;
+    top: -4px; right: -4px;
+    width: 26px; height: 26px;
+    background: rgba(60,60,60,.9);
+    border: 2px solid rgba(120,120,120,.5);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .72rem;
+    color: #aaa;
+  }
+
+  /* 占据统计小字 */
+  .island-count {
+    position: absolute;
+    bottom: -8px; left: 50%; transform: translateX(-50%);
+    font-size: .7rem; font-family: 'Consolas', monospace;
+    font-weight: 700;
+    padding: 2px 8px; border-radius: 10px;
+    background: rgba(0,0,0,.6);
+    color: #fff;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity .15s;
+  }
+  .island:hover .island-count { opacity: 1; }
+  .island.has-claims .island-count { opacity: .9; }
+  .island-count .c-me    { color: #ff7a6e; }  /* 紅 = 我 */
+  .island-count .c-other { color: #6bb3f0; }  /* 藍 = 對手 */
+
+  /* 你已解锁 → 边缘发光脉冲 */
+  @keyframes islandPulse {
+    0%, 100% { box-shadow: 0 8px 24px rgba(0,0,0,.4), 0 0 0 0 rgba(120,180,255,.4); }
+    50%      { box-shadow: 0 8px 24px rgba(0,0,0,.4), 0 0 0 12px rgba(120,180,255,0); }
+  }
+  .island:not(.locked):not(.owned-host):not(.owned-guest):not(.contested) .island-circle {
+    animation: islandPulse 2.5s ease-in-out infinite;
+  }
+
+  /* ═══════════ Expand panel ═══════════ */
+  .island-panel {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.75);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 999;
+    display: none;
+    align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .island-panel.show { display: flex; }
+
+  .island-panel-card {
+    background: var(--card-bg);
+    border: 2px solid var(--accent);
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 720px; width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    animation: panelIn .3s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes panelIn {
+    from { opacity: 0; transform: scale(.92); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  .panel-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 20px;
+  }
+  .panel-header h2 {
+    margin: 0; font-size: 1.3rem; font-weight: 800;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .panel-header h2 .badge {
+    font-size: .72rem; padding: 2px 10px;
+    background: var(--accent); color: #fff;
+    border-radius: 10px; font-weight: 700;
+  }
+  .panel-close {
+    background: none; border: none;
+    width: 36px; height: 36px; border-radius: 50%;
+    font-size: 1.1rem; cursor: pointer;
+    color: var(--text-secondary);
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s;
+  }
+  .panel-close:hover { background: var(--hover-bg); color: var(--text-primary); }
+
+  .slot-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+  }
+  .slot {
+    aspect-ratio: 1;
+    border-radius: 10px;
+    border: 2px solid var(--border-color);
+    background: var(--card-bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all .15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .slot:hover:not(.owned) {
+    border-color: var(--accent);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(74,144,217,.25);
+  }
+  .slot.owned { cursor: default; }
+  .slot.owned-host {
+    border-color: #e74c3c;
+    background: rgba(231,76,60,.1);
+  }
+  .slot.owned-guest {
+    border-color: #3498db;
+    background: rgba(52,152,219,.1);
+  }
+  .slot-problem {
+    font-family: 'Consolas', monospace;
+    font-size: .78rem; font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .slot-label {
+    font-size: .62rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+  .slot.owned-host .slot-label { color: #e74c3c; font-weight: 700; }
+  .slot.owned-guest .slot-label { color: #3498db; font-weight: 700; }
+  .slot-icon {
+    font-size: 1.4rem;
+    margin-bottom: 4px;
+    opacity: .5;
+  }
+  .slot.owned-host .slot-icon { color: #e74c3c; opacity: 1; }
+  .slot.owned-guest .slot-icon { color: #3498db; opacity: 1; }
+
+  @media (max-width: 700px) {
+    .pk-map { height: 560px; }
+    .island { width: 90px; height: 90px; }
+    .island-circle { width: 76px; height: 76px; border-width: 2px; }
+    .island-num { font-size: 1.2rem; }
+    .island-part { font-size: .55rem; }
+    .island-slots .s { width: 6px; height: 6px; }
+    .slot-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  /* ═══════════ Problem Modal ═══════════ */
+.pk-problem-modal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.78);
+  backdrop-filter: blur(6px);
+  z-index: 1000;
+  display: none; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.pk-problem-modal.show { display: flex; }
+
+.pk-problem-card {
+  background: var(--card-bg);
+  border: 2px solid var(--accent);
+  border-radius: 16px;
+  padding: 26px 28px;
+  max-width: 720px; width: 100%;
+  max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+}
+.pk-problem-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px; gap: 10px;
+}
+.pk-problem-head h2 {
+  margin: 0; font-size: 1.15rem; font-weight: 800;
+  display: flex; align-items: center; gap: 8px;
+  font-family: 'Consolas', monospace;
+}
+.pk-problem-timer {
+  font-family: 'Consolas', monospace;
+  font-weight: 800; font-size: 1.3rem;
+  color: var(--accent);
+  transition: color .3s;
+}
+.pk-problem-timer.warn { color: #f0ad4e; }
+.pk-problem-timer.danger { color: #e74c3c; animation: pkBlink .8s infinite; }
+@keyframes pkBlink { 50% { opacity: .5; } }
+
+.pk-problem-statement {
+  padding: 16px 18px;
+  background: rgba(74,144,217,.05);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  font-size: .95rem; line-height: 1.65;
+  margin-bottom: 18px;
+  max-height: 40vh; overflow-y: auto;
+}
+
+/* ⭐ 有圖時：左右兩欄 */
+.pk-problem-statement.has-image {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+.pk-problem-statement .pkp-text-col {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.pk-problem-statement .pkp-img-col {
+  flex: 0 0 auto;
+  max-width: 42%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.pk-problem-statement .pkp-img-col img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  display: block;
+}
+
+/* 手機窄螢幕：改成上下堆疊 */
+@media (max-width: 600px) {
+  .pk-problem-statement.has-image { flex-direction: column; }
+  .pk-problem-statement .pkp-img-col { max-width: 100%; }
+}
+
+.pk-choice-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+.pk-choice {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px;
+  border: 2px solid var(--border-color);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all .15s;
+  font-size: .92rem;
+}
+.pk-choice:hover { border-color: var(--accent); background: rgba(74,144,217,.06); }
+.pk-choice.selected {
+  border-color: var(--accent);
+  background: rgba(74,144,217,.12);
+  font-weight: 600;
+}
+.pk-choice-letter {
+  width: 32px; height: 32px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--border-color);
+  border-radius: 50%;
+  font-weight: 800; font-family: 'Consolas', monospace;
+  font-size: .9rem;
+  transition: background .15s;
+}
+.pk-choice.selected .pk-choice-letter {
+  background: var(--accent); color: #fff;
+}
+.pk-choice-text { flex: 1; }
+
+.pk-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.pk-actions button {
+  padding: 10px 24px; border-radius: 8px;
+  border: none; font-weight: 700; font-size: .92rem;
+  cursor: pointer; font-family: inherit;
+}
+.pk-submit { background: var(--accent); color: #fff; }
+.pk-submit:hover:not(:disabled) { filter: brightness(1.1); }
+.pk-submit:disabled { opacity: .5; cursor: not-allowed; }
+.pk-cancel {
+  background: none; color: var(--text-secondary);
+  border: 1px solid var(--border-color) !important;
+}
+.pk-msg { margin-top: 12px; font-size: .88rem; min-height: 1.2em; }
+</style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="pk-room-wrap">
+        <div class="pk-room-header">
+          <div class="pk-room-vs">
+            <div class="pk-room-player me">
+              <i class="fas fa-user"></i>
+              <span id="pkMeName">…</span>
+              <span class="pcount" id="pkMeCount">0</span>
+            </div>
+            <div style="color:var(--text-secondary);font-size:.9rem;">VS</div>
+            <div class="pk-room-player other">
+              <i class="fas fa-user"></i>
+              <span id="pkOtherName">…</span>
+              <span class="pcount" id="pkOtherCount">0</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:16px;align-items:center;">
+            <div class="pk-room-year" id="pkYear"></div>
+            <div class="pk-room-timer" id="pkRoomTimer">30:00</div>
+          </div>
+        </div>
+
+        <div class="pk-map" id="pkMap">
+          <svg class="pk-map-svg" id="pkMapSvg"></svg>
+          <!-- 岛屿用 JS 动态插入 -->
+        </div>
+      </div>
+
+      <!-- 岛屿展开面板 -->
+      <div class="island-panel" id="islandPanel">
+        <div class="island-panel-card">
+          <div class="panel-header">
+            <h2>
+              <span id="panelTitle">Island 1</span>
+              <span class="badge" id="panelBadge">PART A</span>
+            </h2>
+            <button class="panel-close" id="panelClose">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="slot-grid" id="slotGrid"></div>
+        </div>
+      </div>
+      <div class="pk-problem-modal" id="pkProblemModal">
+  <div class="pk-problem-card">
+    <div class="pk-problem-head">
+      <h2><i class="fas fa-scroll" style="opacity:.5"></i> <span id="pkpId">—</span></h2>
+      <div class="pk-problem-timer" id="pkpTimer">4:00</div>
+    </div>
+    <div class="pk-problem-statement" id="pkpStatement">Loading…</div>
+    <div class="pk-choice-list" id="pkpChoices"></div>
+    <div class="pk-actions">
+      <button type="button" class="pk-cancel" id="pkpCancel">Cancel</button>
+      <button type="button" class="pk-submit" id="pkpSubmit" disabled>Submit</button>
+    </div>
+    <div class="pk-msg" id="pkpMsg"></div>
+  </div>
+</div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+    if (!isLoggedIn()) window.location.href = '/index.html';
+
+    const params = new URLSearchParams(location.search);
+    const roomId = params.get('id');
+    if (!roomId) {
+      document.getElementById('mainContent').innerHTML =
+        '<div style="text-align:center;padding:60px;color:var(--danger)">Invalid room</div>';
+      throw new Error('No roomId');
+    }
+
+    // ═══════════════ 布局坐标 (% of container) ═══════════════
+    // 六边形环 A（1-2-3-4-5-6）+ 三角环 B（7-8-9）
+    const ISLAND_POS = {
+      1: { x: 12, y: 38 },
+      2: { x: 30, y: 12 },
+      3: { x: 70, y: 12 },
+      4: { x: 88, y: 38 },
+      5: { x: 70, y: 62 },
+      6: { x: 30, y: 62 },
+      7: { x: 32, y: 84 },
+      8: { x: 68, y: 84 },
+      9: { x: 50, y: 96 },
+    };
+
+    const state = {
+      me: null,
+      other: null,
+      regions: [],
+      adjacency: {},
+      startAt: null,
+      openPanelIndex: null,   // ⭐ 当前打开的岛屿（null = 关闭）
+    };
+        // ═══════════════ 答题弹窗 ═══════════════
+    const pkModal = document.getElementById('pkProblemModal');
+    const pkpId   = document.getElementById('pkpId');
+    const pkpTimer = document.getElementById('pkpTimer');
+    const pkpStatement = document.getElementById('pkpStatement');
+    const pkpChoices = document.getElementById('pkpChoices');
+    const pkpSubmit = document.getElementById('pkpSubmit');
+    const pkpCancel = document.getElementById('pkpCancel');
+    const pkpMsg = document.getElementById('pkpMsg');
+
+    let currentProblem = null;   // { id, choice }
+    let selectedAns = null;
+    let lockExpiresAt = 0;
+    let timerHandle = null;
+
+    function esc2(s) {
+      return String(s ?? '').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+    }
+    function renderProblemStatement(html) {
+      pkpStatement.innerHTML = html || '(no statement)';
+
+      const imgs = Array.from(pkpStatement.querySelectorAll('img'));
+
+      if (imgs.length > 0) {
+        // 1) 圖片全搬到 imgCol，並清掉原本的 inline style（那是 editor 的居中樣式）
+        const imgCol = document.createElement('div');
+        imgCol.className = 'pkp-img-col';
+        for (const img of imgs) {
+          img.removeAttribute('style');
+          imgCol.appendChild(img);
+        }
+
+        // 2) 剩下的所有節點搬到 textCol
+        const textCol = document.createElement('div');
+        textCol.className = 'pkp-text-col';
+        while (pkpStatement.firstChild) {
+          textCol.appendChild(pkpStatement.firstChild);
+        }
+        // 清掉「本來只裝圖片」的空 <p>
+        textCol.querySelectorAll('p').forEach(p => {
+          if (!p.textContent.trim() && !p.querySelector('img, svg, canvas')) {
+            p.remove();
+          }
+        });
+
+        // 3) 組裝
+        pkpStatement.innerHTML = '';
+        pkpStatement.appendChild(textCol);
+        pkpStatement.appendChild(imgCol);
+        pkpStatement.classList.add('has-image');
+      } else {
+        pkpStatement.classList.remove('has-image');
+      }
+
+      // 4) KaTeX：支援 $...$ / $$...$$ / \(...\) / \[...\]
+      if (typeof renderMathInElement === 'function') {
+        try {
+          renderMathInElement(pkpStatement, {
+            delimiters: [
+              { left: '$$',  right: '$$',  display: true  },
+              { left: '\\[', right: '\\]', display: true  },
+              { left: '\\(', right: '\\)', display: false },
+              { left: '$',   right: '$',   display: false },
+            ],
+            throwOnError: false,
+            ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code', 'option'],
+          });
+        } catch (e) {
+          console.warn('[pk] KaTeX render failed:', e);
+        }
+      }
+    }
+    async function openProblem(problemId) {
+      pkpMsg.textContent = '';
+      pkpStatement.innerHTML = 'Loading…';
+      pkpChoices.innerHTML = '';
+      pkpSubmit.disabled = true;
+      selectedAns = null;
+      pkModal.classList.add('show');
+
+      try {
+        const data = await apiCall('/api/pk?action=open', 'POST', { roomId, problemId });
+        if (!data.success) {
+          pkpStatement.innerHTML = `<span style="color:var(--danger)">${esc2(data.message || 'Failed to open')}</span>`;
+          if (data.reason === 'locked_by_other') {
+            setTimeout(() => closeProblem(), 1500);
+          }
+          return;
+        }
+
+        currentProblem = data.problem;
+        lockExpiresAt = data.lockExpiresAt;
+
+        pkpId.textContent = currentProblem.id;
+        renderProblemStatement(currentProblem.statement);
+
+        const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        pkpChoices.innerHTML = (currentProblem.choice || []).map((text, i) => `
+          <div class="pk-choice" data-letter="${LETTERS[i]}">
+            <span class="pk-choice-letter">${LETTERS[i]}</span>
+            <span class="pk-choice-text">${esc2(text)}</span>
+          </div>
+        `).join('');
+        if (typeof renderMathInElement === 'function') {
+          try {
+            renderMathInElement(pkpChoices, {
+              delimiters: [
+                { left: '$$',  right: '$$',  display: true  },
+                { left: '\\[', right: '\\]', display: true  },
+                { left: '\\(', right: '\\)', display: false },
+                { left: '$',   right: '$',   display: false },
+              ],
+              throwOnError: false,
+              ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code', 'option'],
+            });
+          } catch (e) {
+            console.warn('[pk] KaTeX (choices) failed:', e);
+          }
+        }
+        pkpChoices.querySelectorAll('.pk-choice').forEach(el => {
+          el.addEventListener('click', () => {
+            pkpChoices.querySelectorAll('.pk-choice').forEach(x => x.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedAns = el.dataset.letter;
+            pkpSubmit.disabled = false;
+          });
+        });
+
+        startProblemTimer();
+      } catch (err) {
+        pkpStatement.innerHTML = `<span style="color:var(--danger)">${esc2(err.message)}</span>`;
+      }
+    }
+
+    function startProblemTimer() {
+      stopProblemTimer();
+      timerHandle = setInterval(() => {
+        const remain = Math.max(0, lockExpiresAt - Date.now());
+        const sec = Math.ceil(remain / 1000);
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        pkpTimer.textContent = `${m}:${String(s).padStart(2, '0')}`;
+        pkpTimer.className = 'pk-problem-timer';
+        if (sec <= 30) pkpTimer.classList.add('danger');
+        else if (sec <= 120) pkpTimer.classList.add('warn');
+
+        if (remain <= 0) {
+          stopProblemTimer();
+          closeProblem();
+          alert('Time up — problem released');
+        }
+      }, 250);
+    }
+    function stopProblemTimer() {
+      if (timerHandle) { clearInterval(timerHandle); timerHandle = null; }
+    }
+
+    function closeProblem() {
+      pkModal.classList.remove('show');
+      currentProblem = null;
+      selectedAns = null;
+      stopProblemTimer();
+      pkpSubmit.disabled = true;
+      pkpSubmit.textContent = 'Submit';
+      pkpMsg.textContent = '';
+      loadRoom();
+    }
+
+    pkpCancel.addEventListener('click', closeProblem);
+
+    pkpSubmit.addEventListener('click', async () => {
+      if (!currentProblem || !selectedAns) return;
+      pkpSubmit.disabled = true;
+      pkpSubmit.textContent = 'Submitting…';
+      pkpMsg.textContent = '';
+
+      try {
+        const res = await apiCall('/api/pk?action=submit', 'POST', {
+          roomId,
+          problemId: currentProblem.id,
+          ans: selectedAns,
+        });
+        if (res.success) {
+          if (res.status === 'AC') {
+            pkpMsg.textContent = '✓ Correct!';
+            pkpMsg.style.color = '#2e7d32';
+          } else {
+            pkpMsg.textContent = '✗ Wrong — cooldown 60s';
+            pkpMsg.style.color = '#e74c3c';
+          }
+          setTimeout(closeProblem, 900);
+        } else {
+          pkpMsg.textContent = res.message || 'Failed';
+          pkpMsg.style.color = 'var(--danger)';
+          pkpSubmit.disabled = false;
+          pkpSubmit.textContent = 'Submit';
+        }
+      } catch (err) {
+        pkpMsg.textContent = 'Error: ' + err.message;
+        pkpMsg.style.color = 'var(--danger)';
+        pkpSubmit.disabled = false;
+        pkpSubmit.textContent = 'Submit';
+      }
+    });
+    // ═══════════════ 倒计时 ═══════════════
+    const TOTAL_MS = 30 * 60 * 1000;
+    const timerEl = document.getElementById('pkRoomTimer');
+
+    function updateTimer() {
+      if (state.startAt === null) {
+        timerEl.textContent = '30:00';
+        return;
+      }
+      const elapsed = Date.now() - state.startAt;
+      const remain = Math.max(0, TOTAL_MS - elapsed);
+      const sec = Math.ceil(remain / 1000);
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      timerEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
+      if (sec <= 60)      timerEl.style.color = '#e74c3c';
+      else if (sec <= 300) timerEl.style.color = '#f0ad4e';
+      else                 timerEl.style.color = 'var(--accent)';
+    }
+    setInterval(updateTimer, 250);
+
+    // ═══════════════ SVG 连线 ═══════════════
+    function renderConnections() {
+      const svg = document.getElementById('pkMapSvg');
+      const map = document.getElementById('pkMap');
+      const W = map.clientWidth;
+      const H = map.clientHeight;
+
+      const edges = new Set();
+      for (const [from, tos] of Object.entries(state.adjacency)) {
+        for (const to of tos) {
+          const key = [Math.min(+from, +to), Math.max(+from, +to)].join('-');
+          edges.add(key);
+        }
+      }
+
+      let html = '';
+      for (const key of edges) {
+        const [a, b] = key.split('-').map(Number);
+        const pa = ISLAND_POS[a], pb = ISLAND_POS[b];
+        if (!pa || !pb) continue;
+        const x1 = (pa.x / 100) * W, y1 = (pa.y / 100) * H;
+        const x2 = (pb.x / 100) * W, y2 = (pb.y / 100) * H;
+        html += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"></line>`;
+      }
+      svg.innerHTML = html;
+    }
+
+    // ═══════════════ 岛屿渲染 ═══════════════
+    function renderIslands() {
+      const map = document.getElementById('pkMap');
+      map.querySelectorAll('.island').forEach(el => el.remove());
+
+      const meIsHost = state.meIsHost;
+
+      for (const reg of state.regions) {
+        const pos = ISLAND_POS[reg.index];
+        if (!pos) continue;
+
+        const el = document.createElement('div');
+        el.className = 'island';
+        el.dataset.index = reg.index;
+        el.style.left = pos.x + '%';
+        el.style.top  = pos.y + '%';
+
+        if (!reg.unlocked) el.classList.add('locked');
+
+        // ⭐ 歸屬判定：統一以「我=紅 / 對手=藍」為準
+        const c = reg.counts;
+        const myCount    = meIsHost ? c.host : c.guest;
+        const otherCount = meIsHost ? c.guest : c.host;
+
+        if (myCount + otherCount > 0) el.classList.add('has-claims');
+        if (myCount > otherCount && myCount >= 3)         el.classList.add('owned-host');
+        else if (otherCount > myCount && otherCount >= 3) el.classList.add('owned-guest');
+        else if (myCount > 0 && otherCount > 0)           el.classList.add('contested');
+
+        // 5 格狀態點（本來就是「我/對手」判定，不動）
+        const slotsHtml = reg.problems.map(p => {
+          let cls = '';
+          if (p.owner === state.me.username)         cls = 'host';
+          else if (p.owner === state.other.username) cls = 'guest';
+          return `<span class="s ${cls}"></span>`;
+        }).join('');
+
+        const lockHtml = reg.unlocked ? '' :
+          `<div class="island-lock"><i class="fas fa-lock"></i></div>`;
+
+        el.innerHTML = `
+          ${lockHtml}
+          <div class="island-circle">
+            <div class="island-num">${reg.index}</div>
+            <div class="island-part">${reg.part}</div>
+            <div class="island-slots">${slotsHtml}</div>
+          </div>
+          <div class="island-count">
+            <span class="c-me">●${myCount}</span>
+            &nbsp;
+            <span class="c-other">●${otherCount}</span>
+          </div>
+        `;
+
+        if (reg.unlocked) {
+          el.addEventListener('click', () => openIslandPanel(reg.index));
+        }
+        map.appendChild(el);
+      }
+    }
+    // ═══════════════ 岛屿展开面板 ═══════════════
+    const panel = document.getElementById('islandPanel');
+    const panelTitle = document.getElementById('panelTitle');
+    const panelBadge = document.getElementById('panelBadge');
+    const slotGrid = document.getElementById('slotGrid');
+
+    function openIslandPanel(index) {
+      const reg = state.regions.find(r => r.index === index);
+      if (!reg) return;
+
+      panelTitle.textContent = `Island ${index}`;
+      panelBadge.textContent = `PART ${reg.part}`;
+      state.openPanelIndex = index;   // ⭐ 记录
+
+      slotGrid.innerHTML = reg.problems.map(p => {
+        let cls = 'slot';
+        let label = 'Empty';
+        let icon  = 'fa-circle';
+        if (p.owner === state.me.username) {
+          cls += ' owned owned-host';
+          label = 'You';
+          icon = 'fa-flag';
+        } else if (p.owner === state.other.username) {
+          cls += ' owned owned-guest';
+          label = state.other.displayName || state.other.username;
+          icon = 'fa-flag';
+        } else {
+          icon = 'fa-question';
+          label = 'Open';
+        }
+        const pid = p.problemId || '????';
+        return `
+          <div class="${cls}" data-slot="${p.slot}">
+            <div class="slot-icon"><i class="fas ${icon}"></i></div>
+            <div class="slot-problem">${pid}</div>
+            <div class="slot-label">${label}</div>
+          </div>
+        `;
+      }).join('');
+
+      // 未占的格子点击 → 下一轮做题目弹窗，现在只提示
+      slotGrid.querySelectorAll('.slot:not(.owned)').forEach(el => {
+        el.addEventListener('click', () => {
+          const pid = el.querySelector('.slot-problem').textContent;
+          openProblem(pid);
+        });
+      });
+
+      panel.classList.add('show');
+    }
+
+    function closeIslandPanel() {
+      panel.classList.remove('show');
+      state.openPanelIndex = null;    // ⭐
+    }
+    document.getElementById('panelClose').addEventListener('click', closeIslandPanel);
+    panel.addEventListener('click', e => {
+      if (e.target === panel) closeIslandPanel();
+    });
+
+    // ═══════════════ 主加载 ═══════════════
+    let isPolling = false;
+
+    async function loadRoom() {
+      if (isPolling) return;
+      isPolling = true;
+      try {
+        const data = await apiCall(`/api/pk?action=room-info&roomId=${encodeURIComponent(roomId)}`);
+        if (!data.success) throw new Error(data.message);
+
+        const r = data.room;
+        const meInfo    = r.me === 'host' ? r.host : r.guest;
+        const otherInfo = r.me === 'host' ? r.guest : r.host;
+
+        state.me = meInfo;
+        state.other = otherInfo;
+        state.meIsHost = (r.me === 'host');
+        state.regions = r.regions || [];
+        state.adjacency = r.adjacency || {};
+
+        // Header
+        document.getElementById('pkMeName').textContent = meInfo.displayName || meInfo.username;
+        document.getElementById('pkOtherName').textContent = otherInfo.displayName || otherInfo.username;
+
+        let myCount = 0, otherCount = 0;
+        for (const reg of state.regions) {
+          for (const p of reg.problems) {
+            if (p.owner === meInfo.username) myCount++;
+            else if (p.owner === otherInfo.username) otherCount++;
+          }
+        }
+        document.getElementById('pkMeCount').textContent = myCount;
+        document.getElementById('pkOtherCount').textContent = otherCount;
+
+        if (r.year) document.getElementById('pkYear').textContent = `DSE 20${r.year}`;
+
+        // 时间基准（仅首次）
+        if (state.startAt === null && r.createdAt && data.serverNow) {
+          const serverStartMs = new Date(r.createdAt).getTime();
+          const offset = data.serverNow - Date.now();
+          state.startAt = serverStartMs - offset;
+        }
+
+        renderConnections();
+        renderIslands();
+
+        // ⭐ 面板开着 → 用最新 state 重新渲染
+        if (state.openPanelIndex !== null) {
+          openIslandPanel(state.openPanelIndex);
+        }
+      } catch (err) {
+        console.error('[room]', err);
+      } finally {
+        isPolling = false;
+      }
+    }
+
+    // resize → 重画连线
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        renderConnections();
+        renderIslands();
+      }, 200);
+    });
+
+    // ═══════════════ 智能轮询 ═══════════════
+    // 鼠标移动中 → 5 秒一次
+    // 鼠标静止   → 15 秒一次
+    // 2 分钟无任何活动 / 标签页隐藏 → 暂停
+    const POLL_MOVING_MS   = 5_000;      // 移動中
+    const POLL_STILL_MS    = 15_000;     // 靜止
+    const MOVING_WINDOW_MS = 3_000;      // 3 秒內有 mousemove 就算「移動中」
+    const IDLE_MS          = 2 * 60_000; // 2 分鐘無活動 → 休眠
+
+    let lastMoveAt     = Date.now();
+    let lastActivityAt = Date.now();
+    let pollTimer      = null;
+
+    function noteActivity(e) {
+      const now = Date.now();
+      const wasIdle = (now - lastActivityAt) > IDLE_MS;
+      lastActivityAt = now;
+      if (e && (e.type === 'mousemove' || e.type === 'touchmove')) {
+        lastMoveAt = now;
+      }
+      // 剛從休眠醒來 → 立即刷新，然後重新調度
+      if (wasIdle) restartPoll(0);
+    }
+
+    ['mousemove', 'mousedown', 'touchstart', 'touchmove', 'wheel', 'scroll', 'keydown']
+      .forEach(ev => window.addEventListener(ev, noteActivity, { passive: true }));
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) return;
+      lastMoveAt = lastActivityAt = Date.now();
+      restartPoll(0);   // 切回前景 → 立即刷新
+    });
+
+    function nextInterval() {
+      if (document.hidden) return null;
+      const now = Date.now();
+      if (now - lastActivityAt > IDLE_MS) return null;              // 休眠
+      if (now - lastMoveAt < MOVING_WINDOW_MS) return POLL_MOVING_MS; // 鼠標在動
+      return POLL_STILL_MS;                                          // 靜止
+    }
+
+    function restartPoll(delay) {
+      if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+      const wait = (delay === undefined) ? nextInterval() : delay;
+      if (wait === null) return;   // 休眠中，不排程
+      pollTimer = setTimeout(() => {
+        pollTimer = null;
+        if (document.hidden) return;
+        loadRoom().finally(() => restartPoll());
+      }, wait);
+    }
+
+    loadRoom();
+    restartPoll();
+  </script>
+</body>
+</html>

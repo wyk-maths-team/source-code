@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Waiting - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<style>
+  .pk-wait-wrap {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .pk-wait-card {
+    background: var(--card-bg); border: 2px solid var(--border-color);
+    border-radius: 16px; padding: 40px 32px;
+    max-width: 420px; width: 100%; text-align: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,.15);
+  }
+  .pk-wait-icon {
+    width: 80px; height: 80px; margin: 0 auto 20px;
+    background: radial-gradient(circle, #4a90d9, #2e5fa0);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 2.2rem; color: #fff;
+    animation: pkPulse 2s ease-in-out infinite;
+  }
+  @keyframes pkPulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74,144,217,.5); }
+    50%      { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(74,144,217,0); }
+  }
+  .pk-wait-title { font-size: 1.3rem; font-weight: 800; margin-bottom: 8px; }
+  .pk-wait-sub { color: var(--text-secondary); font-size: .9rem; margin-bottom: 20px; }
+  .pk-wait-count {
+    font-size: 3rem; font-weight: 900; font-family: 'Consolas', monospace;
+    color: var(--accent); margin: 20px 0;
+  }
+  .pk-wait-bar {
+    height: 6px; background: rgba(0,0,0,.06); border-radius: 3px;
+    overflow: hidden; margin-bottom: 20px;
+  }
+  [data-theme="dark"] .pk-wait-bar { background: rgba(255,255,255,.08); }
+  .pk-wait-bar-fill {
+    height: 100%; background: linear-gradient(90deg, var(--accent), #6ba7e3);
+    transition: width 1s linear;
+  }
+  .pk-cancel-btn {
+    padding: 10px 24px; border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: none; color: var(--text-primary);
+    font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .pk-cancel-btn:hover { border-color: var(--danger); color: var(--danger); }
+</style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="pk-wait-wrap">
+        <div class="pk-wait-card">
+          <div class="pk-wait-icon"><i class="fas fa-hourglass-half"></i></div>
+          <div class="pk-wait-title">Waiting for confirmation</div>
+          <div class="pk-wait-sub" id="pkWaitSub">Invitation sent</div>
+          <div class="pk-wait-count" id="pkWaitCount">2:00</div>
+          <div class="pk-wait-bar"><div class="pk-wait-bar-fill" id="pkWaitBar" style="width:0%"></div></div>
+          <button class="pk-cancel-btn" id="pkCancelBtn">
+            <i class="fas fa-times"></i> Cancel
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+    if (!isLoggedIn()) window.location.href = '/index.html';
+
+    const params = new URLSearchParams(location.search);
+    const inviteId = params.get('invite');
+        // ⭐ 拉邀请里的 toDisplay 显示对方名字
+    (async () => {
+      try {
+        const data = await apiCall(`/api/pk?action=invite-status&inviteId=${encodeURIComponent(inviteId)}`);
+        if (data.success && data.invite) {
+          const name = data.invite.toDisplay || data.invite.to;
+          document.getElementById('pkWaitSub').textContent = `已向 ${name} 发出邀请`;
+        }
+      } catch {}
+    })();
+    if (!inviteId) {
+      document.getElementById('mainContent').innerHTML =
+        '<div style="text-align:center;padding:60px;color:var(--danger)">Invalid</div>';
+      throw new Error('No inviteId');
+    }
+
+    const countEl = document.getElementById('pkWaitCount');
+    const barEl   = document.getElementById('pkWaitBar');
+    const subEl   = document.getElementById('pkWaitSub');
+    const cancelBtn = document.getElementById('pkCancelBtn');
+
+    const TOTAL_MS = 120_000;
+    let startAt = null;          // ⭐ 等拿到服务端时间再算
+    let ended = false;
+
+    function tick() {
+      if (ended) return;
+      if (startAt === null) {
+        // 还没拿到服务端时间 → 显示 "2:00" 占位
+        countEl.textContent = '2:00';
+        return;
+      }
+      const elapsed = Date.now() - startAt;
+      const remaining = Math.max(0, TOTAL_MS - elapsed);
+      const sec = Math.ceil(remaining / 1000);
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      countEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
+      barEl.style.width = Math.min(100, (elapsed / TOTAL_MS) * 100) + '%';
+      if (remaining <= 0) {
+        ended = true;
+        countEl.textContent = '0:00';
+        subEl.textContent = '对方未响应，邀请已过期';
+        cancelBtn.innerHTML = '返回';
+      }
+    }
+    async function poll() {
+      if (ended) return;
+      try {
+        const data = await apiCall(`/api/pk?action=invite-status&inviteId=${encodeURIComponent(inviteId)}`);
+        if (!data.success) return;
+        const inv = data.invite;
+
+        // ⭐ 首次拿到 createdAt → 初始化 startAt
+        if (startAt === null && inv.createdAt) {
+          startAt = new Date(inv.createdAt).getTime();
+        }
+
+        if (inv.status === 'accepted' && inv.roomId) {
+          ended = true;
+          subEl.textContent = '对方已接受，正在进入房间…';
+          setTimeout(() => {
+            window.location.href = `/pk/room?id=${encodeURIComponent(inv.roomId)}`;
+          }, 400);
+        } else if (inv.status === 'declined') {
+          ended = true;
+          subEl.textContent = '对方拒绝了邀请';
+          countEl.textContent = '—';
+          cancelBtn.innerHTML = '返回';
+        } else if (inv.status === 'expired') {
+          ended = true;
+          subEl.textContent = '邀请已过期';
+          countEl.textContent = '0:00';
+          cancelBtn.innerHTML = '返回';
+        }
+      } catch {}
+    }
+    cancelBtn.addEventListener('click', async () => {
+      if (ended) { window.location.href = '/'; return; }
+      try { await apiCall('/api/pk?action=cancel', 'POST', { inviteId }); } catch {}
+      window.location.href = '/';
+    });
+
+    setInterval(tick, 250);
+    setInterval(poll, 2000);
+    tick();
+    poll();
+  </script>
+</body>
+</html>
