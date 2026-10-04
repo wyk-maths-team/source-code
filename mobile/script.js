@@ -2985,6 +2985,7 @@ function crashOut() {
   try {
     document.documentElement.innerHTML = `
       <head>
+
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/arch-render.js"></script>
         
 <meta charset="UTF-8">

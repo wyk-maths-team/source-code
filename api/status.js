@@ -9,13 +9,19 @@ export default async function handler(req, res) {
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
-  const action = req.query.action || (req.body && req.body.action);
+const action = req.query.action || (req.body && req.body.action);
 
-  // ── 無 action 或 action=system：原有系統狀態 ──
-  if (!action || action === 'system') {
-    if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-    return systemStatus(req, res);
-  }
+// ── 無 action 或 action=system：原有系統狀態 ──
+if (!action || action === 'system') {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  return systemStatus(req, res);
+}
+
+// ⭐ Vercel 用量
+if (action === 'vercel') {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  return vercelUsage(req, res);
+}
 
   // ── OS 集成路由 ──
   try {
@@ -108,7 +114,157 @@ async function systemStatus(req, res) {
     return res.status(500).json({ success: false, message: err.message });
   }
 }
+/* ============================================================
+ * Vercel Usage（Pro 用量）
+ * ============================================================ */
+/* ============================================================
+ * Vercel Usage —— 走 /v1/billing/charges (FOCUS v1.3, JSONL)
+ * ============================================================ */
+const _vercelCache = { data: null, expireAt: 0 };
+const VERCEL_CACHE_TTL = 60_000;
 
+async function vercelUsage(req, res) {
+  const token  = process.env.VERCEL_TOKEN;
+  const teamId = process.env.VERCEL_TEAM_ID;
+
+  if (!token || !teamId) {
+    return res.status(200).json({
+      success: false,
+      message: 'VERCEL_TOKEN / VERCEL_TEAM_ID not configured',
+    });
+  }
+
+  // 缓存
+  if (_vercelCache.data && _vercelCache.expireAt > Date.now()) {
+    return res.status(200).json({ success: true, ..._vercelCache.data, cached: true });
+  }
+
+  try {
+const nowMs  = Date.now();
+const fromMs = nowMs - 30 * 86400_000;
+const fromIso = new Date(fromMs).toISOString();
+const toIso   = new Date(nowMs).toISOString();
+
+const url = `https://api.vercel.com/v1/billing/charges` +
+  `?teamId=${encodeURIComponent(teamId)}` +
+  `&from=${encodeURIComponent(fromIso)}` +
+  `&to=${encodeURIComponent(toIso)}`;
+
+    const r = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept-Encoding': 'gzip',
+      },
+    });
+
+    if (!r.ok) {
+      const text = await r.text().catch(() => '');
+      return res.status(200).json({
+        success: false,
+        message: `Vercel API ${r.status}: ${text.slice(0, 300)}`,
+      });
+    }
+
+    // ⭐ 响应是 JSONL（每行一个 JSON），不是普通 JSON
+    const text = await r.text();
+    const lines = text.split('\n').filter(l => l.trim());
+    const entries = [];
+    for (const line of lines) {
+      try { entries.push(JSON.parse(line)); } catch (e) { /* 跳过坏行 */ }
+    }
+
+    // ⭐ 按 ServiceName + SkuId 聚合
+    // ⭐ 按 ServiceName 聚合（忽略 SkuId / 日期）
+    const grouped = new Map();
+    for (const e of entries) {
+      const serviceName = e.ServiceName || 'Unknown';
+      const category    = e.ServiceCategory || '';
+      const key = `${serviceName}::${category}`;
+
+      const cost  = Number(e.EffectiveCost ?? e.BilledCost ?? 0) || 0;
+      const usage = Number(e.ConsumedQuantity ?? e.PricingQuantity ?? 0) || 0;
+      const unit  = e.ConsumedUnit || e.PricingUnit || '';
+
+      if (!grouped.has(key)) {
+        grouped.set(key, { serviceName, category, cost: 0, usage: 0, unit });
+      }
+      const g = grouped.get(key);
+      g.cost  += cost;
+      g.usage += usage;
+      if (!g.unit && unit) g.unit = unit;
+    }
+
+    // ⭐ 过滤：cost=0 且 usage=0 的丢弃（9996 条里 90% 是这些）
+    const metrics = [...grouped.values()]
+      .filter(g => Math.abs(g.cost) > 1e-6 || Math.abs(g.usage) > 1e-6)
+      .map(g => ({
+        key: g.serviceName,
+        label: g.serviceName,
+        category: g.category,
+        unit: mapVercelUnit(g.unit),
+        rawUnit: g.unit,
+        usage: g.usage,
+        limit: null,
+        cost: g.cost,
+      }))
+      .sort((a, b) => (b.cost || 0) - (a.cost || 0) || (b.usage || 0) - (a.usage || 0));
+
+    // ⭐ 汇总
+    const totalCost = metrics.reduce((s, m) => s + (m.cost || 0), 0);
+
+    // 调试用：全部聚合后的 key 列表（包括零值）
+    const allServiceNames = [...grouped.values()]
+      .map(g => `${g.serviceName} [${g.category}] = ${g.usage} ${g.unit} / $${g.cost.toFixed(4)}`)
+      .sort();
+    const payload = {
+      from: fromIso,
+      to:   toIso,
+      metrics,
+      totalCost,
+      entryCount: entries.length,
+      allServiceNames,   // ⭐ 完整列表，不管有没有值
+    };
+    _vercelCache.data = payload;
+    _vercelCache.expireAt = Date.now() + VERCEL_CACHE_TTL;
+
+    return res.status(200).json({ success: true, ...payload });
+  } catch (err) {
+    console.error('[vercel usage]', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+function pickFirst(obj, keys) {
+  for (const k of keys) {
+    if (obj[k] !== undefined && obj[k] !== null) return obj[k];
+  }
+  return undefined;
+}
+
+function mapVercelUnit(unit) {
+  if (!unit) return 'count';
+  const u = String(unit).toLowerCase().trim();
+
+  // 时间
+  if (u.startsWith('millisecond') || u === 'ms') return 'ms';
+  if (u.startsWith('second') || u === 's')       return 'sec';
+  if (u.startsWith('minute') || u === 'min')     return 'min';
+  if (u.startsWith('hour') || u === 'hr')        return 'hr';
+
+  // 存储
+  if (u === 'byte' || u === 'bytes')             return 'bytes';
+  if (u.startsWith('kilobyte') || u === 'kb')    return 'kb';
+  if (u.startsWith('megabyte') || u === 'mb')    return 'mb';
+  if (u === 'gigabyte' || u === 'gigabytes' || u === 'gb') return 'gb';
+  if (u.includes('gigabyte-hour') || u === 'gb-hour' || u === 'gbhr') return 'gbhr';
+  if (u.includes('gigabyte-month'))              return 'gbmonth';
+
+  // 金额
+  if (u === 'usd')                               return 'usd';
+
+  // 计数（Events / Requests / Invocations / Operations / Seats / Projects / ...）
+  return 'count';
+}
 /* ============================================================
  * OS 集成路由
  * ============================================================ */

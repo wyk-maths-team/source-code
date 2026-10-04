@@ -7,7 +7,7 @@ import { auditLog } from '../lib/audit.js';   // ⭐ 唯一来源，不再本地
 
 // ⭐ 排行榜內存緩存（30 秒）
 let _leaderboardCache = { data: null, expireAt: 0 };
-const LEADERBOARD_TTL = 30_000;
+const LEADERBOARD_TTL = 10_000;
 // ⭐ Charts 內存緩存（24 小時）
 let _chartCache = { data: null, expireAt: 0 };
 const CHART_CACHE_TTL = 24 * 60 * 60_000;
@@ -514,14 +514,20 @@ export default async function handler(req, res) {
       const leaderboardData = await db.collection('leaderboardView').find({}).toArray();
       const usernames = leaderboardData.map(e => e.username);
 
+      // ⭐ 多取 lastSeenAt
       const users = await db.collection('users')
         .find(
           { username: { $in: usernames } },
-          { projection: { username: 1, pfp: 1, displayName: 1, realName: 1, banned: 1, role: 1 } }
+          { projection: { username: 1, pfp: 1, displayName: 1, realName: 1, banned: 1, role: 1, lastSeenAt: 1, explicitlyOffline: 1 } }
         )
         .toArray();
 
       const userMap = Object.fromEntries(users.map(u => [u.username, u]));
+
+      // ⭐ 在线判定阈值
+      const HEARTBEAT_MS = Number(process.env.ONLINE_HEARTBEAT_MS) || 5 * 60 * 1000;
+      const TIMEOUT_MS   = Number(process.env.ONLINE_TIMEOUT_MS)   || HEARTBEAT_MS * 2;
+      const serverNow    = Date.now();
 
       const leaderboard = leaderboardData
         .filter(entry => {
@@ -532,16 +538,22 @@ export default async function handler(req, res) {
         })
         .map((entry, idx) => {
           const u = userMap[entry.username] || {};
+          const lastSeenMs = u.lastSeenAt ? new Date(u.lastSeenAt).getTime() : 0;
+          const online = !u.explicitlyOffline && lastSeenMs > 0 && (serverNow - lastSeenMs) < TIMEOUT_MS;
           return {
             rank: idx + 1,
             username: entry.username,
             displayName: entry.displayName || u.displayName || entry.username,
             solves: entry.solves,
             pfp: u.pfp || '',
-            realName: u.realName || ''
+            realName: u.realName || '',
+            online,
+            lastSeenAt: u.lastSeenAt || null,
+            explicitlyOffline: !!u.explicitlyOffline,   // ⭐ 新增
           };
         });
-      const payload = { success: true, leaderboard };
+
+      const payload = { success: true, leaderboard, serverNow, heartbeatMs: HEARTBEAT_MS, timeoutMs: TIMEOUT_MS };
       _leaderboardCache = { data: payload, expireAt: Date.now() + LEADERBOARD_TTL };
       return res.status(200).json(payload);
     }
@@ -554,15 +566,15 @@ export default async function handler(req, res) {
       const problemFilter = isAdminUser ? {} : { public: true };
 
       const [problems, userStats, user] = await Promise.all([
-        db.collection('problems')
-          .find(problemFilter, { projection: { id: 1, _id: 0 } })
-          .toArray(),
-        db.collection('userstats').findOne({ username }, { projection: { states: 1, _id: 0 } }),
-        db.collection('users').findOne(
-          { username },
-          { projection: { pfp: 1, displayName: 1, realName: 1, _id: 0 } }
-        )
-      ]);
+  db.collection('problems')
+    .find(problemFilter, { projection: { id: 1, _id: 0 } })
+    .toArray(),
+  db.collection('userstats').findOne({ username }, { projection: { states: 1, _id: 0 } }),
+  db.collection('users').findOne(
+    { username },
+    { projection: { pfp: 1, displayName: 1, realName: 1, heartbeatCount: 1, lastSeenAt: 1, _id: 0 } }  // ⭐
+  )
+]);
 
       problems.sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
 
@@ -575,17 +587,24 @@ export default async function handler(req, res) {
         else if (state === 'failed') attempted.push({ id: p.id, state: 'failed' });
       }
 
-      return res.status(200).json({
-        success: true,
-        username,
-        displayName: user?.displayName || username,
-        realName: user?.realName || '',
-        pfp: user?.pfp || '',
-        totalPassed,
-        totalProblems: problems.length,
-        attempted,
-        allProblemIds: problems.map(p => p.id)
-      });
+      const HEARTBEAT_MS = Number(process.env.ONLINE_HEARTBEAT_MS) || 5 * 60 * 1000;
+const heartbeats = Number(user?.heartbeatCount) || 0;
+const totalOnlineMs = heartbeats * HEARTBEAT_MS;
+
+return res.status(200).json({
+  success: true,
+  username,
+  displayName: user?.displayName || username,
+  realName: user?.realName || '',
+  pfp: user?.pfp || '',
+  totalPassed,
+  totalProblems: problems.length,
+  attempted,
+  allProblemIds: problems.map(p => p.id),
+  // ⭐ 新增
+  totalOnlineMs,
+  lastSeenAt: user?.lastSeenAt || null,
+});
     }
 
     // ========== 收藏/取消收藏 ==========

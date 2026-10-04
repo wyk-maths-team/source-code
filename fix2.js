@@ -24,10 +24,13 @@ for (const f of files) {
   let html = fs.readFileSync(file, 'utf8');
   if (html.includes("pwaEnteredOS")) { console.log(`⏭  ${f}`); continue; }
   // 插在 <head>
+
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/arch-render.js"></script> 之後
   const idx = html.indexOf('<head>
+
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/arch-render.js"></script>');
   if (idx === -1) { console.log(`⚠️  ${f} 沒 <head>
+
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/arch-render.js"></script>`); continue; }
   html = html.slice(0, idx + 6) + '\n' + INLINE + html.slice(idx + 6);
   fs.writeFileSync(file, html, 'utf8');

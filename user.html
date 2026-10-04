@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/arch-render.js"></script>
 <!-- <script>
 (function(){
@@ -430,6 +431,49 @@
       box-shadow: 0 2px 4px rgba(0,0,0,.15);
       z-index: 1;
     }
+  /* ⭐ 在线时长 */
+.profile-online-row {
+  display: flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+  margin-top: .7rem;
+  font-size: .85rem;
+}
+.profile-online-row .item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: rgba(74,144,217,.08);
+  border: 1px solid rgba(74,144,217,.18);
+  border-radius: 20px;
+  color: var(--text-secondary);
+}
+.profile-online-row .item i {
+  color: var(--accent);
+  opacity: .8;
+  font-size: .85rem;
+}
+.profile-online-row .item b {
+  color: var(--text-primary);
+  font-family: 'Consolas', monospace;
+  font-weight: 700;
+}
+.profile-online-row .item.online {
+  background: rgba(46,204,113,.1);
+  border-color: rgba(46,204,113,.3);
+}
+.profile-online-row .item.online i { color: #2ecc71; }
+.profile-online-row .item.online b { color: #2e7d32; }
+[data-theme="dark"] .profile-online-row .item {
+  background: rgba(74,144,217,.12);
+  border-color: rgba(74,144,217,.3);
+}
+[data-theme="dark"] .profile-online-row .item.online {
+  background: rgba(46,204,113,.14);
+  border-color: rgba(46,204,113,.4);
+}
+[data-theme="dark"] .profile-online-row .item.online b { color: #8fdf8f; }
   </style>
 
   <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
@@ -454,7 +498,9 @@
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+<script src="/script/heartbeat.js"></script>
 
     <script>
     (function() {
@@ -525,7 +571,24 @@
       };
 
       const RARITY_ORDER = { legendary: 0, epic: 1, rare: 2, uncommon: 3, common: 4 };
-
+      function fmtDuration(ms) {
+  if (!ms || ms < 0) return '0m';
+  const s = Math.floor(ms / 1000);
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+function fmtRelative(ts) {
+  if (!ts) return 'never';
+  const diff = Date.now() - new Date(ts).getTime();
+  if (diff < 60_000) return 'just now';
+  if (diff < 3600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86400_000) return `${Math.floor(diff / 3600_000)}h ago`;
+  return `${Math.floor(diff / 86400_000)}d ago`;
+}
       // 拉当前用户的成就
       async function loadAchievements(username) {
         try {
@@ -683,9 +746,10 @@
 
       function renderProfile(data) {
         const {
-          username, displayName, realName, totalPassed, totalProblems,
-          attempted, allProblemIds, pfp
-        } = data;
+  username, displayName, realName, totalPassed, totalProblems,
+  attempted, allProblemIds, pfp,
+  totalOnlineMs, lastSeenAt
+} = data;
 
         const currentUser = getCurrentUser() || {};
         const isAdmin = currentUser.role === 'admin' || currentUser.role === 'root';
@@ -726,6 +790,18 @@
                   <span>Solved: <span class="passed">${totalPassed}</span> / ${totalProblems}</span>
                   <span>Completion: ${percent}%</span>
                 </div>
+                <div class="profile-online-row">
+                <span class="item">
+                  <i class="fas fa-clock"></i>
+                  <span>Total online</span>
+                  <b>${fmtDuration(totalOnlineMs || 0)}</b>
+                </span>
+                <span class="item">
+                  <i class="fas fa-eye"></i>
+                  <span>Last seen</span>
+                  <b>${fmtRelative(lastSeenAt)}</b>
+                </span>
+              </div>
               </div>
             </div>
 

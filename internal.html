@@ -12,5 +12,11 @@
 <iframe src="https://meyer-patient-counting-routes.trycloudflare.com/"
   referrerpolicy="no-referrer"
   sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>
+  <script src="auth.js"></script>
+<script>
+  if (!isLoggedIn()) {
+    window.location.href = '/';
+  }
+</script>
 </body>
 </html>

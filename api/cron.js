@@ -1,7 +1,16 @@
 // api/cron.js
 import { connectToDatabase } from './_db.js';
 import { auditLog } from '../lib/audit.js';
-
+function formatDuration(ms) {
+  if (ms < 0) ms = 0;
+  const s = Math.floor(ms / 1000);
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
 export default async function handler(req, res) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
@@ -46,6 +55,62 @@ export default async function handler(req, res) {
 
       return res.status(200).json({ success: true, dir, results });
     }
+    if (action === 'dailyOnlineSnapshot') {
+  const { uploadJsonFile } = await import('../lib/github-upload.js');
+
+  // 心跳间隔（跟前端 heartbeat.js 保持一致）
+  const HEARTBEAT_MS = Number(process.env.ONLINE_HEARTBEAT_MS) || 5 * 60 * 1000;
+
+  const users = await db.collection('users')
+    .find({}, { projection: {
+      username: 1, displayName: 1, realName: 1, role: 1,
+      heartbeatCount: 1, lastSeenAt: 1, banned: 1,
+      _id: 0,
+    }})
+    .toArray();
+
+  const snapshot = {
+    updatedAt: new Date().toISOString(),
+    heartbeatMs: HEARTBEAT_MS,
+    userCount: users.length,
+    users: {},
+  };
+
+  for (const u of users) {
+    if (u.banned === true) continue;
+    if (u.role === 'team') continue;
+
+    const heartbeats = Number(u.heartbeatCount) || 0;
+    snapshot.users[u.username] = {
+      displayName: u.displayName || u.username,
+      realName:    u.realName || '',
+      totalMs:     heartbeats * HEARTBEAT_MS,   // ⭐ 累计在线毫秒
+      totalHuman:  formatDuration(heartbeats * HEARTBEAT_MS),
+      heartbeats,
+      lastSeenAt:  u.lastSeenAt ? u.lastSeenAt.toISOString() : null,
+    };
+  }
+
+  const r = await uploadJsonFile(
+    'user/online/timestamp.json',
+    snapshot,
+    {
+      message: `online snapshot: ${new Date().toISOString().slice(0,10)} (${Object.keys(snapshot.users).length} users)`,
+      overwrite: true,   // ⭐ 覆盖，不是新增
+    }
+  );
+
+  await auditLog(db, 'online_snapshot', {
+    userCount: Object.keys(snapshot.users).length,
+    file: r.path,
+  }, 'system', 'info').catch(() => {});
+
+  return res.status(200).json({
+    success: true,
+    userCount: Object.keys(snapshot.users).length,
+    url: r.githubUrl,
+  });
+}
 
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {

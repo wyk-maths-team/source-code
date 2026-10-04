@@ -1,30 +1,15 @@
-﻿<!DOCTYPE html>
+﻿﻿<!DOCTYPE html>
 <html lang="en">
 <head>
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/arch-render.js"></script>
-<!-- <script>
-(function(){
-  try {
-    if (window.top !== window.self) return;
-    // if (sessionStorage.getItem('desktopPreferred')) return;   // 用戶手動選桌面版
-    var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (!isMobile) return;
-    if (location.pathname.indexOf('/mobile') === 0) return;
-    // if (location.pathname.indexOf('/os') === 0) return;
-    if (location.pathname.indexOf('/admin') === 0) return;
-    location.replace('/mobile/' + location.search + location.hash);
-  } catch(e){}
-})();
-</script> -->
 
-  
+<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/arch-render.js"></script>
+
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
   if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
   if (localStorage.getItem('pageTransition') === 'off') return;
   if (sessionStorage.getItem('__pt') !== 'in') return;
-  // ⭐ 铺的是"遮罩色"，不是页面底色
   document.documentElement.style.background = (t === 'dark' ? '#0d1117' : '#0f3460');
 }catch(e){}})();</script>
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pageload.js" defer></script>
@@ -95,6 +80,11 @@
     }
     .btn:hover {
       background: var(--hover-bg);
+    }
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: default;
+      pointer-events: none;
     }
     .btn.disabled {
       opacity: 0.6;
@@ -169,7 +159,8 @@
     .text-center { text-align: center; }
     .text-danger { color: var(--danger); }
     [data-theme="dark"] .text-danger { color: #ff8888; }
-        /* ===== Hover tooltip ===== */
+
+    /* ===== Hover tooltip ===== */
     #userTooltip {
       position: fixed;
       top: 0; left: 0;
@@ -230,6 +221,94 @@
       font-size: 0.82rem;
       color: var(--text-secondary);
     }
+
+    /* ⭐ 头像 + 在线点 */
+    .user-avatar-wrap {
+      position: relative;
+      display: inline-flex;
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+      margin-right: 8px;
+    }
+    .user-avatar-wrap img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      display: block;
+    }
+    .user-avatar-wrap .avatar-placeholder {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      color: #fff;
+      background: linear-gradient(135deg, #4a90d9, #2e5fa0);
+    }
+    .user-avatar-wrap .online-dot {
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #2ecc71;
+      border: 2px solid var(--card-bg);
+      box-shadow: 0 0 0 0 rgba(46,204,113,.7);
+      animation: pulseDot 2s infinite;
+    }
+    @keyframes pulseDot {
+      0%   { box-shadow: 0 0 0 0 rgba(46,204,113,.7); }
+      70%  { box-shadow: 0 0 0 6px rgba(46,204,113,0); }
+      100% { box-shadow: 0 0 0 0 rgba(46,204,113,0); }
+    }
+    [data-theme="dark"] .user-avatar-wrap .online-dot {
+      border-color: var(--card-bg);
+    }
+
+    /* tooltip 头像也用同样方式 */
+    #userTooltip .tip-avatar-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+    #userTooltip .tip-avatar-wrap .online-dot {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #2ecc71;
+      border: 2px solid var(--card-bg);
+    }
+
+    #refreshBtn {
+      min-width: 110px;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+    #refreshBtn i {
+      transition: transform .15s;
+    }
+    #refreshBtn.spinning i {
+      animation: spin 1s linear infinite;
+    }
+    #refreshBtn .rf-time {
+      font-family: 'Consolas', monospace;
+      font-size: .82em;
+      opacity: .7;
+      margin-left: 2px;
+    }
+
+    #leaderboardBody {
+      transition: opacity .2s;
+    }
+    #leaderboardBody.refreshing {
+      opacity: .5;
+    }
   </style>
 
   <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
@@ -253,6 +332,7 @@
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+  <script src="/script/heartbeat.js"></script>
 
   <script>
     if (!isLoggedIn()) window.location.href = '/index.html';
@@ -263,7 +343,49 @@
     function escapeHtml(str) {
       return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
     }
+    // ⭐ 相对时间：3 分钟前 / 2 小时前 / 昨天 14:32 / 10-04 14:32
+function formatLastSeen(ts) {
+  if (!ts) return 'never';
+  const d = new Date(ts);
+  const now = Date.now();
+  const diff = now - d.getTime();
 
+  if (diff < 0) return 'just now';
+  if (diff < 60_000) return 'just now';
+  if (diff < 3600_000) {
+    const m = Math.floor(diff / 60_000);
+    return `${m} minute${m > 1 ? 's' : ''} ago`;
+  }
+  if (diff < 86400_000) {
+    const h = Math.floor(diff / 3600_000);
+    return `${h} hour${h > 1 ? 's' : ''} ago`;
+  }
+
+  const p = n => String(n).padStart(2, '0');
+  const hhmm = `${p(d.getHours())}:${p(d.getMinutes())}`;
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+
+  if (d.toDateString() === yesterday.toDateString()) return `yesterday ${hhmm}`;
+  if (d.getFullYear() === today.getFullYear()) {
+    return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${hhmm}`;
+  }
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+// ⭐ 头像 + 绿点
+    
+    function avatarHtml(user, size = 24) {
+      const pfp = user.pfp;
+      const online = user.online;
+      const inner = pfp
+        ? `<img src="${escapeHtml(pfp)}" alt="" loading="lazy" decoding="async">`
+        : `<div class="avatar-placeholder"><i class="fas fa-user"></i></div>`;
+      const dot = online ? '<span class="online-dot" title="Online"></span>' : '';
+      return `<span class="user-avatar-wrap" style="width:${size}px;height:${size}px;">${inner}${dot}</span>`;
+    }
+
+    // ═══════════════ Skeleton ═══════════════
     function renderSkeleton() {
       mainContainer.innerHTML = `
         <div class="leaderboard-container">
@@ -272,6 +394,9 @@
             <div class="btn-group">
               <button class="btn btn-info disabled" disabled>Leaderboard</button>
               <a href="/charts" class="btn">Chart</a>
+              <button class="btn" id="refreshBtn" title="Refresh leaderboard">
+                <i class="fas fa-rotate"></i> Refresh <span class="rf-time" id="refreshTime"></span>
+              </button>
             </div>
           </div>
           <div class="table-responsive">
@@ -296,7 +421,7 @@
       `;
     }
 
-    
+    // ═══════════════ Tooltip ═══════════════
     const tooltip = document.createElement('div');
     tooltip.id = 'userTooltip';
     document.body.appendChild(tooltip);
@@ -305,19 +430,34 @@
     let leaderboardUserMap = {};
 
     function showTooltip(user) {
-      const avatar = user.pfp
+      const avatarInner = user.pfp
         ? `<img class="tip-avatar" src="${escapeHtml(user.pfp)}" alt="">`
-        : `<div class="tip-avatar placeholder">👤</div>`;
+        : `<div class="tip-avatar placeholder"><i class="fas fa-user"></i></div>`;
+      const avatar = `
+        <div class="tip-avatar-wrap">
+          ${avatarInner}
+          ${user.online ? '<span class="online-dot" title="Online"></span>' : ''}
+        </div>`;
       tooltip.innerHTML = `
         ${avatar}
         <div class="tip-info">
           <div class="tip-display">${escapeHtml(user.displayName || user.username)}</div>
           <div class="tip-username">@${escapeHtml(user.username)}</div>
           ${user.realName ? `<div class="tip-realname">${escapeHtml(user.realName)}</div>` : ''}
+          <div class="tip-realname" style="margin-top:4px;">
+            <span style="color:${user.online ? '#2ecc71' : '#aaa'};">
+              <i class="fas fa-circle" style="font-size:6px;vertical-align:middle;"></i>
+              ${user.online
+  ? 'Online'
+  : user.explicitlyOffline
+    ? `Offline (logged out) · Last seen: ${escapeHtml(formatLastSeen(user.lastSeenAt))}`
+    : `Last seen: ${escapeHtml(formatLastSeen(user.lastSeenAt))}`}
+            </span>
+          </div>
         </div>
       `;
       tooltip.style.display = 'flex';
-      void tooltip.offsetWidth;   // 觸發 reflow 讓 transition 生效
+      void tooltip.offsetWidth;
       tooltip.classList.add('visible');
     }
 
@@ -342,9 +482,25 @@
       tooltip.style.top  = Math.max(8, y) + 'px';
     }
 
+    // ═══════════════ Leaderboard ═══════════════
+    let isLoadingLeaderboard = false;
+
+    function formatTime(d) {
+      const p = n => String(n).padStart(2, '0');
+      return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+    }
+
     async function loadLeaderboard() {
+      if (isLoadingLeaderboard) return;
+      isLoadingLeaderboard = true;
+
       const tbody = document.getElementById('leaderboardBody');
-      if (!tbody) return;
+      const btn = document.getElementById('refreshBtn');
+      if (!tbody) { isLoadingLeaderboard = false; return; }
+
+      tbody.classList.add('refreshing');
+      if (btn) { btn.disabled = true; btn.classList.add('spinning'); }
+
       try {
         const data = await apiCall('/api/users?action=leaderboard');
         if (!data.success || !data.leaderboard || data.leaderboard.length === 0) {
@@ -357,10 +513,6 @@
           if (entry.solves === 0) return;
           leaderboardUserMap[entry.username] = entry;
           const isMe = (currentUsername && entry.username === currentUsername);
-          const avatarUrl = entry.pfp || '';
-          const avatarHtml = avatarUrl
-            ? `<img src="${avatarUrl}" width="24" height="24" loading="lazy" decoding="async" alt="" style="border-radius:50%;vertical-align:middle;margin-right:8px;object-fit:cover;">`
-            : '';
           html += `
             <tr${isMe ? ' class="mine"' : ''}>
               <td class="text-center">${entry.rank}</td>
@@ -369,7 +521,7 @@
                    class="user-link"
                    data-username="${escapeHtml(entry.username)}"
                    style="display:flex;align-items:center;gap:6px;">
-                  ${avatarHtml}
+                  ${avatarHtml(entry, 24)}
                   <span>${escapeHtml(entry.username)} - ${escapeHtml(entry.displayName || entry.username)}</span>
                 </a>
               </td>
@@ -378,7 +530,6 @@
         });
         tbody.innerHTML = html;
 
-        // 綁定 tooltip（只綁一次，因為 tbody 內容剛換）
         tbody.querySelectorAll('.user-link').forEach(link => {
           link.addEventListener('mouseenter', (e) => {
             const u = leaderboardUserMap[link.dataset.username];
@@ -390,11 +541,28 @@
           link.addEventListener('mousemove', moveTooltip);
           link.addEventListener('mouseleave', hideTooltip);
         });
+
+        // ⭐ 记录刷新时间
+        const rt = document.getElementById('refreshTime');
+        if (rt) rt.textContent = `(${formatTime(new Date())})`;
       } catch (err) {
         console.error(err);
         tbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger">Failed to load leaderboard.</td></tr>';
+      } finally {
+        isLoadingLeaderboard = false;
+        tbody.classList.remove('refreshing');
+        if (btn) { btn.disabled = false; btn.classList.remove('spinning'); }
       }
     }
+
+    // ═══════════════ 手动刷新 ═══════════════
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('#refreshBtn');
+      if (!btn) return;
+      if (isLoadingLeaderboard) return;
+      loadLeaderboard();
+    });
+
     renderSkeleton();
     loadLeaderboard();
   </script>
