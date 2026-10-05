@@ -6,10 +6,11 @@ import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';
 import crypto from 'crypto';
 
-const INVITE_TTL_MS = 10 * 60 * 1000;   // 2 分钟
+const INVITE_TTL_MS = 10 * 60 * 1000;   // 邀请有效期 10 分钟
 // ⭐ PK 房间锁与冷却
-const PK_LOCK_TTL_MS     = 4 * 60 * 1000;   // 4 分钟看题上限
-const PK_COOLDOWN_MS     = 1 * 60 * 1000;   // 答错后自己冷却 1 分钟
+const PK_LOCK_TTL_MS     = 4 * 60 * 1000;    // 4 分钟看题上限（题目锁，双方互斥）
+const PK_TIMEOUT_LOCK_MS = 1 * 60 * 1000;    // ⭐ 超时后再锁 1 分钟（个人锁）
+const PK_COOLDOWN_MS     = 10 * 60 * 1000;   // ⭐ WA 冷却 10 分钟（个人锁）
 
 function getRoomLock(room, problemId) {
   const l = room.locks && room.locks[problemId];
@@ -40,7 +41,6 @@ function shuffle(arr) {
 
 // ⭐ 从 problems 里随机挑一年，返回 9 区结构
 async function setupRoomProblems(db) {
-  // ⭐ 从 pkproblems 读
   const all = await db.collection('pkproblems')
     .find({ id: /^DP\d{4,}$/ })
     .project({ id: 1, _id: 0 })
@@ -48,7 +48,6 @@ async function setupRoomProblems(db) {
 
   if (all.length === 0) return null;
 
-  // 按年份分组
   const yearMap = {};
   for (const p of all) {
     const m = String(p.id).match(/^DP(\d{2})(\d+)$/);
@@ -96,6 +95,7 @@ async function setupRoomProblems(db) {
 
   return { year, regions };
 }
+
 function genId(prefix, len = 6) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let s = '';
@@ -162,7 +162,7 @@ export default async function handler(req, res) {
       from: username,
       fromDisplay: decoded.displayName || username,
       to,
-      toDisplay: target.displayName || to,     // ⭐ 新增
+      toDisplay: target.displayName || to,
       status: 'pending',
       createdAt: now,
       expiresAt: new Date(now.getTime() + INVITE_TTL_MS),
@@ -206,7 +206,7 @@ export default async function handler(req, res) {
     }
     return res.status(200).json({ success: true, invite });
   }
-    // ── 查房间信息 ──
+
   // ── 查房间信息 ──
   if (action === 'room-info') {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
@@ -239,9 +239,7 @@ export default async function handler(req, res) {
           guest: counts[room.guest] || 0,
           empty: counts.null || 0,
         },
-        // ⭐ 是否对我解锁
         unlocked: myUnlocked.includes(reg.index),
-        // ⭐ 完整题目列表（含 problemId），但只有解锁后才给
         problems: myUnlocked.includes(reg.index)
           ? reg.problems.map(p => ({
               slot: p.slot,
@@ -272,7 +270,8 @@ export default async function handler(req, res) {
       serverNow: Date.now(),
     });
   }
-    // ── 打开题目（建立临时锁） ──
+
+  // ── 打开题目（建立临时锁） ──
   if (action === 'open') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
     const { roomId, problemId } = req.body || {};
@@ -321,30 +320,89 @@ export default async function handler(req, res) {
       });
     }
 
-    // 检查自己对这题的冷却
+    // ═══════════════════════════════════════════════════════
+    // ⭐ 1. 个人 WA 冷却（10 分钟）
+    // ═══════════════════════════════════════════════════════
     const cd = (room.cooldown && room.cooldown[username]) || {};
-    if (cd[problemId] && Date.now() - new Date(cd[problemId]).getTime() < PK_COOLDOWN_MS) {
-      const remain = Math.ceil((PK_COOLDOWN_MS - (Date.now() - new Date(cd[problemId]).getTime())) / 1000);
-      return res.status(429).json({
-        success: false,
-        reason: 'cooldown',
-        remainSec: remain,
-        message: `Cooldown: ${remain}s`,
-      });
+    if (cd[problemId]) {
+      const cdAge = Date.now() - new Date(cd[problemId]).getTime();
+      if (cdAge < PK_COOLDOWN_MS) {
+        const remain = Math.ceil((PK_COOLDOWN_MS - cdAge) / 1000);
+        const mins = Math.ceil(remain / 60);
+        return res.status(429).json({
+          success: false,
+          reason: 'cooldown',
+          remainSec: remain,
+          message: `Wrong answer penalty — locked for ${mins} min`,
+        });
+      }
     }
 
-    // 检查锁：是否被别人占用
-    const existingLock = getRoomLock(room, problemId);
-    if (existingLock && existingLock.username !== username) {
-      return res.status(423).json({
-        success: false,
-        reason: 'locked_by_other',
-        owner: existingLock.username,
-        message: 'Opponent is viewing this problem',
-      });
+    // ═══════════════════════════════════════════════════════
+    // ⭐ 2. 个人 timeout 锁（1 分钟，只影响自己）
+    // ═══════════════════════════════════════════════════════
+    const tLocks = (room.timeoutLocks && room.timeoutLocks[username]) || {};
+    if (tLocks[problemId]) {
+      const tAge = Date.now() - new Date(tLocks[problemId]).getTime();
+      if (tAge < PK_TIMEOUT_LOCK_MS) {
+        const remain = Math.ceil((PK_TIMEOUT_LOCK_MS - tAge) / 1000);
+        return res.status(429).json({
+          success: false,
+          reason: 'timeout_lock',
+          remainSec: remain,
+          message: `Released after timeout — locked ${remain}s`,
+        });
+      }
     }
 
-    // 建立/续期锁
+    // ═══════════════════════════════════════════════════════
+    // ⭐ 3. 题目锁（双方互斥，4 分钟看题上限）
+    // ═══════════════════════════════════════════════════════
+    const lock = room.locks && room.locks[problemId];
+    if (lock && lock.ts) {
+      const lockAge = Date.now() - new Date(lock.ts).getTime();
+
+      if (lockAge < PK_LOCK_TTL_MS) {
+        // 3a. 锁还在有效期内
+        if (lock.username !== username) {
+          return res.status(423).json({
+            success: false,
+            reason: 'locked_by_other',
+            owner: lock.username,
+            message: 'Opponent is viewing this problem',
+          });
+        }
+        // 是自己的锁 → 允许，往下走续期
+      } else {
+        // 3b. 锁已超时 → 给超时者上「个人 timeout 锁」，并清掉题目锁
+        const timeoutOwner = lock.username;
+        const timeoutStartMs = new Date(lock.ts).getTime() + PK_LOCK_TTL_MS;
+
+        await db.collection('pk_rooms').updateOne(
+          { id: roomId },
+          {
+            $set:   { [`timeoutLocks.${timeoutOwner}.${problemId}`]: timeoutStartMs },
+            $unset: { [`locks.${problemId}`]: '' },
+          }
+        );
+
+        if (timeoutOwner === username) {
+          // ⭐ 自己就是超时者 → 拒绝
+          const remain = Math.max(1, Math.ceil((PK_TIMEOUT_LOCK_MS - (Date.now() - timeoutStartMs)) / 1000));
+          return res.status(429).json({
+            success: false,
+            reason: 'timeout_lock',
+            remainSec: remain,
+            message: `Released after timeout — locked ${remain}s`,
+          });
+        }
+        // ⭐ 对方超时 → 允许自己继续（题目锁已被 unset，下面会重新建立）
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 建立 / 续期题目锁
+    // ═══════════════════════════════════════════════════════
     const nowIso = new Date().toISOString();
     await db.collection('pk_rooms').updateOne(
       { id: roomId },
@@ -368,7 +426,8 @@ export default async function handler(req, res) {
       lockExpiresAt: Date.now() + PK_LOCK_TTL_MS,
     });
   }
-    // ── 提交答案 ──
+
+  // ── 提交答案 ──
   if (action === 'submit') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
     const { roomId, problemId, ans } = req.body || {};
@@ -428,9 +487,6 @@ export default async function handler(req, res) {
       timestamp: new Date(),
     });
 
-    const update = {};
-    // 清锁
-    update[`locks.${problemId}`] = '';
     const $unset = { [`locks.${problemId}`]: '' };
     const $set = {};
     const $inc = {};
@@ -447,7 +503,7 @@ export default async function handler(req, res) {
       for (const n of (ADJACENCY[regIndex] || [])) myUnlocked.add(n);
       $set[`unlocked.${username}`] = [...myUnlocked];
     } else {
-      // 冷却自己
+      // WA → 冷却自己 10 分钟
       $set[`cooldown.${username}.${problemId}`] = new Date();
     }
 
@@ -462,8 +518,10 @@ export default async function handler(req, res) {
       status,
       correct: isAC,
       subId,
+      cooldownSec: isAC ? 0 : Math.ceil(PK_COOLDOWN_MS / 1000),
     });
   }
+
   // ── 接受 ──
   if (action === 'accept') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -486,7 +544,6 @@ export default async function handler(req, res) {
     // 创建房间
     const roomId = genId('PK', 6);
     const now = new Date();
-        // ⭐ 初始化题目集
     const setup = await setupRoomProblems(db);
     if (!setup) {
       return res.status(500).json({
@@ -505,9 +562,9 @@ export default async function handler(req, res) {
       createdAt: now,
       year: setup.year,
       regions: setup.regions,
-      locks: {},         // ⭐ problemId → { username, ts }
-      cooldown: {},      // ⭐ username → { problemId → ts }
-      // ⭐ 每个玩家独立解锁状态
+      locks: {},           // 题目锁（双方互斥）
+      cooldown: {},        // ⭐ 个人 WA 冷却（10 分钟）
+      timeoutLocks: {},    // ⭐ 个人超时锁（1 分钟）
       unlocked: {
         [invite.from]: [1],
         [invite.to]: [1],

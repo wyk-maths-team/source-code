@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Exclusive Practice - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<style>
+  /* ═══════════════ Layout ═══════════════ */
+  .ex-wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+
+  /* ═══════════════ Header ═══════════════ */
+  .ex-header {
+    background: linear-gradient(135deg, var(--accent) 0%, #2a6cb0 100%);
+    color: #fff;
+    padding: 22px 26px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 6px 24px rgba(74,144,217,.25);
+    position: relative;
+    overflow: hidden;
+  }
+  .ex-header::before {
+    content: '';
+    position: absolute;
+    top: -60%; right: -10%;
+    width: 260px; height: 260px;
+    background: radial-gradient(circle, rgba(255,255,255,.18) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .ex-header h1 {
+    margin: 0 0 4px;
+    font-size: 1.5rem;
+    font-weight: 800;
+    display: flex; align-items: center; gap: 10px;
+    position: relative;
+  }
+  .ex-header p {
+    margin: 0;
+    font-size: .88rem;
+    opacity: .9;
+    position: relative;
+  }
+
+  /* ═══════════════ Question Grid ═══════════════ */
+  .ex-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  .ex-card {
+    background: var(--card-bg);
+    border: 1.5px solid var(--border-color);
+    border-radius: 10px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: transform .15s, box-shadow .15s, border-color .15s;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 100px;
+  }
+  .ex-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+    box-shadow: 0 8px 24px rgba(74,144,217,.16);
+  }
+  .ex-card-id {
+    font-family: 'Consolas', monospace;
+    font-weight: 800;
+    font-size: 1.05rem;
+    color: var(--accent);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .ex-card-badge {
+    font-size: .68rem;
+    padding: 2px 8px;
+    background: rgba(74,144,217,.15);
+    color: var(--accent);
+    border-radius: 8px;
+    font-weight: 700;
+    font-family: 'Consolas', monospace;
+  }
+  .ex-card-preview {
+    font-size: .78rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* ═══════════════ Detail View ═══════════════ */
+  .ex-back-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    padding: 8px 16px;
+    border-radius: 8px;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: .88rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all .15s;
+  }
+  .ex-back-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .ex-detail-card {
+    background: var(--card-bg);
+    border: 1.5px solid var(--border-color);
+    border-radius: 12px;
+    padding: 24px 26px;
+    margin-bottom: 16px;
+  }
+  .ex-detail-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .ex-detail-id {
+    font-family: 'Consolas', monospace;
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: var(--accent);
+  }
+  .ex-detail-score {
+    font-size: .85rem;
+    padding: 4px 12px;
+    background: rgba(74,144,217,.12);
+    color: var(--accent);
+    border-radius: 10px;
+    font-weight: 700;
+    font-family: 'Consolas', monospace;
+  }
+  .ex-detail-statement {
+    font-size: .95rem;
+    line-height: 1.75;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  /* ═══════════════ Answer Area ═══════════════ */
+  .ex-answer-card {
+    background: var(--card-bg);
+    border: 1.5px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px 22px;
+  }
+  .ex-answer-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-weight: 700;
+    font-size: .92rem;
+  }
+  .ex-char-count {
+    font-family: 'Consolas', monospace;
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    transition: color .15s;
+  }
+  .ex-char-count.warn   { color: #f0ad4e; }
+  .ex-char-count.danger { color: var(--danger); }
+
+  .ex-textarea {
+    width: 100%;
+    min-height: 140px;
+    padding: 14px 16px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: .95rem;
+    line-height: 1.65;
+    resize: vertical;
+    box-sizing: border-box;
+    transition: border-color .15s;
+  }
+  .ex-textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .ex-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  .ex-submit-btn {
+    padding: 11px 28px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 9px;
+    font-weight: 700;
+    font-size: .95rem;
+    cursor: pointer;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: filter .15s, opacity .15s;
+  }
+  .ex-submit-btn:hover:not(:disabled) { filter: brightness(1.1); }
+  .ex-submit-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* ═══════════════ Result ═══════════════ */
+  .ex-result {
+    margin-top: 18px;
+    padding: 20px 22px;
+    border-radius: 12px;
+    background: rgba(74,144,217,.05);
+    border: 1px solid rgba(74,144,217,.25);
+    animation: exResultIn .35s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes exResultIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .ex-result-score {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px dashed rgba(74,144,217,.3);
+  }
+  .ex-result-score .num {
+    font-family: 'Consolas', monospace;
+    font-size: 2.6rem;
+    font-weight: 900;
+    line-height: 1;
+    color: var(--accent);
+  }
+  .ex-result-score .num.perfect { color: #2ecc71; }
+  .ex-result-score .num.zero    { color: var(--danger); }
+  .ex-result-score .max {
+    font-family: 'Consolas', monospace;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+  }
+  .ex-result-score .label {
+    margin-left: auto;
+    font-size: .85rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+
+  .ex-result-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .ex-point {
+    display: flex;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+  }
+  .ex-point-id {
+    font-family: 'Consolas', monospace;
+    font-weight: 800;
+    color: var(--accent);
+    flex-shrink: 0;
+    min-width: 2.2em;
+  }
+  .ex-point-body { flex: 1; min-width: 0; }
+  .ex-point-comment {
+    font-size: .88rem;
+    line-height: 1.6;
+    color: var(--text-primary);
+  }
+  .ex-point-marks {
+    flex-shrink: 0;
+    font-family: 'Consolas', monospace;
+    font-weight: 700;
+    font-size: .9rem;
+  }
+  .ex-point-marks.full { color: #2ecc71; }
+  .ex-point-marks.part { color: #f0ad4e; }
+  .ex-point-marks.zero { color: var(--danger); }
+
+  .ex-result-comment {
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: var(--card-bg);
+    border-left: 4px solid var(--accent);
+    border-radius: 6px;
+    font-size: .92rem;
+    line-height: 1.7;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+  }
+
+  .ex-result-elapsed {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed rgba(74,144,217,.25);
+    text-align: right;
+    font-family: 'Consolas', monospace;
+    font-size: .78rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+  .ex-result-elapsed i { opacity: .65; }
+
+  .ex-raw {
+    margin-top: 16px;
+    padding: 14px;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    border-radius: 8px;
+    font-family: 'Consolas', monospace;
+    font-size: .8rem;
+    line-height: 1.5;
+    max-height: 300px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .ex-error {
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: rgba(220,50,50,.08);
+    border: 1px solid rgba(220,50,50,.3);
+    border-left: 4px solid var(--danger);
+    border-radius: 6px;
+    color: var(--danger);
+    font-size: .9rem;
+    line-height: 1.6;
+  }
+
+  /* ═══════════════ Loader ═══════════════ */
+  .ex-loading {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255,255,255,.35);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: exSpin .7s linear infinite;
+  }
+  @keyframes exSpin { to { transform: rotate(360deg); } }
+
+  /* ═══════════════ Skeleton ═══════════════ */
+  .ex-skel-bar {
+    display: inline-block;
+    height: 14px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #e8eef5 25%, #f5f8fc 50%, #e8eef5 75%);
+    background-size: 200% 100%;
+    animation: exSkelShimmer 1.4s ease-in-out infinite;
+    vertical-align: middle;
+  }
+  @keyframes exSkelShimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  :root[data-theme="dark"] .ex-skel-bar {
+    background: linear-gradient(90deg, #2a3542 25%, #3a4756 50%, #2a3542 75%);
+    background-size: 200% 100%;
+  }
+  .ex-skel-bar.score-main {
+    width: 68px;
+    height: 42px;
+    border-radius: 8px;
+  }
+  .ex-skel-bar.score-max {
+    width: 44px;
+    height: 20px;
+  }
+  .ex-skel-bar.id-box {
+    width: 22px;
+    height: 16px;
+  }
+  .ex-skel-bar.line-full {
+    display: block;
+    width: 100%;
+    height: 14px;
+    margin-bottom: 8px;
+  }
+  .ex-skel-bar.line-short {
+    display: block;
+    width: 55%;
+    height: 14px;
+  }
+  .ex-skel-bar.marks-box {
+    width: 42px;
+    height: 16px;
+  }
+
+  /* ═══════════════ Elapsed Label (during grading) ═══════════════ */
+  .ex-elapsed-live {
+    font-family: 'Consolas', monospace;
+    font-weight: 700;
+    opacity: .9;
+    margin-left: 4px;
+  }
+
+  @media (max-width: 600px) {
+    .ex-wrap { padding: 14px; }
+    .ex-header { padding: 18px 20px; }
+    .ex-header h1 { font-size: 1.2rem; }
+    .ex-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+    .ex-detail-card,
+    .ex-answer-card { padding: 18px; }
+    .ex-detail-id { font-size: 1.15rem; }
+    .ex-result-score .num { font-size: 2rem; }
+  }
+</style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="ex-wrap">
+
+        <!-- ═══════════ 列表視圖 ═══════════ -->
+        <div id="listView">
+          <div class="ex-header">
+            <h1><i class="fas fa-lock"></i> Exclusive Practice</h1>
+            <p>選一題作答，AI 會根據評分標準評分</p>
+          </div>
+          <div class="ex-grid" id="exGrid"></div>
+        </div>
+
+        <!-- ═══════════ 詳情視圖 ═══════════ -->
+        <div id="detailView" hidden>
+          <button class="ex-back-btn" id="backBtn">
+            <i class="fas fa-arrow-left"></i> 返回題目列表
+          </button>
+
+          <div class="ex-detail-card">
+            <div class="ex-detail-head">
+              <div class="ex-detail-id" id="detailId">CSB-01</div>
+              <div class="ex-detail-score" id="detailScore">4 分</div>
+            </div>
+            <div class="ex-detail-statement" id="detailStatement"></div>
+          </div>
+
+          <div class="ex-answer-card">
+            <div class="ex-answer-label">
+              <span><i class="fas fa-pen"></i> 你的答案</span>
+              <span class="ex-char-count" id="charCount">0 / 200</span>
+            </div>
+            <textarea
+              class="ex-textarea"
+              id="answerInput"
+              maxlength="200"
+              placeholder="輸入你的答案（最多 200 字）…"
+            ></textarea>
+            <div class="ex-actions">
+              <button class="ex-submit-btn" id="submitBtn" disabled>
+                <i class="fas fa-paper-plane"></i> 提交批改
+              </button>
+            </div>
+
+            <div id="resultArea"></div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+
+  <script>
+    if (!isLoggedIn()) {
+      sessionStorage.setItem('ex_redirect', location.href);
+      window.location.href = '/index.html';
+      throw new Error('Not logged in');
+    }
+
+    // ═══════════════ 題目數據（硬編碼） ═══════════════
+    const QUESTIONS = {
+      'CSB-01': { max: 4, statement: '諸葛亮在《出師表》提到甚麼因素是國家興亡的關鍵？試摘錄有關句子作答。（1分）又諸葛亮運用了甚麼論證手法說明上述因素是國家興亡的關鍵？（1分）試略加說明。（2分）' },
+      'CSB-02': { max: 4, statement: '諸葛亮在《出師表》憶述了兩件與先帝之間發生的往事，反映劉備的性格特徵。試根據文意填寫下表。（4分）（1）三顧草廬 （2）臨終託孤' },
+      'CSB-03': { max: 3, statement: '《出師表》末段概括總結了諸葛亮在前文向後主表達的內容，試指出以下選項與前文呼應之處。（3分）（1）「願陛下託臣以討賊興復之效」 （2）「諮諏善道，察納雅言」 （3）「若無興德之言，則責攸之、禕、允等」' },
+      'CSB-04': { max: 6, statement: '以下是一段分析諸葛亮在《出師表》如何游說後主接受勸諫的文字，試在填充部分填寫正確的答案。（6分）\n\n「作者運用了＿＿和＿＿的游說方法，分析天下局勢和蜀漢所面臨的困境，藉此引起後主的警惕。然後以對比手法，勸勉後主不應＿和偏私，應廣開言路、明法度和選用賢才。並利用前漢和後漢興衰原因的對比，勸誡後主應＿。第6段，諸葛亮改用＿＿的游說方法，剖白心志，表明對先帝賞識自己的＿＿之情和繼承先帝遺志，努力助後主＿＿。全文結構嚴謹，情感真摯。」' },
+      'CSB-05': { max: 7, statement: '根據以下諸葛亮《出師表》的引文，回答所附問題。\n\n（1）甲「愚以為宮中之事，事無大小，悉以咨之，然後施行」乙「陛下亦宜自謀，以諮諏善道，察納雅言，深追先帝遺詔」兩段引文的語氣分別是怎樣的？（2分）\n（2）諸葛亮在甚麼情況下運用這兩種語氣？（2分）\n（3）諸葛亮同時運用兩種語氣的目的是甚麼？試加以說明。（3分）' },
+      'CSB-06': { max: 4, statement: '有人評價諸葛亮《出師表》一文語言風格樸素雅淡。試綜合全文，分析本文如何呈現這種風格。（4分）' },
+      'CSB-07': { max: 4, statement: '諸葛亮在《出師表》中向後主分別提出廣開言路、嚴明法度、選用賢才和遠佞親賢這四項治國建議，你認為哪一項對國君而言最為重要？試谈谈你的看法。（4分）' },
+      'CSB-08': { max: 6, statement: '諸葛亮《出師表》和蘇洵《六國論》均提出了用兵和用人方面的策略，兩者有甚麼相同之處？試加以說明。（6分）\n（1）用兵方面\n（2）用人方面' },
+      'CSB-09': { max: 3, statement: '以下引文反映諸葛亮的形象有甚麼特點？試略加說明。（3分）\n\n「先帝創業未半，而中道崩殂。今天下三分，益州疲弊，此誠危急存亡之秋也。」' },
+      'CSB-10': { max: 3, statement: '以下引文運用了甚麼修辭手法？試加以指出。（1分）又這種手法如何加強說理效果？試以引文為例，略加說明。（2分）\n\n「親賢臣，遠小人，此先漢所以興隆也；親小人，遠賢臣，此後漢所以傾頹也。」' },
+      'CSB-11': { max: 4, statement: '諸葛亮在引文中提及先帝，是運用了甚麼游說手法？（1分）承上題，諸葛亮在引文中提及先帝，如何加強游說效果？試略加說明。（3分）\n\n「今南方已定，兵甲已足，當獎率三軍，北定中原，庶竭駑鈍，攘除姦凶，興復漢室，還於舊都。此臣所以報先帝而忠陛下之職分也。」' },
+      'CSB-12': { max: 3, statement: '諸葛亮在《出師表》末段強調君臣各有職責，後主的職責是甚麼？（3分）' },
+      'CSB-13': { max: 4, statement: '在《出師表》一文中，諸葛亮認為郭攸之、向寵等人有甚麼優點？試以自己的文句分別說明。（4分）' },
+      'CSB-14': { max: 4, statement: '根據《出師表》的內容，諸葛亮認為當時的蜀國有甚麼優勢和劣勢？試以自己的文句分別說明。（4分）' },
+      'CSB-15': { max: 4, statement: '諸葛亮在《出師表》篇首分析蜀國面臨的危機，有何作用？（4分）' },
+      'CSB-16': { max: 4, statement: '諸葛亮在《出師表》中自述身世及志向，用意何在？試略加說明。（4分）' },
+      'CSB-17': { max: 6, statement: '有人認為諸葛亮是出色的政治家，你同意嗎？試就《出師表》一文略加說明。（6分）' },
+      'CSB-18': { max: 4, statement: '蘇軾評《出師表》「直而不肆」，指諸葛亮規勸後主時表現含蓄，你同意嗎？試谈谈你的看法。（4分）' },
+      'CSB-19': { max: 6, statement: '有言《出師表》行文情理兼備，你同意嗎？試舉例谈谈你的看法。（6分）' },
+      'CSB-20': { max: 5, statement: '試根據《出師表》一文，回答下列問題。\n\n（1）諸葛亮在《出師表》中引用了哪個史例來說明道理？試摘錄有關句子作答。（1分）\n（2）《出師表》記述先帝談論上述史例時，流露了甚麼情懷？另外，諸葛亮在這裡提及先帝的用意是甚麼？（4分）' },
+      'CSB-21': { max: 4, statement: '諸葛亮在《出師表》詳述自己與先帝相處的往事。試說明諸葛亮記述這些事情跟出師北伐有何關係。（4分）' },
+    };
+
+    // ═══════════════ DOM refs ═══════════════
+    const listView        = document.getElementById('listView');
+    const detailView      = document.getElementById('detailView');
+    const exGrid          = document.getElementById('exGrid');
+    const detailId        = document.getElementById('detailId');
+    const detailScore     = document.getElementById('detailScore');
+    const detailStatement = document.getElementById('detailStatement');
+    const answerInput     = document.getElementById('answerInput');
+    const charCount       = document.getElementById('charCount');
+    const submitBtn       = document.getElementById('submitBtn');
+    const resultArea      = document.getElementById('resultArea');
+    const backBtn         = document.getElementById('backBtn');
+
+    let currentQuestionId = null;
+    let elapsedTimer = null;   // ⭐ 實時計時器
+
+    // ═══════════════ 工具 ═══════════════
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g,
+        m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    function formatElapsed(ms) {
+      const s = ms / 1000;
+      if (s < 1) return `${(ms / 1000).toFixed(2)} 秒`;
+      if (s < 60) return `${s.toFixed(1)} 秒`;
+      const m = Math.floor(s / 60);
+      return `${m} 分 ${Math.round(s - m * 60)} 秒`;
+    }
+
+    function updateCharCount() {
+      const len = answerInput.value.length;
+      charCount.textContent = `${len} / 200`;
+      charCount.classList.remove('warn', 'danger');
+      if (len >= 195)      charCount.classList.add('danger');
+      else if (len >= 180) charCount.classList.add('warn');
+
+      submitBtn.disabled = !answerInput.value.trim();
+    }
+
+    // ═══════════════ 渲染列表 ═══════════════
+    function renderList() {
+      const html = Object.entries(QUESTIONS).map(([id, q]) => `
+        <div class="ex-card" data-id="${id}">
+          <div class="ex-card-id">
+            <span>${id}</span>
+            <span class="ex-card-badge">${q.max} 分</span>
+          </div>
+          <div class="ex-card-preview">${esc(q.statement)}</div>
+        </div>
+      `).join('');
+      exGrid.innerHTML = html;
+
+      exGrid.querySelectorAll('.ex-card').forEach(card => {
+        card.addEventListener('click', () => {
+          showDetail(card.dataset.id);
+        });
+      });
+    }
+
+    // ═══════════════ 顯示詳情 ═══════════════
+    function showDetail(qid) {
+      const q = QUESTIONS[qid];
+      if (!q) return;
+
+      stopElapsedTimer();
+
+      currentQuestionId = qid;
+      detailId.textContent = qid;
+      detailScore.textContent = `${q.max} 分`;
+      detailStatement.textContent = q.statement;
+      answerInput.value = '';
+      resultArea.innerHTML = '';
+      updateCharCount();
+
+      listView.hidden = true;
+      detailView.hidden = false;
+
+      const url = new URL(location.href);
+      url.searchParams.set('id', qid);
+      history.replaceState({}, '', url);
+
+      window.scrollTo(0, 0);
+      answerInput.focus();
+    }
+
+    function showList() {
+      stopElapsedTimer();
+      currentQuestionId = null;
+      detailView.hidden = true;
+      listView.hidden = false;
+
+      const url = new URL(location.href);
+      url.searchParams.delete('id');
+      history.replaceState({}, '', url);
+
+      window.scrollTo(0, 0);
+    }
+
+    backBtn.addEventListener('click', showList);
+
+    // ═══════════════ 字數統計 ═══════════════
+    answerInput.addEventListener('input', updateCharCount);
+
+    answerInput.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (!submitBtn.disabled) submitBtn.click();
+      }
+    });
+
+    // ═══════════════ 實時計時器 ═══════════════
+    function startElapsedTimer() {
+      stopElapsedTimer();
+      const startedAt = performance.now();
+      const update = () => {
+        const ms = performance.now() - startedAt;
+        const span = submitBtn.querySelector('.ex-elapsed-live');
+        if (span) span.textContent = `(${(ms / 1000).toFixed(1)}s)`;
+      };
+      update();
+      elapsedTimer = setInterval(update, 100);
+      return startedAt;
+    }
+
+    function stopElapsedTimer() {
+      if (elapsedTimer) {
+        clearInterval(elapsedTimer);
+        elapsedTimer = null;
+      }
+    }
+
+    // ═══════════════ 骨架屏 ═══════════════
+    function renderSkeleton() {
+      const skeletonPoint = `
+        <div class="ex-point">
+          <div class="ex-point-id"><span class="ex-skel-bar id-box"></span></div>
+          <div class="ex-point-body">
+            <span class="ex-skel-bar line-full"></span>
+            <span class="ex-skel-bar line-short"></span>
+          </div>
+          <div class="ex-point-marks"><span class="ex-skel-bar marks-box"></span></div>
+        </div>
+      `;
+
+      resultArea.innerHTML = `
+        <div class="ex-result">
+          <div class="ex-result-score">
+            <span class="ex-skel-bar score-main"></span>
+            <span class="ex-skel-bar score-max"></span>
+          </div>
+          <div class="ex-result-breakdown">
+            ${skeletonPoint.repeat(3)}
+          </div>
+          <div class="ex-result-elapsed" style="opacity:.5;">
+            <i class="fas fa-circle-notch fa-spin"></i> AI 正在批改…
+          </div>
+        </div>
+      `;
+    }
+
+    // ═══════════════ 提交 ═══════════════
+    submitBtn.addEventListener('click', async () => {
+      if (!currentQuestionId) return;
+      const answer = answerInput.value.trim();
+      if (!answer) return;
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML =
+        '<span class="ex-loading"></span> AI 批改中… <span class="ex-elapsed-live">(0.0s)</span>';
+
+      // ⭐ 立即顯示骨架屏 + 啟動計時器
+      renderSkeleton();
+      const startedAt = startElapsedTimer();
+
+      try {
+        const res = await apiCall('/api/ex-grade', 'POST', {
+          question_id: currentQuestionId,
+          answer,
+        });
+        const elapsedMs = performance.now() - startedAt;
+        stopElapsedTimer();
+        renderResult(res, elapsedMs);
+
+      } catch (err) {
+        const elapsedMs = performance.now() - startedAt;
+        stopElapsedTimer();
+        resultArea.innerHTML = `
+          <div class="ex-error">
+            <i class="fas fa-triangle-exclamation"></i>
+            <b>批改失敗：</b>${esc(err.message || '未知錯誤')}
+            <div style="margin-top:8px;font-size:.78rem;opacity:.7;">
+              <i class="fas fa-stopwatch"></i> 耗時 ${formatElapsed(elapsedMs)}
+            </div>
+          </div>
+        `;
+      } finally {
+        submitBtn.disabled = !answerInput.value.trim();
+        submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> 提交批改';
+      }
+    });
+
+    // ═══════════════ 渲染結果 ═══════════════
+    function renderResult(data, elapsedMs) {
+      if (!data || typeof data !== 'object') {
+        resultArea.innerHTML = `
+          <div class="ex-result">
+            <div class="ex-raw">${esc(String(data))}</div>
+            ${elapsedFooter(elapsedMs)}
+          </div>
+        `;
+        return;
+      }
+
+      let maxScore = numOrNull(data.max_score ?? data.max ?? data.out_of ?? data.full_score)
+                     ?? QUESTIONS[currentQuestionId]?.max ?? null;
+
+      let breakdown = null;
+      if (Array.isArray(data.breakdown))        breakdown = data.breakdown;
+      else if (Array.isArray(data.points))      breakdown = data.points;
+      else if (Array.isArray(data.items))       breakdown = data.items;
+      else if (Array.isArray(data.details))     breakdown = data.details;
+      else if (Array.isArray(data.criteria))    breakdown = data.criteria;
+
+      // ⭐ 總分 = breakdown 各項 got 之和，忽略模型返回的 score
+      let score = null;
+      if (breakdown && breakdown.length > 0) {
+        let sum = 0;
+        let hasAny = false;
+        for (const p of breakdown) {
+          const got = numOrNull(p.earned ?? p.awarded ?? p.score ?? p.marks ?? p.got);
+          if (got !== null) { sum += got; hasAny = true; }
+        }
+        if (hasAny) score = sum;
+      }
+      // 沒有 breakdown 時才 fallback 到模型返回的 score
+      if (score === null) {
+        score = numOrNull(data.score ?? data.total_score ?? data.total ?? data.earned ?? data.marks);
+      }
+      // 仍然超出上限 → clamp（防止 breakdown 亂加超過滿分）
+      if (score !== null && maxScore !== null && maxScore > 0) {
+        score = Math.max(0, Math.min(score, maxScore));
+      }
+
+      const comment = data.comment
+                   ?? data.feedback
+                   ?? data.overall_comment
+                   ?? data.summary
+                   ?? data.overall
+                   ?? null;
+
+      if (data.error) {
+        resultArea.innerHTML = `
+          <div class="ex-error">
+            <i class="fas fa-triangle-exclamation"></i>
+            <b>批改錯誤：</b>${esc(data.error)}
+            ${data.detail ? `<br><small style="opacity:.75">${esc(String(data.detail).slice(0, 300))}</small>` : ''}
+            <div style="margin-top:8px;font-size:.78rem;opacity:.7;">
+              <i class="fas fa-stopwatch"></i> 耗時 ${formatElapsed(elapsedMs)}
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '<div class="ex-result">';
+
+      if (score !== null) {
+        let cls = '';
+        if (maxScore && score >= maxScore) cls = 'perfect';
+        else if (score === 0)              cls = 'zero';
+
+        html += `
+          <div class="ex-result-score">
+            <span class="num ${cls}">${score}</span>
+            ${maxScore !== null ? `<span class="max">/ ${maxScore}</span>` : ''}
+            <span class="label">${maxScore !== null && maxScore > 0 ? Math.round(score / maxScore * 100) + '%' : ''}</span>
+          </div>
+        `;
+      }
+
+      if (breakdown && breakdown.length > 0) {
+        html += '<div class="ex-result-breakdown">';
+        for (const p of breakdown) {
+          const id    = p.id ?? p.key ?? p.label ?? '';
+          let got   = numOrNull(p.earned ?? p.awarded ?? p.score ?? p.marks ?? p.got);
+          const total = numOrNull(p.max ?? p.max_score ?? p.full ?? p.total);
+
+          // ⭐ 单点也不能超过满分
+          if (got !== null && total !== null) {
+            got = Math.max(0, Math.min(got, total));
+          }
+          const note  = p.comment ?? p.note ?? p.reason ?? p.feedback ?? p.detail ?? p.text ?? '';
+
+          let markCls = '';
+          let markText = '';
+          if (got !== null && total !== null) {
+            if (got >= total)   markCls = 'full';
+            else if (got > 0)   markCls = 'part';
+            else                markCls = 'zero';
+            markText = `${got} / ${total}`;
+          } else if (got !== null) {
+            markText = String(got);
+          }
+
+          html += `
+            <div class="ex-point">
+              ${id ? `<div class="ex-point-id">${esc(id)}</div>` : ''}
+              <div class="ex-point-body">
+                ${note ? `<div class="ex-point-comment">${esc(note)}</div>` : '<div class="ex-point-comment" style="opacity:.5">—</div>'}
+              </div>
+              ${markText ? `<div class="ex-point-marks ${markCls}">${markText}</div>` : ''}
+            </div>
+          `;
+        }
+        html += '</div>';
+      }
+
+      if (comment) {
+        html += `<div class="ex-result-comment">${esc(String(comment))}</div>`;
+      }
+
+      const gotAny = score !== null || (breakdown && breakdown.length) || comment;
+      if (!gotAny) {
+        html += `<div class="ex-raw">${esc(JSON.stringify(data, null, 2))}</div>`;
+      }
+
+      html += elapsedFooter(elapsedMs);
+      html += '</div>';
+      resultArea.innerHTML = html;
+    }
+
+    function elapsedFooter(ms) {
+      if (ms === undefined || ms === null) return '';
+      return `
+        <div class="ex-result-elapsed">
+          <i class="fas fa-stopwatch"></i>
+          批改耗時 <b>${formatElapsed(ms)}</b>
+        </div>
+      `;
+    }
+
+    function numOrNull(v) {
+      if (v === null || v === undefined || v === '') return null;
+      const n = Number(v);
+      return isFinite(n) ? n : null;
+    }
+
+    // ═══════════════ 啟動 ═══════════════
+    renderList();
+
+    const params = new URLSearchParams(location.search);
+    const initialId = params.get('id');
+    if (initialId && QUESTIONS[initialId]) {
+      showDetail(initialId);
+    }
+  </script>
+</body>
+</html>

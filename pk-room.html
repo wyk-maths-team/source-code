@@ -467,6 +467,48 @@
   border: 1px solid var(--border-color) !important;
 }
 .pk-msg { margin-top: 12px; font-size: .88rem; min-height: 1.2em; }
+.pk-problem-modal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.78);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 1000;
+  display: none; align-items: center; justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.pk-problem-modal.opened {
+  opacity: 1;
+}
+.pk-problem-modal.closing {
+  opacity: 0;
+  transition-duration: 0.3s;
+}
+
+.pk-problem-card {
+  background: var(--card-bg);
+  border: 2px solid var(--accent);
+  border-radius: 16px;
+  padding: 26px 28px;
+  max-width: 720px; width: 100%;
+  max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  transform: scale(0.82);
+  opacity: 0;
+  transition:
+    transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 0.4s ease;
+}
+.pk-problem-modal.opened .pk-problem-card {
+  transform: scale(1);
+  opacity: 1;
+}
+.pk-problem-modal.closing .pk-problem-card {
+  transform: scale(0.82);
+  opacity: 0;
+  transition-duration: 0.3s;
+}
 </style>
 </head>
 <body class="index-body">
@@ -586,6 +628,11 @@
     let selectedAns = null;
     let lockExpiresAt = 0;
     let timerHandle = null;
+    let modalState = 'idle';     // ⭐ 'idle' | 'opening' | 'opened' | 'closing'
+
+    function sleep(ms) {
+      return new Promise(r => setTimeout(r, ms));
+    }
 
     function esc2(s) {
       return String(s ?? '').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
@@ -645,20 +692,38 @@
       }
     }
     async function openProblem(problemId) {
+      // ⭐ 防刷屏：動畫或請求出發中，直接忽略
+      if (modalState !== 'idle') return;
+      modalState = 'opening';
+
+      // 準備 Loading 內容
       pkpMsg.textContent = '';
       pkpStatement.innerHTML = 'Loading…';
       pkpChoices.innerHTML = '';
       pkpSubmit.disabled = true;
+      pkpSubmit.textContent = 'Submit';
+      pkpId.textContent = '—';
       selectedAns = null;
-      pkModal.classList.add('show');
+
+      // 顯示彈窗 + 觸發進入動畫
+      pkModal.style.display = 'flex';
+      void pkModal.offsetHeight;          // 強制 reflow，讓 transition 生效
+      pkModal.classList.remove('closing');
+      pkModal.classList.add('opened');
+
+      const animDone = sleep(500);
 
       try {
         const data = await apiCall('/api/pk?action=open', 'POST', { roomId, problemId });
+        await animDone;
+
         if (!data.success) {
           pkpStatement.innerHTML = `<span style="color:var(--danger)">${esc2(data.message || 'Failed to open')}</span>`;
-          if (data.reason === 'locked_by_other') {
-            setTimeout(() => closeProblem(), 1500);
-          }
+          pkpSubmit.disabled = true;
+          // 顯示錯誤訊息 1.8 秒後自動關閉
+          setTimeout(() => {
+            if (modalState === 'opening') closeProblem();
+          }, 1800);
           return;
         }
 
@@ -700,12 +765,16 @@
           });
         });
 
+        modalState = 'opened';
         startProblemTimer();
       } catch (err) {
+        await animDone;
         pkpStatement.innerHTML = `<span style="color:var(--danger)">${esc2(err.message)}</span>`;
+        setTimeout(() => {
+          if (modalState === 'opening') closeProblem();
+        }, 1800);
       }
     }
-
     function startProblemTimer() {
       stopProblemTimer();
       timerHandle = setInterval(() => {
@@ -720,8 +789,13 @@
 
         if (remain <= 0) {
           stopProblemTimer();
-          closeProblem();
-          alert('Time up — problem released');
+          pkpMsg.textContent = '⏱ Time up — problem locked for 1 minute';
+          pkpMsg.style.color = '#e74c3c';
+          setTimeout(() => {
+            if (modalState === 'opened' || modalState === 'opening') {
+              closeProblem();
+            }
+          }, 1000);
         }
       }, 250);
     }
@@ -729,18 +803,33 @@
       if (timerHandle) { clearInterval(timerHandle); timerHandle = null; }
     }
 
-    function closeProblem() {
-      pkModal.classList.remove('show');
-      currentProblem = null;
-      selectedAns = null;
+    function closeProblem(noReload) {
+      if (modalState === 'idle' || modalState === 'closing') return;
+      modalState = 'closing';
+
       stopProblemTimer();
-      pkpSubmit.disabled = true;
-      pkpSubmit.textContent = 'Submit';
-      pkpMsg.textContent = '';
-      loadRoom();
+      pkModal.classList.add('closing');
+
+      setTimeout(() => {
+        pkModal.classList.remove('opened', 'closing');
+        pkModal.style.display = 'none';
+
+        currentProblem = null;
+        selectedAns = null;
+        pkpSubmit.textContent = 'Submit';
+        pkpSubmit.disabled = true;
+        pkpMsg.textContent = '';
+
+        modalState = 'idle';
+
+        if (!noReload) loadRoom();
+      }, 300);
     }
 
-    pkpCancel.addEventListener('click', closeProblem);
+    pkpCancel.addEventListener('click', () => {
+      if (modalState !== 'opened') return;
+      closeProblem();
+    });
 
     pkpSubmit.addEventListener('click', async () => {
       if (!currentProblem || !selectedAns) return;
@@ -758,11 +847,13 @@
           if (res.status === 'AC') {
             pkpMsg.textContent = '✓ Correct!';
             pkpMsg.style.color = '#2e7d32';
+            setTimeout(() => closeProblem(), 1000);
           } else {
-            pkpMsg.textContent = '✗ Wrong — cooldown 60s';
+            const mins = Math.ceil((res.cooldownSec || 600) / 60);
+            pkpMsg.textContent = `✗ Wrong — this problem is locked for ${mins} min`;
             pkpMsg.style.color = '#e74c3c';
+            setTimeout(() => closeProblem(), 1800);
           }
-          setTimeout(closeProblem, 900);
         } else {
           pkpMsg.textContent = res.message || 'Failed';
           pkpMsg.style.color = 'var(--danger)';
