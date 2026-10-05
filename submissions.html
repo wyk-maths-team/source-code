@@ -399,10 +399,10 @@
       }
 
       const state = getInitialFilters();
-      // ⭐ 新增：分頁相關狀態
-      state.hasMore = null;                  // 當前頁之後是否還有
-      state.pagesCache = new Map();          // page → { submissions, hasMore, header }
-      state.pagesInflight = new Map();       // page → Promise（避免重複請求）
+      state.hasMore = null;
+      state.pagesCache = new Map();
+      state.pagesInflight = new Map();
+      state.maxPage = null;                  // ⭐ 已知存在的最大頁碼（null = 未知）
       let lastQuerySnapshot = null;
 
       // ---- 工具函数 ----
@@ -723,7 +723,22 @@ function buildFilterHeader(header) {
       function getFilterKey() {
         return [state.user || '', state.problem || '', state.result || ''].join('|');
       }
-
+      // ⭐ 更新已知最大頁碼
+      // - 有資料 + hasMore=false → page 就是最後一頁
+      // - 有資料 + hasMore=true  → 至少 page+1 存在
+      // - 空資料                 → page 超出範圍（page-1 是最大頁）
+      function updateMaxPage(page, data) {
+        if (!data || !Array.isArray(data.submissions)) return;
+        if (data.submissions.length > 0) {
+          if (data.hasMore === false) {
+            state.maxPage = page;             // 明確的最後一頁
+          } else if (data.hasMore === true) {
+            state.maxPage = Math.max(state.maxPage ?? 0, page + 1);
+          }
+        } else if (page > 1) {
+          state.maxPage = Math.min(state.maxPage ?? Infinity, page - 1);
+        }
+      }
 
       // ---- 更新 filter-header 區塊 ----
       function updateFilterHeader(header) {
@@ -768,7 +783,10 @@ function buildFilterHeader(header) {
         for (const p of targets) {
           if (state.pagesCache.has(p) || state.pagesInflight.has(p)) continue;
           fetchPage(p)
-            .then(data => state.pagesCache.set(p, data))
+            .then(data => {
+              state.pagesCache.set(p, data);
+              updateMaxPage(p, data);            // ⭐ 讓預加載也回報邊界
+            })
             .catch(() => { /* 靜默失敗 */ });
         }
       }
@@ -783,12 +801,14 @@ function buildFilterHeader(header) {
           state.pagesCache.clear();
           state.pagesInflight.clear();
           state.hasMore = null;
+          state.maxPage = null;
         }
 
         // ⭐ 快取命中 → 直接套用，零網絡請求
         const cached = state.pagesCache.get(state.page);
         if (cached && _lastFilterKey === currentKey) {
           state.hasMore = cached.hasMore;         // ⭐ 同步狀態
+          updateMaxPage(state.page, cached);
           updateFilterHeader(cached.header);
           renderTable(cached.submissions);
           renderPagination(cached.page, cached.hasMore);
@@ -810,6 +830,7 @@ function buildFilterHeader(header) {
           const data = await fetchPage(state.page);
           state.pagesCache.set(state.page, data);
           state.hasMore = data.hasMore;
+          updateMaxPage(state.page, data);
 
           updateFilterHeader(data.header);
           renderTable(data.submissions);
@@ -900,24 +921,29 @@ function buildFilterHeader(header) {
           if (!container) return;
 
           const maxVisible = getMaxVisiblePages();
-          // 因為不知道總頁數，只顯示當前頁附近的滑動窗口
           const half = Math.max(1, Math.floor(maxVisible / 2) - 1);
           const start = Math.max(1, page - half);
-          const end = page + half;
+
+          // ⭐ 上限：page + half，但不超過已知最大頁
+          let end = page + half;
+          if (state.maxPage != null) end = Math.min(end, state.maxPage);
+          if (hasMore === false) end = Math.min(end, page);
+          end = Math.max(end, page);   // 至少包含當前頁
 
           const items = [];
 
-          // 頭部：不在第 1 頁附近 → 顯示 [1, …]
           if (start > 1) {
             items.push(1);
             if (start > 2) items.push('…');
           }
 
-          // 主窗口
           for (let p = start; p <= end; p++) items.push(p);
 
-          // 尾部：hasMore 為 true → 顯示 […] 表示還有更多
-          if (hasMore === true) items.push('…');
+          // ⭐ 尾部省略號：只在「確實還有後續頁」時顯示
+          const hasMoreBeyond = (state.maxPage != null)
+            ? state.maxPage > end
+            : hasMore === true;
+          if (hasMoreBeyond) items.push('…');
 
           let html = '<ul class="pagination-list">';
 
@@ -937,8 +963,9 @@ function buildFilterHeader(header) {
             }
           }
 
-          // 下一頁
-          const nextDisabled = hasMore === false;
+          // ⭐ 下一頁：hasMore=false 或已達已知最大頁 → 禁用
+          const nextDisabled = hasMore === false
+            || (state.maxPage != null && page >= state.maxPage);
           html += `<li class="page-item ${nextDisabled ? 'disabled' : ''}">
             <span class="page-link arrow" ${!nextDisabled ? `onclick="goToPage(${page + 1})"` : ''}>›</span>
           </li>`;
@@ -950,7 +977,6 @@ function buildFilterHeader(header) {
         render(document.getElementById('paginationTop'));
         render(document.getElementById('paginationBottom'));
       }
-
 
       window.goToPage = function(newPage) {
         if (newPage === state.page) return;
