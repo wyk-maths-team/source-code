@@ -380,7 +380,7 @@ export default async function handler(req, res) {
       if (!allowedSet.size) {
         const header = includeHeader === '1' ? await buildHeader(db, targetProblem, targetUser) : null;
         return res.status(200).json({
-          success: true, submissions: [], total: 0, page: pageNum, limit: limitNum, totalPages: 0,
+          success: true, submissions: [], page: pageNum, limit: limitNum, hasMore: false,
           ...(header ? { header } : {})
         });
       }
@@ -389,7 +389,7 @@ export default async function handler(req, res) {
         if (!requested.length) {
           const header = includeHeader === '1' ? await buildHeader(db, targetProblem, targetUser) : null;
           return res.status(200).json({
-            success: true, submissions: [], total: 0, page: pageNum, limit: limitNum, totalPages: 0,
+            success: true, submissions: [], page: pageNum, limit: limitNum, hasMore: false,
             ...(header ? { header } : {})
           });
         }
@@ -477,7 +477,6 @@ export default async function handler(req, res) {
       page: pageNum,
       limit: limitNum,
       hasMore,
-      totalPages: Math.ceil(total / limitNum),
       ...(header ? { header } : {})
     });
   } catch (err) {
