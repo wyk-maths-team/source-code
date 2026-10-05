@@ -296,6 +296,57 @@
   font-size: .88rem;
   font-weight: 500;
 }
+/* ═══════════════ 分頁切換遮罩 ═══════════════ */
+:root {
+  --page-overlay-bg: rgba(255, 255, 255, 0.6);
+}
+:root[data-theme="dark"] {
+  --page-overlay-bg: rgba(13, 17, 23, 0.6);
+}
+
+.table-responsive {
+  position: relative;
+}
+
+.table-responsive::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--page-overlay-bg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 10;
+  border-radius: 4px;
+}
+
+.table-responsive.loading::after {
+  opacity: 1;
+}
+/* ═══════════════ Skeleton Rows ═══════════════ */
+.skeleton-row td {
+  padding: 12px 10px;
+}
+
+.skeleton-line {
+  display: inline-block;
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #eee 25%, #f5f5f5 50%, #eee 75%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s infinite;
+  vertical-align: middle;
+}
+
+@keyframes skeletonShimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+:root[data-theme="dark"] .skeleton-line {
+  background: linear-gradient(90deg, #2a2a2a 25%, #3a3a3a 50%, #2a2a2a 75%);
+  background-size: 200% 100%;
+}
   </style>
 
   <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
@@ -348,6 +399,10 @@
       }
 
       const state = getInitialFilters();
+      // ⭐ 新增：分頁相關狀態
+      state.hasMore = null;                  // 當前頁之後是否還有
+      state.pagesCache = new Map();          // page → { submissions, hasMore, header }
+      state.pagesInflight = new Map();       // page → Promise（避免重複請求）
       let lastQuerySnapshot = null;
 
       // ---- 工具函数 ----
@@ -543,9 +598,7 @@ function buildFilterHeader(header) {
               </th>
             </tr>
           </thead>
-          <tbody id="submissionsBody">
-            <tr><td colspan="5" class="loading-msg">Loading submissions…</td></tr>
-          </tbody>
+          <tbody id="submissionsBody"></tbody>
         </table>
       </div>
 
@@ -671,51 +724,6 @@ function buildFilterHeader(header) {
         return [state.user || '', state.problem || '', state.result || ''].join('|');
       }
 
-      // ---- 內部刷新：overlay 開 / 關 ----
-      function showTableOverlay() {
-        const wrap = document.querySelector('.table-responsive');
-        if (!wrap) return;
-        let overlay = wrap.querySelector('.table-loading-overlay');
-        if (!overlay) {
-          overlay = document.createElement('div');
-          overlay.className = 'table-loading-overlay';
-          overlay.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
-          wrap.appendChild(overlay);
-        }
-        // 下一帧再 show，保證 transition 生效
-        requestAnimationFrame(() => overlay.classList.add('show'));
-      }
-
-      function hideTableOverlay() {
-        const overlay = document.querySelector('.table-loading-overlay');
-        if (overlay) overlay.classList.remove('show');
-      }
-
-      // ---- 淡出 / 淡入 ----
-      function fadeOut(el) {
-        return new Promise(resolve => {
-          if (!el) return resolve();
-          el.style.opacity = '0';
-          setTimeout(resolve, 170);
-        });
-      }
-
-      function fadeIn(el) {
-        if (!el) return;
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            el.style.opacity = '1';
-          });
-        });
-      }
-
-      // ---- Loading 行的 HTML ----
-      function loadingRowHtml() {
-        return `<tr><td colspan="5" class="loading-cell">
-          <i class="fas fa-circle-notch fa-spin loading-icon"></i>
-          <div class="loading-text">Loading submissions…</div>
-        </td></tr>`;
-      }
 
       // ---- 更新 filter-header 區塊 ----
       function updateFilterHeader(header) {
@@ -730,60 +738,116 @@ function buildFilterHeader(header) {
           }
         }
       }
-      // ---- 加载数据（單次 API，header 內嵌） ----
-      // ---- 加载数据（單次 API，header 內嵌） ----
+      // ⭐ 單頁請求（含 in-flight 去重）
+      function fetchPage(page) {
+        if (state.pagesInflight.has(page)) return state.pagesInflight.get(page);
+
+        const params = new URLSearchParams({
+          all: '1', page, limit: 50, includeHeader: '1'
+        });
+        if (state.user) params.set('user', state.user);
+        if (state.problem) params.set('problem', state.problem);
+        if (state.result) params.set('result', state.result);
+
+        const promise = apiCall(`/api/submissions?${params.toString()}`)
+          .then(data => {
+            if (!data.success) throw new Error(data.message || 'Failed');
+            return data;
+          })
+          .finally(() => {
+            state.pagesInflight.delete(page);
+          });
+
+        state.pagesInflight.set(page, promise);
+        return promise;
+      }
+
+      // ⭐ 背景預加載：page+1 / page+2
+      function prefetchNearby(currentPage) {
+        const targets = [currentPage + 1, currentPage + 2].filter(p => p >= 1);
+        for (const p of targets) {
+          if (state.pagesCache.has(p) || state.pagesInflight.has(p)) continue;
+          fetchPage(p)
+            .then(data => state.pagesCache.set(p, data))
+            .catch(() => { /* 靜默失敗 */ });
+        }
+      }
       async function loadSubmissions() {
         const tbody = document.getElementById('submissionsBody');
         if (!tbody) return;
 
         const currentKey = getFilterKey();
-        const isFirstLoad = _lastFilterKey === null;
 
-        const params = new URLSearchParams({ all: '1', page: state.page, limit: 50, includeHeader: '1' });
-        if (state.user) params.set('user', state.user);
-        if (state.problem) params.set('problem', state.problem);
-        if (state.result) params.set('result', state.result);
+        // ⭐ filter 變了 → 清空快取
+        if (_lastFilterKey !== null && _lastFilterKey !== currentKey) {
+          state.pagesCache.clear();
+          state.pagesInflight.clear();
+          state.hasMore = null;
+        }
 
-        // ══════ 首次：清空 + loading icon ══════
-        if (isFirstLoad) {
-          tbody.style.opacity = '1';
-          tbody.innerHTML = loadingRowHtml();
-          try {
-            const data = await apiCall(`/api/submissions?${params.toString()}`);
-            if (!data.success) throw new Error(data.message || 'Failed');
-
-            updateFilterHeader(data.header);
-            renderTable(data.submissions);
-            renderPagination(data.page, data.totalPages, data.total);
-            _lastFilterKey = currentKey;
-          } catch (err) {
-            console.error(err);
-            tbody.innerHTML = '<tr><td colspan="5" class="error-msg">Failed to load submissions.</td></tr>';
-          }
+        // ⭐ 快取命中 → 直接套用，零網絡請求
+        const cached = state.pagesCache.get(state.page);
+        if (cached && _lastFilterKey === currentKey) {
+          state.hasMore = cached.hasMore;         // ⭐ 同步狀態
+          updateFilterHeader(cached.header);
+          renderTable(cached.submissions);
+          renderPagination(cached.page, cached.hasMore);
+          _lastFilterKey = currentKey;
           return;
         }
 
-        // ══════ 之後（分頁 / 過濾 / 刷新）：overlay + 淡出淡入 ══════
-        showTableOverlay();
+        // ⭐ 判斷是否套遮罩：已有內容 → 遮罩；空表 → 30 行骨架屏
+        const tableWrap = document.querySelector('.table-responsive');
+        const hasRows = !!tbody.querySelector('tr');
+
+        if (hasRows) {
+          tableWrap.classList.add('loading');
+        } else {
+          tbody.innerHTML = renderSkeletonRows(30);
+        }
+
         try {
-          const data = await apiCall(`/api/submissions?${params.toString()}`);
-          if (!data.success) throw new Error(data.message || 'Failed');
+          const data = await fetchPage(state.page);
+          state.pagesCache.set(state.page, data);
+          state.hasMore = data.hasMore;
 
           updateFilterHeader(data.header);
-
-          await fadeOut(tbody);
           renderTable(data.submissions);
-          renderPagination(data.page, data.totalPages, data.total);
-          fadeIn(tbody);
+          renderPagination(data.page, data.hasMore);
 
           _lastFilterKey = currentKey;
+
+          // ⭐ 背景預加載鄰近頁
+          prefetchNearby(state.page);
         } catch (err) {
           console.error(err);
-          // 保留舊內容，不清空
+          if (!hasRows) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--danger);">Failed to load.</td></tr>';
+          }
         } finally {
-          hideTableOverlay();
+          if (tableWrap) tableWrap.classList.remove('loading');
         }
       }
+      // ⭐ 30 行骨架屏
+      function renderSkeletonRows(count = 30) {
+        const widths = [
+          ['80%', 'col-datetime'],
+          ['70%', 'col-user left-align'],
+          ['90%', 'col-problem left-align'],
+          ['60%', 'col-answer'],
+          ['50%', 'col-status'],
+        ];
+        let html = '';
+        for (let i = 0; i < count; i++) {
+          html += '<tr class="skeleton-row">';
+          for (const [w, cls] of widths) {
+            html += `<td class="${cls}"><span class="skeleton-line" style="width:${w}"></span></td>`;
+          }
+          html += '</tr>';
+        }
+        return html;
+      }
+      
       // ---- 渲染表格 ----
       function renderTable(submissions) {
         const tbody = document.getElementById('submissionsBody');
@@ -825,8 +889,7 @@ function buildFilterHeader(header) {
         const w = window.innerWidth;
         if (w < 400) return 5;
         if (w < 600) return 7;
-        if (w < 900) return 9;
-        return 10;
+        return 9;
       }
 
 // ⭐ 計算要顯示的頁碼（含 '…' 佔位）
@@ -852,19 +915,31 @@ function buildFilterHeader(header) {
         return items;
       }
 
-// ⭐ 渲染分頁
-      function renderPagination(page, totalPages, total) {
-        window.__lastPagination = { page, totalPages, total };
+      function renderPagination(page, hasMore) {
+        window.__lastPagination = { page, hasMore };
 
         const render = (container) => {
           if (!container) return;
-          if (totalPages <= 1) {
-            container.innerHTML = `<span class="page-info">${total} submission${total !== 1 ? 's' : ''}</span>`;
-            return;
-          }
 
           const maxVisible = getMaxVisiblePages();
-          const items = computePageItems(page, totalPages, maxVisible);
+          // 因為不知道總頁數，只顯示當前頁附近的滑動窗口
+          const half = Math.max(1, Math.floor(maxVisible / 2) - 1);
+          const start = Math.max(1, page - half);
+          const end = page + half;
+
+          const items = [];
+
+          // 頭部：不在第 1 頁附近 → 顯示 [1, …]
+          if (start > 1) {
+            items.push(1);
+            if (start > 2) items.push('…');
+          }
+
+          // 主窗口
+          for (let p = start; p <= end; p++) items.push(p);
+
+          // 尾部：hasMore 為 true → 顯示 […] 表示還有更多
+          if (hasMore === true) items.push('…');
 
           let html = '<ul class="pagination-list">';
 
@@ -873,7 +948,7 @@ function buildFilterHeader(header) {
             <span class="page-link arrow" ${page > 1 ? `onclick="goToPage(${page - 1})"` : ''}>‹</span>
           </li>`;
 
-          // 頁碼
+          // 頁碼 / 省略號
           for (const it of items) {
             if (it === '…') {
               html += `<li class="page-item ellipsis"><span class="page-link">…</span></li>`;
@@ -885,17 +960,19 @@ function buildFilterHeader(header) {
           }
 
           // 下一頁
-          html += `<li class="page-item ${page >= totalPages ? 'disabled' : ''}">
-            <span class="page-link arrow" ${page < totalPages ? `onclick="goToPage(${page + 1})"` : ''}>›</span>
+          const nextDisabled = hasMore === false;
+          html += `<li class="page-item ${nextDisabled ? 'disabled' : ''}">
+            <span class="page-link arrow" ${!nextDisabled ? `onclick="goToPage(${page + 1})"` : ''}>›</span>
           </li>`;
-          html += `</ul><span class="page-info" style="margin-left:0.5rem;font-size:0.8rem;">${total} submissions</span>`;
 
+          html += '</ul>';
           container.innerHTML = html;
         };
 
         render(document.getElementById('paginationTop'));
         render(document.getElementById('paginationBottom'));
       }
+
 
       window.goToPage = function(newPage) {
         if (newPage === state.page) return;
@@ -910,11 +987,10 @@ function buildFilterHeader(header) {
         _paginationResizeTimer = setTimeout(() => {
           const last = window.__lastPagination;
           if (last && document.getElementById('paginationTop')) {
-            renderPagination(last.page, last.totalPages, last.total);
+            renderPagination(last.page, last.hasMore);
           }
         }, 200);
       });
-
       // ---- 启动 ----
       renderLayout();
       loadSubmissions();

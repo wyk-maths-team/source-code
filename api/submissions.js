@@ -404,20 +404,26 @@ export default async function handler(req, res) {
       }
     }
 
-    const [total, submissions, userStats, header] = await Promise.all([
-      db.collection('submissions').countDocuments(filter),
+    // ⭐ 去掉 countDocuments（O(N)），改用 limit+1 判斷 hasMore
+    const [rawSubs, userStats, header] = await Promise.all([
       db.collection('submissions').find(filter, {
         projection: {
           subid: 1, username: 1, problemId: 1, type: 1, timestamp: 1,
           correct: 1, systemError: 1, marked: 1, score: 1, answer: 1
         }
-      }).sort({ timestamp: -1 }).skip((pageNum - 1) * limitNum).limit(limitNum).toArray(),
+      }).sort({ timestamp: -1 })
+        .skip((pageNum - 1) * limitNum)
+        .limit(limitNum + 1)
+        .toArray(),
       db.collection('userstats').findOne(
         { username: decoded.username },
         { projection: { states: 1, _id: 0 } }
       ),
       includeHeader === '1' ? buildHeader(db, targetProblem, targetUser) : Promise.resolve(null)
     ]);
+
+    const hasMore = rawSubs.length > limitNum;
+    const submissions = hasMore ? rawSubs.slice(0, limitNum) : rawSubs;
 
     const problemIds = [...new Set(submissions.map(s => s.problemId))];
     const usernames = [...new Set(submissions.map(s => s.username))];
@@ -468,9 +474,9 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       submissions: enriched,
-      total,
       page: pageNum,
       limit: limitNum,
+      hasMore,
       totalPages: Math.ceil(total / limitNum),
       ...(header ? { header } : {})
     });

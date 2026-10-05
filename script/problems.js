@@ -306,11 +306,11 @@
           allProblems = data.problems;
           allTags = data.allTags || [];
           saveProblemsToCache(allProblems, allTags);
-          if (knownVersion !== undefined) {
+          // ⭐ 服務器已經返回 version，省掉一次往返
+          if (data.version !== undefined) {
+            localStorage.setItem('problemListVersion', String(data.version));
+          } else if (knownVersion !== undefined) {
             localStorage.setItem('problemListVersion', String(knownVersion));
-          } else {
-            const verRes = await apiCall('/api/problem?checkVersion=1');
-            if (verRes.success) localStorage.setItem('problemListVersion', String(verRes.version));
           }
           return true;
         }
@@ -1109,6 +1109,7 @@
 
     // ========== 初始化 ==========
     async function init() {
+      // ── 1. 解析 URL / localStorage 狀態（同步，瞬間完成）──
       const params = new URLSearchParams(window.location.search);
       sortBy = params.get('sortBy') || 'id';
       sortOrder = params.get('order') || 'asc';
@@ -1120,11 +1121,7 @@
           try { activeTags = new Set(JSON.parse(saved)); } catch (e) {}
         }
       }
-      if (params.has('idfilter')) {
-        idFilterPattern = params.get('idfilter');
-      } else {
-        idFilterPattern = '';
-      }
+      idFilterPattern = params.has('idfilter') ? params.get('idfilter') : '';
       if (params.has('visibility')) {
         visibilityFilter = params.get('visibility');
         if (!['all', 'public', 'hidden'].includes(visibilityFilter)) visibilityFilter = 'all';
@@ -1133,36 +1130,79 @@
       }
       currentPage = getPageFromURL();
 
+      // ── 2. 嘗試從 localStorage 加載 ──
       const hasProblems = loadProblemsFromCache();
-      const hasStates = loadUserStatesFromCache();
-      const hasFavs = loadFavoritesFromCache();
+      const hasStates   = loadUserStatesFromCache();
+      const hasFavs     = loadFavoritesFromCache();
 
       if (hasProblems && hasStates && hasFavs) {
+        // ⭐ 有完整緩存 → 立即渲染（毫秒級），後台靜默刷新
         applyFiltersAndSort();
         renderFullPage();
-        refreshData();
+        checkVersionAndRefresh();
       } else {
-        showSkeleton();
-        const [problemsRes, preload] = await Promise.all([
+        // ⭐ 無緩存 → problems.html 已經顯示 shell，並行拉數據
+        const [, preload] = await Promise.all([
           fetchAllProblems(),
-          apiCall('/api/users?action=preload')
+          apiCall('/api/users?action=preload').catch(e => {
+            console.warn('[init] preload failed:', e.message);
+            return null;
+          }),
         ]);
-        if (preload.success) {
+
+        if (preload && preload.success) {
           userStates = preload.states || {};
           window.favorites = new Set(preload.favorites || []);
           saveUserStatesToCache(userStates);
           saveFavoritesToCache(window.favorites);
         }
+
         applyFiltersAndSort();
         renderFullPage();
       }
 
+      // ── 3. 恢復滾動位置 ──
       const savedScroll = sessionStorage.getItem('problemListScroll');
       if (savedScroll) {
         window.scrollTo(0, parseInt(savedScroll));
         sessionStorage.removeItem('problemListScroll');
       }
     }
+
+// ⭐ 有緩存時，後台檢查版本並靜默刷新
+async function checkVersionAndRefresh() {
+  try {
+    const [verRes, preload] = await Promise.all([
+      apiCall('/api/problem?checkVersion=1').catch(() => null),
+      apiCall('/api/users?action=preload').catch(() => null),
+    ]);
+
+    if (preload && preload.success) {
+      userStates = preload.states || {};
+      window.favorites = new Set(preload.favorites || []);
+      saveUserStatesToCache(userStates);
+      saveFavoritesToCache(window.favorites);
+    }
+
+    let dataChanged = false;
+
+    if (verRes && verRes.success) {
+      const newVersion = String(verRes.version);
+      const cachedVersion = localStorage.getItem('problemListVersion');
+      if (cachedVersion !== newVersion) {
+        await fetchAllProblems(newVersion);
+        dataChanged = true;
+      }
+    }
+
+    if (dataChanged || (preload && preload.success)) {
+      applyFiltersAndSort();
+      renderFullPage();
+    }
+  } catch (e) {
+    console.warn('[init] background refresh failed:', e);
+  }
+}
 
     window.toggleFavorite = toggleFavorite;
     window.addEventListener('popstate', init);

@@ -5,6 +5,7 @@ private/
 .env
 .env.*
 !.env.example
+node_modules/
 
 # --------------- Build / Dependencies ---------------
 

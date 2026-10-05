@@ -12,7 +12,32 @@ function isAdminUser(user) {
   return !!user && (user.role === 'admin' || user.role === 'root');
 }
 
+// ═══════════════ Solves 計數快取 ═══════════════
+// 避免 all=1 對每道題做 $lookup，改為一次性聚合 + 5 分鐘快取
+let _solvesCache = { map: null, expireAt: 0 };
+const SOLVES_CACHE_TTL = 5 * 60_000;
 
+async function getSolvesCountMap(db) {
+  if (_solvesCache.map && _solvesCache.expireAt > Date.now()) {
+    return _solvesCache.map;
+  }
+  const result = await db.collection('userstats').aggregate([
+    { $project: { statesArray: { $objectToArray: { $ifNull: ['$states', {}] } } } },
+    { $unwind: '$statesArray' },
+    { $match: { 'statesArray.v': 'passed' } },
+    { $group: { _id: '$statesArray.k', count: { $sum: 1 } } },
+  ]).toArray();
+
+  const map = Object.create(null);
+  for (const r of result) map[r._id] = r.count;
+  _solvesCache = { map, expireAt: Date.now() + SOLVES_CACHE_TTL };
+  return map;
+}
+
+// 讓其他模組（例如 submit 成功後）能主動失效快取
+export function invalidateSolvesCache() {
+  _solvesCache = { map: null, expireAt: 0 };
+}
 
 function checkAccess(user, problemId) {
   if (!user) return false;
@@ -843,48 +868,39 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, ids: idList.map(p => p.id) });
     }
 
-    // 全量列表（不含 ans / logic；可選包含 statement）
     if (req.query.all === '1') {
       const baseFilter = adminUser ? {} : { public: true };
       const withStatement = req.query.withStatement === '1';
-      const projectFields = {
-        id: 1, name: 1, difficulty: 1, tags: 1, public: 1, solves: 1, _id: 0
+
+      const projection = {
+        id: 1, name: 1, difficulty: 1, tags: 1, public: 1, _id: 0,
       };
-      if (withStatement) projectFields.statement = 1;
+      if (withStatement) projection.statement = 1;
 
-      const pipeline = [
-        { $match: baseFilter },
-        {
-          $lookup: {
-            from: 'userstats',
-            let: { pidStr: '$id' },
-            pipeline: [
-              { $project: { statesArray: { $objectToArray: '$states' } } },
-              { $unwind: '$statesArray' },
-              {
-                $match: {
-                  $expr: {
-                    $and: [
-                      { $eq: ['$statesArray.v', 'passed'] },
-                      { $eq: ['$statesArray.k', '$$pidStr'] }
-                    ]
-                  }
-                }
-              },
-              { $count: 'count' }
-            ],
-            as: 'solvesData'
-          }
-        },
-        { $addFields: { solves: { $ifNull: [{ $arrayElemAt: ['$solvesData.count', 0] }, 0] } } },
-        { $project: projectFields }
-      ];
+      const [meta, problems, solvesMap, allTags] = await Promise.all([
+        db.collection('metadata').findOne(
+          { _key: 'problemsVersion' },
+          { projection: { version: 1, _id: 0 } }
+        ),
+        db.collection('problems')
+          .find(baseFilter, { projection })
+          .sort({ id: 1 })
+          .toArray(),
+        getSolvesCountMap(db),
+        fetchAllTags(db, baseFilter),
+      ]);
 
-      pipeline.push({ $sort: { id: 1 } });
+      // 補上 solves（一次遍歷，O(N)）
+      for (const p of problems) {
+        p.solves = solvesMap[p.id] || 0;
+      }
 
-      const problems = await db.collection('problems').aggregate(pipeline).toArray();
-      const allTags = await fetchAllTags(db, baseFilter);
-      return res.status(200).json({ success: true, problems, allTags });
+      return res.status(200).json({
+        success: true,
+        version: meta?.version || 0,
+        problems,
+        allTags,
+      });
     }
 
     // 多個 ID（收藏夾）

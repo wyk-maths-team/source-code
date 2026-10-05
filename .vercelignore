@@ -5,3 +5,7 @@ node_modules
 temp*
 path_header_log.txt
 ess.txt
+node_modules/
+.env
+.env.local
+.git

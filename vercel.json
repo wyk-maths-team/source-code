@@ -124,6 +124,8 @@
     { "source": "/admin/pkproblems",        "destination": "/admin/pkproblems.html" },
     { "source": "/admin/pkproblems/:id", "destination": "/admin/editpkproblem.html" },
     { "source": "/root-login",  "destination": "/root-login.html"  },
+    { "source": "/root-webauthn-login", "destination": "/root-webauthn-login.html" },
+    { "source": "/root-webauthn-setup", "destination": "/root-webauthn-setup.html" },
     
 
     { "source": "/(.*)", "destination": "/404.html" }
