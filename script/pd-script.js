@@ -1670,7 +1670,7 @@ function fetchNekoAndShow() {
 // ─────────────────────────────────────────────────────────────
 // [11.3] Steps 模式：同步呼叫本地 server.js
 // ─────────────────────────────────────────────────────────────
-const GRADER_BASE = 'http://localhost:8000';
+const GRADER_BASE = 'https://appeared-bernard-held-connector.trycloudflare.com ';
 
 async function handleStepsSubmit(stepsText, checkBtn) {
   setWorkbenchStatus('AI 批改中…（約 10-40 秒，請稍等）', 'busy');
