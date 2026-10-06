@@ -222,9 +222,9 @@ export default async function handler(req, res) {
     // ⭐ 观众：不是 host/guest，且明确请求观战
     const isSpectator = !isHost && !isGuest && req.query.spectate === '1';
 
-    if (!isHost && !isGuest && !isSpectator) {
-      return res.status(403).json({ success: false, message: 'Not yours' });
-    }
+    // if (!isHost && !isGuest && !isSpectator) {
+    //   return res.status(403).json({ success: false, message: 'Not yours' });
+    // }
 
     // ⭐ 观众视角：host 始终是红方，guest 始终是蓝方
     // ⭐ 观众看到的区域 = host 解锁区域 ∪ guest 解锁区域
