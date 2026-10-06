@@ -208,6 +208,7 @@ export default async function handler(req, res) {
   }
 
   // ── 查房间信息 ──
+  // ── 查房间信息（含观战） ──
   if (action === 'room-info') {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
     const { roomId } = req.query;
@@ -218,19 +219,33 @@ export default async function handler(req, res) {
 
     const isHost  = room.host === username;
     const isGuest = room.guest === username;
-    if (!isHost && !isGuest) {
+    // ⭐ 观众：不是 host/guest，且明确请求观战
+    const isSpectator = !isHost && !isGuest && req.query.spectate === '1';
+
+    if (!isHost && !isGuest && !isSpectator) {
       return res.status(403).json({ success: false, message: 'Not yours' });
     }
 
-    // ⭐ 我解锁的区域列表（默认 [1]）
-    const myUnlocked = (room.unlocked && room.unlocked[username]) || [1];
+    // ⭐ 观众视角：host 始终是红方，guest 始终是蓝方
+    // ⭐ 观众看到的区域 = host 解锁区域 ∪ guest 解锁区域
+    let myUnlocked;
+    if (isSpectator) {
+      const hostU  = (room.unlocked && room.unlocked[room.host])  || [1];
+      const guestU = (room.unlocked && room.unlocked[room.guest]) || [1];
+      myUnlocked = Array.from(new Set([...hostU, ...guestU]));
+    } else {
+      myUnlocked = (room.unlocked && room.unlocked[username]) || [1];
+    }
 
-    // ⭐ 汇总每个区域的占据情况
     const regions = (room.regions || []).map(reg => {
       const counts = { [room.host]: 0, [room.guest]: 0, null: 0 };
       for (const p of reg.problems) {
-        counts[p.owner === null ? null : p.owner] = (counts[p.owner === null ? null : p.owner] || 0) + 1;
+        counts[p.owner === null ? null : p.owner] =
+          (counts[p.owner === null ? null : p.owner] || 0) + 1;
       }
+
+      const unlocked = myUnlocked.includes(reg.index);
+
       return {
         index: reg.index,
         part: reg.part,
@@ -239,16 +254,17 @@ export default async function handler(req, res) {
           guest: counts[room.guest] || 0,
           empty: counts.null || 0,
         },
-        unlocked: myUnlocked.includes(reg.index),
-        problems: myUnlocked.includes(reg.index)
+        unlocked,
+        problems: unlocked
           ? reg.problems.map(p => ({
               slot: p.slot,
-              problemId: p.problemId,
+              // ⭐ 观众只能看到已占领格子的 problemId
+              problemId: p.problemId, 
               owner: p.owner || null,
             }))
           : reg.problems.map(p => ({
               slot: p.slot,
-              problemId: null,     // 迷雾：不暴露 ID
+              problemId: null,
               owner: p.owner || null,
             })),
       };
@@ -259,10 +275,11 @@ export default async function handler(req, res) {
       room: {
         id: room.id,
         status: room.status,
-        me: isHost ? 'host' : 'guest',
+        // ⭐ 'host' | 'guest' | 'spectator'
+        me: isSpectator ? 'spectator' : (isHost ? 'host' : 'guest'),
         createdAt: room.createdAt,
         year: room.year || null,
-        host: { username: room.host, displayName: room.hostDisplay || room.host },
+        host:  { username: room.host,  displayName: room.hostDisplay  || room.host  },
         guest: { username: room.guest, displayName: room.guestDisplay || room.guest },
         regions,
         adjacency: ADJACENCY,
