@@ -1145,15 +1145,17 @@
         // ⭐ 观众隐藏「随机/等待对手」等元素（如果你有的话）
         // 目前 header 元素通用，不额外处理
 
-        // Header
-        document.getElementById('pkMeName').textContent = meInfo.displayName || meInfo.username;
-        document.getElementById('pkOtherName').textContent = otherInfo.displayName || otherInfo.username;
+        // Header（統一用 state.me / state.other，觀眾也適用）
+        document.getElementById('pkMeName').textContent =
+          state.me.displayName || state.me.username;
+        document.getElementById('pkOtherName').textContent =
+          state.other.displayName || state.other.username;
 
         let myCount = 0, otherCount = 0;
         for (const reg of state.regions) {
           for (const p of reg.problems) {
-            if (p.owner === meInfo.username) myCount++;
-            else if (p.owner === otherInfo.username) otherCount++;
+            if (p.owner === state.me.username) myCount++;
+            else if (p.owner === state.other.username) otherCount++;
           }
         }
         document.getElementById('pkMeCount').textContent = myCount;
