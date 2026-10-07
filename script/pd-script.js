@@ -134,307 +134,7 @@ injectStyle('pd-feedback-style', `
 [data-theme="dark"] .feedback-box.status-pending{background:#2d2d2d;color:#999;border-color:#444}
 `);
 
-injectStyle('pd-misc-style', `
-.si-item{display:block;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border-color);border-radius:6px;margin-bottom:8px;text-decoration:none;color:var(--text-primary);transition:border-color .15s,transform .12s,box-shadow .15s}
-.si-item:hover{border-color:var(--accent);transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.08)}
-.si-title{display:flex;align-items:center;gap:8px;font-weight:600;margin-bottom:5px;font-size:.95rem}
-.si-id{font-family:'Consolas',monospace;color:var(--accent);flex-shrink:0}
-.si-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.si-meta{display:flex;gap:10px;font-size:.8rem;color:var(--text-secondary);flex-wrap:wrap;align-items:center}
-.si-tag{background:rgba(74,144,217,.12);color:var(--accent);padding:1px 8px;border-radius:10px;font-size:.72rem;font-weight:600}
-.si-tag.common{background:rgba(46,204,113,.15);color:#2e7d32}
-.si-badge{font-size:.72rem;font-weight:700;color:#e67e22;flex-shrink:0}
-.si-empty,.si-loading{text-align:center;padding:30px 20px;color:var(--text-secondary);font-size:.9rem}
-[data-theme="dark"] .si-tag{background:rgba(74,144,217,.25)}
-[data-theme="dark"] .si-tag.common{background:rgba(46,204,113,.25);color:#8fce9f}
-
-
-/* ═══ Workbench ═══ */
-.answer-workbench {
-  display: flex;
-  flex-direction: column;
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  overflow: hidden;
-  margin: 1rem 0 1.4rem;
-  box-shadow: 0 1px 4px rgba(0,0,0,.04);
-}
-
-/* ═══ Tabs ═══ */
-.wb-tabs {
-  display: flex;
-  border-bottom: 1px solid var(--border-color);
-  background: rgba(0,0,0,.02);
-}
-[data-theme="dark"] .wb-tabs { background: rgba(255,255,255,.02); }
-
-.wb-tab {
-  flex: 1;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: 2px;
-  padding: 10px 8px;
-  border: none; background: none;
-  color: var(--text-secondary);
-  cursor: pointer; font-family: inherit;
-  font-size: .9rem; font-weight: 600;
-  border-bottom: 2px solid transparent;
-  transition: all .15s;
-  min-width: 0;
-}
-.wb-tab i { font-size: 1rem; line-height: 1; }
-.wb-tab span { font-size: .88rem; line-height: 1.2; }
-.wb-tab small {
-  font-size: .68rem; opacity: .65;
-  font-weight: 400; line-height: 1.1;
-  white-space: nowrap;
-  overflow: hidden; text-overflow: ellipsis;
-  max-width: 100%;
-}
-.wb-tab:hover:not(:disabled) { color: var(--text-primary); background: rgba(74,144,217,.04); }
-.wb-tab.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-  background: rgba(74,144,217,.06);
-}
-.wb-tab.active small { color: var(--accent); opacity: .9; }
-.wb-tab:disabled {
-  opacity: .4;
-  cursor: not-allowed;
-  filter: grayscale(.6);
-}
-
-/* ═══ Hint ═══ */
-.wb-hint {
-  padding: 8px 16px;
-  font-size: .82rem;
-  color: var(--text-secondary);
-  background: rgba(74,144,217,.05);
-  border-bottom: 1px solid var(--border-color);
-  display: flex; align-items: center; gap: 8px;
-  min-height: 36px;
-}
-.wb-hint i { color: var(--accent); opacity: .8; }
-
-/* ═══ Panes ═══ */
-.wb-panes { padding: 14px 16px; }
-.wb-pane { display: none; }
-.wb-pane.active { display: block; }
-
-.wb-input {
-  width: 100%; padding: 12px 14px;
-  border: 1.5px solid var(--border-color);
-  border-radius: 8px;
-  background: var(--card-bg); color: var(--text-primary);
-  font-family: inherit; font-size: 1rem;
-  box-sizing: border-box;
-  transition: border-color .15s;
-}
-.wb-input:focus { outline: none; border-color: var(--accent); }
-.wb-input.saved-hint { background: rgba(74,144,217,.08); }
-
-.wb-textarea {
-  width: 100%; padding: 12px 14px;
-  border: 1.5px solid var(--border-color);
-  border-radius: 8px;
-  background: var(--card-bg); color: var(--text-primary);
-  font-family: inherit; font-size: .95rem; line-height: 1.6;
-  resize: vertical; min-height: 200px;
-  box-sizing: border-box;
-  transition: border-color .15s;
-}
-.wb-textarea:focus { outline: none; border-color: var(--accent); }
-.wb-textarea:disabled { opacity: .5; cursor: not-allowed; }
-
-.wb-counter {
-  margin-top: 6px;
-  font-size: .78rem; color: var(--text-secondary);
-  font-family: 'Consolas', monospace;
-  text-align: right;
-}
-.wb-counter.warn  { color: #f0ad4e; }
-.wb-counter.limit { color: var(--danger); }
-
-/* ═══ Photo dropzone ═══ */
-.wb-dropzone {
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: 6px; padding: 36px 20px;
-  border: 2px dashed var(--border-color);
-  border-radius: 10px;
-  background: rgba(74,144,217,.02);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all .15s;
-  text-align: center;
-}
-.wb-dropzone:hover,
-.wb-dropzone.dragover {
-  border-color: var(--accent);
-  background: rgba(74,144,217,.06);
-  color: var(--accent);
-}
-.wb-dropzone i { font-size: 2rem; opacity: .65; margin-bottom: 4px; }
-.wb-dropzone .dz-title { font-size: .95rem; font-weight: 600; }
-.wb-dropzone small { font-size: .74rem; opacity: .7; }
-
-.wb-photo-preview {
-  display: flex; flex-direction: column;
-  align-items: center; gap: 12px;
-  padding: 4px 0;
-}
-.wb-photo-preview img {
-  max-width: 100%; max-height: 320px;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  box-shadow: 0 4px 12px rgba(0,0,0,.08);
-}
-.wb-photo-actions { display: flex; gap: 10px; }
-.wb-photo-actions button {
-  padding: 6px 14px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: none; color: var(--text-primary);
-  cursor: pointer; font-family: inherit; font-size: .85rem;
-  font-weight: 600;
-  transition: all .15s;
-}
-.wb-photo-actions button:hover { border-color: var(--accent); color: var(--accent); }
-#wbRemoveImage:hover { border-color: var(--danger); color: var(--danger); }
-
-/* ═══ Footer ═══ */
-.wb-footer {
-  display: flex; justify-content: space-between; align-items: center;
-  gap: 12px; padding: 12px 16px;
-  border-top: 1px solid var(--border-color);
-  background: rgba(0,0,0,.015);
-  flex-wrap: wrap;
-}
-[data-theme="dark"] .wb-footer { background: rgba(255,255,255,.02); }
-
-.wb-status {
-  font-size: .85rem;
-  color: var(--text-secondary);
-  min-height: 1.2em; flex: 1;
-  min-width: 0;
-}
-.wb-status.ok   { color: #2e7d32; font-weight: 600; }
-.wb-status.err  { color: var(--danger); font-weight: 600; }
-.wb-status.busy { color: var(--accent); font-weight: 600; }
-
-.wb-footer-actions {
-  display: flex; gap: 8px; align-items: center;
-  flex-shrink: 0;
-  flex-wrap: wrap;
-}
-.wb-btn-secondary {
-  padding: 8px 14px;
-  border: 1px solid var(--border-color);
-  border-radius: 7px;
-  background: none; color: var(--text-secondary);
-  cursor: pointer; font-family: inherit;
-  font-size: .84rem; font-weight: 600;
-  transition: all .15s;
-}
-.wb-btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
-
-.wb-submit {
-  padding: 9px 26px;
-  border: none; border-radius: 7px;
-  background: var(--accent); color: #fff;
-  cursor: pointer; font-family: inherit;
-  font-size: .9rem; font-weight: 700;
-  display: inline-flex; align-items: center; gap: 8px;
-  transition: filter .15s, opacity .15s;
-}
-.wb-submit:hover:not(:disabled) { filter: brightness(1.1); }
-.wb-submit:disabled { opacity: .5; cursor: not-allowed; }
-.wb-submit {
-  padding: 9px 26px;
-  border: none; border-radius: 7px;
-  background: #28a745; color: #fff;
-  cursor: pointer; font-family: inherit;
-  font-size: .9rem; font-weight: 700;
-  display: inline-flex; align-items: center; gap: 8px;
-  transition: filter .15s, background .15s, opacity .15s;
-}
-.wb-submit:hover:not(:disabled) { filter: brightness(1.08); }
-.wb-submit:disabled {
-  background: #8a8f96;
-  opacity: .75;
-  cursor: not-allowed;
-}
-
-/* Submissions 按鈕：藍色 */
-#submissionsBtn {
-  background: #4a90d9;
-  border-color: #4a90d9;
-  color: #fff;
-}
-#submissionsBtn:hover {
-  background: #3a7bc8;
-  border-color: #3a7bc8;
-  color: #fff;
-  filter: brightness(1.05);
-}
-/* ═══ Mobile ═══ */
-@media (max-width: 600px) {
-  .wb-tab small { display: none; }
-  .wb-tab { padding: 10px 4px; }
-  .wb-tab span { font-size: .82rem; }
-  .wb-footer { flex-direction: column; align-items: stretch; }
-  .wb-footer-actions { justify-content: space-between; }
-  .wb-submit { flex: 1; justify-content: center; }
-}
-/* ═══ Expression preview ═══ */
-.wb-expr-preview {
-  display: flex; align-items: center; gap: 10px;
-  margin-top: 8px; padding: 8px 14px;
-  background: rgba(46,204,113,.08);
-  border: 1px solid rgba(46,204,113,.35);
-  border-radius: 8px;
-  font-size: .88rem;
-  animation: exprFadeIn .16s ease;
-  transition: background .15s, border-color .15s;
-}
-/* 未计算（原文）→ 灰色 */
-.wb-expr-preview.plain {
-  background: rgba(128,128,128,.06);
-  border-color: var(--border-color);
-}
-.wb-expr-preview.plain i { color: var(--text-secondary); }
-.wb-expr-preview.plain .expr-value { color: var(--text-primary); font-weight: 500; }
-@keyframes exprFadeIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.wb-expr-preview i {
-  color: #2ecc71; font-size: 1rem; flex-shrink: 0;
-}
-.wb-expr-preview .expr-label {
-  color: var(--text-secondary); font-size: .82rem;
-  flex-shrink: 0;
-}
-.wb-expr-preview .expr-value {
-  font-family: 'Consolas', 'Monaco', monospace;
-  font-weight: 700; font-size: .95rem;
-  color: #2e7d32;
-  flex: 1; min-width: 0;
-  overflow: hidden; text-overflow: ellipsis;
-  white-space: nowrap;
-}
-[data-theme="dark"] .wb-expr-preview {
-  background: rgba(46,204,113,.12);
-  border-color: rgba(46,204,113,.4);
-}
-[data-theme="dark"] .wb-expr-preview .expr-value { color: #8fdf8f; }
-[data-theme="dark"] .wb-expr-preview.plain {
-  background: rgba(255,255,255,.03);
-  border-color: var(--border-color);
-}
-[data-theme="dark"] .wb-expr-preview.plain .expr-value { color: var(--text-primary); }
-`);
+injectStyle('pd-misc-style', `.si-item{display:block;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border-color);border-radius:6px;margin-bottom:8px;text-decoration:none;color:var(--text-primary);transition:border-color .15s,transform .12s,box-shadow .15s}.si-item:hover{border-color:var(--accent);transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.08)}.si-title{display:flex;align-items:center;gap:8px;font-weight:600;margin-bottom:5px;font-size:.95rem}.si-id{font-family:'Consolas',monospace;color:var(--accent);flex-shrink:0}.si-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.si-meta{display:flex;gap:10px;font-size:.8rem;color:var(--text-secondary);flex-wrap:wrap;align-items:center}.si-tag{background:rgba(74,144,217,.12);color:var(--accent);padding:1px 8px;border-radius:10px;font-size:.72rem;font-weight:600}.si-tag.common{background:rgba(46,204,113,.15);color:#2e7d32}.si-badge{font-size:.72rem;font-weight:700;color:#e67e22;flex-shrink:0}.si-empty,.si-loading{text-align:center;padding:30px 20px;color:var(--text-secondary);font-size:.9rem}[data-theme="dark"] .si-tag{background:rgba(74,144,217,.25)}[data-theme="dark"] .si-tag.common{background:rgba(46,204,113,.25);color:#8fce9f}.answer-workbench{display:flex;flex-direction:column;background:var(--card-bg);border:1px solid var(--border-color);border-radius:10px;overflow:hidden;margin:1rem 0 1.4rem;box-shadow:0 1px 4px rgba(0,0,0,.04)}.wb-tabs{display:flex;border-bottom:1px solid var(--border-color);background:rgba(0,0,0,.02)}[data-theme="dark"] .wb-tabs{background:rgba(255,255,255,.02)}.wb-tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:10px 8px;border:none;background:none;color:var(--text-secondary);cursor:pointer;font-family:inherit;font-size:.9rem;font-weight:600;border-bottom:2px solid transparent;transition:all .15s;min-width:0}.wb-tab i{font-size:1.2rem;line-height:1}.wb-tab{padding:12px 8px}.wb-tab span{font-size:.88rem;line-height:1.2}.wb-tab small{font-size:.68rem;opacity:.65;font-weight:400;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}.wb-tab:hover:not(:disabled){color:var(--text-primary);background:rgba(74,144,217,.04)}.wb-tab.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(74,144,217,.06)}.wb-tab.active small{color:var(--accent);opacity:.9}.wb-tab:disabled{opacity:.4;cursor:not-allowed;filter:grayscale(.6)}.wb-hint{padding:8px 16px;font-size:.82rem;color:var(--text-secondary);background:rgba(74,144,217,.05);border-bottom:1px solid var(--border-color);display:flex;align-items:center;gap:8px;min-height:36px}.wb-hint i{color:var(--accent);opacity:.8}.wb-panes{padding:14px 16px}.wb-pane{display:none}.wb-pane.active{display:block}.wb-input{width:100%;padding:12px 14px;border:1.5px solid var(--border-color);border-radius:8px;background:var(--card-bg);color:var(--text-primary);font-family:inherit;font-size:1rem;box-sizing:border-box;transition:border-color .15s}.wb-input:focus{outline:none;border-color:var(--accent)}.wb-input.saved-hint{background:rgba(74,144,217,.08)}.wb-textarea{width:100%;padding:12px 14px;border:1.5px solid var(--border-color);border-radius:8px;background:var(--card-bg);color:var(--text-primary);font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;min-height:200px;box-sizing:border-box;transition:border-color .15s}.wb-textarea:focus{outline:none;border-color:var(--accent)}.wb-textarea:disabled{opacity:.5;cursor:not-allowed}.wb-counter{margin-top:6px;font-size:.78rem;color:var(--text-secondary);font-family:'Consolas',monospace;text-align:right}.wb-counter.warn{color:#f0ad4e}.wb-counter.limit{color:var(--danger)}.wb-dropzone{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:36px 20px;border:2px dashed var(--border-color);border-radius:10px;background:rgba(74,144,217,.02);color:var(--text-secondary);cursor:pointer;transition:all .15s;text-align:center}.wb-dropzone:hover,.wb-dropzone.dragover{border-color:var(--accent);background:rgba(74,144,217,.06);color:var(--accent)}.wb-dropzone i{font-size:2rem;opacity:.65;margin-bottom:4px}.wb-dropzone .dz-title{font-size:.95rem;font-weight:600}.wb-dropzone small{font-size:.74rem;opacity:.7}.wb-photo-preview{display:flex;flex-direction:column;align-items:center;gap:12px;padding:4px 0}.wb-photo-preview img{max-width:100%;max-height:320px;border-radius:8px;border:1px solid var(--border-color);box-shadow:0 4px 12px rgba(0,0,0,.08)}.wb-photo-actions{display:flex;gap:10px}.wb-photo-actions button{padding:6px 14px;border:1px solid var(--border-color);border-radius:6px;background:none;color:var(--text-primary);cursor:pointer;font-family:inherit;font-size:.85rem;font-weight:600;transition:all .15s}.wb-photo-actions button:hover{border-color:var(--accent);color:var(--accent)}#wbRemoveImage:hover{border-color:var(--danger);color:var(--danger)}.wb-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--border-color);background:rgba(0,0,0,.015);flex-wrap:wrap}[data-theme="dark"] .wb-footer{background:rgba(255,255,255,.02)}.wb-status{font-size:.85rem;color:var(--text-secondary);min-height:1.2em;flex:1;min-width:0}.wb-status.ok{color:#2e7d32;font-weight:600}.wb-status.err{color:var(--danger);font-weight:600}.wb-status.busy{color:var(--accent);font-weight:600}.wb-footer-actions{display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap}.wb-btn-secondary{padding:8px 14px;border:1px solid var(--border-color);border-radius:7px;background:none;color:var(--text-secondary);cursor:pointer;font-family:inherit;font-size:.84rem;font-weight:600;transition:all .15s}.wb-btn-secondary:hover{border-color:var(--accent);color:var(--accent)}.wb-submit{padding:9px 26px;border:none;border-radius:7px;background:var(--accent);color:#fff;cursor:pointer;font-family:inherit;font-size:.9rem;font-weight:700;display:inline-flex;align-items:center;gap:8px;transition:filter .15s,opacity .15s}.wb-submit:hover:not(:disabled){filter:brightness(1.1)}.wb-submit:disabled{opacity:.5;cursor:not-allowed}.wb-submit{padding:9px 26px;border:none;border-radius:7px;background:#28a745;color:#fff;cursor:pointer;font-family:inherit;font-size:.9rem;font-weight:700;display:inline-flex;align-items:center;gap:8px;transition:filter .15s,background .15s,opacity .15s}.wb-submit:hover:not(:disabled){filter:brightness(1.08)}.wb-submit:disabled{background:#8a8f96;opacity:.75;cursor:not-allowed}#submissionsBtn{background:#4a90d9;border-color:#4a90d9;color:#fff}#submissionsBtn:hover{background:#3a7bc8;border-color:#3a7bc8;color:#fff;filter:brightness(1.05)}@media (max-width: 600px){.wb-tab small{display:none}.wb-tab{padding:10px 4px}.wb-tab span{font-size:.82rem}.wb-footer{flex-direction:column;align-items:stretch}.wb-footer-actions{justify-content:space-between}.wb-submit{flex:1;justify-content:center}}.wb-expr-preview{display:flex;align-items:center;gap:10px;margin-top:8px;padding:8px 14px;background:rgba(46,204,113,.08);border:1px solid rgba(46,204,113,.35);border-radius:8px;font-size:.88rem;animation:exprFadeIn .16s ease;transition:background .15s,border-color .15s}.wb-expr-preview.plain{background:rgba(128,128,128,.06);border-color:var(--border-color)}.wb-expr-preview.plain i{color:var(--text-secondary)}.wb-expr-preview.plain .expr-value{color:var(--text-primary);font-weight:500}@keyframes exprFadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}.wb-expr-preview i{color:#2ecc71;font-size:1rem;flex-shrink:0}.wb-expr-preview .expr-label{color:var(--text-secondary);font-size:.82rem;flex-shrink:0}.wb-expr-preview .expr-value{font-family:'Consolas','Monaco',monospace;font-weight:700;font-size:.95rem;color:#2e7d32;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}[data-theme="dark"] .wb-expr-preview{background:rgba(46,204,113,.12);border-color:rgba(46,204,113,.4)}[data-theme="dark"] .wb-expr-preview .expr-value{color:#8fdf8f}[data-theme="dark"] .wb-expr-preview.plain{background:rgba(255,255,255,.03);border-color:var(--border-color)}[data-theme="dark"] .wb-expr-preview.plain .expr-value{color:var(--text-primary)}.wb-model-picker{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:8px 12px;background:rgba(74,144,217,.05);border:1px solid var(--border-color);border-radius:8px;flex-wrap:wrap}.wb-model-label{font-size:.85rem;font-weight:600;color:var(--text-secondary);display:inline-flex;align-items:center;gap:5px;margin-right:4px}.wb-model-label i{color:var(--accent)}.wb-model-btn{padding:5px 14px;border:1.5px solid var(--border-color);border-radius:6px;background:var(--card-bg);color:var(--text-secondary);cursor:pointer;font-family:inherit;font-size:.82rem;font-weight:600;transition:all .15s;display:inline-flex;align-items:center;gap:6px}.wb-model-btn small{font-size:.7rem;opacity:.75;font-weight:400}.wb-model-btn:hover{border-color:var(--accent);color:var(--accent)}.wb-model-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}.wb-model-btn.active small{opacity:.9}html.draw-mode-active,body.draw-mode-active{overflow:hidden!important;overscroll-behavior:none}body.draw-mode-active{touch-action:none}`);
 
 function statusBoxHtml(subid, text, cls) {
   if (!subid) return esc(text);
@@ -450,11 +150,81 @@ async function loadDrawTool() {
   if (!window.DrawTool) throw new Error('DrawTool not found in draw.js');
   return window.DrawTool;
 }
+// ───────────────────────────────────────────────────────────────────
+// [5.1] Draw 模式鎖定：禁止滾動 / 滑動 / 鍵盤捲動
+// ───────────────────────────────────────────────────────────────────
+const DRAW_LOCK_CLASS = 'draw-mode-active';
+let _drawLocked = false;
+let _drawpadObserver = null;
 
+function _preventScroll(e) {
+  if (!_drawLocked) return;
+  e.preventDefault();
+}
+
+function _preventKeyboardScroll(e) {
+  if (!_drawLocked) return;
+  const blocked = new Set([
+    'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+    'PageUp', 'PageDown', 'Home', 'End', ' ', 'Spacebar',
+  ]);
+  if (blocked.has(e.key)) e.preventDefault();
+}
+
+function setDrawLock(locked) {
+  if (locked === _drawLocked) return;
+  _drawLocked = locked;
+
+  if (locked) {
+    document.documentElement.classList.add(DRAW_LOCK_CLASS);
+    document.body.classList.add(DRAW_LOCK_CLASS);
+    document.addEventListener('wheel',     _preventScroll, { passive: false, capture: true });
+    document.addEventListener('touchmove', _preventScroll, { passive: false, capture: true });
+    document.addEventListener('keydown',   _preventKeyboardScroll, { capture: true });
+  } else {
+    document.documentElement.classList.remove(DRAW_LOCK_CLASS);
+    document.body.classList.remove(DRAW_LOCK_CLASS);
+    document.removeEventListener('wheel',     _preventScroll, { capture: true });
+    document.removeEventListener('touchmove', _preventScroll, { capture: true });
+    document.removeEventListener('keydown',   _preventKeyboardScroll, { capture: true });
+  }
+}
+
+function observeDrawpadState() {
+  const wrapper = document.getElementById('drawpadWrapper');
+  if (!wrapper) return;
+
+  if (_drawpadObserver) {
+    try { _drawpadObserver.disconnect(); } catch {}
+    _drawpadObserver = null;
+  }
+
+  const check = () => {
+    const st = wrapper.style.display;
+    const isVisible = st !== 'none' && st !== '';
+    setDrawLock(isVisible);
+  };
+
+  _drawpadObserver = new MutationObserver(check);
+  _drawpadObserver.observe(wrapper, {
+    attributes: true,
+    attributeFilter: ['style', 'class', 'hidden'],
+  });
+
+  // 初始檢查
+  check();
+}
 async function toggleDrawMode() {
   try {
     const DrawTool = await loadDrawTool();
     DrawTool.toggle(mainContainer);
+
+    // 立即同步一次（不等 MutationObserver 的下一個 microtask）
+    const wrapper = document.getElementById('drawpadWrapper');
+    if (wrapper) {
+      const st = wrapper.style.display;
+      setDrawLock(st !== 'none' && st !== '');
+    }
   } catch (e) {
     console.error('[draw]', e);
     alert('Failed to load drawing tool: ' + e.message);
@@ -1202,10 +972,10 @@ async function setupNavigation(currentProblem) {
 // [11] Workbench（三模式）
 // ───────────────────────────────────────────────────────────────────
 const WB_HINTS = {
-  none:  { icon: 'fa-hand-pointer', text: 'Select a submission mode above to begin' },
-  text:  { icon: 'fa-bolt',         text: 'Numbers or short text — instant grading' },
-  photo: { icon: 'fa-camera',       text: 'Photo or upload — will be marked manually' },
-  steps: { icon: 'fa-pen-fancy',    text: 'Write full solution — AI grades by step' },
+  none:  { icon: 'fa-hand-pointer', text: '' },
+  text:  { icon: 'fa-bolt',         text: '' },
+  photo: { icon: 'fa-camera',       text: '' },
+  steps: { icon: 'fa-pen-fancy',    text: '' },
 };
 
 const WB_DRAFTS_KEY = 'pd_workbench_drafts';
@@ -1251,10 +1021,16 @@ const workbench = {
       p.classList.toggle('active', newMode !== 'none' && p.dataset.pane === newMode);
     });
 
-    // Hint
+    // Hint（沒文字就整塊隱藏）
     const h = WB_HINTS[newMode] || WB_HINTS.none;
-    document.getElementById('wbHint').innerHTML =
-      `<i class="fas ${h.icon}"></i><span>${h.text}</span>`;
+    const hintEl = document.getElementById('wbHint');
+    if (h.text) {
+      hintEl.innerHTML = `<i class="fas ${h.icon}"></i><span>${h.text}</span>`;
+      hintEl.style.display = '';
+    } else {
+      hintEl.innerHTML = '';
+      hintEl.style.display = 'none';
+    }
 
     // 提交按钮
     const checkBtn = document.getElementById('checkAnswerBtn');
@@ -1443,6 +1219,11 @@ function bindAnswerInteractions() {
   document.querySelectorAll('.wb-tab:not(:disabled)').forEach(tab => {
     tab.addEventListener('click', () => workbench.setMode(tab.dataset.mode));
   });
+  // Steps model 選擇器
+  document.querySelectorAll('.wb-model-btn').forEach(btn => {
+    btn.addEventListener('click', () => setStepsModel(btn.dataset.model));
+  });
+  setStepsModel(getStepsModel());   // 初始化 active class
 
   // Text input
   const answerInput = document.getElementById('answerInput');
@@ -1526,7 +1307,7 @@ stepsInput.addEventListener('blur', () => workbench.saveDraft('steps', stepsInpu
   document.getElementById('timerToggleBtn')?.addEventListener('click', toggleTimer);
 
   // Initial state
-  workbench.setMode('none');
+  workbench.setMode('text');
 }
 
 // ───────────────────────────────────────────────────────────────────
@@ -1667,56 +1448,129 @@ function fetchNekoAndShow() {
       img.style.display = 'none';
     });
 }
-// ─────────────────────────────────────────────────────────────
-// [11.3] Steps 模式：同步呼叫本地 server.js
-// ─────────────────────────────────────────────────────────────
-const GRADER_BASE = 'https://appeared-bernard-held-connector.trycloudflare.com ';
+// ───────────────────────────────────────────────────────────────────
+// [11.3] Steps 模式：Vercel 建任務 → Bridge 處理 → 前端輪詢
+// ───────────────────────────────────────────────────────────────────
+const STEPS_MODEL_KEY = 'pd_steps_model';
+
+function getStepsModel() {
+  const m = localStorage.getItem(STEPS_MODEL_KEY);
+  return (m === 'v3') ? 'v3' : 'r1';
+}
+function setStepsModel(model) {
+  if (!['r1', 'v3'].includes(model)) model = 'r1';
+  localStorage.setItem(STEPS_MODEL_KEY, model);
+  document.querySelectorAll('.wb-model-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.model === model);
+  });
+}
 
 async function handleStepsSubmit(stepsText, checkBtn) {
-  setWorkbenchStatus('AI 批改中…（約 10-40 秒，請稍等）', 'busy');
+  setWorkbenchStatus('提交 AI 批改…', 'busy');
+
+  const model = getStepsModel();
 
   try {
-    const r = await fetch(`${GRADER_BASE}/grade-steps`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        problem_id: problemId,
-        student_steps: stepsText,
-      }),
+    const res = await apiCall('/api/steps-grade', 'POST', {
+      problemId,
+      steps: stepsText,
+      model,
     });
 
-    const data = await r.json();
-
-    if (!r.ok || !data.success) {
-      setWorkbenchStatus(data.message || 'Grading failed', 'err');
+    if (!res?.success || !res.taskId) {
+      setWorkbenchStatus(res?.message || 'Submission failed', 'err');
+      S.cooldown = false;
+      checkBtn.disabled = false;
       return;
     }
 
-    renderStepsResult({ score: data.score, comment: data.comment });
+    setWorkbenchStatus(`AI 批改中…（${model === 'r1' ? 'R1 推理' : 'V3 快速'}，最多約 60 秒）`, 'busy');
+    pollStepsResult(res.taskId, checkBtn);
+
   } catch (err) {
     console.error('[steps submit]', err);
-    setWorkbenchStatus('無法連線批改服務：' + err.message, 'err');
-  } finally {
+    setWorkbenchStatus('Network error: ' + (err.message || 'unknown'), 'err');
     S.cooldown = false;
     checkBtn.disabled = false;
   }
 }
 
-function renderStepsResult(result) {
-  const score   = Number(result?.score) || 0;
+function pollStepsResult(taskId, checkBtn) {
+  const POLL_INTERVAL = 3000;   // 3 秒
+  const MAX_ATTEMPTS  = 40;     // 40 × 3s = 120 秒
+  let attempts = 0;
+
+  const tick = async () => {
+    attempts++;
+
+    if (attempts > MAX_ATTEMPTS) {
+      setWorkbenchStatus('AI 批改超時，請稍後重試', 'err');
+      S.cooldown = false;
+      checkBtn.disabled = false;
+      return;
+    }
+
+    try {
+      const res = await apiCall(`/api/steps-grade?taskId=${encodeURIComponent(taskId)}`);
+
+      if (res?.status === 'done') {
+        renderStepsResult(res.result, res.subid);
+        S.cooldown = false;
+        checkBtn.disabled = false;
+        return;
+      }
+      if (res?.status === 'error') {
+        setWorkbenchStatus('AI error: ' + (res.message || 'unknown'), 'err');
+        S.cooldown = false;
+        checkBtn.disabled = false;
+        return;
+      }
+
+      // pending / processing
+      setWorkbenchStatus(`AI 批改中…（已等待 ${attempts * 3}s）`, 'busy');
+      setTimeout(tick, POLL_INTERVAL);
+
+    } catch (err) {
+      console.error('[steps poll]', err);
+      setTimeout(tick, POLL_INTERVAL);
+    }
+  };
+
+  setTimeout(tick, 2000);   // 首次延遲 2s
+}
+
+function renderStepsResult(result, subid) {
+  const score   = Number(result?.score);
   const comment = result?.comment || '';
 
+  // ⭐ score === -100 表示 AI 錯誤
+  if (score === -100 || !Number.isFinite(score)) {
+    setWorkbenchStatusHtml(
+      `<span class="feedback-box status-system" style="cursor:default">
+        <i class="fas fa-exclamation-triangle"></i>&nbsp;AI error — 請稍後重試
+      </span>`
+    );
+    return;
+  }
+
+  const s = Math.max(0, Math.min(100, Math.round(score)));
   let label, cls;
-  if (score === 100)     { label = 'Accepted (100)';          cls = 'status-accepted'; }
-  else if (score === 0)  { label = 'Wrong Answer (0)';        cls = 'status-wrong';    }
-  else                   { label = `Partial Score (${score})`; cls = 'status-partial'; }
+  if (s === 100)     { label = 'Accepted (100)';          cls = 'status-accepted'; }
+  else if (s === 0)  { label = 'Wrong Answer (0)';        cls = 'status-wrong';    }
+  else               { label = `Partial Score (${s})`;    cls = 'status-partial';  }
 
   const display = comment ? `${label} — ${comment}` : label;
-  setWorkbenchStatusHtml(
-    `<span class="feedback-box ${cls}" style="cursor:default">${esc(display)}</span>`
-  );
 
-  if (score === 100) {
+  if (subid) {
+    setWorkbenchStatusHtml(statusBoxHtml(subid, display, cls));
+  } else {
+    setWorkbenchStatusHtml(
+      `<span class="feedback-box ${cls}" style="cursor:default">${esc(display)}</span>`
+    );
+  }
+
+  // 狀態更新
+  if (s === 100) {
     S.userStates[problemId] = 'passed';
     if (localStorage.getItem('nekoModeUnlocked') === 'true' &&
         localStorage.getItem('showNekos') === 'true' &&
@@ -1798,35 +1652,25 @@ async function initPage() {
         </div>
 
         <div class="answer-workbench" id="answerWorkbench">
-
           <div class="wb-tabs" role="tablist">
-            <button type="button" class="wb-tab" data-mode="text" role="tab">
+            <button type="button" class="wb-tab" data-mode="text" role="tab" title="Text">
               <i class="fas fa-keyboard"></i>
-              <span>Text</span>
-              <small>Instant grading</small>
             </button>
-            <button type="button" class="wb-tab" data-mode="photo" role="tab">
+            <button type="button" class="wb-tab" data-mode="photo" role="tab" title="Photo">
               <i class="fas fa-camera"></i>
-              <span>Photo</span>
-              <small>Manually marked</small>
             </button>
-            <button type="button" class="wb-tab" data-mode="steps" role="tab">
+            <button type="button" class="wb-tab" data-mode="steps" role="tab" title="Steps (AI grading)">
               <i class="fas fa-pen-fancy"></i>
-              <span>Steps</span>
-              <small>AI grading</small>
             </button>
           </div>
 
-          <div class="wb-hint" id="wbHint">
-            <i class="fas fa-hand-pointer"></i>
-            <span>Select a submission mode above to begin</span>
-          </div>
+          <div class="wb-hint" id="wbHint" style="display:none"></div>
 
           <div class="wb-panes">
 
             <div class="wb-pane" data-pane="text">
               <input type="text" id="answerInput" class="wb-input"
-                    placeholder="Enter your answer…" autocomplete="off" spellcheck="false">
+                    autocomplete="off" spellcheck="false">
               <div class="wb-expr-preview" id="wbExprPreview" hidden>
                 <i class="fas fa-calculator"></i>
                 <span class="expr-label">Will submit:</span>
@@ -1837,8 +1681,6 @@ async function initPage() {
               <label class="wb-dropzone" id="wbDropzone">
                 <input type="file" id="imageFileInput" accept="image/*" hidden>
                 <i class="fas fa-cloud-upload-alt"></i>
-                <span class="dz-title">Drop an image here, or click to select</span>
-                <small>JPG · PNG · HEIC · up to 5 MB</small>
               </label>
               <div class="wb-photo-preview" id="wbPhotoPreview" hidden>
                 <img id="imagePreview" alt="preview">
@@ -1850,10 +1692,20 @@ async function initPage() {
             </div>
 
             <div class="wb-pane" data-pane="steps">
-              <textarea id="stepsInput" class="wb-textarea" rows="10"
-                maxlength="1000"
-                placeholder="Write your full solution here (max 1000 chars)…"></textarea>
-              <div class="wb-counter"><span id="stepsCount">0</span> / 1000</div>
+              <div class="wb-pane" data-pane="steps">
+                <div class="wb-model-picker">
+                  <span class="wb-model-label"><i class="fas fa-microchip"></i> AI model</span>
+                  <button type="button" class="wb-model-btn" data-model="r1">
+                    R1 <small>Slow but accurate</small>
+                  </button>
+                  <button type="button" class="wb-model-btn" data-model="v3">
+                    V3 <small>Fast</small>
+                  </button>
+                </div>
+                <textarea id="stepsInput" class="wb-textarea" rows="10"
+                  maxlength="1000"></textarea>
+                <div class="wb-counter"><span id="stepsCount">0</span> / 1000</div>
+              </div>
             </div>
 
           </div>
@@ -2023,6 +1875,7 @@ async function initPage() {
 
     bindAnswerInteractions();
     bindSubmitEvent();
+    observeDrawpadState();        // ⭐ 新增
     await setupNavigation(problem);
     updateExprPreview(); 
   } catch (err) {
@@ -2041,10 +1894,15 @@ window.addEventListener('pagehide', () => {
     try { window.__pdfResizeObserver.disconnect(); } catch {}
     window.__pdfResizeObserver = null;
   }
+  // ⭐ Draw 鎖清理
+  if (_drawpadObserver) {
+    try { _drawpadObserver.disconnect(); } catch {}
+    _drawpadObserver = null;
+  }
+  setDrawLock(false);
+
   const ansEl = document.getElementById('answerInput');
-  const expEl = document.getElementById('exprInput');
   if (ansEl?.value) saveAnswerNow(problemId, ansEl.value);
-  if (expEl?.value) saveAnswerNow(problemId, expEl.value);
 });
 
 document.addEventListener('visibilitychange', () => {

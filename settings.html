@@ -202,6 +202,13 @@
               <span class="slider"></span>
             </label>
           </div>
+          <div class="setting-row">
+            <span class="setting-label">Accept PK requests</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="pkInviteToggle">
+              <span class="slider"></span>
+            </label>
+          </div>
         </div>
 
         <button class="btn btn-primary" id="saveSettingsBtn">Save Settings</button>
@@ -347,6 +354,7 @@
       document.getElementById('showTagsToggle').checked = localStorage.getItem('showTags') !== 'false';
       document.getElementById('randomAnimToggle').checked = localStorage.getItem('randomAnimation') !== 'false';
       updateGoodUIVisibility(theme);
+      document.getElementById('pkInviteToggle').checked = localStorage.getItem('pkInviteEnabled') !== 'false';
     }
 
     function applyTheme() {
@@ -389,6 +397,7 @@
       // const uiType = document.getElementById('uiTypeSelect').value;
       const showTags = document.getElementById('showTagsToggle').checked;
       const randomAnim = document.getElementById('randomAnimToggle').checked;
+      const pkInvite = document.getElementById('pkInviteToggle').checked;
 
       localStorage.setItem('showTags', showTags);
       localStorage.setItem('theme', theme);
@@ -399,7 +408,7 @@
       localStorage.setItem('hideDifficulty', hideDifficulty);
       // localStorage.setItem('uiType', uiType);
       localStorage.setItem('randomAnimation', randomAnim);
-
+      localStorage.setItem('pkInviteEnabled', pkInvite);
       applyTheme();
       applyFontSize();
       // applyUI(uiType);

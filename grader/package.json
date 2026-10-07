@@ -1,0 +1,14 @@
+{
+  "name": "deepseek-grader-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node bridge.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "mongodb": "^6.10.0",
+    "playwright": "^1.48.0"
+  }
+}

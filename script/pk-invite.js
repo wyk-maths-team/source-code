@@ -2,8 +2,10 @@
 // 全局 PK 邀请监听 —— 所有登录后页面加载
 (function () {
   'use strict';
-
   if (!localStorage.getItem('auth_token')) return;
+
+  // ⭐ 用戶可在 settings 關閉 PK 邀請通知
+  if (localStorage.getItem('pkInviteEnabled') === 'false') return;
 
   // ⭐ 調參
   const POLL_MS      = 60_000;       // 每 60 秒檢查一次
