@@ -1,18 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/arch-render.js"></script>
-  
 <meta charset="UTF-8" />
-<script>(function(){try{
-  var t = localStorage.getItem('theme') || 'light';
-  if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
-  if (localStorage.getItem('pageTransition') === 'off') return;
-  if (sessionStorage.getItem('__pt') !== 'in') return;
-  // ⭐ 铺的是"遮罩色"，不是页面底色
-  document.documentElement.style.background = (t === 'dark' ? '#0d1117' : '#0f3460');
-}catch(e){}})();</script>
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pageload.js" defer></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>Problem - WYK Maths Team</title>
@@ -23,132 +12,14 @@
   <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
   <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.amcharts.com">
-
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+  <link rel="stylesheet" href="/css/pd.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" />
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.7/purify.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
-  
-  <style>
-    .problem-detail { background: var(--card-bg); border-radius: 4px; padding: 1.2rem; box-shadow: var(--shadow-sm) }
-    .detail-header { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; border-bottom: 1px solid var(--border-color); padding-bottom: .5rem }
-    .back-btn { background: 0; border: 1px solid var(--border-color); border-radius: 4px; padding: .3rem .7rem; cursor: pointer; font-size: .85rem; color: var(--text-primary) }
-    .problem-name-detail { font-size: 1.2rem; font-weight: 700 }
-    .answer-area { margin: 1rem 0; display: flex; align-items: center; gap: .8rem; flex-wrap: wrap }
-    .answer-input { padding: .4rem .7rem; border: 1px solid var(--border-color); border-radius: 4px; width: 160px }
-    .check-btn, .submissions-btn, .mode-btn { border: 0; border-radius: 4px; padding: .4rem 1rem; cursor: pointer; font-weight: 500 }
-    .check-btn { background: #28a745; color: white }
-    .check-btn:hover { background: #218838 }
-    .check-btn:disabled { background: #6c757d; cursor: not-allowed }
-    .submissions-btn { background: #6c757d; color: white }
-    .mode-btn { background: #e0e0e0; color: var(--text-primary); border: 1px solid var(--border-color); margin-right: .3rem }
-    .mode-btn.active { background: var(--accent); color: white; border-color: var(--accent) }
-    .feedback { margin-left: .5rem }
-    .feedback.correct { color: #2e7d32 }
-    .feedback.wrong { color: #c62828 }
-    .loading-msg, .error-msg { text-align: center; padding: 2rem; color: var(--text-secondary) }
-    .error-msg { color: var(--danger) }
-    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(0, 0, 0, 0.2); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; vertical-align: middle; margin-left: 8px }
-    @keyframes spin { to { transform: rotate(360deg) } }
-    .discussion-post { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 4px; padding: 1rem; margin-bottom: 1rem }
-    .post-header { display: flex; justify-content: space-between; margin-bottom: .5rem; font-size: .85rem; color: var(--text-secondary) }
-    .post-content { margin-bottom: .8rem; line-height: 1.6; word-wrap: break-word; overflow-wrap: break-word; }
-    .like-btn { background: 0; border: 1px solid var(--border-color); border-radius: 20px; padding: .2rem .8rem; cursor: pointer; font-size: .9rem }
-    .like-btn.liked { color: #e74c3c; border-color: #e74c3c }
-    #discussionContent { font-family: 'Fira Code', 'Cascadia Code', 'Consolas', 'Monaco', monospace; font-size: .9rem; line-height: 1.5; background: #1e1e1e; color: #d4d4d4; border: 1px solid var(--border-color); border-radius: 4px; padding: .6rem; resize: vertical; tab-size: 2; width: 100%; box-sizing: border-box }
-    #discussionContent::placeholder { color: #888 }
-    #postDiscussionBtn { background: var(--accent); color: white; border: 0; border-radius: 4px; padding: .5rem 1.5rem; cursor: pointer; font-weight: 600; font-size: .9rem; transition: background .2s }
-    #postDiscussionBtn:hover { background: #3a7bc8 }
-    .split-container { display: flex; margin-top: 1rem; padding-top: .8rem; border-top: 1px solid var(--border-color); gap: 0 }
-    .split-divider { width: 6px; background: #ddd; cursor: col-resize; flex-shrink: 0 }
-    .statement-content { flex: 1 1 50%; overflow: auto; min-width: 200px }
-    .drawpad-wrapper { flex: 1 1 50%; min-width: 200px; position: relative }
-    .timer-row { padding: .8rem .5rem; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 4px; margin-bottom: .5rem }
-    .timer-display { font-size: 1.4rem; font-weight: 600; margin-right: 1rem; font-family: monospace }
-    .timer-btn { padding: .3rem .6rem; margin-right: .5rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--card-bg); cursor: pointer }
-    .fa-green { color: #2e7d32 }
-    .fa-red { color: #c62828 }
-    .fa-yellow { color: #e67e22 }
-    #exprInput { font-family: 'Fira Code', 'Cascadia Code', 'Consolas', 'Monaco', monospace; font-size: .9rem; background: #1e1e1e; color: #d4d4d4; border: 1px solid var(--border-color); border-radius: 4px; padding: .5rem; width: 250px }
-    #exprPreview { display: inline-block; margin-left: .5rem; font-size: 1.1rem }
-    #expandDiscussionsBtn { background: var(--card-bg); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 20px; padding: .5rem 1.2rem; font-weight: 600; font-size: .9rem; transition: all .2s ease; box-shadow: var(--shadow-sm) }
-    #expandDiscussionsBtn:hover { background: var(--accent); color: #fff; border-color: var(--accent) }
-    #nekoContainer { margin: 1rem 0; text-align: center; display: none; }
-    #nekoContainer img { max-width: 100%; max-height: 300px; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.2); }
-    #navButtons a { text-decoration: none; }
-    /* === Report modal === */
-.report-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10000;
-  padding: 1rem;
-}
-.report-modal {
-  background: var(--card-bg);
-  border-radius: 6px;
-  padding: 1.2rem 1.4rem;
-  max-width: 480px;
-  width: 100%;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-}
-.report-modal h3 {
-  margin: 0 0 0.4rem 0;
-  color: var(--text-primary);
-}
-.report-modal-hint {
-  margin: 0 0 0.8rem 0;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-}
-.report-modal textarea {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 0.6rem;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 0.9rem;
-  resize: vertical;
-  background: var(--card-bg);
-  color: var(--text-primary);
-}
-.report-modal textarea:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-.report-modal-actions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-  margin-top: 0.9rem;
-}
-.report-modal-actions button {
-  padding: 0.4rem 1rem;
-  border-radius: 4px;
-  border: 1px solid var(--border-color);
-  cursor: pointer;
-  font-weight: 500;
-  font-size: 0.9rem;
-}
-.report-modal-actions .btn-primary {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
-}
-.report-modal-actions .btn-secondary {
-  background: var(--card-bg);
-  color: var(--text-primary);
-}
-  </style>
-
-  <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#1a1a2e">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
@@ -156,7 +27,6 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="WYK Maths">
   <meta name="mobile-web-app-capable" content="yes">
-
 </head>
 <body class="index-body">
   <div id="appContainer">
@@ -169,15 +39,11 @@
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
-  
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
-<script src="/script/heartbeat.js"></script>
-<script src="/script/pk-invite.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+  <script src="/script/heartbeat.js"></script>
+  <script src="/script/pk-invite.js"></script>
   <script src="https://unpkg.com/xpdf-viewer@3.1.8/pdf.js" defer></script>
-
-  <!-- <script src="/script/[id].js"></script> -->
   <!-- <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pd-script-v7.js"></script> -->
   <script src="/script/pd-script.js"></script>
-  <!-- <script src="https://raw.githubusercontent.com/wyk-math-team/resources/main/script/[id].js"></script> -->
 </body>
 </html>

@@ -27,8 +27,10 @@ ${student_steps}
 1. If the final answer is correct and the steps are basically correct → 100 points.
 2. If the final answer is incorrect or the steps are incomplete → assign 0–99 points at your discretion based on how complete and correct the steps are.
 3. If the answer is correct and the reasoning is reasonable, full marks are allowed; minor errors with a correct answer may incur small deductions.
-4. The score must be an integer between 0 and 100.
-5. Write the comment in Traditional Chinese (within 100 characters).
+4. You should not expose the correct answer. You may give hint to the student about the correct answer.
+5. Some problems are divided into parts. Each part of the question carries 100/parts marks. Mark the problem according to the parts. Score of 100 SHOULD NOT be given if all parts of the question is NOT fully answered.
+6. The score must be an integer between 0 and 100.
+7. Write the comment in Traditional Chinese or English according to the language the student was using(within 300 characters). Always reply in english if the answer did not belong to any of the 2.
 
 【OUTPUT FORMAT】Output ONLY the following JSON, with no other characters:
 {"score": integer, "comment": "comment"}
