@@ -791,7 +791,7 @@
     document.getElementById('drawToggleBtn')?.addEventListener('click', toggleDrawMode);
     document.getElementById('timerToggleBtn')?.addEventListener('click', toggleTimer);
 
-    workbench.setMode('text');
+    workbench.setMode('none');
   }
 
   function bindSubmitEvent() {
