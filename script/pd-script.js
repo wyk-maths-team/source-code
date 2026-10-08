@@ -1611,6 +1611,13 @@ async function loadPageData() {
 // [12] 主流程
 // ───────────────────────────────────────────────────────────────────
 async function initPage() {
+  // ⭐ 臨時：iOS 上開啟 console
+if (/iPhone|iPad|iPod/.test(navigator.userAgent) && location.search.includes('debug=1')) {
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/eruda';
+  s.onload = () => window.eruda?.init();
+  document.head.appendChild(s);
+}
   try {
     mainContainer.innerHTML = '';
 
