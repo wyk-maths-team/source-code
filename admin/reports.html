@@ -1,69 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/arch-render.js"></script>
-  
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
   if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
   if (localStorage.getItem('pageTransition') === 'off') return;
   if (sessionStorage.getItem('__pt') !== 'in') return;
-  // ⭐ 铺的是"遮罩色"，不是页面底色
   document.documentElement.style.background = (t === 'dark' ? '#0d1117' : '#0f3460');
 }catch(e){}})();</script>
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pageload.js" defer></script>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Manage Reports - WYK Maths Team</title>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
-  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
-  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Manage Reports - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
-  <style>
-    .admin-container { background: var(--card-bg); border-radius: 4px; padding: 1.5rem; }
-    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-    th, td { padding: 0.5rem; border-bottom: 1px solid var(--border-color); text-align: left; vertical-align: middle; }
-    th { background: #e9ecef; font-weight: 700; }
-    [data-theme="dark"] th { background: #2d2d2d; }
 
-    /* 已處理 / 未處理的行顏色 */
-    tr.report-pending { background: #f8d7da; }         /* 紅 */
-    tr.report-pending:hover { background: #f5c6cb; }
-    tr.report-resolved { background: #d4edda; }        /* 綠 */
-    tr.report-resolved:hover { background: #c3e6cb; }
-    [data-theme="dark"] tr.report-pending { background: #4d1b1b; }
-    [data-theme="dark"] tr.report-pending:hover { background: #5a2222; }
-    [data-theme="dark"] tr.report-resolved { background: #1b4d2e; }
-    [data-theme="dark"] tr.report-resolved:hover { background: #235c38; }
+<style>
+  .admin-container { background: var(--card-bg); border-radius: 4px; padding: 1.5rem; }
+  table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+  th, td { padding: 0.5rem; border-bottom: 1px solid var(--border-color); text-align: left; vertical-align: middle; }
+  th { background: #e9ecef; font-weight: 700; }
+  [data-theme="dark"] th { background: #2d2d2d; }
 
-    .btn-sm { padding: 0.2rem 0.5rem; font-size: 0.8rem; border: 1px solid var(--border-color); border-radius: 3px; cursor: pointer; background: transparent; }
-    .btn-danger { color: var(--danger); border-color: var(--danger); }
-    .btn-primary { color: var(--accent); border-color: var(--accent); }
-    .message { margin: 1rem 0; }
+  tr.report-pending { background: #f8d7da; }
+  tr.report-pending:hover { background: #f5c6cb; }
+  tr.report-resolved { background: #d4edda; }
+  tr.report-resolved:hover { background: #c3e6cb; }
+  [data-theme="dark"] tr.report-pending { background: #4d1b1b; }
+  [data-theme="dark"] tr.report-pending:hover { background: #5a2222; }
+  [data-theme="dark"] tr.report-resolved { background: #1b4d2e; }
+  [data-theme="dark"] tr.report-resolved:hover { background: #235c38; }
 
-    /* 勾選框樣式 */
-    .resolve-checkbox {
-      width: 18px;
-      height: 18px;
-      cursor: pointer;
-      accent-color: #28a745;
-    }
-    .reason-cell {
-      max-width: 320px;
-      word-wrap: break-word;
-      word-break: break-word;
-      white-space: pre-wrap;
-      font-size: 0.88rem;
-    }
-    .reason-cell.empty { color: var(--text-secondary); font-style: italic; }
-    th.col-center, td.col-center { text-align: center; width: 60px; }
-  </style>
+  .btn-sm {
+    padding: 0.25rem 0.55rem;
+    font-size: 0.8rem;
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    cursor: pointer;
+    background: transparent;
+    font-family: inherit;
+  }
+  .btn-sm:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-danger { color: var(--danger); border-color: var(--danger); }
+  .btn-primary { color: var(--accent); border-color: var(--accent); }
+  .message { margin: 1rem 0; min-height: 1.2em; }
+  .message.err  { color: var(--danger); }
+  .message.ok   { color: #2e7d32; }
+
+  .resolve-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #28a745;
+  }
+  .resolve-checkbox:disabled { opacity: .5; cursor: wait; }
+
+  .reason-cell {
+    max-width: 320px;
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: pre-wrap;
+    font-size: 0.88rem;
+  }
+  .reason-cell.empty { color: var(--text-secondary); font-style: italic; }
+  th.col-center, td.col-center { text-align: center; width: 60px; }
+</style>
 </head>
 <body class="index-body">
 <div id="appContainer">
@@ -81,131 +86,245 @@
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/heartbeat.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pk-invite.js"></script>
 
 <script>
-  if (!isLoggedIn() || (getCurrentUser()?.role !== 'admin' && getCurrentUser()?.role !== 'root')) {
+(function () {
+  'use strict';
+
+  if (!isLoggedIn()) { window.location.href = '/index.html'; return; }
+  const me = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+  if (!me || (me.role !== 'admin' && me.role !== 'root')) {
     window.location.href = '/index.html';
+    return;
   }
+
+  // ═══════════ 工具 ═══════════
+  const $ = id => document.getElementById(id);
 
   function escapeHtml(str) {
     if (str === null || str === undefined) return '';
-    return String(str).replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[m]);
+    return String(str).replace(/[&<>"']/g, m => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[m]));
   }
 
-  function showMessage(msg, type) {
-    const el = document.getElementById('message');
+  // ⭐ 顯示真實錯誤（不再一律 Network error）
+  function extractErrMsg(err) {
+    return err?.data?.message
+        || err?.data?.error
+        || err?.message
+        || 'Network error';
+  }
+
+  let _msgTimer = null;
+  function showMessage(msg, type = 'ok') {
+    const el = $('message');
+    if (!el) return;
     el.textContent = msg;
-    el.style.color = type === 'error' ? 'var(--danger)' : '#2e7d32';
-    setTimeout(() => el.textContent = '', 5000);
+    el.className = 'message ' + (type === 'error' ? 'err' : 'ok');
+    clearTimeout(_msgTimer);
+    _msgTimer = setTimeout(() => { el.textContent = ''; }, 5000);
   }
 
+  // ═══════════ 狀態 ═══════════
+  let _reports = [];
+  let _busyIds = new Set();   // ⭐ 正在處理中的 reportId，防重複點擊
+
+  // ═══════════ 載入 ═══════════
   async function loadReports() {
-    const container = document.getElementById('reportsList');
+    const container = $('reportsList');
+    container.innerHTML = '<p>Loading…</p>';
+
     try {
       const res = await apiCall('/api/problem?action=report');
-      if (!res.success) throw new Error(res.message || 'Failed to load');
+      if (!res || !res.success) {
+        throw new Error(res?.message || 'Failed to load');
+      }
 
-      if (!res.reports || res.reports.length === 0) {
+      _reports = Array.isArray(res.reports) ? res.reports : [];
+
+      if (_reports.length === 0) {
         container.innerHTML = '<p>No reports yet.</p>';
         return;
       }
 
-      let html = `<table>
-        <thead><tr>
-          <th class="col-center">✓</th>
-          <th>#</th>
-          <th>Problem ID</th>
-          <th>Username</th>
-          <th>Reason</th>
-          <th>Time</th>
-          <th>Actions</th>
-        </tr></thead><tbody>`;
-
-      res.reports.forEach((r, idx) => {
-        const time = new Date(r.timestamp).toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong' });
-        const isResolved = !!r.resolved;
-        const rowClass = isResolved ? 'report-resolved' : 'report-pending';
-        const reason = (r.reason || '').trim();
-
-        html += `<tr class="${rowClass}" data-report-id="${r._id}">
-          <td class="col-center">
-            <input type="checkbox" class="resolve-checkbox"
-              data-report-id="${r._id}" ${isResolved ? 'checked' : ''}>
-          </td>
-          <td>${idx + 1}</td>
-          <td><a href="/admin/problems/${encodeURIComponent(r.problemId)}">${escapeHtml(r.problemId)}</a></td>
-          <td>${escapeHtml(r.username)}</td>
-          <td class="reason-cell${reason ? '' : ' empty'}">
-            ${reason ? escapeHtml(reason) : '(no reason provided)'}
-          </td>
-          <td>${escapeHtml(time)}</td>
-          <td style="white-space:nowrap;">
-            <button class="btn-sm btn-primary" onclick="window.location.href='/admin/problems/${encodeURIComponent(r.problemId)}'">Edit</button>
-            <button class="btn-sm btn-danger" onclick="deleteReport('${r._id}')">Delete</button>
-          </td>
-        </tr>`;
-      });
-
-      html += '</tbody></table>';
-      container.innerHTML = html;
-
-      // 綁定勾選事件
-      container.querySelectorAll('.resolve-checkbox').forEach(cb => {
-        cb.addEventListener('change', async function () {
-          const reportId = this.dataset.reportId;
-          const row = this.closest('tr');
-          const newResolved = this.checked;
-
-          // 樂觀更新：先改顏色，再打 API
-          row.classList.toggle('report-resolved', newResolved);
-          row.classList.toggle('report-pending', !newResolved);
-
-          try {
-            const res = await apiCall('/api/problem?action=report', 'PUT', {
-              reportId,
-              resolved: newResolved
-            });
-            if (!res.success) {
-              // 回滾
-              this.checked = !newResolved;
-              row.classList.toggle('report-resolved', !newResolved);
-              row.classList.toggle('report-pending', newResolved);
-              showMessage(res.message || 'Update failed', 'error');
-            }
-          } catch (err) {
-            // 回滾
-            this.checked = !newResolved;
-            row.classList.toggle('report-resolved', !newResolved);
-            row.classList.toggle('report-pending', newResolved);
-            showMessage('Network error', 'error');
-          }
-        });
-      });
+      renderTable();
     } catch (err) {
-      container.innerHTML = `<div class="error-msg">${escapeHtml(err.message)}</div>`;
+      console.error('[reports] load failed:', err);
+      container.innerHTML =
+        `<div class="error-msg">${escapeHtml(extractErrMsg(err))}</div>`;
     }
   }
 
-  async function deleteReport(reportId) {
-    if (!confirm('Delete this report?')) return;
+  // ═══════════ 渲染 ═══════════
+  function renderTable() {
+    const container = $('reportsList');
+
+    let html = `<table>
+      <thead><tr>
+        <th class="col-center">✓</th>
+        <th>#</th>
+        <th>Problem ID</th>
+        <th>Username</th>
+        <th>Reason</th>
+        <th>Time</th>
+        <th>Actions</th>
+      </tr></thead><tbody>`;
+
+    _reports.forEach((r, idx) => {
+      const time = new Date(r.timestamp).toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong' });
+      const isResolved = !!r.resolved;
+      const rowClass = isResolved ? 'report-resolved' : 'report-pending';
+      const reason = (r.reason || '').trim();
+      const rid = String(r._id);
+
+      html += `<tr class="${rowClass}" data-report-id="${escapeHtml(rid)}">
+        <td class="col-center">
+          <input type="checkbox" class="resolve-checkbox"
+            data-report-id="${escapeHtml(rid)}" ${isResolved ? 'checked' : ''}>
+        </td>
+        <td>${idx + 1}</td>
+        <td><a href="/admin/problems/${encodeURIComponent(r.problemId)}">${escapeHtml(r.problemId)}</a></td>
+        <td>${escapeHtml(r.username)}</td>
+        <td class="reason-cell${reason ? '' : ' empty'}">
+          ${reason ? escapeHtml(reason) : '(no reason provided)'}
+        </td>
+        <td>${escapeHtml(time)}</td>
+        <td style="white-space:nowrap;">
+          <button class="btn-sm btn-primary" data-action="edit" data-report-id="${escapeHtml(rid)}">Edit</button>
+          <button class="btn-sm btn-danger"  data-action="delete" data-report-id="${escapeHtml(rid)}">Delete</button>
+        </td>
+      </tr>`;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+
+    // ⭐ 用事件委託，取代 inline onclick
+    container.addEventListener('change', onCheckboxChange);
+    container.addEventListener('click', onActionClick);
+  }
+
+  // ═══════════ 事件處理 ═══════════
+  async function onCheckboxChange(e) {
+    const cb = e.target.closest('.resolve-checkbox');
+    if (!cb) return;
+
+    const reportId = cb.dataset.reportId;
+    if (!reportId || _busyIds.has(reportId)) {
+      // ⭐ 忙 → 回滾 checkbox 狀態
+      cb.checked = !cb.checked;
+      return;
+    }
+
+    const row = cb.closest('tr');
+    const newResolved = cb.checked;
+
+    // 樂觀更新
+    row.classList.toggle('report-resolved', newResolved);
+    row.classList.toggle('report-pending', !newResolved);
+
+    // 鎖住
+    _busyIds.add(reportId);
+    cb.disabled = true;
+
     try {
-      const res = await apiCall('/api/problem?action=report', 'DELETE', { reportId });
-      if (res.success) {
-        showMessage('Report deleted', 'success');
-        loadReports();
-      } else {
-        showMessage(res.message || 'Error', 'error');
+      const res = await apiCall('/api/problem?action=report', 'PUT', {
+        reportId,
+        resolved: newResolved,
+      });
+
+      if (!res || !res.success) {
+        throw new Error(res?.message || 'Update failed');
       }
+
+      // 更新本地資料
+      const r = _reports.find(x => String(x._id) === reportId);
+      if (r) r.resolved = newResolved;
+
+      showMessage('Updated', 'ok');
     } catch (err) {
-      showMessage('Network error', 'error');
+      console.error('[reports] toggle failed:', err);
+      // 回滾
+      cb.checked = !newResolved;
+      row.classList.toggle('report-resolved', !newResolved);
+      row.classList.toggle('report-pending', newResolved);
+      showMessage(extractErrMsg(err), 'error');
+    } finally {
+      _busyIds.delete(reportId);
+      cb.disabled = false;
     }
   }
 
+  async function onActionClick(e) {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+
+    const action = btn.dataset.action;
+    const reportId = btn.dataset.reportId;
+    if (!reportId || _busyIds.has(reportId)) return;
+
+    if (action === 'edit') {
+      const r = _reports.find(x => String(x._id) === reportId);
+      if (r) {
+        window.location.href = '/admin/problems/' + encodeURIComponent(r.problemId);
+      }
+      return;
+    }
+
+    if (action === 'delete') {
+      if (!confirm('Delete this report?')) return;
+
+      _busyIds.add(reportId);
+      btn.disabled = true;
+      btn.textContent = '…';
+
+      try {
+        const res = await apiCall('/api/problem?action=report', 'DELETE', { reportId });
+
+        if (!res || !res.success) {
+          throw new Error(res?.message || 'Delete failed');
+        }
+
+        // 從本地移除
+        _reports = _reports.filter(x => String(x._id) !== reportId);
+
+        // 從 DOM 移除那一行
+        const row = btn.closest('tr');
+        if (row) row.remove();
+
+        showMessage('Report deleted', 'ok');
+
+        // 若沒資料了，顯示空狀態
+        if (_reports.length === 0) {
+          $('reportsList').innerHTML = '<p>No reports yet.</p>';
+        }
+      } catch (err) {
+        console.error('[reports] delete failed:', err);
+
+        // ⭐ 404 = 別人刪了 → 從 UI 移除
+        if (err?.status === 404 || /not found/i.test(err?.message || '')) {
+          _reports = _reports.filter(x => String(x._id) !== reportId);
+          const row = btn.closest('tr');
+          if (row) row.remove();
+          showMessage('Report already deleted', 'ok');
+        } else {
+          showMessage(extractErrMsg(err), 'error');
+          btn.disabled = false;
+          btn.textContent = 'Delete';
+        }
+      } finally {
+        _busyIds.delete(reportId);
+      }
+    }
+  }
+
+  // ═══════════ 啟動 ═══════════
   loadReports();
+})();
 </script>
 </body>
 </html>
