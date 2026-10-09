@@ -482,10 +482,12 @@
     return _extrasPromise;
   }
     function renderStatement(statement) {
-    const stmt = document.getElementById('statementContent');
-    if (!stmt) return;
-    stmt.innerHTML = statement || '';
-    executeScriptsIn(stmt);
+  const stmt = document.getElementById('statementContent');
+  if (!stmt) return;
+  stmt.innerHTML = statement || '';
+  executeScriptsIn(stmt);
+
+  const doRender = () => {
     if (typeof renderMathInElement === 'function') {
       renderMathInElement(stmt, {
         delimiters: [
@@ -494,7 +496,15 @@
         ],
       });
     }
+  };
+
+  // 快取命中時，等 DOM 完全載入
+  if (document.readyState === 'complete') {
+    doRender();
+  } else {
+    window.addEventListener('load', doRender, { once: true });
   }
+}
   
   // ─────────────────────────────────────────────────────────────
   // [8] 主流程
