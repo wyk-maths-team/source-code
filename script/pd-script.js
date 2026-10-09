@@ -7,6 +7,8 @@
 //   ├─ 工具函式：esc, debounce, executeScriptsIn, loadScript,
 //   │            loadCssOnce, getTopbarHeight, clampInt
 //   ├─ 答案存儲：answersStore, saveAnswerDebounced, saveAnswerNow
+//   ├─ 快取：getCachedProblem, setCachedProblem,
+//   │        getCachedState, setCachedState, setProblemState
 //   ├─ UI 輔助：setWorkbenchStatus, setWorkbenchStatusHtml,
 //   │            statusBoxHtml, updateProblemDetailIcon
 //   └─ 註冊槽：workbench, extras, mcq
@@ -30,8 +32,8 @@
     return;
   }
 
-  const problemId    = decodeURIComponent(__pathMatch[1]);
-  const PAGE_LOAD_AT = Date.now();
+  const problemId     = decodeURIComponent(__pathMatch[1]);
+  const PAGE_LOAD_AT  = Date.now();
   const mainContainer = document.getElementById('mainContent');
 
   const S = {
@@ -76,22 +78,22 @@
     return (Number.isFinite(n) && n >= min && n <= max) ? n : fallback;
   }
 
-  // 動態載入 script（同一 src 只載一次）
+  // 動態載入 script（同一 src 只載一次；失敗不緩存）
   const _scriptCache = new Map();
   function loadScript(src) {
-      if (_scriptCache.has(src)) return _scriptCache.get(src);
-      const p = new Promise((resolve, reject) => {
-        const s = document.createElement('script');
-        s.src = src;
-        s.onload = () => resolve();
-        s.onerror = () => {
-          _scriptCache.delete(src);   // ⭐ 清掉失敗緩存
-          reject(new Error(`Failed to load ${src}`));
-        };
-        document.head.appendChild(s);
-      });
-      _scriptCache.set(src, p);
-      return p;
+    if (_scriptCache.has(src)) return _scriptCache.get(src);
+    const p = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = () => resolve();
+      s.onerror = () => {
+        _scriptCache.delete(src);   // ⭐ 清掉失敗緩存
+        reject(new Error(`Failed to load ${src}`));
+      };
+      document.head.appendChild(s);
+    });
+    _scriptCache.set(src, p);
+    return p;
   }
 
   // 動態載入 CSS（同一 href 只載一次）
@@ -128,7 +130,8 @@
   };
   const saveAnswerDebounced = debounce((pid, val) => answersStore.set(pid, val), 500);
   const saveAnswerNow       = (pid, val) => answersStore.set(pid, val);
-    // ─────────────────────────────────────────────────────────────
+
+  // ─────────────────────────────────────────────────────────────
   // [3.5] Statement 快取（顯示用，先讓用戶看到內容）
   // ─────────────────────────────────────────────────────────────
   const STMT_CACHE_KEY = 'pd_stmt_cache_v1';
@@ -190,7 +193,8 @@
 
     _writeStmtCache(cache);
   }
-    // ─────────────────────────────────────────────────────────────
+
+  // ─────────────────────────────────────────────────────────────
   // [3.6] 用戶答題狀態快取（同步讀取，避免狀態閃爍）
   // ─────────────────────────────────────────────────────────────
   const USER_STATES_KEY = 'pd_user_states_v1';
@@ -222,6 +226,7 @@
     S.userStates[pid] = state;
     setCachedState(pid, state);
   }
+
   // ─────────────────────────────────────────────────────────────
   // [4] UI 輔助函式（被 mcq / extras 共用）
   // ─────────────────────────────────────────────────────────────
@@ -259,7 +264,7 @@
     answersStore, saveAnswerDebounced, saveAnswerNow,
     setWorkbenchStatus, setWorkbenchStatusHtml, statusBoxHtml,
     updateProblemDetailIcon,
-    // ⭐ 加這三個
+    // ⭐ 快取相關
     getCachedState,
     setCachedState,
     setProblemState,
@@ -294,6 +299,7 @@
     // 命中快取時，用戶狀態未知 → 先按 not_started / 未收藏渲染
     const starClass = isFav ? 'fas fa-star' : 'far fa-star';
     const starColor = isFav ? '#f1c40f' : '#aaa';
+
     return `
       <div class="problem-detail" id="problemDetailShell">
         <div class="detail-header">
@@ -444,8 +450,8 @@
   // ─────────────────────────────────────────────────────────────
   // [7] 動態載入器
   // ─────────────────────────────────────────────────────────────
-  const MCQ_CSS_URL  = '/css/pd-pdf.css';        // PDF + MCQ 樣式（你自己建）
-  const MCQ_JS_URL   = '/script/pd-mcq.js';
+  const MCQ_CSS_URL   = '/css/pd-pdf.css';        // PDF + MCQ 樣式
+  const MCQ_JS_URL    = '/script/pd-mcq.js';
   const EXTRAS_JS_URL = '/script/pd-extras.js';
 
   let _mcqPromise = null;
@@ -481,31 +487,48 @@
     });
     return _extrasPromise;
   }
-    function renderStatement(statement) {
-  const stmt = document.getElementById('statementContent');
-  if (!stmt) return;
-  stmt.innerHTML = statement || '';
-  executeScriptsIn(stmt);
 
-  const doRender = () => {
-    if (typeof renderMathInElement === 'function') {
-      renderMathInElement(stmt, {
-        delimiters: [
-          { left: '$$', right: '$$', display: true },
-          { left: '$',  right: '$',  display: false },
-        ],
-      });
+  // ─────────────────────────────────────────────────────────────
+  // [7.5] statement 渲染（含 KaTeX ready 檢查）
+  // ─────────────────────────────────────────────────────────────
+  function renderStatement(statement) {
+    const stmt = document.getElementById('statementContent');
+    if (!stmt) return;
+    stmt.innerHTML = statement || '';
+    executeScriptsIn(stmt);
+
+    const doRender = () => {
+      if (typeof renderMathInElement === 'function') {
+        renderMathInElement(stmt, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '$',  right: '$',  display: false },
+          ],
+        });
+      }
+    };
+
+    // ⭐ 若 KaTeX 已 ready，立即渲染
+    if (typeof window.renderMathInElement === 'function'
+        && typeof window.katex !== 'undefined') {
+      doRender();
+      return;
     }
-  };
 
-  // 快取命中時，等 DOM 完全載入
-  if (document.readyState === 'complete') {
-    doRender();
-  } else {
-    window.addEventListener('load', doRender, { once: true });
+    // ⭐ KaTeX 還沒 ready → 等
+    let tries = 0;
+    const iv = setInterval(() => {
+      if (typeof window.renderMathInElement === 'function'
+          && typeof window.katex !== 'undefined') {
+        clearInterval(iv);
+        doRender();
+      } else if (++tries > 100) {   // 10 秒上限
+        clearInterval(iv);
+        console.warn('[math] KaTeX not ready after 10s');
+      }
+    }, 100);
   }
-}
-  
+
   // ─────────────────────────────────────────────────────────────
   // [8] 主流程
   // ─────────────────────────────────────────────────────────────
@@ -576,7 +599,7 @@
       S.userStates = (pageData.state && pageData.state !== 'not_started')
         ? { [problemId]: pageData.state }
         : {};
-              // ⭐ 同步到 localStorage（權威來源）
+      // ⭐ 同步到 localStorage（權威來源）
       setCachedState(problemId, pageData.state || 'not_started');
       S.favorites = new Set(pageData.favorited ? [problemId] : []);
 
