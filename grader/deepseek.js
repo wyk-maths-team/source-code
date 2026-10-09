@@ -1,8 +1,9 @@
 // deepseek.js
 // Playwright 透過 CDP 附著到使用者手動啟動的 Chrome
-const fs = require('fs');
 const { chromium } = require('playwright');
 const config = require('./config');
+
+const ASSISTANT_SELECTOR = '.ds-assistant-message-main-content';
 
 let _browser = null;
 let _context = null;
@@ -30,14 +31,12 @@ async function launch() {
 
   console.log('[deepseek] ✅ 已連接到 Chrome (CDP)');
 
-  // persistent context 只會有一個
   const contexts = _browser.contexts();
   if (contexts.length === 0) {
     throw new Error('找不到任何 browser context');
   }
   _context = contexts[0];
 
-  // 找 DeepSeek 頁籤
   const pages = _context.pages();
   _page = pages.find(p => p.url().includes('chat.deepseek.com'));
 
@@ -132,7 +131,6 @@ async function sendMessage(text) {
 
   await sendBtn.waitFor({ state: 'visible', timeout: 5000 });
 
-  // 等它脫離 disabled
   const maxWait = 3000;
   const start = Date.now();
   while (Date.now() - start < maxWait) {
@@ -156,55 +154,172 @@ async function sendMessage(text) {
 }
 
 /**
- * 等 AI 回覆穩定
+ * 計算目前畫面上 assistant 訊息的節點數量
  */
-async function waitForReply({ timeoutMs = 60_000, baseline = '' } = {}) {
+async function countAssistantMessages() {
+  try {
+    return await _page.locator(ASSISTANT_SELECTOR).count();
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * 取最後一條 assistant 訊息純文字
+ * 先用 innerText（可見文字），失敗則 fallback 到 textContent
+ */
+async function getLastAssistantText() {
+  try {
+    const loc = _page.locator(ASSISTANT_SELECTOR).last();
+    if ((await loc.count()) === 0) return '';
+    return await loc.innerText({ timeout: 1500 });
+  } catch {
+    try {
+      return await _page
+        .locator(ASSISTANT_SELECTOR)
+        .last()
+        .evaluate(el => el.textContent || '');
+    } catch {
+      return '';
+    }
+  }
+}
+
+/**
+ * 診斷用：印出目前 DOM 中和 assistant 相關的節點
+ * 當 selector 失效時,呼叫這個看一下實際 class 是什麼
+ */
+async function debugDump() {
+  const info = await _page.evaluate(() => {
+    const sel = '.ds-assistant-message-main-content';
+    const nodes = Array.from(document.querySelectorAll(sel));
+
+    // 找所有 class 含有 assistant / markdown 的節點
+    const related = Array.from(
+      document.querySelectorAll('[class*="assistant"], [class*="markdown"]')
+    ).slice(-20).map(n => ({
+      tag: n.tagName,
+      cls: n.className,
+      textLen: (n.textContent || '').length,
+      preview: (n.textContent || '').slice(0, 80),
+    }));
+
+    return {
+      selectorCount: nodes.length,
+      lastThreeBySelector: nodes.slice(-3).map(n => ({
+        cls: n.className,
+        textLen: (n.textContent || '').length,
+        preview: (n.textContent || '').slice(0, 80),
+      })),
+      relatedNodes: related,
+    };
+  });
+
+  console.log('[deepseek] === DOM DUMP ===');
+  console.log(JSON.stringify(info, null, 2));
+  return info;
+}
+
+/**
+ * 等 AI 回覆穩定
+ *
+ * 判斷新回覆的條件（任一成立即算）：
+ *   1) assistant 訊息節點數量增加
+ *   2) 最後一條的文字與 baseline 不同
+ *
+ * 穩定判斷：最後一條文字 1.5 秒內不再變化
+ *
+ * @param {object} opts
+ * @param {number} opts.timeoutMs
+ * @param {number} opts.baselineCount 送出前的 assistant 訊息數量
+ * @param {string} opts.baselineText  送出前最後一條的文字
+ */
+async function waitForReply({
+  timeoutMs = 60_000,
+  baselineCount = 0,
+  baselineText = '',
+} = {}) {
   const startTime = Date.now();
-  let lastText = baseline;
+  let lastText = '';
   let lastChangeAt = Date.now();
-  let hasNewReply = false;
+  let sawNewContent = false;
+  let everSawText = false;
 
   while (Date.now() - startTime < timeoutMs) {
-    let currentText = '';
-    try {
-      currentText = await _page
-        .locator('.ds-assistant-message-main-content')
-        .last()
-        .innerText({ timeout: 1500 });
-    } catch {}
+    const count = await countAssistantMessages();
+    const currentText = await getLastAssistantText();
 
+    // --- 判斷是否已出現新回覆 ---
+    const countIncreased = count > baselineCount;
+    const textChanged =
+      currentText && baselineText !== undefined && currentText !== baselineText;
+
+    if (countIncreased || textChanged) {
+      if (!sawNewContent) {
+        console.log(
+          `[deepseek] 偵測到新回覆 (count: ${baselineCount}→${count}, ` +
+          `textChanged: ${textChanged})`
+        );
+      }
+      sawNewContent = true;
+    }
+
+    // --- 追蹤最後一條文字是否還在變 ---
     if (currentText && currentText !== lastText) {
       lastText = currentText;
       lastChangeAt = Date.now();
-      if (currentText !== baseline) hasNewReply = true;
+      everSawText = true;
     }
 
-    if (hasNewReply && Date.now() - lastChangeAt >= 1500) {
-      return currentText;
+    // --- 穩定判斷 ---
+    if (sawNewContent && everSawText && Date.now() - lastChangeAt >= 1500) {
+      return lastText;
     }
 
-    await sleep(500);
+    await sleep(400);
   }
 
-  throw new Error(`等待 AI 回覆超時 (${timeoutMs}ms)`);
+  // 超時
+  const elapsed = Date.now() - startTime;
+  console.error(
+    `[deepseek] ⚠️ waitForReply 超時 (${elapsed}ms)。` +
+    `sawNewContent=${sawNewContent}, everSawText=${everSawText}, ` +
+    `lastTextLen=${lastText.length}, baselineCount=${baselineCount}`
+  );
+
+  // 若已有部分內容,寧可回傳也不要整輪丟掉
+  if (lastText) return lastText;
+
+  // 完全沒東西 → 建議使用者跑 debugDump
+  throw new Error(
+    `等待 AI 回覆超時 (${timeoutMs}ms)。` +
+    `可能是 selector 失效,請呼叫 deepseek.debugDump() 檢查 DOM。`
+  );
 }
 
 /**
  * 完整流程：切模式 → 發送 → 等回覆
  */
 async function ask(text, { model = 'r1', timeoutMs = 60_000 } = {}) {
-  let baseline = '';
-  try {
-    baseline = await _page
-      .locator('.ds-assistant-message-main-content')
-      .last()
-      .innerText({ timeout: 1000 });
-  } catch {}
+  // baseline 同時記「數量」與「文字」
+  const baselineCount = await countAssistantMessages();
+  const baselineText = await getLastAssistantText();
+
+  console.log(
+    `[deepseek] baseline: count=${baselineCount}, textLen=${baselineText.length}`
+  );
+
+  if (baselineCount === 0 && baselineText === '') {
+    console.warn(
+      '[deepseek] ⚠️ baseline 完全為空。若這是第一個問題屬正常;' +
+      '若不是,可能 selector 已失效,請呼叫 debugDump() 檢查。'
+    );
+  }
 
   await setDeepThink(model === 'r1');
   await sendMessage(text);
 
-  return waitForReply({ timeoutMs, baseline });
+  return waitForReply({ timeoutMs, baselineCount, baselineText });
 }
 
 /**
@@ -226,7 +341,6 @@ async function screenshot(filename) {
 async function close() {
   if (_browser) {
     try {
-      // CDP 模式下,close() 只斷開連接,不會關掉使用者的 Chrome
       await _browser.close();
     } catch {}
   }
@@ -241,6 +355,9 @@ module.exports = {
   waitForManualLogin,
   setDeepThink,
   sendMessage,
+  countAssistantMessages,
+  getLastAssistantText,
+  debugDump,
   waitForReply,
   ask,
   screenshot,

@@ -488,46 +488,82 @@
     return _extrasPromise;
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // [7.5] statement 渲染（含 KaTeX ready 檢查）
-  // ─────────────────────────────────────────────────────────────
-  function renderStatement(statement) {
-    const stmt = document.getElementById('statementContent');
-    if (!stmt) return;
-    stmt.innerHTML = statement || '';
-    executeScriptsIn(stmt);
+// ─────────────────────────────────────────────────────────────
+// [7.5] KaTeX 就緒等待 + statement 渲染
+// ─────────────────────────────────────────────────────────────
 
-    const doRender = () => {
-      if (typeof renderMathInElement === 'function') {
-        renderMathInElement(stmt, {
-          delimiters: [
-            { left: '$$', right: '$$', display: true },
-            { left: '$',  right: '$',  display: false },
-          ],
-        });
-      }
-    };
+/**
+ * 等 KaTeX 就緒（含 renderMathInElement 與 katex 兩個全域變數）
+ * - readyState !== 'complete' → 等 load 事件（同步腳本保證已執行）
+ * - readyState === 'complete' 但 KaTeX 尚未掛上 → 短輪詢兜底
+ * @returns {Promise<boolean>} 是否就緒
+ */
+function waitForKaTeX({ timeoutMs = 10_000 } = {}) {
+  const ready = () =>
+    typeof window.renderMathInElement === 'function'
+    && typeof window.katex !== 'undefined';
 
-    // ⭐ 若 KaTeX 已 ready，立即渲染
-    if (typeof window.renderMathInElement === 'function'
-        && typeof window.katex !== 'undefined') {
-      doRender();
-      return;
-    }
+  if (ready()) return Promise.resolve(true);
 
-    // ⭐ KaTeX 還沒 ready → 等
-    let tries = 0;
-    const iv = setInterval(() => {
-      if (typeof window.renderMathInElement === 'function'
-          && typeof window.katex !== 'undefined') {
-        clearInterval(iv);
-        doRender();
-      } else if (++tries > 100) {   // 10 秒上限
-        clearInterval(iv);
-        console.warn('[math] KaTeX not ready after 10s');
-      }
-    }, 100);
+  // 頁面還沒載完 → 等 load 事件（瀏覽器保證所有同步/defer 腳本已執行）
+  if (document.readyState !== 'complete') {
+    return new Promise((resolve) => {
+      window.addEventListener('load', () => resolve(ready()), { once: true });
+    });
   }
+
+  // 已 complete 但 KaTeX 還沒掛上 → 短輪詢兜底（未來若改動態載入會用到）
+  return new Promise((resolve) => {
+    const start = Date.now();
+    const iv = setInterval(() => {
+      if (ready()) {
+        clearInterval(iv);
+        resolve(true);
+      } else if (Date.now() - start > timeoutMs) {
+        clearInterval(iv);
+        console.warn('[math] KaTeX not ready after', timeoutMs, 'ms');
+        resolve(false);
+      }
+    }, 50);
+  });
+}
+
+/**
+ * 渲染 statement 內容並套用 KaTeX
+ * @param {string} statement  題目 HTML
+ * @returns {Promise<boolean>} 是否成功渲染 KaTeX
+ */
+async function renderStatement(statement) {
+  const stmt = document.getElementById('statementContent');
+  if (!stmt) return false;
+
+  // 先寫入原始 HTML，讓使用者盡快看到純文字內容
+  stmt.innerHTML = statement || '';
+  executeScriptsIn(stmt);
+
+  // 等 KaTeX 就緒
+  const ok = await waitForKaTeX();
+  if (!ok) return false;
+
+  // 再次確認 stmt 還在 DOM（可能被後續渲染替換掉）
+  if (!document.body.contains(stmt)) {
+    console.warn('[math] statementContent detached before render');
+    return false;
+  }
+
+  try {
+    window.renderMathInElement(stmt, {
+      delimiters: [
+        { left: '$$', right: '$$', display: true },
+        { left: '$',  right: '$',  display: false },
+      ],
+    });
+    return true;
+  } catch (e) {
+    console.error('[math] renderMathInElement failed:', e);
+    return false;
+  }
+}
 
   // ─────────────────────────────────────────────────────────────
   // [8] 主流程
