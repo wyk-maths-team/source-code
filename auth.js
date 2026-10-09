@@ -93,6 +93,9 @@ async function login(username, password) {
 
 function logout() {
   const token = getToken();
+
+  // ⭐ 1. 通知後端：離線 + 清 HttpOnly cookie
+  // （HttpOnly cookie 前端 JS 讀不到，只能請後端清）
   if (token) {
     try {
       fetch('/api/heartbeat?action=offline', {
@@ -102,8 +105,6 @@ function logout() {
       }).catch(() => {});
     } catch (e) {}
   }
-
-  // ⭐ 清除 root_persist cookie
   try {
     fetch('/api/root-session?action=logout', {
       method: 'POST',
@@ -112,9 +113,87 @@ function logout() {
     }).catch(() => {});
   } catch (e) {}
 
-  setToken(null);
-  currentUser = null;
-  window.location.href = '/';
+  // ⭐ 2. 清 localStorage（全部）
+  try {
+    localStorage.clear();
+  } catch (e) {
+    // 私密模式可能拋錯，退回逐項刪除
+    try {
+      Object.keys(localStorage).forEach(k => localStorage.removeItem(k));
+    } catch {}
+  }
+
+  // ⭐ 3. 清 sessionStorage（全部）
+  try {
+    sessionStorage.clear();
+  } catch (e) {
+    try {
+      Object.keys(sessionStorage).forEach(k => sessionStorage.removeItem(k));
+    } catch {}
+  }
+
+  // ⭐ 4. 清所有 JS 可訪問的 cookie
+  // （HttpOnly cookie 這裡清不到，但上面 API 已經請後端清了）
+  try {
+    const cookies = document.cookie ? document.cookie.split(';') : [];
+    const paths = ['/', '/api', '/auth', location.pathname];
+
+    // 判斷當前 domain（處理 subdomain）
+    const host = location.hostname;
+    const domains = [''];
+    // 例如 moj.wyk.edu.hk → 也試 .wyk.edu.hk 和 .moj.wyk.edu.hk
+    const parts = host.split('.');
+    if (parts.length >= 2) {
+      domains.push('.' + parts.slice(-2).join('.'));
+    }
+    if (parts.length >= 3) {
+      domains.push('.' + parts.slice(-3).join('.'));
+    }
+
+    for (const raw of cookies) {
+      const eq = raw.indexOf('=');
+      if (eq < 0) continue;
+      const name = raw.slice(0, eq).trim();
+      if (!name) continue;
+
+      // 對每個 path × domain 組合清一次
+      for (const p of paths) {
+        for (const d of domains) {
+          const parts2 = [`${name}=`, 'expires=Thu, 01 Jan 1970 00:00:00 GMT', `path=${p}`];
+          if (d) parts2.push(`domain=${d}`);
+          document.cookie = parts2.join('; ');
+        }
+      }
+    }
+  } catch (e) {}
+
+  // ⭐ 5. 清快取（Cache Storage）
+  try {
+    if ('caches' in window) {
+      caches.keys().then(keys => {
+        keys.forEach(k => caches.delete(k));
+      }).catch(() => {});
+    }
+  } catch (e) {}
+
+  // ⭐ 6. 清 IndexedDB（如果有用）
+  try {
+    if (indexedDB && indexedDB.databases) {
+      indexedDB.databases().then(dbs => {
+        dbs.forEach(db => {
+          if (db.name) indexedDB.deleteDatabase(db.name);
+        });
+      }).catch(() => {});
+    }
+  } catch (e) {}
+
+  // ⭐ 7. 記憶體狀態
+  try {
+    currentUser = null;
+  } catch (e) {}
+
+  // ⭐ 8. 跳轉（用 replace 避免用戶按「上一頁」回到已登入頁）
+  window.location.replace('/');
 }
 
 async function apiCall(endpoint, method = 'GET', body = null) {
@@ -128,7 +207,7 @@ async function apiCall(endpoint, method = 'GET', body = null) {
 
   const res = await fetch(url, options);
   if (res.status === 429) {
-    alert('Too many requests!');
+    // alert('Too many requests!');
     const data = await res.json().catch(() => ({ message: 'Too many requests' }));
     throw new Error(data.message || 'Too many requests');
   }

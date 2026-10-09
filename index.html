@@ -1,31 +1,13 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
 <head>
-
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/arch-render.js"></script>
-<!-- <script>
-(function(){
-  try {
-    if (window.top !== window.self) return;
-    // if (sessionStorage.getItem('desktopPreferred')) return;   // 用戶手動選桌面版
-    var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (!isMobile) return;
-    if (location.pathname.indexOf('/mobile') === 0) return;
-    // if (location.pathname.indexOf('/os') === 0) return;
-    if (location.pathname.indexOf('/admin') === 0) return;
-    location.replace('/mobile/' + location.search + location.hash);
-  } catch(e){}
-})();
-</script> -->
-
-
 <meta charset="UTF-8">
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
   if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
   if (localStorage.getItem('pageTransition') === 'off') return;
   if (sessionStorage.getItem('__pt') !== 'in') return;
-  // ⭐ 铺的是"遮罩色"，不是页面底色
   document.documentElement.style.background = (t === 'dark' ? '#0d1117' : '#0f3460');
 }catch(e){}})();</script>
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pageload.js" defer></script>
@@ -34,12 +16,11 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.7/purify.min.js"></script>
 
-<!-- ⭐ PWA -->
+<!-- PWA -->
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#1a1a2e">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
@@ -49,167 +30,148 @@
 <meta name="mobile-web-app-capable" content="yes">
 
 <style>
-  /* ═══════════ Home Dashboard ═══════════ */
+  /* ═══════════ Layout ═══════════ */
   .home-wrap {
     width: 100%;
-    margin: 0;
+    max-width: 880px;
+    margin: 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1.2rem;
     padding: 0.5rem 0;
   }
 
-  /* ── Hero Banner ── */
+  /* ═══════════ Hero ═══════════ */
   .home-hero {
     position: relative;
     overflow: hidden;
-    border-radius: 16px;
-    padding: 2rem 2.2rem;
+    border-radius: 14px;
+    padding: 1.8rem 2rem;
     background: linear-gradient(135deg, #4a90d9 0%, #2e5fa0 60%, #1a1a2e 100%);
     color: #fff;
-    box-shadow: 0 12px 40px rgba(74,144,217,.22), 0 0 0 1px rgba(255,255,255,.08) inset;
-    min-height: 180px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-  .home-hero::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image:
-      radial-gradient(1px 1px at 12% 25%, rgba(255,255,255,.8), transparent),
-      radial-gradient(1px 1px at 35% 65%, rgba(255,255,255,.6), transparent),
-      radial-gradient(2px 2px at 58% 20%, rgba(255,255,255,.9), transparent),
-      radial-gradient(1px 1px at 78% 78%, rgba(255,255,255,.7), transparent),
-      radial-gradient(2px 2px at 90% 35%, rgba(255,255,255,.85), transparent),
-      radial-gradient(1px 1px at 5% 88%, rgba(255,255,255,.6), transparent);
-    background-size: 400px 400px;
-    opacity: .55;
-    pointer-events: none;
-    animation: heroDrift 60s linear infinite;
-  }
-  @keyframes heroDrift {
-    from { background-position: 0 0; }
-    to   { background-position: 400px 300px; }
+    box-shadow: 0 6px 24px rgba(74,144,217,.15);
   }
   .home-hero::after {
     content: '';
     position: absolute;
-    top: -80px; right: -80px;
-    width: 340px; height: 340px;
-    background: radial-gradient(circle, rgba(255,255,255,.22) 0%, transparent 65%);
+    top: -60px; right: -60px;
+    width: 240px; height: 240px;
+    background: radial-gradient(circle, rgba(255,255,255,.18) 0%, transparent 65%);
     pointer-events: none;
   }
   .hero-inner { position: relative; z-index: 1; }
 
   .hero-greet {
-    font-size: 2.1rem;
-    font-weight: 800;
-    letter-spacing: -0.5px;
+    font-size: 1.55rem;
+    font-weight: 700;
+    letter-spacing: -0.3px;
     margin: 0 0 0.3rem;
     color: #fff;
+    line-height: 1.25;
   }
   .hero-sub {
-    font-size: 1rem;
-    opacity: .92;
-    margin: 0 0 1.2rem;
+    font-size: 0.92rem;
+    opacity: .9;
+    margin: 0 0 1.1rem;
     font-weight: 400;
     color: #fff;
-  }
-  .hero-actions {
-    display: flex;
-    gap: 0.7rem;
-    flex-wrap: wrap;
   }
   .hero-btn {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 20px;
-    border-radius: 24px;
+    padding: 9px 20px;
+    border-radius: 20px;
     text-decoration: none;
-    font-weight: 700;
-    font-size: 0.92rem;
-    transition: transform .15s, box-shadow .15s, background .15s;
-    border: 1px solid rgba(255,255,255,.3);
-    font-family: inherit;
-  }
-  .hero-btn.primary {
+    font-weight: 600;
+    font-size: 0.88rem;
     background: #fff;
     color: #2e5fa0;
-    border-color: #fff;
-    box-shadow: 0 4px 16px rgba(0,0,0,.2);
+    transition: transform .15s, box-shadow .15s;
+    box-shadow: 0 3px 10px rgba(0,0,0,.15);
+    font-family: inherit;
+    border: none;
   }
-  .hero-btn.primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0,0,0,.3);
+  .hero-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0,0,0,.22);
   }
-  .hero-btn.ghost {
-    background: rgba(255,255,255,.12);
-    color: #fff;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-  }
-  .hero-btn.ghost:hover {
-    background: rgba(255,255,255,.22);
-    transform: translateY(-2px);
-  }
+  .hero-btn i { font-size: 0.82rem; }
 
-  /* ── Quick Access Grid ── */
-  .quick-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
-  }
-  .quick-card {
+  /* ═══════════ Progress Card ═══════════ */
+  .progress-card {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 20px 18px;
+    border-radius: 14px;
+    padding: 1.3rem 1.5rem 1.4rem;
+    box-shadow: var(--shadow-sm);
+  }
+  .progress-header {
     display: flex;
-    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.1rem;
     gap: 10px;
-    text-decoration: none;
-    color: var(--text-primary);
-    transition: transform .15s, border-color .15s, box-shadow .15s;
-    position: relative;
-    overflow: hidden;
-    min-height: 120px;
   }
-  .quick-card::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle at 100% 0%, rgba(74,144,217,.10) 0%, transparent 60%);
-    opacity: 0;
-    transition: opacity .2s;
-    pointer-events: none;
-  }
-  .quick-card:hover {
-    transform: translateY(-3px);
-    border-color: var(--accent);
-    box-shadow: 0 12px 32px rgba(74,144,217,.2);
-  }
-  .quick-card:hover::after { opacity: 1; }
-  .quick-card .qc-icon {
-    font-size: 26px;
-    color: var(--accent);
-    line-height: 1;
-  }
-  .quick-card .qc-title {
+  .progress-header h2 {
     font-size: 1.02rem;
     font-weight: 700;
-    margin-top: auto;
+    margin: 0;
     color: var(--text-primary);
+    letter-spacing: -0.2px;
   }
-  .quick-card .qc-desc {
-    font-size: 0.8rem;
+  .progress-header a {
+    font-size: .83rem;
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .progress-header a:hover { text-decoration: underline; }
+
+  .progress-stats {
+    display: flex;
+    gap: 2.4rem;
+    margin-bottom: 1.05rem;
+    flex-wrap: wrap;
+  }
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+  .stat-num {
+    font-size: 1.55rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.5px;
+  }
+  .stat-label {
+    font-size: .72rem;
     color: var(--text-secondary);
-    line-height: 1.4;
+    font-weight: 600;
+    letter-spacing: .5px;
+    text-transform: uppercase;
   }
 
-  /* ── Updates Panel ── */
+  .progress-bar {
+    height: 6px;
+    background: var(--border-color);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #4a90d9, #6bb6ff);
+    border-radius: 3px;
+    transition: width .8s cubic-bezier(.4,0,.2,1);
+  }
+
+  /* ═══════════ Updates Panel ═══════════ */
   .updates-panel {
     background: var(--card-bg);
     border-radius: 14px;
@@ -221,34 +183,35 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 18px 24px;
+    padding: 16px 22px;
     border-bottom: 1px solid var(--border-color);
     flex-wrap: wrap;
     gap: 8px;
   }
   .updates-header h2 {
-    font-size: 1.15rem;
+    font-size: 1.02rem;
     font-weight: 700;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 9px;
     margin: 0;
     color: var(--text-primary);
+    letter-spacing: -0.2px;
   }
   .updates-header h2 i {
     color: var(--accent);
-    font-size: 1rem;
+    font-size: 0.92rem;
   }
   .updates-date {
-    font-size: .85rem;
+    font-size: .82rem;
     color: var(--text-secondary);
   }
   .updates-body {
-    padding: 20px 24px 24px;
+    padding: 18px 22px 22px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    min-height: 200px;
+    gap: 12px;
+    min-height: 140px;
   }
 
   /* ── Update card ── */
@@ -256,25 +219,24 @@
     background: var(--hover-bg);
     border: 1px solid var(--border-color);
     border-radius: 10px;
-    padding: 16px 18px;
-    transition: border-color .15s, box-shadow .15s;
+    padding: 14px 16px;
+    transition: border-color .15s;
   }
   .update-card:hover {
     border-color: var(--accent);
-    box-shadow: 0 2px 12px rgba(74,144,217,.12);
   }
   .update-card-header {
     display: flex;
     gap: 10px;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     align-items: center;
     flex-wrap: wrap;
   }
   .update-badge {
-    font-size: .7rem;
+    font-size: .68rem;
     font-weight: 800;
-    padding: 3px 10px;
-    border-radius: 10px;
+    padding: 2px 9px;
+    border-radius: 8px;
     text-transform: uppercase;
     letter-spacing: .5px;
   }
@@ -287,21 +249,21 @@
   :root[data-theme="dark"] .update-badge.warning { background: #4d2e0d; color: #ffb86c; }
 
   .update-time {
-    font-size: .78rem;
+    font-size: .76rem;
     color: var(--text-secondary);
     font-family: 'Consolas', 'Monaco', monospace;
   }
   .update-card h3 {
-    font-size: 1rem;
+    font-size: .95rem;
     font-weight: 700;
-    margin: 0 0 6px;
+    margin: 0 0 5px;
     color: var(--text-primary);
   }
   .update-card p {
-    font-size: .88rem;
+    font-size: .86rem;
     color: var(--text-secondary);
     margin: 0;
-    line-height: 1.6;
+    line-height: 1.55;
   }
 
   /* ── Skeleton ── */
@@ -309,11 +271,11 @@
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 10px;
-    padding: 16px 18px;
+    padding: 14px 16px;
   }
   .skeleton-line {
     display: block;
-    height: 11px;
+    height: 10px;
     background: linear-gradient(90deg, #e5e9ee 25%, #f0f3f7 50%, #e5e9ee 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
@@ -325,24 +287,24 @@
     background-size: 200% 100%;
   }
   .skeleton-line:last-child { margin-bottom: 0; }
-  .skeleton-line.short { width: 30%; }
+  .skeleton-line.short  { width: 30%; }
   .skeleton-line.medium { width: 60%; }
-  .skeleton-line.long { width: 90%; }
+  .skeleton-line.long   { width: 90%; }
   @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
+    0%   { background-position: -200% 0; }
+    100% { background-position:  200% 0; }
   }
 
   /* ── Load more ── */
-  .load-more-wrapper { text-align: center; padding-top: 6px; }
+  .load-more-wrapper { text-align: center; padding-top: 4px; }
   .load-more-btn {
-    padding: 8px 28px;
+    padding: 7px 26px;
     border: 1px solid var(--border-color);
-    border-radius: 22px;
+    border-radius: 20px;
     background: var(--card-bg);
     color: var(--text-primary);
     cursor: pointer;
-    font-size: 0.88rem;
+    font-size: .85rem;
     font-family: inherit;
     font-weight: 600;
     transition: all .15s;
@@ -351,35 +313,40 @@
     background: var(--accent);
     color: #fff;
     border-color: var(--accent);
-    transform: translateY(-1px);
   }
-  .load-more-btn:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+  .load-more-btn:disabled { opacity: .6; cursor: not-allowed; }
 
   .placeholder-card {
     text-align: center;
-    padding: 40px 20px;
+    padding: 36px 20px;
     color: var(--text-secondary);
-    font-size: .95rem;
+    font-size: .9rem;
   }
   .error-msg {
     text-align: center;
-    padding: 30px 20px;
+    padding: 28px 20px;
     color: var(--danger);
-    font-size: .9rem;
+    font-size: .88rem;
   }
 
-  /* ── Mobile ── */
+  /* ═══════════ Mobile ═══════════ */
   @media (max-width: 640px) {
-    .home-hero { padding: 1.5rem 1.4rem; min-height: 160px; border-radius: 12px; }
-    .hero-greet { font-size: 1.55rem; }
-    .hero-sub { font-size: .9rem; }
-    .hero-btn { padding: 8px 16px; font-size: .85rem; }
-    .quick-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-    .quick-card { padding: 14px 12px; min-height: 100px; }
-    .quick-card .qc-icon { font-size: 22px; }
-    .quick-card .qc-title { font-size: .9rem; }
-    .quick-card .qc-desc { font-size: .72rem; }
-    .updates-header, .updates-body { padding-left: 16px; padding-right: 16px; }
+    .home-wrap { gap: 1rem; padding: 0.3rem 0; }
+    .home-hero { padding: 1.4rem 1.3rem; border-radius: 12px; }
+    .hero-greet { font-size: 1.3rem; }
+    .hero-sub { font-size: .85rem; margin-bottom: 0.9rem; }
+    .hero-btn { padding: 8px 16px; font-size: .82rem; }
+
+    .progress-card { padding: 1.1rem 1.15rem 1.2rem; border-radius: 12px; }
+    .progress-header h2 { font-size: .95rem; }
+    .progress-stats { gap: 1.5rem; margin-bottom: 0.9rem; }
+    .stat-num { font-size: 1.3rem; }
+    .stat-label { font-size: .68rem; }
+
+    .updates-header { padding: 14px 16px; }
+    .updates-header h2 { font-size: .95rem; }
+    .updates-body { padding: 14px 16px 18px; gap: 10px; }
+    .update-card { padding: 12px 14px; }
   }
 </style>
 </head>
@@ -394,55 +361,38 @@
         <!-- ═══════ Hero ═══════ -->
         <section class="home-hero">
           <div class="hero-inner">
-            <h1 class="hero-greet">
-              <span id="heroGreet">Welcome back</span>
-            </h1>
-            <p class="hero-sub" id="heroSub">Ready to solve some problems?</p>
-            <div class="hero-actions">
-              <a href="/problems" class="hero-btn primary">
-                <i class="fas fa-play"></i>
-                Start Solving
-              </a>
-              <a href="/leaderboard" class="hero-btn ghost">
-                <i class="fas fa-ranking-star"></i>
-                Leaderboard
-              </a>
-            </div>
+            <h1 class="hero-greet" id="heroGreet">Welcome to WYK Maths Team Online plateform!</h1>
+            <p class="hero-sub" id="heroSub">Sign in to start solving problems.</p>
+            <a href="/login" class="hero-btn" id="heroBtn">
+              <i class="fas fa-sign-in-alt"></i>
+              <span id="heroBtnLabel">Sign In</span>
+            </a>
           </div>
         </section>
 
-        <!-- ═══════ Quick Access ═══════ -->
-        <section class="quick-grid">
-          <a href="/problems" class="quick-card">
-            <i class="fas fa-list-check qc-icon"></i>
-            <div class="qc-title">Problems</div>
-            <div class="qc-desc">Browse and solve</div>
-          </a>
-          <a href="/contest" class="quick-card">
-            <i class="fas fa-trophy qc-icon"></i>
-            <div class="qc-title">Contests</div>
-            <div class="qc-desc">Join live contests</div>
-          </a>
-          <a href="/submissions" class="quick-card">
-            <i class="fas fa-paper-plane qc-icon"></i>
-            <div class="qc-title">Submissions</div>
-            <div class="qc-desc">Your latest submits</div>
-          </a>
-          <a href="/leaderboard" class="quick-card">
-            <i class="fas fa-ranking-star qc-icon"></i>
-            <div class="qc-title">Leaderboard</div>
-            <div class="qc-desc">Global rankings</div>
-          </a>
-          <a href="/resources" class="quick-card">
-            <i class="fas fa-folder-open qc-icon"></i>
-            <div class="qc-title">Resources</div>
-            <div class="qc-desc">Study materials</div>
-          </a>
-          <a href="/charts" class="quick-card">
-            <i class="fas fa-chart-line qc-icon"></i>
-            <div class="qc-title">Progress</div>
-            <div class="qc-desc">Track your stats</div>
-          </a>
+        <!-- ═══════ Progress ═══════ -->
+        <section class="progress-card" id="progressCard" style="display:none;">
+          <div class="progress-header">
+            <h2>Your Progress</h2>
+            <a href="/charts">View details →</a>
+          </div>
+          <div class="progress-stats">
+            <div class="stat">
+              <span class="stat-num" id="statSolved">—</span>
+              <span class="stat-label">Solved</span>
+            </div>
+            <div class="stat">
+              <span class="stat-num" id="statTotal">—</span>
+              <span class="stat-label">Total</span>
+            </div>
+            <div class="stat">
+              <span class="stat-num" id="statPct">—</span>
+              <span class="stat-label">Complete</span>
+            </div>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
         </section>
 
         <!-- ═══════ Recent Updates ═══════ -->
@@ -451,16 +401,14 @@
             <h2><i class="fas fa-bullhorn"></i> Recent Updates</h2>
             <span class="updates-date" id="currentDate"></span>
           </div>
-          <div class="updates-body" id="updatesBody">
-            <!-- Skeleton rendered by JS -->
-          </div>
+          <div class="updates-body" id="updatesBody"></div>
         </section>
 
       </div>
     </main>
   </div>
 
-  <div id="loginModal" class="modal-overlay" style="display: none;">
+  <div id="loginModal" class="modal-overlay" style="display:none;">
     <div class="modal-card">
       <div class="modal-header">
         <h2>Sign In Required</h2>
@@ -484,35 +432,88 @@
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
-  
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
-<script src="/script/heartbeat.js"></script>
-<script src="/script/pk-invite.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/heartbeat.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pk-invite.js"></script>
 
   <script>
-    // ═══════ 日期 ═══════
-    document.getElementById('currentDate').textContent = new Date().toLocaleDateString('zh-HK', {
-      year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
-    });
+  (function () {
+    'use strict';
 
-    // ═══════ Hero 歡迎詞 ═══════
+    // ═══════════ 日期 ═══════════
+    const dateEl = document.getElementById('currentDate');
+    if (dateEl) {
+      dateEl.textContent = new Date().toLocaleDateString('zh-HK', {
+        year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
+      });
+    }
+
+    // ═══════════ Hero 歡迎詞 ═══════════
     (function updateHero() {
       const user = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
       const greetEl = document.getElementById('heroGreet');
-      const subEl = document.getElementById('heroSub');
+      const subEl   = document.getElementById('heroSub');
+      const btnEl   = document.getElementById('heroBtn');
+      const labelEl = document.getElementById('heroBtnLabel');
       if (!greetEl) return;
+
       if (user && user.username) {
         const hour = new Date().getHours();
-        const timeGreet = hour < 5 ? 'Late night' :
-                          hour < 12 ? 'Good morning' :
-                          hour < 18 ? 'Good afternoon' :
-                          'Good evening';
+        const timeGreet =
+          hour < 5  ? 'Late night' :
+          hour < 12 ? 'Good morning' :
+          hour < 18 ? 'Good afternoon' :
+                      'Good evening';
+
         greetEl.textContent = `${timeGreet}, ${user.displayName || user.username}`;
         subEl.textContent = 'What are we solving today?';
+        btnEl.href = '/problems';
+        btnEl.innerHTML = '<i class="fas fa-play"></i><span id="heroBtnLabel">Start Solving</span>';
+      } else {
+        greetEl.textContent = 'Welcome to WYK Maths';
+        subEl.textContent = 'Sign in to start solving problems.';
+        btnEl.href = '/login';
+        btnEl.innerHTML = '<i class="fas fa-sign-in-alt"></i><span id="heroBtnLabel">Sign In</span>';
       }
     })();
 
-    // ═══════ Updates 渲染 ═══════
+    // ═══════════ Progress 卡片 ═══════════
+    (async function loadProgress() {
+      const user = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+      if (!user || !user.username) return;
+
+      const card = document.getElementById('progressCard');
+      if (!card) return;
+
+      // 先顯示卡片（數據載入中顯示 —）
+      card.style.display = '';
+
+      try {
+        const data = await apiCall(
+          `/api/users?action=profile&username=${encodeURIComponent(user.username)}`
+        );
+        if (!data || !data.success) return;
+
+        const solved = Number(data.totalPassed) || 0;
+        const total  = Number(data.totalProblems) || 0;
+        const pct    = total > 0 ? Math.round((solved / total) * 100) : 0;
+
+        document.getElementById('statSolved').textContent = solved;
+        document.getElementById('statTotal').textContent  = total;
+        document.getElementById('statPct').textContent    = pct + '%';
+
+        // 觸發進度條動畫
+        requestAnimationFrame(() => {
+          document.getElementById('progressFill').style.width = pct + '%';
+        });
+      } catch (err) {
+        console.warn('[home] progress load failed:', err);
+        // 失敗就不顯示卡片
+        card.style.display = 'none';
+      }
+    })();
+
+    // ═══════════ Updates 渲染 ═══════════
     const updatesBody = document.getElementById('updatesBody');
 
     function escapeHtml(str) {
@@ -539,6 +540,8 @@
       }
       updatesBody.innerHTML = html;
     }
+
+    let allUpdates = [];
 
     function renderUpdates(updates, showAll = false) {
       const total = updates.length;
@@ -574,15 +577,16 @@
       updatesBody.innerHTML = html;
 
       if (hasMore) {
-        document.getElementById('loadMoreBtn').addEventListener('click', function () {
-          this.disabled = true;
-          this.textContent = 'Loading...';
-          renderUpdates(allUpdates, true);
-        });
+        const btn = document.getElementById('loadMoreBtn');
+        if (btn) {
+          btn.addEventListener('click', function () {
+            this.disabled = true;
+            this.textContent = 'Loading...';
+            renderUpdates(allUpdates, true);
+          });
+        }
       }
     }
-
-    let allUpdates = [];
 
     async function loadUpdates() {
       renderSkeleton();
@@ -602,6 +606,7 @@
     }
 
     loadUpdates();
+  })();
   </script>
 </body>
 </html>

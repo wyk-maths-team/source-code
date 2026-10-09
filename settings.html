@@ -1,698 +1,724 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
 <head>
-
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/arch-render.js"></script>
-<!-- <script>
-(function(){
-  try {
-    if (window.top !== window.self) return;
-    // if (sessionStorage.getItem('desktopPreferred')) return;   // 用戶手動選桌面版
-    var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (!isMobile) return;
-    if (location.pathname.indexOf('/mobile') === 0) return;
-    // if (location.pathname.indexOf('/os') === 0) return;
-    if (location.pathname.indexOf('/admin') === 0) return;
-    location.replace('/mobile/' + location.search + location.hash);
-  } catch(e){}
-})();
-</script> -->
-
-  
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
   if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
   if (localStorage.getItem('pageTransition') === 'off') return;
   if (sessionStorage.getItem('__pt') !== 'in') return;
-  // ⭐ 铺的是"遮罩色"，不是页面底色
   document.documentElement.style.background = (t === 'dark' ? '#0d1117' : '#0f3460');
 }catch(e){}})();</script>
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pageload.js" defer></script>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>Settings - WYK Maths Team</title>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
-  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
-  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+<title>Settings - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
-  <style>
-    .settings-container {
-      background: var(--card-bg);
-      border-radius: 4px;
-      padding: 1.5rem;
-      max-width: 600px;
-      margin: 0 auto;
-    }
-    .setting-group {
-      margin-bottom: 2rem;
-    }
-    .setting-group h3 {
-      margin-bottom: 0.8rem;
-    }
-    .setting-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0.6rem 0;
-      border-bottom: 1px solid var(--border-color);
-    }
-    .setting-row:last-child { border-bottom: none; }
-    .setting-label { font-weight: 500; }
-    .btn {
-      padding: 0.4rem 1rem;
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      background: var(--card-bg);
-      cursor: pointer;
-      font-size: 0.9rem;
-    }
-    .btn-primary {
-      background: var(--accent);
-      color: #fff;
-      border-color: var(--accent);
-    }
-    select {
-      padding: 0.3rem 0.5rem;
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      background: var(--card-bg);
-    }
-    .toggle-switch {
-      position: relative; display: inline-block; width: 50px; height: 24px;
-    }
-    .toggle-switch input { opacity: 0; width: 0; height: 0; }
-    .slider {
-      position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
-      background-color: #ccc; transition: .3s; border-radius: 24px;
-    }
-    .slider:before {
-      position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px;
-      background-color: white; transition: .3s; border-radius: 50%;
-    }
-    input:checked + .slider { background-color: var(--accent); }
-    input:checked + .slider:before { transform: translateX(26px); }
-    .message { margin-top: 1rem; font-size: 0.9rem; }
-    .naming-rules {
-  padding-left: 1.5rem;
-  margin: 0.5rem 0 1rem 0;
-  font-size: 0.9rem;
-  line-height: 1.7;
-}
-.naming-rules li {
-  margin-bottom: 0.5rem;
-}
-.naming-rules .rule-zh {
-  display: block;
-  color: var(--text-secondary);
-  font-size: 0.82rem;
-  margin-top: 2px;
-}
-  </style>
 
-  <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
-  <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#1a1a2e">
-  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="WYK Maths">
-  <meta name="mobile-web-app-capable" content="yes">
+<style>
+  /* ═══════════════ Layout ═══════════════ */
+  .settings-container {
+    background: var(--card-bg);
+    border-radius: 4px;
+    padding: 1.5rem;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  .setting-group { margin-bottom: 2rem; }
+  .setting-group h3 { margin-bottom: 0.8rem; }
+  .setting-group h4 {
+    margin: 1.2rem 0 0.5rem 0;
+    font-size: 1rem;
+    color: var(--text-secondary);
+  }
+  .setting-group h4:first-of-type { margin-top: 0; }
 
+  /* ═══════════════ Rows ═══════════════ */
+  .setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .setting-row:last-child { border-bottom: none; }
+  .setting-label { font-weight: 500; }
+  .setting-hint {
+    color: var(--text-secondary);
+    font-size: .8rem;
+  }
+
+  /* ═══════════════ Buttons & Inputs ═══════════════ */
+  .btn {
+    padding: 0.4rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--card-bg);
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .form-control {
+    width: 100%;
+    padding: 0.4rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+  }
+  .form-group { margin-bottom: 1rem; }
+
+  select {
+    padding: 0.3rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--card-bg);
+  }
+
+  /* ═══════════════ Toggle Switch ═══════════════ */
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+  }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background-color: #ccc;
+    transition: .3s;
+    border-radius: 24px;
+  }
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+  }
+  input:checked + .slider { background-color: var(--accent); }
+  input:checked + .slider:before { transform: translateX(26px); }
+
+  /* ═══════════════ Messages ═══════════════ */
+  .message {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    display: none;
+  }
+  .message.ok  { color: #2e7d32; }
+  .message.err { color: #c62828; }
+
+  /* ═══════════════ Naming Rules ═══════════════ */
+  .naming-rules {
+    padding-left: 1.5rem;
+    margin: 0.5rem 0 1rem 0;
+    font-size: 0.9rem;
+    line-height: 1.7;
+  }
+  .naming-rules li { margin-bottom: 0.5rem; }
+  .naming-rules .rule-zh {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    margin-top: 2px;
+  }
+
+  /* ═══════════════ PFP ═══════════════ */
+  .pfp-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  #pfpPreview {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+    display: none;
+  }
+</style>
+
+<!-- PWA -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1a1a2e">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WYK Maths">
+<meta name="mobile-web-app-capable" content="yes">
 </head>
+
 <body class="index-body">
-  <div id="appContainer">
-    <header class="topbar" id="topbarContainer"></header>
-    <aside class="sidebar" id="sidebarContainer"></aside>
-    <main class="main-content" id="mainContent">
-      <div class="settings-container">
-        <h2>Settings</h2>
+<div id="appContainer">
+  <header class="topbar" id="topbarContainer"></header>
+  <aside class="sidebar" id="sidebarContainer"></aside>
 
-        <!-- 外观设置 -->
-        <div class="setting-group">
-          <h3>Appearance</h3>
-          <div class="setting-row">
-            <label>
-              <input type="checkbox" id="pageTransitionToggle" checked>
-              Page transitions &amp; fade effects
-            </label>
-            <div class="setting-hint" style="color:var(--text-secondary);font-size:.8rem;">
-              Smooth fade between pages. Disable if you prefer instant loads.
-            </div>
-          </div>
-          <div class="setting-row" id="goodUIRow">
-            <span class="setting-label">???</span>
-            <label class="toggle-switch">
-              <input type="checkbox" id="goodUIToggle">
-              <span class="slider"></span>
-            </label>
-          </div>
-          <div class="setting-row">
-            <span class="setting-label">Theme</span>
-            <select id="themeSelect">
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
-          </div>
-          <div class="setting-row">
-            <span class="setting-label">Font Size</span>
-            <select id="fontSizeSelect">
-              <option value="14">14px</option>
-              <option value="16">16px</option>
-              <option value="18">18px</option>
-              <option value="20">20px</option>
-            </select>
-          </div>
-          <div class="setting-row">
-            <span class="setting-label">Compact Mode</span>
-            <label class="toggle-switch">
-              <input type="checkbox" id="compactToggle">
-              <span class="slider"></span>
-            </label>
-          </div>
-          <div class="setting-row">
-            <span class="setting-label">Animations</span>
-            <label class="toggle-switch">
-              <input type="checkbox" id="animationToggle">
-              <span class="slider"></span>
-            </label>
-          </div>
-          <div class="setting-row">
-            <span class="setting-label">Random Problem Animation</span>
-            <label class="toggle-switch">
-              <input type="checkbox" id="randomAnimToggle">
-              <span class="slider"></span>
-            </label>
-          </div>
-          <div class="setting-row">
-            <span class="setting-label">Hide difficulty</span>
-            <label class="toggle-switch">
-              <input type="checkbox" id="hideDifficultyToggle">
-              <span class="slider"></span>
-            </label>
-          </div>
-          <div class="setting-row">
-            <span class="setting-label">Show Tags on Problem List</span>
-            <label class="toggle-switch">
-              <input type="checkbox" id="showTagsToggle">
-              <span class="slider"></span>
-            </label>
-          </div>
-          <div class="setting-row">
-            <span class="setting-label">Accept PK requests</span>
-            <label class="toggle-switch">
-              <input type="checkbox" id="pkInviteToggle">
-              <span class="slider"></span>
-            </label>
-          </div>
+  <main class="main-content" id="mainContent">
+    <div class="settings-container">
+      <h2>Settings</h2>
+
+      <!-- ═══════════════════════════════════════════
+           [1] Appearance
+           ═══════════════════════════════════════════ -->
+      <div class="setting-group">
+        <h3>Appearance</h3>
+
+        <div class="setting-row">
+          <span class="setting-label">Theme</span>
+          <select id="themeSelect">
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
         </div>
 
-        <button class="btn btn-primary" id="saveSettingsBtn">Save Settings</button>
-        <span id="saveMessage" class="message" style="margin-left:1rem;"></span>
-
-        <hr style="margin: 2rem 0 1rem 0; border-color: var(--border-color);">
-
-        <!-- 修改密码 -->
-        <div class="setting-group">
-          <h3>Change Password</h3>
-          <div class="form-group" style="margin-bottom:1rem;">
-            <label>Current Password</label>
-            <input type="password" id="oldPassword" class="form-control" style="width:100%; padding:0.4rem; border:1px solid var(--border-color); border-radius:4px;" />
-          </div>
-          <div class="form-group" style="margin-bottom:1rem;">
-            <label>New Password</label>
-            <input type="password" id="newPassword" class="form-control" style="width:100%; padding:0.4rem; border:1px solid var(--border-color); border-radius:4px;" />
-          </div>
-          <div class="form-group" style="margin-bottom:1rem;">
-            <label>Confirm New Password</label>
-            <input type="password" id="confirmPassword" class="form-control" style="width:100%; padding:0.4rem; border:1px solid var(--border-color); border-radius:4px;" />
-          </div>
-          <button class="btn btn-primary" id="changePasswordBtn">Change Password</button>
-          <span id="passwordMessage" class="message" style="margin-left:1rem;"></span>
+        <div class="setting-row">
+          <span class="setting-label">Font Size</span>
+          <select id="fontSizeSelect">
+            <option value="14">14px</option>
+            <option value="16">16px</option>
+            <option value="18">18px</option>
+            <option value="20">20px</option>
+          </select>
         </div>
 
-        <hr style="margin:2rem 0 1rem 0; border-color:var(--border-color);">
+        <div class="setting-row">
+          <span class="setting-label">Compact Mode</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="compactToggle">
+            <span class="slider"></span>
+          </label>
+        </div>
 
-        <div class="setting-group">
-          <h3>Profile Picture</h3>
-          <p>頭像規約</p>
-          <ol class="naming-rules">
-            <li>
-              <strong>頭像以雅為尚。</strong>
-              <span class="rule-zh">頭像當清雅得體，不得含淫穢、血腥、暴力之圖，亦不得涉違法之事。</span>
-            </li>
-            <li>
-              <strong>頭像不可逾度。</strong>
-              <span class="rule-zh">圖長寬不過千，體不過一兆，格式當為圖檔。</span>
-            </li>
-            <li>
-              <strong>頭像不可侵權。</strong>
-              <span class="rule-zh">不得盜用他人肖像，亦不得僭用師長之名號與形象。</span>
-            </li>
-            <li>
-              <strong>頭像繫之校譽。</strong>
-              <span class="rule-zh">本域隸於學校，凡所示之像，皆繫校風。慎之，重之。</span>
-            </li>
-            <li>
-              <strong>若有屢違者，管理員得以正之。</strong>
-              <span class="rule-zh">若有違規，不俟告而改；屢犯者，奪其易像之權。</span>
-            </li>
-          </ol>
-          <p>Note: You do not need to afraid your pfp being taken down, unless it is taken from a sus source.</p>
-          <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">
-            <img id="pfpPreview" src="" style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:1px solid var(--border-color); display:none;" alt="Preview">
-            <div>
-              <input type="file" id="pfpInput" accept="image/*" style="display:none;">
-              <button id="pfpSelectBtn" class="btn btn-primary">Choose Image</button>
-              <button id="pfpSaveBtn" class="btn btn-primary" style="margin-left:0.5rem;" disabled>Save Image</button>
-              <p style="font-size:0.8rem; margin-top:0.3rem;">Max size: 2MB. No inappropriate content.</p>
-            </div>
-          </div>
-          <span id="pfpMessage" class="message" style="margin-left:0;"></span>
+        <div class="setting-row">
+          <span class="setting-label">Animations</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="animationToggle">
+            <span class="slider"></span>
+          </label>
         </div>
-        <hr style="margin:2rem 0 1rem 0; border-color:var(--border-color);">
 
-        <div class="setting-group">
-          <h3>Display Name</h3>
-          <p>命名規則</p>
-          <ol class="naming-rules">
-            <li>
-              <strong>名以正，言以雅。</strong>
-              <span class="rule-zh">名號當端正雅馴，不得含穢語、歧視、攻訐之辭，亦不得涉淫邪、暴力、宗教、政爭之事。</span>
-            </li>
-            <li>
-              <strong>名不越度。</strong>
-              <span class="rule-zh">名長不過五十言，空言不錄，純符不取。</span>
-            </li>
-            <li>
-              <strong>名不矯飾。</strong>
-              <span class="rule-zh">不得以符號、異字、亂碼冒充他人，亦不得假師長之名。</span>
-            </li>
-            <li>
-              <strong>名不藏機。</strong>
-              <span class="rule-zh">不得夾帶攻擊性代碼或追蹤代碼等，違者即除。</span>
-            </li>
-            <li>
-              <strong>名繫校譽。</strong>
-              <span class="rule-zh">本域隸於學校，凡所署名，皆繫校風。慎之，重之。</span>
-            </li>
-            <li>
-              <strong>名違章者，管理員得以正之。</strong>
-              <span class="rule-zh">若有乖違，不俟告而改；屢犯者，奪其改易之權。</span>
-            </li>
-          </ol>
-          <p>Note: Your display name reflects what you are. unless it attacks multiple people or contains obvious illegal statement, it will not be taken down.</p>
-          <div class="setting-row">
-            <span class="setting-label">Display Name</span>
-            <input type="text" id="displayNameInput" style="width:60%; padding:0.4rem; border:1px solid var(--border-color); border-radius:4px;" />
-          </div>
-          <button class="btn btn-primary" id="changeNameBtn">Update Display Name</button>
-          <span id="nameMessage" class="message" style="margin-left:1rem;"></span>
+        <div class="setting-row">
+          <span class="setting-label">Page transitions &amp; fade effects</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="pageTransitionToggle">
+            <span class="slider"></span>
+          </label>
         </div>
-        <hr style="margin:2rem 0 1rem 0; border-color:var(--border-color);">
-        <div class="setting-group">
-          <h3>Advanced</h3>
-          <div class="setting-row">
-            <span class="setting-label">Clear cached scripts & styles</span>
-            <button class="btn" id="clearCacheBtn" style="background:var(--danger);color:#fff;border-color:var(--danger);">
-              <i class="fas fa-broom"></i> Clear Cache
-            </button>
-          </div>
-          <p style="font-size:.82rem;color:var(--text-secondary);margin-top:6px;">
-            Force download all script resources
-          </p>
+
+        <div class="setting-row">
+          <span class="setting-label">Random Problem Animation</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="randomAnimToggle">
+            <span class="slider"></span>
+          </label>
         </div>
+
+        <div class="setting-row">
+          <span class="setting-label">Hide Difficulty</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="hideDifficultyToggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-row">
+          <span class="setting-label">Show Tags on Problem List</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="showTagsToggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-row">
+          <span class="setting-label">Accept PK requests</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="pkInviteToggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <button class="btn btn-primary" id="saveSettingsBtn" style="margin-top:1rem;">
+          Save Settings
+        </button>
+        <span id="saveMessage" class="message"></span>
       </div>
-    </main>
-    <!-- <button class="sidebar-toggle" id="sidebarToggle">☰</button> -->
-  </div>
 
-  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
-  
+      <hr style="margin:1rem 0;border-color:var(--border-color);">
+
+      <!-- ═══════════════════════════════════════════
+           [2] Account
+           ═══════════════════════════════════════════ -->
+      <div class="setting-group">
+        <h3>Account</h3>
+
+        <!-- 2.1 Display Name -->
+        <h4>Display Name</h4>
+        <p>命名規則</p>
+        <ol class="naming-rules">
+          <li>
+            <strong>名以正，言以雅。</strong>
+            <span class="rule-zh">名號當端正雅馴，不得含穢語、歧視、攻訐之辭，亦不得涉淫邪、暴力、宗教、政爭之事。</span>
+          </li>
+          <li>
+            <strong>名不越度。</strong>
+            <span class="rule-zh">名長不過五十言，空言不錄，純符不取。</span>
+          </li>
+          <li>
+            <strong>名不矯飾。</strong>
+            <span class="rule-zh">不得以符號、異字、亂碼冒充他人，亦不得假師長之名。</span>
+          </li>
+          <li>
+            <strong>名不藏機。</strong>
+            <span class="rule-zh">不得夾帶攻擊性代碼或追蹤代碼等，違者即除。</span>
+          </li>
+          <li>
+            <strong>名繫校譽。</strong>
+            <span class="rule-zh">本域隸於學校，凡所署名，皆繫校風。慎之，重之。</span>
+          </li>
+          <li>
+            <strong>名違章者，管理員得以正之。</strong>
+            <span class="rule-zh">若有乖違，不俟告而改；屢犯者，奪其改易之權。</span>
+          </li>
+        </ol>
+        <p style="font-size:.85rem;color:var(--text-secondary);">
+          Note: Your display name reflects what you are. Unless it attacks
+          multiple people or contains obvious illegal statements, it will
+          not be taken down.
+        </p>
+        <div class="setting-row">
+          <span class="setting-label">Display Name</span>
+          <input type="text" id="displayNameInput"
+                 class="form-control" style="width:60%;">
+        </div>
+        <button class="btn btn-primary" id="changeNameBtn" style="margin-top:0.5rem;">
+          Update Display Name
+        </button>
+        <span id="nameMessage" class="message"></span>
+
+        <hr style="margin:1.5rem 0;border-color:var(--border-color);">
+
+        <!-- 2.2 Profile Picture -->
+        <h4>Profile Picture</h4>
+        <p>頭像規約</p>
+        <ol class="naming-rules">
+          <li>
+            <strong>頭像以雅為尚。</strong>
+            <span class="rule-zh">頭像當清雅得體，不得含淫穢、血腥、暴力之圖，亦不得涉違法之事。</span>
+          </li>
+          <li>
+            <strong>頭像不可逾度。</strong>
+            <span class="rule-zh">圖長寬不過千，體不過一兆，格式當為圖檔。</span>
+          </li>
+          <li>
+            <strong>頭像不可侵權。</strong>
+            <span class="rule-zh">不得盜用他人肖像，亦不得僭用師長之名號與形象。</span>
+          </li>
+          <li>
+            <strong>頭像繫之校譽。</strong>
+            <span class="rule-zh">本域隸於學校，凡所示之像，皆繫校風。慎之，重之。</span>
+          </li>
+          <li>
+            <strong>若有屢違者，管理員得以正之。</strong>
+            <span class="rule-zh">若有違規，不俟告而改；屢犯者，奪其易像之權。</span>
+          </li>
+        </ol>
+        <p style="font-size:.85rem;color:var(--text-secondary);">
+          Note: You do not need to be afraid of your pfp being taken down,
+          unless it is taken from a suspicious source.
+        </p>
+        <div class="pfp-row">
+          <img id="pfpPreview" src="" alt="Preview">
+          <div>
+            <input type="file" id="pfpInput" accept="image/*" style="display:none;">
+            <button id="pfpSelectBtn" class="btn btn-primary">Choose Image</button>
+            <button id="pfpSaveBtn" class="btn btn-primary" style="margin-left:0.5rem;" disabled>
+              Save Image
+            </button>
+            <p style="font-size:0.8rem;margin-top:0.3rem;">
+              Max size: 2MB. No inappropriate content.
+            </p>
+          </div>
+        </div>
+        <span id="pfpMessage" class="message"></span>
+
+        <hr style="margin:1.5rem 0;border-color:var(--border-color);">
+
+        <!-- 2.3 Change Password -->
+        <h4>Change Password</h4>
+        <div class="form-group">
+          <label>Current Password</label>
+          <input type="password" id="oldPassword" class="form-control" autocomplete="current-password">
+        </div>
+        <div class="form-group">
+          <label>New Password</label>
+          <input type="password" id="newPassword" class="form-control" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label>Confirm New Password</label>
+          <input type="password" id="confirmPassword" class="form-control" autocomplete="new-password">
+        </div>
+        <button class="btn btn-primary" id="changePasswordBtn">Change Password</button>
+        <span id="passwordMessage" class="message"></span>
+      </div>
+
+      <hr style="margin:1rem 0;border-color:var(--border-color);">
+
+      <!-- ═══════════════════════════════════════════
+           [3] Advanced
+           ═══════════════════════════════════════════ -->
+      <div class="setting-group">
+        <h3>Advanced</h3>
+        <div class="setting-row">
+          <span class="setting-label">Clear cached scripts &amp; styles</span>
+          <button class="btn" id="clearCacheBtn"
+                  style="background:var(--danger);color:#fff;border-color:var(--danger);">
+            <i class="fas fa-broom"></i> Clear Cache
+          </button>
+        </div>
+        <p class="setting-hint" style="margin-top:6px;">
+          Force re-download all cached resources.
+        </p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ═══════════════ Scripts ═══════════════ -->
+<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
-<script src="/script/heartbeat.js"></script>
-<script src="/script/pk-invite.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/heartbeat.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pk-invite.js"></script>
 
-  <script>
-    if (!isLoggedIn()) window.location.href = '/index.html';
+<script>
+(function () {
+  'use strict';
 
-    // ========== 外观设置 ==========
-    function loadSettings() {
-      const theme = localStorage.getItem('theme') || 'light';
-      document.getElementById('themeSelect').value = theme;
-      document.getElementById('fontSizeSelect').value = localStorage.getItem('fontSize') || '16';
-      document.getElementById('goodUIToggle').checked = localStorage.getItem('goodUI') === 'true';
-      document.getElementById('compactToggle').checked = localStorage.getItem('compactMode') === 'true';
-      document.getElementById('animationToggle').checked = localStorage.getItem('animations') !== 'false';
-      document.getElementById('hideDifficultyToggle').checked = localStorage.getItem('hideDifficulty') === 'true';
-      document.getElementById('showTagsToggle').checked = localStorage.getItem('showTags') !== 'false';
-      document.getElementById('randomAnimToggle').checked = localStorage.getItem('randomAnimation') !== 'false';
-      updateGoodUIVisibility(theme);
-      document.getElementById('pkInviteToggle').checked = localStorage.getItem('pkInviteEnabled') !== 'false';
-    }
+  if (!isLoggedIn()) { window.location.href = '/index.html'; return; }
 
-    function applyTheme() {
-      const theme = document.getElementById('themeSelect').value;
-      if (theme === 'dark') {
-        document.documentElement.setAttribute('data-theme', 'dark');
+  // ═══════════════ 工具 ═══════════════
+  const $ = id => document.getElementById(id);
+
+  function showMsg(id, text, ok = true) {
+    const el = $(id);
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'message ' + (ok ? 'ok' : 'err');
+    el.style.display = 'block';
+    clearTimeout(el._t);
+    el._t = setTimeout(() => { el.style.display = 'none'; }, 3500);
+  }
+
+  // ═══════════════ [A] Appearance ═══════════════
+  const APPEARANCE = {
+    keys: ['theme', 'fontSize', 'compactMode', 'animations',
+           'randomAnimation', 'hideDifficulty', 'showTags', 'pkInviteEnabled'],
+
+    load() {
+      $('themeSelect').value = localStorage.getItem('theme') || 'light';
+      $('fontSizeSelect').value = localStorage.getItem('fontSize') || '16';
+      $('compactToggle').checked = localStorage.getItem('compactMode') === 'true';
+      $('animationToggle').checked = localStorage.getItem('animations') !== 'false';
+      $('randomAnimToggle').checked = localStorage.getItem('randomAnimation') !== 'false';
+      $('hideDifficultyToggle').checked = localStorage.getItem('hideDifficulty') === 'true';
+      $('showTagsToggle').checked = localStorage.getItem('showTags') !== 'false';
+      $('pkInviteToggle').checked = localStorage.getItem('pkInviteEnabled') !== 'false';
+
+      // pageTransition（可能由外部 pageload.js 管理）
+      const pt = $('pageTransitionToggle');
+      if (typeof isPageTransitionEnabled === 'function') {
+        pt.checked = isPageTransitionEnabled();
       } else {
-        document.documentElement.removeAttribute('data-theme');
+        pt.checked = localStorage.getItem('pageTransition') !== 'off';
       }
-      updateGoodUIVisibility(theme);
-    }
+    },
 
-    function updateGoodUIVisibility(theme) {
-      const goodUIRow = document.getElementById('goodUIRow');
-      if (!goodUIRow) return;
-      if (theme === 'dark') {
-        goodUIRow.style.display = 'flex';
-      } else {
-        // goodUIRow.style.display = 'none';
-        // document.getElementById('goodUIToggle').checked = false;
-        // document.body.classList.remove('good-ui');
-      }
-    }
+    applyTheme() {
+      const t = $('themeSelect').value;
+      if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      else document.documentElement.removeAttribute('data-theme');
+    },
 
-    function applyFontSize() {
-      const fontSize = document.getElementById('fontSizeSelect').value;
-      document.documentElement.style.fontSize = fontSize + 'px';
-    }
+    applyFontSize() {
+      document.documentElement.style.fontSize = $('fontSizeSelect').value + 'px';
+    },
 
-    document.getElementById('themeSelect').addEventListener('change', applyTheme);
-    document.getElementById('fontSizeSelect').addEventListener('change', applyFontSize);
+    applyCompact(on) {
+      document.body.classList.toggle('compact-mode', on);
+    },
 
-    document.getElementById('saveSettingsBtn').addEventListener('click', () => {
-      const theme = document.getElementById('themeSelect').value;
-      const fontSize = document.getElementById('fontSizeSelect').value;
-      const goodUI =document.getElementById('goodUIToggle').checked;
-      const compact = document.getElementById('compactToggle').checked;
-      const animations = document.getElementById('animationToggle').checked;
-      const hideDifficulty = document.getElementById('hideDifficultyToggle').checked;
-      // const uiType = document.getElementById('uiTypeSelect').value;
-      const showTags = document.getElementById('showTagsToggle').checked;
-      const randomAnim = document.getElementById('randomAnimToggle').checked;
-      const pkInvite = document.getElementById('pkInviteToggle').checked;
+    applyAnimations(on) {
+      document.body.classList.toggle('no-animations', !on);
+    },
 
-      localStorage.setItem('showTags', showTags);
+    save() {
+      const theme = $('themeSelect').value;
+      const fontSize = $('fontSizeSelect').value;
+      const compact = $('compactToggle').checked;
+      const animations = $('animationToggle').checked;
+      const randomAnim = $('randomAnimToggle').checked;
+      const hideDifficulty = $('hideDifficultyToggle').checked;
+      const showTags = $('showTagsToggle').checked;
+      const pkInvite = $('pkInviteToggle').checked;
+
       localStorage.setItem('theme', theme);
       localStorage.setItem('fontSize', fontSize);
-      localStorage.setItem('goodUI', goodUI);
       localStorage.setItem('compactMode', compact);
       localStorage.setItem('animations', animations);
-      localStorage.setItem('hideDifficulty', hideDifficulty);
-      // localStorage.setItem('uiType', uiType);
       localStorage.setItem('randomAnimation', randomAnim);
+      localStorage.setItem('hideDifficulty', hideDifficulty);
+      localStorage.setItem('showTags', showTags);
       localStorage.setItem('pkInviteEnabled', pkInvite);
-      applyTheme();
-      applyFontSize();
-      // applyUI(uiType);
-      applyGoodUI(goodUI);
-      applyCompact(compact);
-      applyAnimations(animations);
 
-      document.getElementById('saveMessage').textContent = '✅ Saved!';
-      setTimeout(() => { document.getElementById('saveMessage').textContent = ''; }, 2000);
-    });
+      this.applyTheme();
+      this.applyFontSize();
+      this.applyCompact(compact);
+      this.applyAnimations(animations);
 
-    // function applyUI(uiType) {
-    //   if (uiType === 'type2') {
-    //     document.documentElement.classList.add('ui-type2');
-    //   } else {
-    //     document.documentElement.classList.remove('ui-type2');
-    //   }
-    // }
+      showMsg('saveMessage', '✅ Saved!', true);
+    },
 
-    function applyGoodUI(enabled) {
-      if (enabled) {
-        document.body.classList.add('good-ui');
-      } else {
-        document.body.classList.remove('good-ui');
-      }
-    }
+    bind() {
+      $('themeSelect').addEventListener('change', () => this.applyTheme());
+      $('fontSizeSelect').addEventListener('change', () => this.applyFontSize());
+      $('saveSettingsBtn').addEventListener('click', () => this.save());
 
-    function applyCompact(enabled) {
-      if (enabled) {
-        document.body.classList.add('compact-mode');
-      } else {
-        document.body.classList.remove('compact-mode');
-      }
-    }
-
-    function applyAnimations(enabled) {
-      if (!enabled) {
-        document.body.classList.add('no-animations');
-      } else {
-        document.body.classList.remove('no-animations');
-      }
-    }
-
-    function restoreAll() {
-      loadSettings();
-      applyTheme();
-      applyFontSize();
-      // const uiType = localStorage.getItem('uiType') || 'default';
-      // applyUI(uiType);
-      applyCompact(localStorage.getItem('compactMode') === 'true');
-      applyAnimations(localStorage.getItem('animations') !== 'false');
-    }
-    restoreAll();
-
-    // ========== Animations 开关连续点击跳转 ==========
-    let animClickCount = 0;
-    let animClickTimer = null;
-    const animToggle = document.getElementById('animationToggle');
-    if (animToggle) {
-      animToggle.addEventListener('click', function(e) {
-        if (!animClickTimer) {
-          animClickTimer = setTimeout(() => {
-            animClickCount = 0;
-            animClickTimer = null;
-          }, 2000);
+      // pageTransition
+      $('pageTransitionToggle').addEventListener('change', (e) => {
+        if (typeof setPageTransition === 'function') {
+          setPageTransition(e.target.checked);
+        } else {
+          localStorage.setItem('pageTransition', e.target.checked ? 'on' : 'off');
         }
-        animClickCount++;
-        if (animClickCount >= 5) {
-          animClickCount = 0;
-          clearTimeout(animClickTimer);
-          animClickTimer = null;
-          // 跳转到 /settings/extra
+      });
+
+      // ⭐ 彩蛋：連續點 Animations 5 次 → /settings/extra
+      let clicks = 0, timer = null;
+      $('animationToggle').addEventListener('click', () => {
+        if (!timer) {
+          timer = setTimeout(() => { clicks = 0; timer = null; }, 2000);
+        }
+        if (++clicks >= 5) {
+          clearTimeout(timer);
           window.location.href = '/settings/extra';
         }
       });
-    }
+    },
+  };
 
-    // ========== 密码更改 ==========
-    document.getElementById('changePasswordBtn').addEventListener('click', async () => {
-      const oldPassword = document.getElementById('oldPassword').value.trim();
-      const newPassword = document.getElementById('newPassword').value.trim();
-      const confirmPassword = document.getElementById('confirmPassword').value.trim();
-      const msgEl = document.getElementById('passwordMessage');
-      msgEl.style.display = 'none';
-
-      if (!oldPassword || !newPassword || !confirmPassword) {
-        msgEl.textContent = 'All fields are required.';
-        msgEl.style.color = '#c62828';
-        msgEl.style.display = 'block';
-        return;
+  // ═══════════════ [B] Display Name ═══════════════
+  const DISPLAY_NAME = {
+    init() {
+      const input = $('displayNameInput');
+      if (currentUser && currentUser.displayName) {
+        input.value = currentUser.displayName;
       }
-      if (newPassword !== confirmPassword) {
-        msgEl.textContent = 'New passwords do not match.';
-        msgEl.style.color = '#c62828';
-        msgEl.style.display = 'block';
-        return;
-      }
-      if (newPassword.length < 4) {
-        msgEl.textContent = 'Password must be at least 4 characters.';
-        msgEl.style.color = '#c62828';
-        msgEl.style.display = 'block';
-        return;
-      }
+    },
 
-      try {
-        const result = await apiCall('/api/users?action=changepassword', 'POST', {
-          oldPassword,
-          newPassword
-        });
-        if (result.success) {
-          msgEl.textContent = 'Password changed successfully!';
-          msgEl.style.color = '#2e7d32';
-          document.getElementById('oldPassword').value = '';
-          document.getElementById('newPassword').value = '';
-          document.getElementById('confirmPassword').value = '';
-        } else {
-          msgEl.textContent = result.message || 'Update failed.';
-          msgEl.style.color = '#c62828';
-        }
-      } catch (err) {
-        msgEl.textContent = 'Network error. Please try again.';
-        msgEl.style.color = '#c62828';
-      }
-      msgEl.style.display = 'block';
-      setTimeout(() => { msgEl.style.display = 'none'; }, 3000);
-    });
-    // ========== 修改显示名 ==========
-    // 页面加载时填入当前的显示名
-    // const currentUser = getCurrentUser();
-    const displayNameInput = document.getElementById('displayNameInput');
-    if (currentUser && currentUser.displayName) {
-      displayNameInput.value = currentUser.displayName;
-    }
-document.addEventListener('DOMContentLoaded', () => {
-  const pt = document.getElementById('pageTransitionToggle');
-  if (!pt) return;
+    async submit() {
+      const newname = $('displayNameInput').value.trim();
 
-  // ⭐ 防御：万一 pageload.js 加载失败
-  if (typeof isPageTransitionEnabled !== 'function') {
-    pt.checked = localStorage.getItem('pageTransition') !== 'off';
-  } else {
-    pt.checked = isPageTransitionEnabled();
-  }
-
-  pt.addEventListener('change', () => {
-    if (typeof setPageTransition === 'function') {
-      setPageTransition(pt.checked);
-    } else {
-      localStorage.setItem('pageTransition', pt.checked ? 'on' : 'off');
-    }
-  });
-});
-    document.getElementById('changeNameBtn').addEventListener('click', async () => {
-      const newname = displayNameInput.value.trim();
-      const msgEl = document.getElementById('nameMessage');
-      msgEl.style.display = 'none';
-
+      // ⭐ 前端只檢查空值，其餘全部交給後端
       if (!newname) {
-        msgEl.textContent = 'Display name cannot be empty.';
-        msgEl.style.color = '#c62828';
-        msgEl.style.display = 'block';
-        return;
-      }
-      if (newname.length > 50) {
-        msgEl.textContent = 'Display name too long (max 50 characters).';
-        msgEl.style.color = '#c62828';
-        msgEl.style.display = 'block';
+        showMsg('nameMessage', 'Display name cannot be empty.', false);
         return;
       }
 
       try {
         const result = await apiCall('/api/users?action=changename', 'POST', { newname });
+
         if (result.success) {
-          msgEl.textContent = 'Display name updated!';
-          msgEl.style.color = '#2e7d32';
-          // 更新本地用户对象（可选）
+          showMsg('nameMessage', 'Display name updated!', true);
           if (currentUser) currentUser.displayName = newname;
-          // 更新顶部栏显示（如果已经渲染，可能需要刷新页面或触发事件）
-          const usernameSpan = document.getElementById('currentUsername');
-          if (usernameSpan) usernameSpan.textContent = newname;
+          const span = $('currentUsername');
+          if (span) span.textContent = newname;
         } else {
-          msgEl.textContent = result.message || 'Update failed.';
-          msgEl.style.color = '#c62828';
+          // ⭐ 直接顯示後端消息
+          showMsg('nameMessage', result.message || 'Update failed.', false);
         }
       } catch (err) {
-        msgEl.textContent = 'Network error. Please try again.';
-        msgEl.style.color = '#c62828';
+        const msg = err?.data?.message || err?.message || 'Network error. Please try again.';
+        showMsg('nameMessage', msg, false);
       }
-      msgEl.style.display = 'block';
-      setTimeout(() => { msgEl.style.display = 'none'; }, 3000);
-    });
+    },
 
-    // ========== 头像上传 ==========
-    const pfpInput = document.getElementById('pfpInput');
-    const pfpPreview = document.getElementById('pfpPreview');
-    const pfpSelectBtn = document.getElementById('pfpSelectBtn');
-    const pfpSaveBtn = document.getElementById('pfpSaveBtn');
-    const pfpMessage = document.getElementById('pfpMessage');
-    let pfpBase64 = '';
+    bind() {
+      $('changeNameBtn').addEventListener('click', () => this.submit());
+    },
+  };
 
-    pfpSelectBtn.addEventListener('click', () => pfpInput.click());
+  // ═══════════════ [C] Profile Picture ═══════════════
+  const PFP = {
+    base64: '',
+    MAX_BYTES: 2 * 1024 * 1024,
 
-    pfpInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      if (file.size > 1024 * 1024*2) {
-        showPfpMessage('Image too large (max 2MB)', 'error');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        pfpBase64 = ev.target.result;
-        pfpPreview.src = pfpBase64;
-        pfpPreview.style.display = 'inline-block';
-        pfpSaveBtn.disabled = false;
-      };
-      reader.readAsDataURL(file);
-    });
+    init() {
+      const self = this;
+      $('pfpSelectBtn').addEventListener('click', () => $('pfpInput').click());
 
-    pfpSaveBtn.addEventListener('click', async () => {
-      if (!pfpBase64) return;
-      if (!confirm('Please ensure this image does NOT contain any pornographic, violent, religious or political content.')) return;
-
-      pfpSaveBtn.disabled = true;
-      pfpSaveBtn.textContent = 'Saving...';
-      try {
-        const res = await apiCall('/api/users?action=pfp', 'POST', { image: pfpBase64 });
-        if (res.success) {
-          showPfpMessage('Profile picture saved!', 'success');
-          const user = getCurrentUser();
-        } else {
-          showPfpMessage(res.message || 'Upload failed', 'error');
+      $('pfpInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > self.MAX_BYTES) {
+          showMsg('pfpMessage', 'Image too large (max 2MB)', false);
+          return;
         }
-      } catch (err) {
-        showPfpMessage('Network error', 'error');
-      } finally {
-        pfpSaveBtn.disabled = false;
-        pfpSaveBtn.textContent = 'Save Image';
-      }
-    });
-
-    function showPfpMessage(msg, type) {
-      pfpMessage.textContent = msg;
-      pfpMessage.style.color = type === 'success' ? '#2e7d32' : '#c62828';
-      pfpMessage.style.display = 'block';
-      setTimeout(() => { pfpMessage.style.display = 'none'; }, 3000);
-    }
-        // ========== 清除緩存 ==========
-    (function() {
-      const btn = document.getElementById('clearCacheBtn');
-      if (!btn) return;
-
-      btn.addEventListener('click', async () => {
-        if (!confirm('Confirm?\n\nThis will re-download all scripts')) return;
-
-        const origHTML = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Clearing...';
-
-        try {
-          // 1. 清空所有 Cache Storage
-          if ('caches' in window) {
-            const keys = await caches.keys();
-            await Promise.all(keys.map(k => caches.delete(k)));
-          }
-
-          // 2. 取消註冊所有 Service Worker（下次進入打包版會自動重新註冊）
-          if ('serviceWorker' in navigator) {
-            const regs = await navigator.serviceWorker.getRegistrations();
-            await Promise.all(regs.map(r => r.unregister()));
-          }
-
-          // 3. 強制重新載入（從伺服器，不用緩存）
-          // 加 ?_t= 參數繞過 HTTP 緩存，載入後 replaceState 清掉
-          const url = new URL(location.href);
-          url.searchParams.set('_t', Date.now().toString());
-          location.replace(url.toString());
-        } catch (err) {
-          alert('Failed' + err.message);
-          btn.disabled = false;
-          btn.innerHTML = origHTML;
-        }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          self.base64 = ev.target.result;
+          $('pfpPreview').src = self.base64;
+          $('pfpPreview').style.display = 'inline-block';
+          $('pfpSaveBtn').disabled = false;
+        };
+        reader.readAsDataURL(file);
       });
-    })();
-  </script>
+
+      $('pfpSaveBtn').addEventListener('click', () => self.save());
+    },
+
+    async save() {
+      if (!this.base64) return;
+      if (!confirm(
+        'Please ensure this image does NOT contain any pornographic, ' +
+        'violent, religious or political content.'
+      )) return;
+
+      const btn = $('pfpSaveBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      try {
+        const res = await apiCall('/api/users?action=pfp', 'POST', { image: this.base64 });
+        if (res.success) {
+          showMsg('pfpMessage', 'Profile picture saved!', true);
+          if (currentUser) currentUser.pfp = res.pfp || '';
+        } else {
+          showMsg('pfpMessage', res.message || 'Upload failed', false);
+        }
+      } catch (err) {
+        const msg = err?.data?.message || err?.message || 'Network error';
+        showMsg('pfpMessage', msg, false);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Image';
+      }
+    },
+  };
+
+  // ═══════════════ [D] Change Password ═══════════════
+  const PASSWORD = {
+    MIN_LEN: 8,
+
+    bind() {
+      $('changePasswordBtn').addEventListener('click', () => this.submit());
+    },
+
+    async submit() {
+      const oldPassword = $('oldPassword').value.trim();
+      const newPassword = $('newPassword').value.trim();
+      const confirmPassword = $('confirmPassword').value.trim();
+
+      if (!oldPassword || !newPassword || !confirmPassword) {
+        return showMsg('passwordMessage', 'All fields are required.', false);
+      }
+      if (newPassword !== confirmPassword) {
+        return showMsg('passwordMessage', 'New passwords do not match.', false);
+      }
+      if (newPassword.length < this.MIN_LEN) {
+        return showMsg('passwordMessage',
+          `Password must be at least ${this.MIN_LEN} characters.`, false);
+      }
+
+      try {
+        const result = await apiCall('/api/users?action=changepassword', 'POST', {
+          oldPassword, newPassword,
+        });
+        if (result.success) {
+          showMsg('passwordMessage', 'Password changed successfully!', true);
+          $('oldPassword').value = '';
+          $('newPassword').value = '';
+          $('confirmPassword').value = '';
+        } else {
+          showMsg('passwordMessage', result.message || 'Update failed.', false);
+        }
+      } catch (err) {
+        const msg = err?.data?.message || err?.message || 'Network error. Please try again.';
+        showMsg('passwordMessage', msg, false);
+      }
+    },
+  };
+
+  // ═══════════════ [E] Advanced ═══════════════
+  const ADVANCED = {
+    bind() {
+      $('clearCacheBtn').addEventListener('click', () => this.clearCache());
+    },
+
+    async clearCache() {
+      if (!confirm('Confirm?\n\nThis will re-download all scripts')) return;
+
+      const btn = $('clearCacheBtn');
+      const origHTML = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Clearing...';
+
+      try {
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(r => r.unregister()));
+        }
+        const url = new URL(location.href);
+        url.searchParams.set('_t', Date.now().toString());
+        location.replace(url.toString());
+      } catch (err) {
+        alert('Failed: ' + err.message);
+        btn.disabled = false;
+        btn.innerHTML = origHTML;
+      }
+    },
+  };
+
+  // ═══════════════ [Init] ═══════════════
+  function init() {
+    APPEARANCE.load();
+    APPEARANCE.applyTheme();
+    APPEARANCE.applyFontSize();
+    APPEARANCE.applyCompact(localStorage.getItem('compactMode') === 'true');
+    APPEARANCE.applyAnimations(localStorage.getItem('animations') !== 'false');
+
+    APPEARANCE.bind();
+    DISPLAY_NAME.init();
+    DISPLAY_NAME.bind();
+    PFP.init();
+    PASSWORD.bind();
+    ADVANCED.bind();
+  }
+
+  // DOM 已經 ready（script 放在 body 最後）
+  init();
+})();
+</script>
 </body>
 </html>

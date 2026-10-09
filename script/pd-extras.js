@@ -87,7 +87,7 @@
   const DRAW_LOCK_CLASS = 'draw-mode-active';
   let _drawLocked = false;
   let _drawpadObserver = null;
-
+  let _drawToggling = false;
   function _preventScroll(e) { if (!_drawLocked) return; e.preventDefault(); }
   function _preventKeyboardScroll(e) {
     if (!_drawLocked) return;
@@ -141,24 +141,28 @@
 
   async function loadDrawTool() {
     if (window.DrawTool) return window.DrawTool;
-    await loadScript('/script/draw.js');
+    await loadScript('https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/draw.js');
     if (!window.DrawTool) throw new Error('DrawTool not found in draw.js');
     return window.DrawTool;
   }
 
   async function toggleDrawMode() {
+    if (_drawToggling) return;   // ⭐ 防併發
+    _drawToggling = true;
+
+    const btn = document.getElementById('drawToggleBtn');
+    const orig = btn ? btn.innerHTML : '';
+    if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
     try {
       const DrawTool = await loadDrawTool();
-      DrawTool.toggle(mainContainer);
-
-      const wrapper = document.getElementById('drawpadWrapper');
-      if (wrapper) {
-        const st = wrapper.style.display;
-        setDrawLock(st !== 'none' && st !== '');
-      }
+      DrawTool.toggle();
     } catch (e) {
       console.error('[draw]', e);
       alert('Failed to load drawing tool: ' + e.message);
+    } finally {
+      if (btn && orig) btn.innerHTML = orig;
+      _drawToggling = false;
     }
   }
 
@@ -614,13 +618,13 @@
     }
 
     if (s === 100) {
-      S.userStates[problemId] = 'passed';
+      PD.setProblemState(problemId, 'passed');
       if (localStorage.getItem('nekoModeUnlocked') === 'true' &&
           localStorage.getItem('showNekos') === 'true') {
         fetchNekoAndShow();
       }
     } else if (S.userStates[problemId] !== 'passed') {
-      S.userStates[problemId] = 'failed';
+      PD.setProblemState(problemId, 'failed');
     }
     updateProblemDetailIcon();
   }
@@ -652,13 +656,13 @@
         const status = sub.status;
         if (status === 'Accepted') {
           iconEl.innerHTML = '<i class="fa fa-check-circle fa-green"></i>';
-          S.userStates[problemId] = 'passed';
+          PD.setProblemState(problemId, 'passed');
         } else if (status === 'Wrong Answer') {
           iconEl.innerHTML = '<i class="fa fa-times-circle fa-red"></i>';
-          if (S.userStates[problemId] !== 'passed') S.userStates[problemId] = 'failed';
+          if (S.userStates[problemId] !== 'passed') PD.setProblemState(problemId, 'failed');
         } else if (status.startsWith('Partial Score')) {
           iconEl.innerHTML = '<i class="fa fa-exclamation-triangle fa-yellow"></i>';
-          if (S.userStates[problemId] !== 'passed') S.userStates[problemId] = 'failed';
+          if (S.userStates[problemId] !== 'passed') PD.setProblemState(problemId, 'failed');
         } else {
           iconEl.innerHTML = '<span style="color:#888;">-</span>';
         }
@@ -855,7 +859,7 @@
           document.getElementById('detailStatusText').textContent = 'Pending';
           startImageStatusPoll();
         } else if (result.systemError) {
-          setWorkbenchStatusHtml(statusBoxHtml(result.subid, 'System Error', 'status-system'));
+          setWorkbenchStatusHtml(statusBoxHtml(result.subid, 'System Error: your answer NaN and suggested is number, otherwise please report.', 'status-system'));
         } else if (result.score !== undefined) {
           let txt, cls;
           if (result.score === 100)    { txt = 'Accepted';                    cls = 'status-accepted'; }
@@ -869,13 +873,13 @@
         }
 
         if (result.correct || result.score === 100) {
-          S.userStates[problemId] = 'passed';
+          PD.setProblemState(problemId, 'passed');
           if (localStorage.getItem('nekoModeUnlocked') === 'true' &&
               localStorage.getItem('showNekos') === 'true') {
             fetchNekoAndShow();
           }
         } else if (S.userStates[problemId] !== 'passed') {
-          S.userStates[problemId] = 'failed';
+          PD.setProblemState(problemId, 'failed');
         }
         updateProblemDetailIcon();
 
@@ -1211,9 +1215,8 @@
       // 綁定答題 / 提交
       bindAnswerInteractions();
       bindSubmitEvent();
-
-      // Draw 監聽
-      observeDrawpadState();
+      document.addEventListener('drawtool:open',  () => setDrawLock(true));
+      document.addEventListener('drawtool:close', () => setDrawLock(false));
 
       // 上一題/下一題
       await setupNavigation(problem);

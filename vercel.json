@@ -92,8 +92,7 @@
     { "source": "/problems/:id", "destination": "/problems/[id].html" },
     { "source": "/problems", "destination": "/problems.html" },
 
-    { "source": "/resources/:id", "destination": "/resources.html" },
-    { "source": "/resources", "destination": "/resources_v2.html" },
+    { "source": "/resources", "destination": "/resources.html" },
 
     { "source": "/submissions/user/:username", "destination": "/submissions.html" },
     { "source": "/submissions/problem/:id", "destination": "/submissions.html" },

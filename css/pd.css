@@ -200,3 +200,4 @@ to{transform:rotate(360deg)}
 [data-theme="dark"] .wb-grading-bar{background:#6cb6ff24}
 [data-theme="dark"] .wb-grading-fill{background:linear-gradient(90deg,#6cb6ff 0%,#a3d0ff 100%);box-shadow:0 0 8px #6cb6ff80}
 .pd-loading{display:flex;align-items:center;justify-content:center;gap:12px;padding:3rem 1rem;color:var(--text-secondary);font-size:.95rem}
+.is-hidden { display: none !important; }

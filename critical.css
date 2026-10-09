@@ -1,17 +1,4 @@
 
-  /* ⭐ Critical CSS — 只寫死佈局尺寸，不依賴變數 */
-  html, body { margin: 0; padding: 0; }
-  *, *::before, *::after { box-sizing: border-box; }
-  html { font-size: 14px; }
-
-  body.index-body {
-    padding-top: 60px;
-    padding-left: 250px;
-    min-height: 100vh;
-    background: #f0f2f5;
-    font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
-  }
-
   /* 桌面：側邊欄固定 */
   .topbar {
     position: fixed;

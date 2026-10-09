@@ -79,16 +79,19 @@
   // 動態載入 script（同一 src 只載一次）
   const _scriptCache = new Map();
   function loadScript(src) {
-    if (_scriptCache.has(src)) return _scriptCache.get(src);
-    const p = new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = src;
-      s.onload = () => resolve();
-      s.onerror = () => reject(new Error(`Failed to load ${src}`));
-      document.head.appendChild(s);
-    });
-    _scriptCache.set(src, p);
-    return p;
+      if (_scriptCache.has(src)) return _scriptCache.get(src);
+      const p = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = () => resolve();
+        s.onerror = () => {
+          _scriptCache.delete(src);   // ⭐ 清掉失敗緩存
+          reject(new Error(`Failed to load ${src}`));
+        };
+        document.head.appendChild(s);
+      });
+      _scriptCache.set(src, p);
+      return p;
   }
 
   // 動態載入 CSS（同一 href 只載一次）
@@ -187,6 +190,38 @@
 
     _writeStmtCache(cache);
   }
+    // ─────────────────────────────────────────────────────────────
+  // [3.6] 用戶答題狀態快取（同步讀取，避免狀態閃爍）
+  // ─────────────────────────────────────────────────────────────
+  const USER_STATES_KEY = 'pd_user_states_v1';
+
+  function readUserStatesCache() {
+    try {
+      const raw = localStorage.getItem(USER_STATES_KEY);
+      if (!raw) return {};
+      const obj = JSON.parse(raw);
+      return (obj && typeof obj === 'object') ? obj : {};
+    } catch { return {}; }
+  }
+
+  function getCachedState(pid) {
+    return readUserStatesCache()[pid] || 'not_started';
+  }
+
+  function setCachedState(pid, state) {
+    if (!pid || !state) return;
+    const cache = readUserStatesCache();
+    if (cache[pid] === state) return;
+    cache[pid] = state;
+    try { localStorage.setItem(USER_STATES_KEY, JSON.stringify(cache)); } catch {}
+  }
+
+  // ⭐ 同時更新 S.userStates 和 localStorage
+  function setProblemState(pid, state) {
+    if (!pid || !state) return;
+    S.userStates[pid] = state;
+    setCachedState(pid, state);
+  }
   // ─────────────────────────────────────────────────────────────
   // [4] UI 輔助函式（被 mcq / extras 共用）
   // ─────────────────────────────────────────────────────────────
@@ -224,7 +259,11 @@
     answersStore, saveAnswerDebounced, saveAnswerNow,
     setWorkbenchStatus, setWorkbenchStatusHtml, statusBoxHtml,
     updateProblemDetailIcon,
-    // 註冊槽：由 mcq / extras 填入
+    // ⭐ 加這三個
+    getCachedState,
+    setCachedState,
+    setProblemState,
+    // 註冊槽
     workbench: null,
     extras: null,
     mcq: null,
@@ -470,7 +509,9 @@
       const cached = getCachedProblem(problemId);
 
       if (cached) {
-        // 先渲染（用預設 state / favorited）
+        // ⭐ 從 localStorage 同步讀 state
+        const cachedState = getCachedState(problemId);
+
         S.problem = {
           statement: cached.statement,
           name: cached.name,
@@ -479,8 +520,13 @@
         };
         S.problemName = cached.name || problemId;
 
+        // ⭐ 用快取 state 渲染
+        S.userStates = cachedState !== 'not_started'
+          ? { [problemId]: cachedState }
+          : {};
+
         mainContainer.innerHTML = buildPageHTML(S.problem, {
-          state: 'not_started',
+          state: cachedState,
           favorited: false,
         });
         renderStatement(cached.statement);
@@ -520,6 +566,8 @@
       S.userStates = (pageData.state && pageData.state !== 'not_started')
         ? { [problemId]: pageData.state }
         : {};
+              // ⭐ 同步到 localStorage（權威來源）
+      setCachedState(problemId, pageData.state || 'not_started');
       S.favorites = new Set(pageData.favorited ? [problemId] : []);
 
       // ═══════════════════════════════════════════════════

@@ -638,22 +638,63 @@ return res.status(200).json({
       const favorites = userdata?.favorites || [];
       return res.status(200).json({ success: true, favorites });
     }
-
     if (action === 'changename') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-      const { newname } = req.body;
-      if (!newname || newname.trim() === '') {
-        return res.status(400).json({ success: false, message: 'Display name cannot be empty' });
+      const { newname } = req.body || {};
+
+      // ⭐ 用 name-filter 檢查
+      const { checkDisplayName } = await import('../lib/name-filter.js');
+      const check = checkDisplayName(newname);
+      if (!check.ok) {
+        return res.status(400).json({ success: false, message: check.reason });
       }
-      if (newname.length > 50) {
-        return res.status(400).json({ success: false, message: 'Display name too long (max 50 characters)' });
+
+      const trimmed = newname.trim();
+
+      // ⭐ 檢查是否已被別人使用
+      const existing = await db.collection('users').findOne({
+        displayName: trimmed,
+        username: { $ne: decoded.username },
+      });
+      if (existing) {
+        return res.status(400).json({ success: false, message: 'This name is used' });
       }
+
+      // ⭐ 檢查改名頻率（防刷）
+      const user = await db.collection('users').findOne(
+        { username: decoded.username },
+        { projection: { lastRenameAt: 1, renameCount: 1 } }
+      );
+
+      const now = Date.now();
+      const lastRename = user?.lastRenameAt ? new Date(user.lastRenameAt).getTime() : 0;
+      const RENAME_COOLDOWN = 1 * 60_000;   // 1 小時
+
+      if (lastRename && now - lastRename < RENAME_COOLDOWN) {
+        const remainMs = RENAME_COOLDOWN - (now - lastRename);
+        const remainHr = Math.ceil(remainMs / 60_000);
+        return res.status(429).json({
+          success: false,
+          message: `Too frequent, wait ${remainHr} mins`,
+        });
+      }
+
       try {
         await db.collection('users').updateOne(
           { username: decoded.username },
-          { $set: { displayName: newname.trim() } }
+          {
+            $set: {
+              displayName: trimmed,
+              lastRenameAt: new Date(),
+            },
+            $inc: { renameCount: 1 },
+          }
         );
-        return res.status(200).json({ success: true, message: 'Display name updated successfully' });
+        return res.status(200).json({
+          success: true,
+          message: 'Display name updated successfully',
+          displayName: trimmed,
+        });
       } catch (err) {
         console.error('Update display name error:', err);
         return res.status(500).json({ success: false, message: 'Database error' });

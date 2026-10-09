@@ -87,18 +87,18 @@ async function handleCreate(req, res, db, decoded) {
   // }
 
   // 若同一用戶同一題目已有 pending/processing，直接沿用
-  const existing = await db.collection('steps_grading_tasks').findOne(
-    {
-      username: decoded.username,
-      problemId: String(problemId),
-      status: { $in: ['pending', 'processing'] },
-      createdAt: { $gt: new Date(Date.now() - TASK_TTL_MS) },
-    },
-    { sort: { createdAt: -1 } }
-  );
-  if (existing) {
-    return res.status(200).json({ success: true, taskId: existing.taskId, reused: true });
-  }
+  // const existing = await db.collection('steps_grading_tasks').findOne(
+  //   {
+  //     username: decoded.username,
+  //     problemId: String(problemId),
+  //     status: { $in: ['pending', 'processing'] },
+  //     createdAt: { $gt: new Date(Date.now() - TASK_TTL_MS) },
+  //   },
+  //   { sort: { createdAt: -1 } }
+  // );
+  // if (existing) {
+  //   return res.status(200).json({ success: true, taskId: existing.taskId, reused: true });
+  // }
 
   const taskId = genTaskId();
   const now = new Date();

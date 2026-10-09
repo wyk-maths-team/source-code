@@ -246,8 +246,8 @@ await db.collection('discussions').findOne({ _id: new ObjectId('...') });</pre>
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
   
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
-<script src="/script/heartbeat.js"></script>
-<script src="/script/pk-invite.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/heartbeat.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pk-invite.js"></script>
   <script>
     // 在 /admin/*.html 页面里
     if(isLoggedIn())apiCall('/api/users?action=markAdminVisit', 'POST').catch(() => {});
