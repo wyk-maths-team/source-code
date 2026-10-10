@@ -7,16 +7,69 @@
 (function () {
   'use strict';
 
-  const PD = window.PD;
-  if (!PD) { console.error('[pd-extras] window.PD missing'); return; }
+const PD = window.PD;
+if (!PD) { console.error('[pd-extras] window.PD missing'); return; }
 
-  const {
-    S, problemId, mainContainer, PAGE_LOAD_AT,
-    esc, debounce, loadScript, clampInt,
-    answersStore, saveAnswerDebounced, saveAnswerNow,
-    setWorkbenchStatus, setWorkbenchStatusHtml, statusBoxHtml,
-    updateProblemDetailIcon,
-  } = PD;
+// ⭐ 保留狀態：包一層 setWorkbenchStatus / setWorkbenchStatusHtml
+// 記錄「最後一次非空」的狀態，讓切換模式時不會消失
+const _persistentStatus = { html: '', cls: '', isHtml: false };
+
+const _origSetWorkbenchStatus     = PD.setWorkbenchStatus;
+const _origSetWorkbenchStatusHtml = PD.setWorkbenchStatusHtml;
+
+PD.setWorkbenchStatus = function (text, cls) {
+  const t = text || '';
+  if (t) {
+    _persistentStatus.html   = t;
+    _persistentStatus.cls    = cls || '';
+    _persistentStatus.isHtml = false;
+  }
+  return _origSetWorkbenchStatus.call(this, text, cls);
+};
+
+PD.setWorkbenchStatusHtml = function (html, cls) {
+  const h = html || '';
+  if (h) {
+    _persistentStatus.html   = h;
+    _persistentStatus.cls    = cls || '';
+    _persistentStatus.isHtml = true;
+  }
+  return _origSetWorkbenchStatusHtml.call(this, html, cls);
+};
+
+const {
+  S, problemId, mainContainer, PAGE_LOAD_AT,
+  esc, debounce, loadScript, clampInt,
+  answersStore, saveAnswerDebounced, saveAnswerNow,
+  setWorkbenchStatus, setWorkbenchStatusHtml, statusBoxHtml,
+  updateProblemDetailIcon,
+} = PD;
+
+// ⭐ 切模式時，恢復最後一次非空狀態（不真的清空）
+function restoreWorkbenchStatus() {
+  if (!_persistentStatus.html) {
+    _origSetWorkbenchStatus('');
+    return;
+  }
+  if (_persistentStatus.isHtml) {
+    _origSetWorkbenchStatusHtml(_persistentStatus.html, _persistentStatus.cls);
+    // 含 LaTeX → 重新渲染（KaTeX 產物不在 _persistentStatus 裡，要重跑）
+    if (/\$|\\\(|\\\[/.test(_persistentStatus.html)) {
+      const el = document.getElementById('wbStatus');
+      if (el && PD.renderMath) PD.renderMath(el);
+    }
+  } else {
+    _origSetWorkbenchStatus(_persistentStatus.html, _persistentStatus.cls);
+  }
+}
+
+// ⭐ 主動清空（未來「X」按鈕或新提交前想清掉時可用）
+function clearWorkbenchStatus() {
+  _persistentStatus.html = '';
+  _persistentStatus.cls = '';
+  _persistentStatus.isHtml = false;
+  _origSetWorkbenchStatus('');
+}
 
   // ═════════════════════════════════════════════════════════════
   // [A] Timer
@@ -252,7 +305,7 @@
       }
 
       this.mode = newMode;
-      setWorkbenchStatus('');
+      restoreWorkbenchStatus();   // ⭐ 保留上次批改結果
     },
   };
 
@@ -608,13 +661,27 @@
     else if (s === 0)  { label = 'Wrong Answer (0)';      cls = 'status-wrong';    }
     else               { label = `Partial Score (${s})`;  cls = 'status-partial';  }
 
-    const display = comment ? `${label} — ${comment}` : label;
-    if (subid) {
-      setWorkbenchStatusHtml(statusBoxHtml(subid, display, cls));
+    // ⭐ 分別組 HTML：label 安全，comment 保留 $...$ 給 KaTeX
+    let statusHtml;
+    if (!comment) {
+      statusHtml = subid
+        ? statusBoxHtml(subid, label, cls)
+        : `<span class="feedback-box ${cls}" style="cursor:default">${esc(label)}</span>`;
     } else {
-      setWorkbenchStatusHtml(
-        `<span class="feedback-box ${cls}" style="cursor:default">${esc(display)}</span>`
-      );
+      // escape HTML 特殊字元（防 XSS），但保留 $ \ { } 給 KaTeX
+      const commentSafe = esc(comment).replace(/\n/g, '<br>');
+      const inner = `${esc(label)} — <span class="comment-text">${commentSafe}</span>`;
+      statusHtml = subid
+        ? `<a href="/submissions/${encodeURIComponent(subid)}/detail" class="feedback-box ${cls}">${inner}</a>`
+        : `<span class="feedback-box ${cls}" style="cursor:default">${inner}</span>`;
+    }
+
+    setWorkbenchStatusHtml(statusHtml);
+
+    // ⭐ 渲染 KaTeX
+    if (comment) {
+      const el = document.getElementById('wbStatus');
+      if (el && PD.renderMath) PD.renderMath(el);
     }
 
     if (s === 100) {

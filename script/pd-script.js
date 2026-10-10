@@ -257,22 +257,26 @@
   }
 
   // ⭐ 全局註冊表
-  window.PD = {
-    S, problemId, mainContainer, PAGE_LOAD_AT,
-    esc, debounce, executeScriptsIn, loadScript, loadCssOnce,
-    getTopbarHeight, clampInt,
-    answersStore, saveAnswerDebounced, saveAnswerNow,
-    setWorkbenchStatus, setWorkbenchStatusHtml, statusBoxHtml,
-    updateProblemDetailIcon,
-    // ⭐ 快取相關
-    getCachedState,
-    setCachedState,
-    setProblemState,
-    // 註冊槽
-    workbench: null,
-    extras: null,
-    mcq: null,
-  };
+window.PD = {
+  S, problemId, mainContainer, PAGE_LOAD_AT,
+  esc, debounce, executeScriptsIn, loadScript, loadCssOnce,
+  getTopbarHeight, clampInt,
+  answersStore, saveAnswerDebounced, saveAnswerNow,
+  setWorkbenchStatus, setWorkbenchStatusHtml, statusBoxHtml,
+  updateProblemDetailIcon,
+  // ⭐ 快取相關
+  getCachedState,
+  setCachedState,
+  setProblemState,
+  // ⭐ 數學渲染（新增）
+  waitForKaTeX,
+  renderMath,
+  renderRichText,
+  // 註冊槽
+  workbench: null,
+  extras: null,
+  mcq: null,
+};
 
   // ─────────────────────────────────────────────────────────────
   // [5] 頁面資料載入
@@ -564,7 +568,66 @@ async function renderStatement(statement) {
     return false;
   }
 }
+/**
+ * 對「已經在 DOM 中」的元素做 KaTeX 渲染
+ * 適用：任何已經 innerHTML 完成、需要遍歷 $...$ 的容器
+ * @param {HTMLElement} el
+ * @returns {Promise<boolean>}
+ */
+async function renderMath(el) {
+  if (!el) return false;
 
+  const ok = await waitForKaTeX();
+  if (!ok) return false;
+
+  if (!document.body.contains(el)) {
+    console.warn('[math] element detached before render');
+    return false;
+  }
+
+  try {
+    window.renderMathInElement(el, {
+      delimiters: [
+        { left: '$$',  right: '$$',  display: true  },
+        { left: '\\[', right: '\\]', display: true  },
+        { left: '\\(', right: '\\)', display: false },
+        { left: '$',   right: '$',   display: false },
+      ],
+      throwOnError: false,
+      errorColor: '#cc0000',
+      ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code', 'option'],
+    });
+    return true;
+  } catch (e) {
+    console.error('[math] renderMathInElement failed:', e);
+    return false;
+  }
+}
+
+/**
+ * 把含 LaTeX 的字串安全渲染到目標元素
+ * - 自動 HTML escape（防 XSS）
+ * - 自動 \n → <br>
+ * - 自動呼叫 KaTeX 渲染 $...$ / $$...$$
+ *
+ * @param {HTMLElement|string} target  元素或元素 ID
+ * @param {string} text                含 LaTeX 的原始字串
+ * @returns {Promise<boolean>}
+ */
+async function renderRichText(target, text) {
+  const el = typeof target === 'string'
+    ? document.getElementById(target)
+    : target;
+  if (!el) return false;
+
+  const safe = String(text ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  el.innerHTML = safe.replace(/\n/g, '<br>');
+  return renderMath(el);
+}
   // ─────────────────────────────────────────────────────────────
   // [8] 主流程
   // ─────────────────────────────────────────────────────────────
