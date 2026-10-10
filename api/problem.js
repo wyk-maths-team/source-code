@@ -4,7 +4,7 @@ import { auditLog } from '../lib/audit.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { sanitizeHTML } from '../lib/sanitize.js';
-import { sanitizeDiscussion } from '../lib/sanitize.js';
+// import { sanitizeDiscussion } from '../lib/sanitize.js';
 import { ObjectId } from 'mongodb';
 //説明：所有的題目相關的操作都在這裏。
 // ============== 輔助函數 ==============
@@ -499,7 +499,7 @@ export default async function handler(req, res) {
       if (!checkAccess(req.user, pidStr)) return res.status(403).json({ success: false, message: 'Access denied' });
 
       const trimmed = String(postContent).trim().slice(0, 5000);
-      const cleanContent = sanitizeDiscussion(trimmed);
+      const cleanContent = sanitizeHTML(trimmed);
 
       const newPost = {
         problemId: pidStr,
