@@ -3,22 +3,6 @@
 <head>
 
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/arch-render.js"></script>
-<!-- <script>
-(function(){
-  try {
-    if (window.top !== window.self) return;
-    // if (sessionStorage.getItem('desktopPreferred')) return;   // 用戶手動選桌面版
-    var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (!isMobile) return;
-    if (location.pathname.indexOf('/mobile') === 0) return;
-    // if (location.pathname.indexOf('/os') === 0) return;
-    if (location.pathname.indexOf('/admin') === 0) return;
-    location.replace('/mobile/' + location.search + location.hash);
-  } catch(e){}
-})();
-</script> -->
-
-  
 
 <meta charset="UTF-8">
 <script>(function(){try{
@@ -26,58 +10,301 @@
   if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
   if (localStorage.getItem('pageTransition') === 'off') return;
   if (sessionStorage.getItem('__pt') !== 'in') return;
-  // ⭐ 铺的是"遮罩色"，不是页面底色
   document.documentElement.style.background = (t === 'dark' ? '#0d1117' : '#0f3460');
 }catch(e){}})();</script>
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pageload.js" defer></script>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-  <title>User Guide - WYK Maths Team</title>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
-  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
-  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>User Guide - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
-  <style>
-    .guide-container {
-      background: var(--card-bg);
-      border-radius: 4px;
-      padding: 2rem;
-      max-width: 800px;
-      margin: 2rem auto;
-      line-height: 1.8;
-    }
-    .guide-container h1 {
-      margin-bottom: 1.5rem;
-      border-bottom: 2px solid var(--accent);
-      padding-bottom: 0.5rem;
-    }
-    .guide-container h2 {
-      margin: 1.5rem 0 0.8rem;
-      color: var(--accent);
-    }
-    .guide-container p, .guide-container li {
-      color: var(--text-secondary);
-    }
-    .guide-container ul {
-      padding-left: 1.5rem;
-    }
-    .guide-container li {
-      margin-bottom: 0.5rem;
-    }
-  </style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
-  <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
-  <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#1a1a2e">
-  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="WYK Maths">
-  <meta name="mobile-web-app-capable" content="yes">
+<style>
+  /* ═══════════════ Guide Layout ═══════════════ */
+  .guide-wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  /* ── Hero ── */
+  .guide-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 14px;
+    padding: 2rem 2.2rem 1.8rem;
+    background: linear-gradient(135deg, #4a90d9 0%, #2e5fa0 60%, #1a1a2e 100%);
+    color: #fff;
+    box-shadow: 0 10px 30px rgba(74,144,217,.2);
+  }
+  .guide-hero::after {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 240px; height: 240px;
+    background: radial-gradient(circle, rgba(255,255,255,.2) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .guide-hero h1 {
+    margin: 0 0 .4rem;
+    font-size: 1.9rem;
+    font-weight: 800;
+    letter-spacing: -.4px;
+    position: relative;
+    z-index: 1;
+  }
+  .guide-hero p {
+    margin: 0;
+    opacity: .9;
+    font-size: .95rem;
+    position: relative;
+    z-index: 1;
+  }
+  .guide-hero .last-updated {
+    margin-top: .8rem;
+    font-size: .78rem;
+    opacity: .7;
+    font-family: 'Consolas', monospace;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── TOC ── */
+  .guide-toc {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem 1.3rem;
+    box-shadow: var(--shadow-sm);
+  }
+  .guide-toc h2 {
+    margin: 0 0 .6rem;
+    font-size: .95rem;
+    color: var(--text-secondary);
+    font-weight: 700;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+  }
+  .guide-toc ol {
+    margin: 0;
+    padding-left: 1.4rem;
+    columns: 2;
+    column-gap: 2rem;
+    font-size: .9rem;
+    line-height: 1.9;
+  }
+  .guide-toc a {
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: color .15s;
+  }
+  .guide-toc a:hover { color: var(--accent); }
+  @media (max-width: 600px) {
+    .guide-toc ol { columns: 1; }
+  }
+
+  /* ── Section ── */
+  .guide-section {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.4rem 1.6rem;
+    box-shadow: var(--shadow-sm);
+    scroll-margin-top: 80px;
+  }
+  .guide-section h2 {
+    margin: 0 0 1rem;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: .7rem;
+    border-bottom: 2px solid var(--border-color);
+  }
+  .guide-section h2 .ico {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    background: var(--accent);
+    color: #fff;
+    font-size: .9rem;
+    flex-shrink: 0;
+  }
+  .guide-section h3 {
+    margin: 1.3rem 0 .5rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .guide-section h3:first-of-type { margin-top: 0; }
+  .guide-section p,
+  .guide-section li {
+    color: var(--text-secondary);
+    line-height: 1.75;
+    font-size: .92rem;
+  }
+  .guide-section ul {
+    padding-left: 1.4rem;
+    margin: .4rem 0;
+  }
+  .guide-section li { margin-bottom: .35rem; }
+  .guide-section li::marker { color: var(--accent); }
+
+  /* ── Callouts ── */
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: rgba(74,144,217,.06);
+    padding: .7rem 1rem;
+    border-radius: 6px;
+    margin: .8rem 0;
+    font-size: .88rem;
+    color: var(--text-secondary);
+  }
+  .callout.warn {
+    border-left-color: #f0ad4e;
+    background: rgba(240,173,78,.08);
+  }
+  .callout.danger {
+    border-left-color: #e74c3c;
+    background: rgba(231,76,60,.08);
+  }
+  .callout.ok {
+    border-left-color: #2ecc71;
+    background: rgba(46,204,113,.08);
+  }
+  .callout strong { color: var(--text-primary); }
+
+  /* ── Badges ── */
+  .badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: .72rem;
+    font-weight: 700;
+    font-family: 'Consolas', monospace;
+    letter-spacing: .3px;
+    vertical-align: middle;
+    margin: 0 2px;
+  }
+  .badge.num    { background: rgba(74,144,217,.15); color: #2e5fa0; }
+  .badge.logic  { background: rgba(170,0,170,.15);  color: #AA00AA; }
+  .badge.mcq    { background: rgba(0,128,0,.15);    color: #008000; }
+  .badge.image  { background: rgba(231,76,60,.15);  color: #c0392b; }
+  .badge.paper  { background: rgba(240,173,78,.15); color: #b37700; }
+  .badge.ai     { background: rgba(170,0,170,.15);  color: #AA00AA; }
+  .badge.r1     { background: rgba(170,0,170,.18);  color: #AA00AA; }
+  .badge.v3     { background: rgba(240,173,78,.18); color: #b37700; }
+  [data-theme="dark"] .badge.num   { color: #8ec3ff; }
+  [data-theme="dark"] .badge.mcq   { color: #8fdf8f; }
+  [data-theme="dark"] .badge.image { color: #ff8a8a; }
+  [data-theme="dark"] .badge.paper { color: #ffc850; }
+  [data-theme="dark"] .badge.logic,
+  [data-theme="dark"] .badge.ai,
+  [data-theme="dark"] .badge.r1    { color: #e09ce0; }
+  [data-theme="dark"] .badge.v3    { color: #ffc850; }
+
+  /* ── Table ── */
+  .guide-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: .8rem 0;
+    font-size: .86rem;
+  }
+  .guide-table th,
+  .guide-table td {
+    padding: .55rem .8rem;
+    border: 1px solid var(--border-color);
+    text-align: left;
+    color: var(--text-secondary);
+  }
+  .guide-table th {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: .82rem;
+    letter-spacing: .3px;
+  }
+  .guide-table code {
+    background: rgba(74,144,217,.1);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: 'Consolas', monospace;
+    font-size: .82rem;
+    color: var(--accent);
+  }
+
+  /* ── Step list ── */
+  .steps {
+    counter-reset: step;
+    list-style: none;
+    padding-left: 0;
+  }
+  .steps li {
+    counter-increment: step;
+    position: relative;
+    padding-left: 2.2rem;
+    margin-bottom: .6rem;
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1.6rem;
+    height: 1.6rem;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .78rem;
+    font-weight: 800;
+    font-family: 'Consolas', monospace;
+  }
+
+  /* ── Footer ── */
+  .guide-footer {
+    text-align: center;
+    padding: 1.5rem 0 2rem;
+    color: var(--text-secondary);
+    font-size: .85rem;
+  }
+  .guide-footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  @media (max-width: 640px) {
+    .guide-hero { padding: 1.5rem 1.3rem; border-radius: 12px; }
+    .guide-hero h1 { font-size: 1.4rem; }
+    .guide-section { padding: 1.1rem 1.15rem; border-radius: 10px; }
+    .guide-section h2 { font-size: 1.05rem; }
+    .guide-table { font-size: .78rem; }
+    .guide-table th, .guide-table td { padding: .4rem .55rem; }
+  }
+</style>
+
+<!-- PWA manifest（必須靜態寫入，不能 JS 注入） -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1a1a2e">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WYK Maths">
+<meta name="mobile-web-app-capable" content="yes">
 
 </head>
 <body class="index-body">
@@ -85,50 +312,370 @@
     <header class="topbar" id="topbarContainer"></header>
     <aside class="sidebar" id="sidebarContainer"></aside>
     <main class="main-content" id="mainContent">
-      <div class="guide-container">
-        <h1>User Guide</h1>
+      <div class="guide-wrap">
 
-        <h2>1. Platform Overview</h2>
-        <ul>
-          <li>The system is deployed on the Vercel serverless platform.</li>
-          <li>Data persistence is handled by MongoDB, with image assets stored via Cloudinary.</li>
-        </ul>
+        <!-- ═══════════ Hero ═══════════ -->
+        <section class="guide-hero">
+          <h1><i class="fas fa-book-open" style="margin-right:10px;opacity:.9;"></i>User Guide</h1>
+          <p>Everything you need to know to solve, compete, and climb the leaderboard.</p>
+          <div class="last-updated">Last updated: 2026-10</div>
+        </section>
 
-        <h2>2. Submission Modes &amp; Behaviour</h2>
-        <ul>
-          <li><strong>Text Mode</strong> (numeric): The submitted answer is compared with the standard answer. A tolerance of \(10^{-6}\) is allowed for floating-point rounding.</li>
-          <li><strong>Text Mode</strong> (advanced): For selected problems, the answer is evaluated by a custom logic function defined in the problem statement.</li>
-          <li><strong>Photo Mode</strong>: This mode is supported but is not recommended for regular use, as marking requires manual review and may result in a longer feedback delay.</li>
-          <li>Discussions are automatically unlocked once a problem has been successfully solved.</li>
-          <li>During peak usage hours, operations involving database queries—such as submissions, favourites, and page loads—may experience slower response times due to server load.</li>
-        </ul>
+        <!-- ═══════════ TOC ═══════════ -->
+        <nav class="guide-toc">
+          <h2><i class="fas fa-list"></i> Contents</h2>
+          <ol>
+            <li><a href="#overview">Platform Overview</a></li>
+            <li><a href="#categories">Problem Categories</a></li>
+            <li><a href="#structure">Problem Structure &amp; Types</a></li>
+            <li><a href="#submission">Submission Modes</a></li>
+            <li><a href="#judging">Judging System</a></li>
+            <li><a href="#difficulty">Difficulty &amp; Tags</a></li>
+            <li><a href="#contests">Contests</a></li>
+            <li><a href="#pk">Player-vs-Player (PK)</a></li>
+            <li><a href="#achievements">Achievements</a></li>
+            <li><a href="#progress">Progress &amp; Statistics</a></li>
+            <li><a href="#notes">Important Notes</a></li>
+          </ol>
+        </nav>
 
-        <h2>3. Important Notes</h2>
-        <ul>
-          <li>A mandatory cooldown period of 5 seconds applies to each submission to prevent accidental duplicate requests.</li>
-          <li>Problem IDs may change over time. Some problems may be removed or hidden from the public list without prior notice.</li>
-          <li>Due to occasional technical anomalies in the OCR processing pipeline, certain problems may contain formatting errors, incomplete statements, or unclear descriptions. If you encounter any such issues, please use the <strong>Report</strong> button on the problem page.</li>
-        </ul>
+        <!-- ═══════════ 1. Overview ═══════════ -->
+        <section class="guide-section" id="overview">
+          <h2><span class="ico"><i class="fas fa-globe"></i></span>1. Platform Overview</h2>
+          <p>WYK Maths Team is an online judge built for Olympiad-style and DSE mathematics practice. It is a <strong>full submission pipeline</strong>: you submit an answer (or a solution process), the system judges it, and results feed into contests, leaderboards, achievements, and your personal progress chart.</p>
+          <ul>
+            <li><strong>Platform:</strong> Vercel serverless (edge network, global)</li>
+            <li><strong>Data:</strong> MongoDB Atlas — submissions, problems, contests, user state</li>
+            <li><strong>Images:</strong> Cloudinary (problem figures, wallpapers) and GitHub CDN (PFPs, reports)</li>
+            <li><strong>AI grading:</strong> DeepSeek R1 / V3 (via a self-hosted bridge — for the "Steps" mode)</li>
+          </ul>
+          <div class="callout">
+            <strong>Who is this for?</strong> Students preparing for <em>HKMHASC</em>, <em>HKMO</em>, <em>IMO Prelim</em>. Teachers can also create contests and view the marker dashboard.
+          </div>
+        </section>
 
-        <h2>4. Contest Rules</h2>
-        <ul>
-          <li>Contests are created by teachers and consist of a curated set of problems.</li>
-          <li>Enrolment is only permitted before the contest starts; once the contest has begun, no further participants may join.</li>
-          <li>For numeric-type problems, each incorrect submission incurs a penalty of 10 marks per problem.</li>
-          <li>In the event of a tie in total score, the ranking will be determined by the timestamp of the last submission—earlier submissions rank higher.</li>
-        </ul>
+        <!-- ═══════════ 2. Categories ═══════════ -->
+        <section class="guide-section" id="categories">
+          <h2><span class="ico"><i class="fas fa-folder-tree"></i></span>2. Problem Categories</h2>
+          <p>The problem set is divided into four broad sections. Each section header has a live counter showing how many problems it contains.</p>
 
-        <h2>5. Additional Information</h2>
-        <ul>
-          <li>The platform includes several non-obvious features intended for advanced users.</li>
-          <li>The website is fully responsive and optimised for mobile devices.</li>
-          <li>All PDF resources provided on this site are either contributed by Mr Patrick Chung or sourced from publicly available materials, used with permission where applicable.</li>
-          <li>The judging engine and core logic are original developments, while the user interface design draws inspiration from established online judge systems.</li>
-        </ul>
+          <table class="guide-table">
+            <thead>
+              <tr><th style="width:22%">Section</th><th style="width:28%">Category</th><th>Purpose</th></tr>
+            </thead>
+            <tbody>
+              <tr><td rowspan="2"><strong>Learn</strong></td><td>Tricks</td><td>Shortcut techniques, identities, and pattern recognition.</td></tr>
+              <tr><td>Advanced skills</td><td>Higher-level methods that recur across competitions.</td></tr>
+              <tr><td><strong>Exercises</strong></td><td>DSE</td><td>HKDSE Paper 2 style multiple-choice questions.</td></tr>
+              <tr><td rowspan="3"><strong>Local Competitions</strong></td><td>HKMHASC</td><td>???</td></tr>
+              <tr><td>HKMO</td><td>Hong Kong Mathematical Olympiad (past papers).</td></tr>
+              <tr><td>IMO Prelim</td><td>IMO Preliminary Selection test past papers.</td></tr>
+              <!-- <tr><td rowspan="3"><strong>External Competitions</strong></td><td>IMO Shortlist</td><td>Official shortlist problems from past IMOs.</td></tr>
+              <tr><td>CMO</td><td>Chinese Mathematical Olympiad.</td></tr>
+              <tr><td>APMO</td><td>Asian Pacific Mathematics Olympiad.</td></tr> -->
+            </tbody>
+          </table>
 
-        <p style="margin-top:2rem; text-align:center;">
-          <a href="/">← Back to Home</a>
-        </p>
+          <div class="callout">
+            <strong>Tags:</strong> Every problem can carry arbitrary tags (e.g. <em>combinatorics</em>, <em>NT</em>, <em>geometry</em>). Use the tag filter in the problem list to drill down. Tags also power the <strong>Similar Problems</strong> feature (see below).
+          </div>
+        </section>
+
+        <!-- ═══════════ 3. Structure ═══════════ -->
+        <section class="guide-section" id="structure">
+          <h2><span class="ico"><i class="fas fa-cubes"></i></span>3. Problem Structure &amp; Types</h2>
+          <p>Every problem has a unique <code>ID</code> and belongs to exactly one of the following structures. The submission UI changes depending on which type you are solving.</p>
+
+          <h3>3.1 Standard Numeric Problem <span class="badge num">numeric</span></h3>
+          <ul>
+            <li>Answer is a number (integer or decimal).</li>
+            <li>Comparison uses a tolerance of <strong>10<sup>−6</sup></strong> — small floating-point differences are accepted.</li>
+            <li>Answer format examples: <code>29</code>, <code>3.14159</code>.</li>
+            <li>Answers like <code>1/2</code>,<code>pi</code>are not accepted. The input zone will calculate the value for you.</li>
+          </ul>
+          <div class="callout warn">
+            If the problem suggested answer is not a nuber, the submission may return <strong>"System Error"</strong>. Please use the <strong>Report</strong> button on the problem page.
+          </div>
+
+          <h3>3.2 Custom-Logic Problem <span class="badge logic">logic</span></h3>
+          <ul>
+            <li>The problem's <code>logic</code> field contains a small judging function.</li>
+            <li>Used for answers that cannot be reduced to a single number — e.g. sets, ordered pairs, symbolic expressions, or answers accepted in multiple equivalent forms.</li>
+            <li>From your perspective, the UI looks identical to a numeric problem: type your answer and submit. The difference is invisible to you.</li>
+          </ul>
+          <div class="callout warn">
+            If the problem author's custom logic contains a bug, the submission may return <strong>"System Error"</strong>. Please use the <strong>Report</strong> button on the problem page.
+          </div>
+
+
+
+          <h3>3.3 AI-Graded Steps <span class="badge ai">steps</span></h3>
+          <ul>
+            <li>Instead of a final answer, you write out your <strong>solution steps</strong> (up to 1000 characters).</li>
+            <li>An AI model grades your reasoning process and returns a score plus a written comment.</li>
+            <li>See <a href="#submission">Section 4</a> for full details.</li>
+          </ul>
+
+          <!-- <h3>3.7 PK Problems <span class="badge num">pk</span></h3>
+          <ul>
+            <li>Stored separately in the <code>pkproblems</code> collection with IDs matching <code>DP&lt;year&gt;&lt;number&gt;</code>.</li>
+            <li>Each PK problem belongs to Part A (Q1–30) or Part B (Q31–45) of a specific DSE year.</li>
+            <li>Only reachable during a PK match — not visible in the normal problem list.</li>
+          </ul> -->
+
+        </section>
+
+        <!-- ═══════════ 4. Submission ═══════════ -->
+        <section class="guide-section" id="submission">
+          <h2><span class="ico"><i class="fas fa-paper-plane"></i></span>4. Submission Modes</h2>
+          <p>The answer workbench on every problem page has three tabs. Choose the one that matches how you want to answer.</p>
+
+          <h3><i class="fas fa-keyboard" style="color:var(--accent);"></i> Text Mode</h3>
+          <ul>
+            <li>For numeric or short symbolic answers. A <em>live preview</em> strip under the input shows the parsed value — useful for spotting typos in fractions or scientific notation.</li>
+            <li>Answer length is capped at <strong>500 characters</strong>.</li>
+            <li>Submission cooldown: <strong>10 submissions per minute</strong> per user, plus a <strong>5-second</strong> hard cooldown between submissions to prevent accidental double-clicks.</li>
+          </ul>
+
+          <h3><i class="fas fa-camera" style="color:var(--accent);"></i> Photo Mode</h3>
+          <ul>
+            <li>Upload a single image (JPEG / PNG). Keep it under a few MB — huge images slow down the pipeline.</li>
+            <li>Once uploaded, you can replace or remove the image before submitting.</li>
+            <li>Result appears as <em>Pending</em> until a teacher marks it.</li>
+          </ul>
+
+          <h3><i class="fas fa-wand-magic-sparkles" style="color:var(--accent);"></i> Steps Mode <span class="badge ai">AI</span></h3>
+          <p>Write out your reasoning, not just the answer. The AI will work through your solution line by line.</p>
+          <ol class="steps">
+            <li>Type or paste your solution into the textarea (up to <strong>1000 characters</strong>).</li>
+            <li>Pick a model:
+              <ul>
+                <li><span class="badge r1">R1</span> <strong>Slow but accurate</strong> — reasons step-by-step before judging. Takes 12–120 seconds. Best for non-trivial problems.</li>
+                <li><span class="badge v3">V3</span> <strong>Fast</strong> — quick judgement, 6–24 seconds. Good for straightforward numeric answers.</li>
+              </ul>
+            </li>
+            <li>Submit. A background worker (the <em>bridge</em>) picks up your task and forwards it to the AI.</li>
+            <li>Poll for the result — this happens automatically on the page. When done, you see the score and a written comment.</li>
+            <li>If you recieved something like AI error, please retry, if such issue continues, report to admin.</li>
+            
+          </ol>
+
+          <div class="callout ok">
+            <strong>Why use Steps mode?</strong> Even when your final answer is wrong, the AI can credit correct partial reasoning. It will also tell you <em>where</em> things went wrong without revealing the answer.
+          </div>
+          <div class="callout warn">
+            <strong>Anti-injection:</strong> The AI is explicitly instructed not to reveal the reference answer, even if you ask directly. Attempts to manipulate the AI will simply be ignored.
+          </div>
+        </section>
+
+        <!-- ═══════════ 5. Judging ═══════════ -->
+        <section class="guide-section" id="judging">
+          <h2><span class="ico"><i class="fas fa-gavel"></i></span>5. Judging System</h2>
+          <p>Different problem types use different judges. All results funnel into the same status system.</p>
+
+          <table class="guide-table">
+            <thead>
+              <tr><th>Verdict</th><th>Meaning</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><strong style="color:#2e7d32;">Accepted</strong></td><td>Full credit. The problem's <code>state</code> becomes <em>passed</em> and discussions are unlocked.</td></tr>
+              <tr><td><strong style="color:#b28500;">Partial Score (N)</strong></td><td>Only from custom-logic or AI-graded problems. Score between 1 and 99.</td></tr>
+              <tr><td><strong style="color:#c0392b;">Wrong Answer</strong></td><td>Incorrect for a numeric, MCQ, or fully-judged problem.</td></tr>
+              <tr><td><strong>Pending</strong></td><td>Image submission waiting for manual review.</td></tr>
+              <tr><td><strong style="color:#8e44ad;">System Error</strong></td><td>A problem configuration issue (e.g. non-numeric answer key). Report it — it is not your fault unless you wrote units or unintended chars.</td></tr>
+            </tbody>
+          </table>
+
+          <p>After a submission, your <strong>problem state</strong> updates as follows:</p>
+          <ul>
+            <li><em>passed</em> — once you achieve full credit, this status is permanent. Later wrong attempts cannot undo it.</li>
+            <li><em>failed</em> — set on first wrong attempt, but can be overwritten by a later pass.</li>
+            <li><em>not_started</em> — you have not submitted anything yet.</li>
+          </ul>
+        </section>
+
+        <!-- ═══════════ 6. Difficulty ═══════════ -->
+        <section class="guide-section" id="difficulty">
+          <h2><span class="ico"><i class="fas fa-gauge-high"></i></span>6. Difficulty &amp; Tags</h2>
+          <p>Each problem has a difficulty level shown in the header as <code>Lv.N</code>.</p>
+          <ul>
+            <li><code>Lv.∞</code> — no difficulty assigned (usually papers or open-ended problems).</li>
+            <li><code>Lv.1.00</code> to <code>Lv.7.00+</code> — an internal rating, higher means harder.</li>
+            <li>You can hide the difficulty indicator in <strong>Settings</strong> if you prefer to solve without knowing.</li>
+          </ul>
+
+          <h3>Tags</h3>
+          <p>Tags are used by the problem list filter and by the <strong>Similar</strong> button on each problem. Click <em>Similar</em> to see up to 15 problems sharing the most tags, ranked by tag overlap first and difficulty proximity second.</p>
+
+          <h3>Bookmarks</h3>
+          <p>Star any problem to add it to your bookmarks. Access the list from the <strong>Bookmarks</strong> shortcut in the problems page.</p>
+        </section>
+
+        <!-- ═══════════ 7. Contests ═══════════ -->
+        <section class="guide-section" id="contests">
+          <h2><span class="ico"><i class="fas fa-trophy"></i></span>7. Contests</h2>
+          <p>Contests are curated sets of problems with a fixed start time and duration. The contest list shows three tabs: <em>All</em>, <em>Live</em>, <em>Upcoming</em>, and <em>Ended</em>.</p>
+
+          <h3>7.1 Enrolment</h3>
+          <ul>
+            <li>You can join a contest <strong>only before it starts</strong>. Once the clock hits the start time, the roster is frozen.</li>
+            <li>You may withdraw yourself before the start; withdrawal is disabled after the start.</li>
+          </ul>
+
+          <h3>7.2 Scoring</h3>
+          <ul>
+            <li><strong>Numeric problems:</strong> full marks on first AC. Each wrong attempt before the first AC applies a <strong>10% penalty</strong> to that problem's score: 100 → 90 → 81 → 72.9 → …</li>
+            <li><strong>Partial-score problems (logic):</strong> the best score you achieve is kept.</li>
+            <li><strong>Special contests</strong> (team events): one wrong attempt <strong>permanently locks</strong> that problem at 0 points for your team.</li>
+          </ul>
+
+          <h3>7.3 Tie-breaking</h3>
+          <ul>
+            <li>Primary ranking: total score (descending).</li>
+            <li>Tie-break: the timestamp of your <strong>last accepted submission</strong>. Earlier submission wins.</li>
+          </ul>
+
+          <!-- <h3>7.4 Team (Special) Contests</h3>
+          <ul>
+            <li>You join a team via the contest page. The team has a captain and members.</li>
+            <li>Depending on the team's mode:
+              <ul>
+                <li><strong>Mode 1:</strong> Non-captain members can only <em>suggest</em> answers. The captain decides what to submit.</li>
+                <li><strong>Mode 2:</strong> Any member can submit directly on behalf of the team.</li>
+              </ul>
+            </li>
+            <li>Submissions are attributed to the team, not to individual members.</li>
+          </ul> -->
+
+          <h3>7.5 During a Contest</h3>
+          <ul>
+            <li>The contest page shows your scores and states per problem, updated in real time.</li>
+            <li>Wrong attempts are tracked per problem.</li>
+            <li>Once the contest has ended, full standings and per-problem statistics become available on the results page.</li>
+          </ul>
+
+          <!-- <div class="callout danger">
+            <strong>Do not submit other problems during a special contest.</strong> The system blocks it and the submission is rejected.
+          </div> -->
+        </section>
+
+        <!-- ═══════════ 8. PK ═══════════ -->
+        <section class="guide-section" id="pk">
+          <h2><span class="ico"><i class="fas fa-swords"></i></span>8. Player-vs-Player (PK)</h2>
+          <p>PK is a real-time 1-on-1 competition over a randomised set of questions from one DSE year.</p>
+
+          <h3>8.1 Flow</h3>
+          <ol class="steps">
+            <li>Go to another user's profile and click <strong>Invite</strong>. An invitation link is generated.</li>
+            <li>The invited user opens the link (<code>/pk/invite?id=…</code>) and clicks <strong>Accept</strong>. The invitation expires after <strong>10 minutes</strong>.</li>
+            <li>You will only be redirected to the room if you are in the waiting room.</li>
+            <li>A room is created with a unique ID. Both players land on the room page.</li>
+            <li>The room contains <strong>9 islands</strong> — 6 hexagon islands (Part A, Q1–30) and 3 triangle islands (Part B, Q31–45).</li>
+            <li>You start with <strong>Island 1 unlocked</strong>. Correctly solving a problem <em>claims</em> that slot for you.</li>
+            <li>When you solve a problem on an island, you unlock all adjacent islands.</li>
+          </ol>
+
+          <h3>8.2 Rules</h3>
+          <table class="guide-table">
+            <thead><tr><th>Rule</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td>Match duration</td><td>30 minutes</td></tr>
+              <tr><td>Problem view time (per problem)</td><td>4 minutes</td></tr>
+              <tr><td>Timeout penalty</td><td>+1 minute personal lock</td></tr>
+              <tr><td>Wrong-answer cooldown</td><td>10 minutes (per problem, per player)</td></tr>
+              <tr><td>Claim condition</td><td>Answer correctly while holding the problem lock</td></tr>
+            </tbody>
+          </table>
+
+          <h3>8.3 Spectator Mode</h3>
+          <ul>
+            <li>Spectators see the full map, both players' scores, and can watch islands being unlocked in real time — but cannot open problems except the starting island</li>
+          </ul>
+        </section>
+
+        <!-- ═══════════ 9. Achievements ═══════════ -->
+        <section class="guide-section" id="achievements">
+          <h2><span class="ico"><i class="fas fa-medal"></i></span>9. Achievements</h2>
+          <p>Achievements appear on your profile page. They unlock automatically as you solve, and there are hidden ones you have to discover yourself.</p>
+
+          <table class="guide-table">
+            <thead><tr><th>Group</th><th>Examples</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Milestone</strong></td><td>First Blood (1 AC), Centurion (100 AC), Millennium (1000 AC)</td></tr>
+              <tr><td><strong>Difficulty</strong></td><td>Beyond Easy (≥3), Into the Deep (≥6), Elite Solver (≥7)</td></tr>
+              <tr><td><strong>Streak</strong></td><td>Hat Trick (3 days), Week Warrior (7 days), Century Streak (100 days)</td></tr>
+              <tr><td><strong>Efficiency</strong></td><td>One Shot (first-try AC), Sharp Shooter (10 first-try AC), Busy Bee (10 AC in one day)</td></tr>
+              <tr><td><strong>Fun</strong></td><td>Night Owl (submit 00:00–04:00 HKT), Early Bird (05:00–07:00), Perfect Day</td></tr>
+              <tr><td><strong>Accuracy</strong></td><td>Steady Hand (≥30%), Meticulous (≥70%), Flawless (≥90%)</td></tr>
+              <tr><td><strong>Hidden</strong></td><td>Four hidden achievements — see if you can find them all</td></tr>
+            </tbody>
+          </table>
+
+          <p>Rarity tiers: <span class="badge" style="background:rgba(128,128,128,.2);color:#666;">common</span>
+            <span class="badge" style="background:rgba(0,128,0,.15);color:#008000;">uncommon</span>
+            <span class="badge" style="background:rgba(0,0,255,.12);color:#0000FF;">rare</span>
+            <span class="badge" style="background:rgba(170,0,170,.15);color:#AA00AA;">epic</span>
+            <span class="badge" style="background:rgba(255,170,0,.2);color:#B37700;">legendary</span>
+          </p>
+        </section>
+
+        <!-- ═══════════ 10. Progress ═══════════ -->
+        <section class="guide-section" id="progress">
+          <h2><span class="ico"><i class="fas fa-chart-line"></i></span>10. Progress &amp; Statistics</h2>
+          <ul>
+            <li><strong>Home page</strong> shows your solved count, total problems, and completion percentage.</li>
+            <li><strong>Profile page</strong> (<code>/users/&lt;username&gt;</code>) shows a grid of every problem you have attempted, colour-coded by state.</li>
+            <li><strong>Leaderboard</strong> (<code>/ranklist</code>) ranks users by number of passed problems. Online status is shown with a green dot.</li>
+            <li><strong>Progress chart</strong> (<code>/charts</code>) plots cumulative solves over time for every active user. Hover for a breakdown by date; click to pin.</li>
+            <li><strong>Submissions</strong> (<code>/submissions</code>) lists every submission with filters for user, problem, and result.</li>
+          </ul>
+        </section>
+
+        <!-- ═══════════ 11. Notes ═══════════ -->
+        <section class="guide-section" id="notes">
+          <h2><span class="ico"><i class="fas fa-circle-info"></i></span>11. Important Notes</h2>
+
+          <h3>Privacy &amp; data</h3>
+          <ul>
+            <li>Your submission content (answer text, uploaded images, solution steps) is stored on the server.</li>
+            <li>Other users cannot see your answer until they have solved the problem, or unless they are an admin.</li>
+            <li>Real names are always shown.</li>
+          </ul>
+
+          <h3>Content quality</h3>
+          <ul>
+            <li>Some problems were imported from OCR pipelines and may contain formatting glitches or incomplete statements.</li>
+            <li>If a problem looks wrong, use the <strong>Report</strong> button on the problem page. The report goes to the admin queue with your username attached.</li>
+            <li>Problem IDs may change or disappear over time — do not rely on them as permanent identifiers.</li>
+          </ul>
+
+          <h3>Performance</h3>
+          <ul>
+            <li>During peak hours, database operations (submissions, favourites, page loads) may be slower.</li>
+            <li>The AI Steps mode depends on a background worker. Very long queues may delay your result by a few minutes.</li>
+          </ul>
+
+          <h3>Anti-cheat &amp; integrity</h3>
+          <ul>
+            <li>The system logs every action (submission, deletion, admin change) in an audit log.</li>
+            <li>Contest results are public. Any suspicious activity can be reviewed by admins.</li>
+            <li>The AI grader is hardened against prompt injection — you cannot coerce it into revealing the answer.</li>
+          </ul>
+
+          <h3>Credits</h3>
+          <ul>
+            <li>PDF resources are contributed by <strong>Mr Patrick Chung</strong> or sourced from publicly available materials.</li>
+            <li>The judging engine and core logic are original developments.</li>
+            <li>The user interface draws inspiration from established online judge systems.</li>
+          </ul>
+        </section>
+
+        <!-- ═══════════ Footer ═══════════ -->
+        <div class="guide-footer">
+          <p><a href="/">← Back to Home</a></p>
+          <p style="margin-top:.6rem;opacity:.7;">WYK Maths Team</p>
+        </div>
+
       </div>
     </main>
   </div>
@@ -136,9 +683,8 @@
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
-  
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/heartbeat.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pk-invite.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/heartbeat.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pk-invite.js"></script>
 </body>
 </html>
