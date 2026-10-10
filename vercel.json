@@ -65,6 +65,7 @@
     { "source": "/admin/sql", "destination": "/admin/terminal.html" },
     { "source": "/admin/cmd", "destination": "/admin/cmd.html" },
     { "source": "/admin/oplog","destination": "/admin/oplog.html" },
+    { "source": "/admin/health","destination": "/admin/health.html"},
 
     { "source": "/admin/problems/:id", "destination": "/admin/editproblem.html" },
     { "source": "/admin/contests/:id", "destination": "/admin/editcontest.html" },

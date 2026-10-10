@@ -4,6 +4,7 @@
 //
 // ⚠️ 獨立連線：不使用 db.js（那個連 wyk_math）
 //    這裡需要連 local 數據庫，故自建 client
+// 注意：：：mongodb不允许我访问local的任何东西！！！ 所以，这个文件作废，先晾在这里，有空如果允许了再启用。
 import { MongoClient, Timestamp } from 'mongodb';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
