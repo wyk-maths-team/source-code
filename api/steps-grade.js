@@ -197,7 +197,7 @@ async function handlePoll(req, res, db, decoded) {
 
     // 我搶到了 → 寫 submissions + userstats
     const rawScoreRaw = claimed.result?.score;
-    const comment  = String(claimed.result?.comment || '').slice(0, 500);
+    const comment  = String(claimed.result?.comment || '').slice(0, 3000);
 
     // ⭐ 防禦：任何非有效數字都當 AI error
     const isAIError =

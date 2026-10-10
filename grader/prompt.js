@@ -154,8 +154,8 @@ WRONG EXAMPLES (do NOT do this):
 
 ═══════════════════════════════════════════════════════════
 6. LANGUAGE:
-   - Write the comment in English.
-   - Maximum 300 characters.
+   - Write the comment in English by default, Chinese if the user's language mainly consists of Chinese.
+   - Maximum 3000 characters.
 
 7. FORMATTING:
    - Use \\n for line breaks if you have multiple parts to the comment.

@@ -696,7 +696,7 @@ async function processTask(page, task) {
 
     let score = Math.round(scoreNum);
     score = Math.max(0, Math.min(100, score));
-    const comment = String(parsed.comment || '').slice(0, 500);
+    const comment = String(parsed.comment || '').slice(0, 3000);
 
     await updateTask(taskId, {
       status: 'done',

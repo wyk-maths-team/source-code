@@ -15,6 +15,7 @@ import { applyRateLimit } from '../lib/rateLimit.js';
 import { runCustomLogic } from '../lib/logic-runner.js';
 import crypto from 'crypto';
 import { json } from 'stream/consumers';
+import { waitUntil } from '@vercel/functions';
 
 // ═══════════════ Constants ═══════════════
 const RATE_MAX_PER_MIN = 10;
@@ -201,8 +202,22 @@ async function finishSubmit(db, username, result, context = {}) {
 }
 
 async function sendSuccess(db, username, res, result, context = {}) {
-  await finishSubmit(db, username, result, context);
-  return res.status(200).json(result);
+  // 1) 立刻发响应
+  res.status(200).json(result);
+
+  // 2) 成就检查继续跑 —— Vercel 保证不 kill
+  if (!/^\d+$/.test(username)) {
+    const bg = (async () => {
+      try {
+        const { updateStreak, checkAchievements } = await import('../lib/achievements.js');
+        await updateStreak(db, username);
+        await checkAchievements(db, username, { trigger: 'submit', ...context });
+      } catch (e) {
+        console.error('[achievements bg]', e);
+      }
+    })();
+    waitUntil(bg);
+  }
 }
 
 
