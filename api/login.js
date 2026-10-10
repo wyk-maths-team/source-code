@@ -1,12 +1,26 @@
 ﻿// api/login.js
 import { connectToDatabase } from './_db.js';
-// import { auditLog } from '../lib/audit.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { applyRateLimit } from '../lib/rateLimit.js';
-const rateLimitMap = new Map(); // IP → { count, firstAttempt }
+
+// ⭐ Rate limit map + 定期清理
+const rateLimitMap = new Map();   // IP → { count, firstAttempt }
 const MAX_ATTEMPTS = 20;
-const WINDOW_MS = 5 * 60 * 1000; // 5 分钟
+const WINDOW_MS = 5 * 60 * 1000;
+const ENTRY_TTL_MS = 30 * 60 * 1000;   // 30 分鐘沒動就刪
+const CLEANUP_INTERVAL_MS = 60_000;
+let _lastCleanup = 0;
+
+function cleanupRateMap(now) {
+  if (now - _lastCleanup < CLEANUP_INTERVAL_MS) return;
+  _lastCleanup = now;
+  for (const [ip, rec] of rateLimitMap) {
+    if (now - rec.firstAttempt > ENTRY_TTL_MS) {
+      rateLimitMap.delete(ip);
+    }
+  }
+}
 
 function getClientIP(req) {
   return req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
@@ -21,7 +35,7 @@ export default async function handler(req, res) {
 
   const ip = getClientIP(req);
   const now = Date.now();
-
+  cleanupRateMap(now);
   // 速率限制检查
   const record = rateLimitMap.get(ip);
   if (record) {

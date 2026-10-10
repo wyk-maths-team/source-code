@@ -237,7 +237,8 @@
       if (sub.commentHidden) {
         commentHtml = hiddenScrambleHtml('Comment hidden');
       } else if (sub.comment) {
-        commentHtml = escapeHtml(sub.comment);
+        // escape HTML 特殊字元（保留 $ \ { } 給 KaTeX），\n → <br>
+        commentHtml = escapeHtml(sub.comment).replace(/\n/g, '<br>');
       } else {
         commentHtml = '<span class="no-comment">No comment yet.</span>';
       }
@@ -275,10 +276,14 @@
         if (typeof renderMathInElement !== 'undefined') {
           renderMathInElement(container, {
             delimiters: [
-              { left: '\\[', right: '\\]', display: true },
-              { left: '\\(', right: '\\)', display: false }
+              { left: '$$',  right: '$$',  display: true  },
+              { left: '\\[', right: '\\]', display: true  },
+              { left: '\\(', right: '\\)', display: false },
+              { left: '$',   right: '$',   display: false },
             ],
-            throwOnError: false
+            throwOnError: false,
+            errorColor: '#cc0000',
+            ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code', 'option']
           });
         }
       } catch (err) {

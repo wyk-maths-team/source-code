@@ -17,10 +17,10 @@ export default async function handler(req, res) {
 
   const { action } = req.query;
   let decoded = null;
-  if (action !== 'leaderboard') {
+  // if (action !== 'leaderboard') {
     decoded = await verifyToken(req);
     if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
-  }
+  // }
   const db = await connectToDatabase();
 
   // ========== 管理端 ==========
@@ -668,7 +668,7 @@ return res.status(200).json({
 
       const now = Date.now();
       const lastRename = user?.lastRenameAt ? new Date(user.lastRenameAt).getTime() : 0;
-      const RENAME_COOLDOWN = 1 * 60_000;   // 1 小時
+      const RENAME_COOLDOWN = 1 * 60_000;   // 1 min
 
       if (lastRename && now - lastRename < RENAME_COOLDOWN) {
         const remainMs = RENAME_COOLDOWN - (now - lastRename);

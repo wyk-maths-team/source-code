@@ -26,9 +26,23 @@ const BATCH_MAX = 100;
 
 // ═══════════════ Rate limit (in-memory) ═══════════════
 const userRateLimit = new Map();
+const RATE_ENTRY_TTL_MS = 5 * 60_000;   // 5 分鐘沒動就刪
+const RATE_CLEANUP_MS = 60_000;
+let _lastRateCleanup = 0;
+
+function cleanupUserRateLimit(now) {
+  if (now - _lastRateCleanup < RATE_CLEANUP_MS) return;
+  _lastRateCleanup = now;
+  for (const [user, rec] of userRateLimit) {
+    if (now - rec.firstTime > RATE_ENTRY_TTL_MS) {
+      userRateLimit.delete(user);
+    }
+  }
+}
 
 function checkUserRateLimit(username) {
   const t = Date.now();
+  cleanupUserRateLimit(t);   // ⭐ 加這行
   const rec = userRateLimit.get(username);
   if (!rec) {
     userRateLimit.set(username, { count: 1, firstTime: t });
@@ -418,7 +432,6 @@ async function handleSingleSubmit(ctx) {
     marked: false,
     score: 0,
     comment: '',
-    drawing: '',
     subid: generateSubid(),
     answer: type === 'text' ? String(answer) : '',
     image: imageUrl,

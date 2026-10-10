@@ -5,31 +5,55 @@ const config = require('./config');
 
 const ASSISTANT_SELECTOR = '.ds-assistant-message-main-content';
 
+// ═══ 分級 logger ═══
+// 符號約定（bridge.js 的 styleFor 會依此上色）：
+//   ℹ  一般訊息
+//   ✔  成功
+//   ✖  錯誤
+//   ⚠  警告
+//   ▶  發送 / 開始
+//   ◀  接收 / 結束
+//   ⏳  等待
+//   ⌛  輪詢進度
+//   🔗  連線
+const TAG = '[deepseek]';
+const log = {
+  info: (m) => console.log(`${TAG} ℹ ${m}`),
+  ok:   (m) => console.log(`${TAG} ✔ ${m}`),
+  warn: (m) => console.log(`${TAG} ⚠ ${m}`),
+  err:  (m) => console.log(`${TAG} ✖ ${m}`),
+  send: (m) => console.log(`${TAG} ▶ ${m}`),
+  recv: (m) => console.log(`${TAG} ◀ ${m}`),
+  wait: (m) => console.log(`${TAG} ⏳ ${m}`),
+  poll: (m) => console.log(`${TAG} ⌛ ${m}`),
+  link: (m) => console.log(`${TAG} 🔗 ${m}`),
+  raw:  (m) => console.log(`${TAG}   ${m}`),
+};
+
 let _browser = null;
 let _context = null;
 let _page = null;
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-/**
- * 連接到已經開好的 Chrome (port 9222)
- * 不會啟動新 Chrome,只是附著上去
- */
+// ═══════════════ 連線 ═══════════════
 async function launch() {
-  console.log('[deepseek] 嘗試連接 http://localhost:9222 ...');
+  console.log('');
+  console.log(`${TAG} ╔══════════════════════════════════════════╗`);
+  console.log(`${TAG} ║  連接 Chrome (CDP :9222)                 ║`);
+  console.log(`${TAG} ╚══════════════════════════════════════════╝`);
 
   try {
     _browser = await chromium.connectOverCDP('http://localhost:9222', {
       timeout: 10_000,
     });
   } catch (e) {
-    throw new Error(
-      'connectOverCDP 失敗。請先執行 start-chrome.bat 並確認 Chrome 已開啟。\n' +
-      `原始錯誤: ${e.message}`
-    );
+    log.err(`connectOverCDP 失敗: ${e.message}`);
+    log.raw('請先執行 start-chrome.bat 並確認 Chrome 已開啟');
+    throw new Error(`connectOverCDP 失敗: ${e.message}`);
   }
 
-  console.log('[deepseek] ✅ 已連接到 Chrome (CDP)');
+  log.ok('已連接到 Chrome (CDP)');
 
   const contexts = _browser.contexts();
   if (contexts.length === 0) {
@@ -41,20 +65,18 @@ async function launch() {
   _page = pages.find(p => p.url().includes('chat.deepseek.com'));
 
   if (!_page) {
-    console.log('[deepseek] 找不到 DeepSeek 頁籤,開新的...');
+    log.info('找不到 DeepSeek 頁籤，開新的...');
     _page = await _context.newPage();
     await _page.goto(config.DEEPSEEK_URL, { waitUntil: 'domcontentloaded', timeout: 30_000 });
   }
 
   await _page.bringToFront();
+  log.info(`當前頁面: ${_page.url()}`);
 
-  console.log(`[deepseek] 當前頁面: ${_page.url()}`);
   return { browser: _browser, context: _context, page: _page };
 }
 
-/**
- * 檢查是否已登入
- */
+// ═══════════════ 登入檢查 ═══════════════
 async function isLoggedIn() {
   try {
     await _page.waitForSelector(
@@ -67,15 +89,12 @@ async function isLoggedIn() {
   }
 }
 
-/**
- * 阻塞等手動登入
- */
 async function waitForManualLogin() {
   console.log('');
-  console.log('════════════════════════════════════════════');
-  console.log('  ⚠️  請在 Chrome 視窗中手動登入 DeepSeek');
-  console.log('      (完成後程式會自動繼續,最多等 10 分鐘)');
-  console.log('════════════════════════════════════════════');
+  console.log(`${TAG} ╔═══════════════════════════════════════════════╗`);
+  console.log(`${TAG} ║  ⚠  請在 Chrome 視窗中手動登入 DeepSeek      ║`);
+  console.log(`${TAG} ║     完成後程式會自動繼續（最多等 10 分鐘）   ║`);
+  console.log(`${TAG} ╚═══════════════════════════════════════════════╝`);
   console.log('');
 
   await _page.waitForSelector(
@@ -83,19 +102,17 @@ async function waitForManualLogin() {
     { timeout: 600_000, state: 'visible' }
   );
 
-  console.log('[deepseek] ✅ 已登入');
+  log.ok('已登入');
   await sleep(1500);
 }
 
-/**
- * 切換深度思考 (R1) / 一般模式 (V3)
- */
+// ═══════════════ 模式切換 ═══════════════
 async function setDeepThink(enabled) {
   const btn = _page.locator('.ds-toggle-button', { hasText: '深度思考' }).first();
 
   const count = await btn.count();
   if (count === 0) {
-    console.warn('[deepseek] 找不到「深度思考」按鈕,略過切換');
+    log.warn('找不到「深度思考」按鈕，略過切換');
     return false;
   }
 
@@ -106,14 +123,12 @@ async function setDeepThink(enabled) {
   if (isSelected !== enabled) {
     await btn.click();
     await sleep(400);
-    console.log(`[deepseek] 切換深度思考 → ${enabled ? 'R1' : 'V3'}`);
+    log.info(`切換模式 → ${enabled ? 'R1（深度思考）' : 'V3（快速）'}`);
   }
   return true;
 }
 
-/**
- * 發送訊息
- */
+// ═══════════════ 發送訊息 ═══════════════
 async function sendMessage(text) {
   const input = _page.locator(
     'textarea[name="search"], textarea[placeholder*="DeepSeek"]'
@@ -146,16 +161,14 @@ async function sendMessage(text) {
     el.classList.contains('ds-button--disabled')
   );
   if (stillDisabled) {
-    throw new Error('發送按鈕仍為 disabled,無法送出');
+    throw new Error('發送按鈕仍為 disabled，無法送出');
   }
 
   await sendBtn.click();
-  console.log('[deepseek] 訊息已送出');
+  log.send(`訊息已送出 (${text.length} chars)`);
 }
 
-/**
- * 計算目前畫面上 assistant 訊息的節點數量
- */
+// ═══════════════ DOM 查詢工具 ═══════════════
 async function countAssistantMessages() {
   try {
     return await _page.locator(ASSISTANT_SELECTOR).count();
@@ -164,10 +177,6 @@ async function countAssistantMessages() {
   }
 }
 
-/**
- * 取最後一條 assistant 訊息純文字
- * 先用 innerText（可見文字），失敗則 fallback 到 textContent
- */
 async function getLastAssistantText() {
   try {
     const loc = _page.locator(ASSISTANT_SELECTOR).last();
@@ -184,17 +193,126 @@ async function getLastAssistantText() {
     }
   }
 }
+/**
+ * 精确定位「最后一条 assistant 消息」的复制按钮，并在必要时重试
+ * 关键：从最后一条消息往上找容器，只在该容器里找复制按钮
+ *       这样若最新消息的工具栏还没渲染，不会误点上一条的
+ *
+ * @param {number} timeoutMs
+ * @returns {Promise<boolean>} 是否成功点到了按钮
+ */
+async function clickLastMessageCopyButton({ timeoutMs = 10_000 } = {}) {
+  const COPY_SVG_PREFIX = 'M6.14929';
+  const start = Date.now();
+  let lastReason = '';
+
+  while (Date.now() - start < timeoutMs) {
+    const r = await _page.evaluate((prefix) => {
+      const msgs = document.querySelectorAll('.ds-assistant-message-main-content');
+      if (msgs.length === 0) return { ok: false, reason: 'no-messages' };
+
+      const lastMsg = msgs[msgs.length - 1];
+
+      // 從最後一條消息往上找容器，逐層檢查是否含複製按鈕
+      let node = lastMsg;
+      for (let depth = 0; depth < 10; depth++) {
+        if (!node) break;
+
+        const btns = node.querySelectorAll(
+          'div[role="button"].ds-button--iconLabelTertiary'
+        );
+        for (const b of btns) {
+          const path = b.querySelector('svg path');
+          if (path && (path.getAttribute('d') || '').startsWith(prefix)) {
+            b.click();
+            return { ok: true, depth };
+          }
+        }
+        node = node.parentElement;
+      }
+      return { ok: false, reason: 'btn-not-found-near-last' };
+    }, COPY_SVG_PREFIX);
+
+    if (r.ok) {
+      log.info(`點到複製按鈕（容器深度 ${r.depth}）`);
+      return true;
+    }
+
+    lastReason = r.reason || '';
+    await sleep(300);
+  }
+
+  log.warn(`等待複製按鈕超時（${timeoutMs}ms）— 最後狀態: ${lastReason}`);
+  return false;
+}
 
 /**
- * 診斷用：印出目前 DOM 中和 assistant 相關的節點
- * 當 selector 失效時,呼叫這個看一下實際 class 是什麼
+ * 透過「複製」按鈕拿最後一條回覆的原始 Markdown
+ * @returns {Promise<string|null>}
  */
+async function copyLastReply() {
+  try {
+    // ⭐ 1. 注入剪貼板攔截（冪等）
+    await _page.evaluate(() => {
+      if (!window.__dsClipboardHook) {
+        window.__dsClipboardHook = { text: null };
+
+        document.addEventListener('copy', (e) => {
+          try {
+            const t = e.clipboardData?.getData('text/plain') || '';
+            if (t) window.__dsClipboardHook.text = t;
+          } catch {}
+        }, true);
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          const orig = navigator.clipboard.writeText.bind(navigator.clipboard);
+          navigator.clipboard.writeText = (text) => {
+            window.__dsClipboardHook.text = text;
+            return orig(text).catch(() => {});
+          };
+        }
+      }
+      window.__dsClipboardHook.text = null;
+    });
+
+    // ⭐ 2. 記錄訊息數（防誤觸重新生成）
+    const beforeCount = await countAssistantMessages();
+
+    // ⭐ 3. 精確點擊（含輪詢等待）
+    const clicked = await clickLastMessageCopyButton({ timeoutMs: 10_000 });
+    if (!clicked) return null;
+
+    await sleep(300);
+
+    // ⭐ 4. 檢查是否觸發新回覆（防誤觸重新生成）
+    const afterCount = await countAssistantMessages();
+    if (afterCount > beforeCount) {
+      log.warn(`⚠️ 點擊後訊息數 ${beforeCount} → ${afterCount}，可能誤觸了重新生成`);
+      return null;
+    }
+
+    // ⭐ 5. 讀剪貼板
+    const text = await _page.evaluate(() => window.__dsClipboardHook?.text || '');
+
+    if (!text) {
+      log.warn('點擊後剪貼板仍為空');
+      return null;
+    }
+
+    log.ok(`成功從複製按鈕取得 ${text.length} chars`);
+    return text;
+
+  } catch (e) {
+    log.warn(`copyLastReply 異常: ${e.message}`);
+    return null;
+  }
+}
+// ═══════════════ 診斷 ═══════════════
 async function debugDump() {
   const info = await _page.evaluate(() => {
     const sel = '.ds-assistant-message-main-content';
     const nodes = Array.from(document.querySelectorAll(sel));
 
-    // 找所有 class 含有 assistant / markdown 的節點
     const related = Array.from(
       document.querySelectorAll('[class*="assistant"], [class*="markdown"]')
     ).slice(-20).map(n => ({
@@ -215,25 +333,12 @@ async function debugDump() {
     };
   });
 
-  console.log('[deepseek] === DOM DUMP ===');
+  log.info('=== DOM DUMP ===');
   console.log(JSON.stringify(info, null, 2));
   return info;
 }
 
-/**
- * 等 AI 回覆穩定
- *
- * 判斷新回覆的條件（任一成立即算）：
- *   1) assistant 訊息節點數量增加
- *   2) 最後一條的文字與 baseline 不同
- *
- * 穩定判斷：最後一條文字 1.5 秒內不再變化
- *
- * @param {object} opts
- * @param {number} opts.timeoutMs
- * @param {number} opts.baselineCount 送出前的 assistant 訊息數量
- * @param {string} opts.baselineText  送出前最後一條的文字
- */
+// ═══════════════ 等待回覆 ═══════════════
 async function waitForReply({
   timeoutMs = 60_000,
   baselineCount = 0,
@@ -244,34 +349,43 @@ async function waitForReply({
   let lastChangeAt = Date.now();
   let sawNewContent = false;
   let everSawText = false;
+  let lastProgressAt = 0;
 
   while (Date.now() - startTime < timeoutMs) {
     const count = await countAssistantMessages();
     const currentText = await getLastAssistantText();
 
-    // --- 判斷是否已出現新回覆 ---
+    // ── 判斷是否已出現新回覆 ──
     const countIncreased = count > baselineCount;
     const textChanged =
       currentText && baselineText !== undefined && currentText !== baselineText;
 
     if (countIncreased || textChanged) {
       if (!sawNewContent) {
-        console.log(
-          `[deepseek] 偵測到新回覆 (count: ${baselineCount}→${count}, ` +
+        log.recv(
+          `偵測到新回覆 (count: ${baselineCount}→${count}, ` +
           `textChanged: ${textChanged})`
         );
       }
       sawNewContent = true;
     }
 
-    // --- 追蹤最後一條文字是否還在變 ---
+    // ── 追蹤最後一條文字是否還在變 ──
     if (currentText && currentText !== lastText) {
       lastText = currentText;
       lastChangeAt = Date.now();
       everSawText = true;
     }
 
-    // --- 穩定判斷 ---
+    // ── 每 10 秒印一次等待進度 ──
+    const elapsed = Date.now() - startTime;
+    if (elapsed - lastProgressAt > 10_000 && !sawNewContent) {
+      lastProgressAt = elapsed;
+      const pct = Math.round(elapsed / timeoutMs * 100);
+      log.poll(`等待中... ${(elapsed / 1000).toFixed(0)}s / ${(timeoutMs / 1000).toFixed(0)}s (${pct}%)`);
+    }
+
+    // ── 穩定判斷 ──
     if (sawNewContent && everSawText && Date.now() - lastChangeAt >= 1500) {
       return lastText;
     }
@@ -280,68 +394,71 @@ async function waitForReply({
   }
 
   // 超時
-  const elapsed = Date.now() - startTime;
-  console.error(
-    `[deepseek] ⚠️ waitForReply 超時 (${elapsed}ms)。` +
+  log.warn(
+    `waitForReply 超時 (${timeoutMs}ms) — ` +
     `sawNewContent=${sawNewContent}, everSawText=${everSawText}, ` +
     `lastTextLen=${lastText.length}, baselineCount=${baselineCount}`
   );
 
-  // 若已有部分內容,寧可回傳也不要整輪丟掉
   if (lastText) return lastText;
 
-  // 完全沒東西 → 建議使用者跑 debugDump
   throw new Error(
     `等待 AI 回覆超時 (${timeoutMs}ms)。` +
-    `可能是 selector 失效,請呼叫 deepseek.debugDump() 檢查 DOM。`
+    `可能是 selector 失效，請呼叫 deepseek.debugDump() 檢查 DOM。`
   );
 }
 
-/**
- * 完整流程：切模式 → 發送 → 等回覆
- */
+// ═══════════════ 完整流程 ═══════════════
 async function ask(text, { model = 'r1', timeoutMs = 60_000 } = {}) {
-  // baseline 同時記「數量」與「文字」
   const baselineCount = await countAssistantMessages();
   const baselineText = await getLastAssistantText();
 
-  console.log(
-    `[deepseek] baseline: count=${baselineCount}, textLen=${baselineText.length}`
-  );
+  log.info(`baseline: count=${baselineCount}, textLen=${baselineText.length}`);
 
   if (baselineCount === 0 && baselineText === '') {
-    console.warn(
-      '[deepseek] ⚠️ baseline 完全為空。若這是第一個問題屬正常;' +
-      '若不是,可能 selector 已失效,請呼叫 debugDump() 檢查。'
+    log.warn(
+      'baseline 完全為空。若這是第一個問題屬正常;' +
+      '若不是，可能 selector 已失效，請呼叫 debugDump() 檢查。'
     );
   }
 
   await setDeepThink(model === 'r1');
   await sendMessage(text);
 
-  return waitForReply({ timeoutMs, baselineCount, baselineText });
+  const replyDom = await waitForReply({ timeoutMs, baselineCount, baselineText });
+  log.recv(`DOM 回覆完成 (${replyDom.length} chars)`);
+
+  // ⭐ 嘗試用複製按鈕拿乾淨原文
+  await sleep(500);   // 等 UI 出現工具列
+  const replyClean = await copyLastReply();
+
+  if (replyClean && replyClean.length > 0) {
+    log.ok(`使用複製按鈕的文字 (${replyClean.length} chars)`);
+    return replyClean;
+  }
+
+  log.warn('複製按鈕失敗，回退到 DOM 文字');
+  return replyDom;
 }
 
-/**
- * 截圖
- */
+// ═══════════════ 截圖 ═══════════════
 async function screenshot(filename) {
   try {
     await _page.screenshot({ path: filename, fullPage: false });
+    log.ok(`已截圖: ${filename}`);
     return filename;
   } catch (e) {
-    console.error('[deepseek] 截圖失敗:', e.message);
+    log.err(`截圖失敗: ${e.message}`);
     return null;
   }
 }
 
-/**
- * 斷開 CDP 連接（不關閉 Chrome）
- */
+// ═══════════════ 關閉 ═══════════════
 async function close() {
   if (_browser) {
     try {
       await _browser.close();
+      log.info('已斷開 CDP 連接');
     } catch {}
   }
   _browser = null;
@@ -357,6 +474,7 @@ module.exports = {
   sendMessage,
   countAssistantMessages,
   getLastAssistantText,
+  copyLastReply, 
   debugDump,
   waitForReply,
   ask,

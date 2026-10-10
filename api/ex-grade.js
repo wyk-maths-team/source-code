@@ -2,7 +2,6 @@
 // AI 批改代理 —— 把用戶答案轉發到 Cloudflare Tunnel 上的 FastAPI
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
-//***REMOVED_API_KEY***
 const UPSTREAM_URL =
   process.env.EX_GRADE_UPSTREAM ||
   'https://laser-nextel-numerous-deborah.trycloudflare.com/grade';

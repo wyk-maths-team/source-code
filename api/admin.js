@@ -288,12 +288,12 @@ async function handleMarkerDetail(req, res, db) {
   const sub = await db.collection('submissions').findOne({ subid });
   if (!sub) return fail(res, 404, 'Submission not found');
 
-  const { username, problemId, timestamp, marked, score, comment, drawing, image, markedAt } = sub;
+  const { username, problemId, timestamp, marked, score, comment, image, markedAt } = sub;
   return ok(res, {
     success: true,
     submission: {
       subid, image, username, problemId, timestamp,
-      marked, score, comment, drawing,
+      marked, score, comment, 
       markedAt: markedAt || null,
     },
   });
@@ -303,7 +303,7 @@ async function handleMarkerDetail(req, res, db) {
 async function handleMarkSubmit(req, res, db, decoded) {
   if (req.method !== 'PUT') return fail(res, 405, 'Method not allowed');
 
-  const { subid, score, comment, drawing } = req.body || {};
+  const { subid, score, comment } = req.body || {};
   if (!subid || score === undefined) return fail(res, 400, 'Missing subid/score');
 
   const sub = await db.collection('submissions').findOne({ subid });
@@ -321,7 +321,6 @@ async function handleMarkSubmit(req, res, db, decoded) {
         marked: true,
         score: numScore,
         comment: comment || '',
-        drawing: drawing || '',
         markedAt: new Date(),
       },
     }

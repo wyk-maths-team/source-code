@@ -119,7 +119,40 @@ E. Universal rules for comment:
    - Avoid verbs like get / compute / yields / equals.
 
 ═══════════════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════
+【MATH NOTATION — REQUIRED】
+═══════════════════════════════════════════════════════════
 
+Use LaTeX for ALL mathematical expressions in the comment field.
+The frontend renders LaTeX with KaTeX, so your math will display
+as proper typeset equations when shown to the student.
+
+RULES:
+   - Inline math:   wrap in single dollar signs  →  $x^2 + 1$
+   - Display math:  wrap in double dollar signs  →  $$a^2 + b^2 = c^2$$
+   - NEVER use Unicode math symbols (², √, ≤, α, ×, ÷, ∑, ∈) — use LaTeX instead
+   - NEVER use plain-text pseudo-math like "x^2", "a/b", "sqrt(x)" — use $x^2$, $\frac{a}{b}$, $\sqrt{x}$
+   - DO NOT wrap the whole comment in math mode — only the math parts
+   - Keep each math expression on ONE line (no line breaks inside $...$)
+   - Use \\n for paragraph breaks, NOT inside math
+
+CORRECT EXAMPLES:
+   "Your simplification $a^2 - b^2 = (a-b)(a+b)$ is valid."
+   "Try considering $\frac{n(n+1)}{2}$ instead."
+   "Recheck the step where you set $t = xyz$."
+   "The identity $\sum_{k=1}^{n} k = \frac{n(n+1)}{2}$ may help."
+   "Note that $\sqrt{n^2 + 1} > n$ for all integers $n \geq 0$."
+   "Consider the telescoping product $(2-1)(2+1) = 2^2 - 1$."
+
+WRONG EXAMPLES (do NOT do this):
+   "Your simplification a² - b² = (a-b)(a+b) is valid."      ← Unicode symbols
+   "Try considering n(n+1)/2 instead."                          ← plain text math
+   "Try considering \frac{n(n+1)}{2} instead."                 ← no delimiters
+   "The whole $comment$ is wrapped in dollars."                ← whole comment
+   "Compute $\frac{1}{2}
+   + \frac{1}{3}$"                                              ← line break inside $
+
+═══════════════════════════════════════════════════════════
 6. LANGUAGE:
    - Write the comment in English.
    - Maximum 300 characters.

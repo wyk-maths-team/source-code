@@ -74,13 +74,29 @@ function ts() {
 
 // ═══ 樣式判斷：偵測 [deepseek] / [mcq] 等前綴，給對應顏色 ═══
 function styleFor(msg) {
-  if (/^\[deepseek\]/i.test(msg))  return { color: C.brightMagenta, icon: '🐋' };
-  if (/^\[mcq\]/i.test(msg))       return { color: C.brightBlue,    icon: '📄' };
-  if (/^\[parse\]/i.test(msg))     return { color: C.brightYellow,  icon: '🔍' };
-  if (/^\[claim\]/i.test(msg))     return { color: C.brightCyan,    icon: '🔒' };
-  if (/^\[main\]/i.test(msg))      return { color: C.brightRed,     icon: '⚠' };
-  if (/^\[math\]/i.test(msg))      return { color: C.brightYellow,  icon: '∑'  };
-  if (/^\[load/i.test(msg))        return { color: C.brightBlue,    icon: '📦' };
+  // ── [deepseek] 子類別（細分顏色 + 圖標）──
+  if (/^\[deepseek\]\s*✔/.test(msg))  return { color: C.brightGreen,   icon: '🐋' };
+  if (/^\[deepseek\]\s*✖/.test(msg))  return { color: C.brightRed,     icon: '🐋' };
+  if (/^\[deepseek\]\s*⚠/.test(msg))  return { color: C.brightYellow,  icon: '🐋' };
+  if (/^\[deepseek\]\s*▶/.test(msg))  return { color: C.brightCyan,    icon: '🐋' };
+  if (/^\[deepseek\]\s*◀/.test(msg))  return { color: C.brightGreen,   icon: '🐋' };
+  if (/^\[deepseek\]\s*⏳/.test(msg)) return { color: C.brightBlue,    icon: '🐋' };
+  if (/^\[deepseek\]\s*⌛/.test(msg)) return { color: C.blue,          icon: '🐋' };
+  if (/^\[deepseek\]\s*🔗/.test(msg)) return { color: C.brightCyan,    icon: '🐋' };
+  if (/^\[deepseek\]\s*ℹ/.test(msg))  return { color: C.brightMagenta, icon: '🐋' };
+  if (/^\[deepseek\]/.test(msg))      return { color: C.brightMagenta, icon: '🐋' };
+
+  // ── 其他模組前綴 ──
+  if (/^\[mcq\]/i.test(msg))    return { color: C.brightBlue,   icon: '📄' };
+  if (/^\[parse\]/i.test(msg))  return { color: C.brightYellow, icon: '🔍' };
+  if (/^\[claim\]/i.test(msg))  return { color: C.brightCyan,   icon: '🔒' };
+  if (/^\[main\]/i.test(msg))   return { color: C.brightRed,    icon: '⚠' };
+  if (/^\[math\]/i.test(msg))   return { color: C.brightYellow, icon: '∑'  };
+  if (/^\[load/i.test(msg))     return { color: C.brightBlue,   icon: '📦' };
+  if (/^\[score\]/i.test(msg))  return { color: C.brightGreen,  icon: '★'  };
+  if (/^\[err/i.test(msg))      return { color: C.brightRed,    icon: '✖'  };
+  if (/^\[db\]/i.test(msg))     return { color: C.brightCyan,   icon: '🗄' };
+
   return { color: C.white, icon: '·' };
 }
 
@@ -248,10 +264,10 @@ function row(content, width = 66) {
 // ═══════════════ 啟動橫幅 ═══════════════
 function banner() {
   console.log('');
-  console.log(`${C.brightCyan}  ╔══════════════════════════════════════════════════════════════╗${C.reset}`);
+  console.log(`${C.brightCyan}  ╔══════════════════════════════════════════════════════════════════╗${C.reset}`);
   console.log(`${C.brightCyan}  ║${C.reset}  ${C.bold}${C.brightCyan}🐋  DeepSeek Grader Bridge${C.reset}                                      ${C.brightCyan}║${C.reset}`);
-  console.log(`${C.brightCyan}  ║${C.reset}  ${C.gray}AI 批改任務轉發器  ·  v2.0${C.reset}                                    ${C.brightCyan}║${C.reset}`);
-  console.log(`${C.brightCyan}  ╚══════════════════════════════════════════════════════════════╝${C.reset}`);
+  console.log(`${C.brightCyan}  ║${C.reset}  ${C.gray}AI 批改任務轉發器  ·  v2.0${C.reset}                                      ${C.brightCyan}║${C.reset}`);
+  console.log(`${C.brightCyan}  ╚══════════════════════════════════════════════════════════════════╝${C.reset}`);
   console.log('');
 }
 
@@ -269,7 +285,72 @@ function printBootstrap() {
   console.log(`${C.dim}  └────────────────────────────────────────────────────┘${C.reset}`);
   console.log('');
 }
+// ═══════════════ JSON 字串內控制字元轉義 ═══════════════
+/**
+ * 把 JSON 字串內未轉義的控制字元（\n \r \t 等）轉成轉義序列
+ * 追蹤字串狀態（"..." 內外）與轉義符（\），避免誤傷結構
+ */
+function escapeControlCharsInJsonStrings(str) {
+  let out = '';
+  let inString = false;
+  let escaped = false;
 
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    const code = str.charCodeAt(i);
+
+    if (escaped) {
+      out += ch;
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\') {
+      out += ch;
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      out += ch;
+      continue;
+    }
+    if (inString && code < 0x20) {
+      switch (ch) {
+        case '\n': out += '\\n'; break;
+        case '\r': out += '\\r'; break;
+        case '\t': out += '\\t'; break;
+        case '\b': out += '\\b'; break;
+        case '\f': out += '\\f'; break;
+        default:   out += '\\u' + code.toString(16).padStart(4, '0');
+      }
+      continue;
+    }
+    out += ch;
+  }
+
+  return out;
+}
+
+// ═══════════════ 壓縮單字符斷行 ═══════════════
+/**
+ * 把「每個數學 token 一行」的模式合併
+ *   "(\n2\n−\n1\n)"  →  "(2−1)"
+ * 保留段落換行（兩個以上連續 \n）
+ */
+function compactShortNewlines(text) {
+  if (!text) return text;
+  let prev;
+  do {
+    prev = text;
+    // \n<單字符>\n → <單字符>
+    text = text.replace(/\n([^\n])\n/g, '$1');
+  } while (text !== prev);
+  // 尾端
+  text = text.replace(/\n([^\n])$/g, '$1');
+  // 開頭
+  text = text.replace(/^([^\n])\n/g, '$1');
+  return text;
+}
 // ═══════════════ 解析 AI 回覆 ═══════════════
 function parseReply(raw) {
   if (!raw) return null;
@@ -296,10 +377,24 @@ function parseReply(raw) {
   }
 
   let jsonStr = s.slice(first, last + 1);
+
+  // ⭐ 1. 先把字串內未轉義的控制字元轉義
+  jsonStr = escapeControlCharsInJsonStrings(jsonStr);
+
+  // 2. 移除尾逗號
   jsonStr = jsonStr.replace(/,(\s*[}\]])/g, '$1');
 
   try {
-    return JSON.parse(jsonStr);
+    const parsed = JSON.parse(jsonStr);
+
+    // ⭐ 3. comment 清理：合併單字符斷行
+    if (parsed && typeof parsed.comment === 'string') {
+      parsed.comment = compactShortNewlines(parsed.comment);
+      // 壓縮連續空白
+      parsed.comment = parsed.comment.replace(/[ \t]+/g, ' ').trim();
+    }
+
+    return parsed;
   } catch (e) {
     logError(`JSON.parse 失敗: ${e.message}`);
     logError(`原始長度: ${original.length}`);
@@ -307,9 +402,12 @@ function parseReply(raw) {
     const bad = [];
     for (let i = 0; i < jsonStr.length; i++) {
       const cp = jsonStr.charCodeAt(i);
-      if (cp > 127 || cp < 32) bad.push(`${i}:U+${cp.toString(16)}`);
+      // ⭐ 只記錄真正的控制字元（不含 \t \n \r）
+      if (cp < 32 && cp !== 9 && cp !== 10 && cp !== 13) {
+        bad.push(`${i}:U+${cp.toString(16)}`);
+      }
     }
-    if (bad.length) logError(`非 ASCII: ${bad.slice(0, 30).join(' ')}`);
+    if (bad.length) logError(`殘留控制字元: ${bad.slice(0, 30).join(' ')}`);
     return null;
   }
 }
@@ -422,7 +520,62 @@ function renderComment(comment, maxWidth = 62) {
 
   return out;
 }
+// ═══════════════ 在框內渲染 deepseek 日誌 ═══════════════
 
+// 符號 → 顏色（跟 deepseek.js 的符號約定一致）
+function symColor(sym) {
+  switch (sym) {
+    case '✔': return C.brightGreen;
+    case '✖': return C.brightRed;
+    case '⚠': return C.brightYellow;
+    case '▶': return C.brightCyan;
+    case '◀': return C.brightGreen;
+    case '⏳': return C.brightBlue;
+    case '⌛': return C.blue;
+    case '🔗': return C.brightCyan;
+    case 'ℹ': return C.brightMagenta;
+    default:  return C.gray;
+  }
+}
+
+/**
+ * 在 fn() 執行期間，把 [deepseek] 的 console.log 改寫成框內的行。
+ * 非 [deepseek] 的訊息照常輸出。
+ *
+ * @param {number} W   框寬
+ * @param {Function} fn 要執行的非同步函式
+ */
+async function boxedDeepseekLog(W, fn) {
+  const prevLog = console.log;
+
+  console.log = (...args) => {
+    const msg = args.map(a =>
+      typeof a === 'string' ? a : JSON.stringify(a)
+    ).join(' ');
+
+    // 不是 deepseek 的訊息 → 直接透傳
+    if (!msg.startsWith('[deepseek]')) {
+      prevLog(...args);
+      return;
+    }
+
+    // 解析 [deepseek] <符號> <文字>
+    const body = msg.replace(/^\[deepseek\]\s*/, '');
+    const m = body.match(/^(ℹ|✔|✖|⚠|▶|◀|⏳|⌛|🔗)\s+([\s\S]*)$/);
+    const sym  = m ? m[1] : '·';
+    const text = (m ? m[2] : body).replace(/\s+/g, ' ').trim();
+    const color = symColor(sym);
+
+    // 用框行渲染（呼叫原本的 console.log，會加上時間戳和 icon）
+    prevLog(row(`${color}${C.bold}${sym}${C.reset} ${C.gray}${text}${C.reset}`, W));
+  };
+
+  try {
+    return await fn();
+  } finally {
+    console.log = prevLog;
+  }
+}
 // ═══════════════ 處理單一任務 ═══════════════
 async function processTask(page, task) {
   const { taskId, problemId, steps, model } = task;
@@ -489,12 +642,15 @@ async function processTask(page, task) {
       W
     ));
 
-    const t0 = Date.now();
-    const reply = await deepseek.ask(prompt, {
-      model: useModel,
-      timeoutMs: config.TASK_TIMEOUT_MS,
+    let reply, elapsed;
+    await boxedDeepseekLog(W, async () => {
+      const t0 = Date.now();
+      reply = await deepseek.ask(prompt, {
+        model: useModel,
+        timeoutMs: config.TASK_TIMEOUT_MS,
+      });
+      elapsed = Date.now() - t0;
     });
-    const elapsed = Date.now() - t0;
 
     const replyColor =
       elapsed < 10000 ? C.green :
@@ -572,7 +728,7 @@ async function processTask(page, task) {
       console.log(row(`${C.dim}(無評語)${C.reset}`, W));
     } else {
       commentLines.forEach((line, idx) => {
-        const prefix = idx === 0 ? `${C.cyan}💬${C.reset} ` : `${C.cyan}  ${C.reset} `;
+        const prefix = idx === 0 ? `${C.cyan}${C.reset} ` : `${C.cyan}  ${C.reset} `;
         console.log(row(`${prefix}${C.white}${line}${C.reset}`, W));
       });
     }

@@ -347,6 +347,33 @@
   background: linear-gradient(90deg, #2a2a2a 25%, #3a3a3a 50%, #2a2a2a 75%);
   background-size: 200% 100%;
 }
+/* ⭐ 長答案折疊 */
+.answer-toggle {
+  cursor: pointer;
+  display: inline-block;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background .12s;
+  max-width: 100%;
+  word-break: break-all;
+}
+.answer-toggle:hover {
+  background: rgba(74, 144, 217, .12);
+}
+.answer-toggle::after {
+  content: ' ▸';
+  color: var(--text-secondary);
+  opacity: .6;
+  font-size: .85em;
+}
+.answer-toggle[data-expanded="true"]::after {
+  content: ' ▾';
+}
+.answer-toggle[data-expanded="true"] {
+  background: rgba(74, 144, 217, .08);
+}
+.answer-toggle[data-expanded="true"] .answer-preview { display: none; }
+.answer-toggle[data-expanded="false"] .answer-full { display: none; }
   </style>
 
   <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
@@ -868,7 +895,28 @@ function buildFilterHeader(header) {
         }
         return html;
       }
-      
+      // ⭐ 答案欄位渲染：長度 > 20 加折疊
+const ANSWER_COLLAPSE_THRESHOLD = 20;
+
+function renderAnswerCell(s) {
+  if (s.type === 'image') {
+    return '<i>Image</i>';
+  }
+  if (s.answerHidden) {
+    return '<span class="answer-hidden" style="color:var(--text-secondary);font-style:italic;">Hidden</span>';
+  }
+
+  const txt = String(s.answer == null ? '-' : s.answer);
+  if (txt.length <= ANSWER_COLLAPSE_THRESHOLD) {
+    return escapeHtml(txt);
+  }
+
+  const preview = txt.slice(0, ANSWER_COLLAPSE_THRESHOLD);
+  return `<span class="answer-toggle" data-expanded="false" title="Click to expand">` +
+           `<span class="answer-preview">${escapeHtml(preview)}…</span>` +
+           `<span class="answer-full">${escapeHtml(txt)}</span>` +
+         `</span>`;
+}
       // ---- 渲染表格 ----
       function renderTable(submissions) {
         const tbody = document.getElementById('submissionsBody');
@@ -884,11 +932,7 @@ function buildFilterHeader(header) {
           const subId = s.subid || '-';
           const problemDisplay = `${escapeHtml(s.problemId)} - ${escapeHtml(s.problemName || '')}`;
           const isMine = currentUsername && s.username === currentUsername;
-            const answerHtml = s.type === 'image'
-  ? '<i>Image</i>'
-  : s.answerHidden
-    ? '<span class="answer-hidden" style="color:var(--text-secondary);font-style:italic;">Hidden</span>'
-    : escapeHtml(String(s.answer || '-'));
+          const answerHtml = renderAnswerCell(s);
           html += `<tr${isMine ? ' class="mine"' : ''}>
             <td class="col-datetime"><a href="/submissions/${encodeURIComponent(subId)}/detail">${time}</a></td>
             <td class="col-user left-align">
@@ -994,6 +1038,16 @@ function buildFilterHeader(header) {
             renderPagination(last.page, last.hasMore);
           }
         }, 200);
+      });
+      // ⭐ 事件委託：點擊折疊答案
+      document.addEventListener('click', (e) => {
+        const toggle = e.target.closest('.answer-toggle');
+        if (!toggle) return;
+        // 避免點在 <a> 或其他互動元素上時誤觸
+        if (e.target.closest('a')) return;
+
+        const expanded = toggle.dataset.expanded === 'true';
+        toggle.dataset.expanded = expanded ? 'false' : 'true';
       });
       // ---- 启动 ----
       renderLayout();
