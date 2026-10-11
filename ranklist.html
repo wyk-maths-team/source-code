@@ -309,6 +309,16 @@
     #leaderboardBody.refreshing {
       opacity: .5;
     }
+    .user-rating {
+      font-weight: 800;
+      font-family: 'Consolas', monospace;
+      transition: color .2s;
+    }
+    .user-rating[data-tier="legend"] { animation: glow 2s infinite alternate; }
+    @keyframes glow {
+      from { text-shadow: 0 0 6px currentColor; }
+      to   { text-shadow: 0 0 14px currentColor, 0 0 20px currentColor; }
+    }
   </style>
 
   <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
@@ -446,13 +456,16 @@ function formatLastSeen(ts) {
           <div class="tip-username">@${escapeHtml(user.username)}</div>
           ${user.realName ? `<div class="tip-realname">${escapeHtml(user.realName)}</div>` : ''}
           <div class="tip-realname" style="margin-top:4px;">
+            Rating: <span class="user-rating" style="color:${user.tierColor}; text-shadow: 0 0 6px ${user.tierGlow};">
+                    ${user.rating}
+                  </span><br>
             <span style="color:${user.online ? '#2ecc71' : '#aaa'};">
               <i class="fas fa-circle" style="font-size:6px;vertical-align:middle;"></i>
               ${user.online
-  ? 'Online'
-  : user.explicitlyOffline
-    ? `Offline (logged out) · Last seen: ${escapeHtml(formatLastSeen(user.lastSeenAt))}`
-    : `Last seen: ${escapeHtml(formatLastSeen(user.lastSeenAt))}`}
+                ? 'Online'
+                : user.explicitlyOffline
+                  ? `Offline (logged out) · Last seen: ${escapeHtml(formatLastSeen(user.lastSeenAt))}`
+                  : `Last seen: ${escapeHtml(formatLastSeen(user.lastSeenAt))}`}
             </span>
           </div>
         </div>
@@ -524,6 +537,9 @@ function formatLastSeen(ts) {
                    style="display:flex;align-items:center;gap:6px;">
                   ${avatarHtml(entry, 24)}
                   <span>${escapeHtml(entry.username)} - ${escapeHtml(entry.displayName || entry.username)}</span>
+                  <span class="user-rating" style="color:${entry.tierColor}; text-shadow: 0 0 6px ${entry.tierGlow};">
+                    ${entry.rating}
+                  </span>
                 </a>
               </td>
               <td class="text-center">${entry.solves}</td>

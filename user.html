@@ -791,6 +791,9 @@
               <div class="profile-info">
                 <h1>${escapeHtml(displayName || username)}</h1>
                 ${realNameHtml}
+                Rating: <span class="user-rating" style="color:${data.tierColor}; text-shadow: 0 0 6px ${data.tierGlow};">
+                    ${data.rating}
+                  </span><br>
                 <div class="profile-meta">
                   <span class="meta-badge">Username: ${escapeHtml(username)}</span>
                   <a href="/submissions/user/${encodeURIComponent(username)}" class="btn-link">Submissions</a>

@@ -4,7 +4,7 @@ import { verifyToken } from '../lib/auth.js';
 import bcrypt from 'bcrypt';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';   // ⭐ 唯一来源，不再本地重复定义
-
+import { calculateUserRating } from '../lib/rating.js';
 // ⭐ 排行榜內存緩存（30 秒）
 let _leaderboardCache = { data: null, expireAt: 0 };
 const LEADERBOARD_TTL = 10_000;
@@ -17,10 +17,9 @@ export default async function handler(req, res) {
 
   const { action } = req.query;
   let decoded = null;
-  // if (action !== 'leaderboard') {
     decoded = await verifyToken(req);
     if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
-  // }
+
   const db = await connectToDatabase();
 
   // ========== 管理端 ==========
@@ -552,7 +551,37 @@ export default async function handler(req, res) {
             explicitlyOffline: !!u.explicitlyOffline,   // ⭐ 新增
           };
         });
+              // ⭐ 計算 Rating（三步算法 + σ 調節）
+      const statsDocs = await db.collection('userstats')
+        .find({ username: { $in: leaderboard.map(u => u.username) } })
+        .toArray();
 
+      const allPids = new Set();
+      statsDocs.forEach(s => Object.keys(s.states || {}).forEach(pid => allPids.add(pid)));
+
+      const problemDocs = allPids.size > 0
+        ? await db.collection('problems')
+            .find({ id: { $in: [...allPids] } }, { projection: { id: 1, difficulty: 1, _id: 0 } })
+            .toArray()
+        : [];
+      const diffMap = Object.fromEntries(problemDocs.map(p => [String(p.id), Number(p.difficulty) || 0]));
+
+      const statsMap = Object.fromEntries(statsDocs.map(s => [s.username, s]));
+
+      for (const u of leaderboard) {
+        const states = statsMap[u.username]?.states || {};
+        const solvedDiffs = [];
+        for (const [pid, st] of Object.entries(states)) {
+          if (st === 'passed' && diffMap[pid] !== undefined) {
+            solvedDiffs.push(diffMap[pid]);
+          }
+        }
+        const r = calculateUserRating({ solvedDifficulties: solvedDiffs });
+        u.rating = r.rating;
+        u.tierColor = r.tier.color;
+        u.tierGlow = r.tier.glow;
+        u.maxDifficulty = r.maxPR;
+      }
       const payload = { success: true, leaderboard, serverNow, heartbeatMs: HEARTBEAT_MS, timeoutMs: TIMEOUT_MS };
       _leaderboardCache = { data: payload, expireAt: Date.now() + LEADERBOARD_TTL };
       return res.status(200).json(payload);
@@ -566,48 +595,65 @@ export default async function handler(req, res) {
       const problemFilter = isAdminUser ? {} : { public: true };
 
       const [problems, userStats, user] = await Promise.all([
-  db.collection('problems')
-    .find(problemFilter, { projection: { id: 1, _id: 0 } })
-    .toArray(),
-  db.collection('userstats').findOne({ username }, { projection: { states: 1, _id: 0 } }),
-  db.collection('users').findOne(
-    { username },
-    { projection: { pfp: 1, displayName: 1, realName: 1, heartbeatCount: 1, lastSeenAt: 1, _id: 0 } }  // ⭐
-  )
-]);
+        db.collection('problems')
+          .find(problemFilter, { projection: { id: 1, difficulty: 1, _id: 0 } })   // ⭐ 加 difficulty
+          .toArray(),
+        db.collection('userstats').findOne({ username }, { projection: { states: 1, _id: 0 } }),
+        db.collection('users').findOne(
+          { username },
+          { projection: { pfp: 1, displayName: 1, realName: 1, heartbeatCount: 1, lastSeenAt: 1, _id: 0 } }
+        )
+      ]);
 
       problems.sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
 
       const states = userStats?.states || {};
       const attempted = [];
       let totalPassed = 0;
+      const solvedDifficulties = [];                          // ⭐ 收集已通過的題目難度
+
       for (const p of problems) {
         const state = states[p.id];
-        if (state === 'passed') { totalPassed++; attempted.push({ id: p.id, state: 'passed' }); }
-        else if (state === 'failed') attempted.push({ id: p.id, state: 'failed' });
+        if (state === 'passed') {
+          totalPassed++;
+          attempted.push({ id: p.id, state: 'passed' });
+          solvedDifficulties.push(Number(p.difficulty) || 0);  // ⭐
+        }
+        else if (state === 'failed') {
+          attempted.push({ id: p.id, state: 'failed' });
+        }
       }
+
+      // ⭐ 計算 rating
+      const ratingResult = calculateUserRating({ solvedDifficulties });
 
       const HEARTBEAT_MS = Number(process.env.ONLINE_HEARTBEAT_MS) || 5 * 60 * 1000;
       const TIMEOUT_MS   = Number(process.env.ONLINE_TIMEOUT_MS)   || HEARTBEAT_MS + 2 * 60 * 1000;
-const heartbeats = Number(user?.heartbeatCount) || 0;
-const totalOnlineMs = heartbeats * HEARTBEAT_MS;
-const lastSeenMs   = user?.lastSeenAt ? new Date(user.lastSeenAt).getTime() : 0;
-const online = lastSeenMs > 0 && (Date.now() - lastSeenMs) < TIMEOUT_MS;
-return res.status(200).json({
-  success: true,
-  username,
-  displayName: user?.displayName || username,
-  realName: user?.realName || '',
-  pfp: user?.pfp || '',
-  totalPassed,
-  totalProblems: problems.length,
-  attempted,
-  allProblemIds: problems.map(p => p.id),
-  online,
-  // ⭐ 新增
-  totalOnlineMs,
-  lastSeenAt: user?.lastSeenAt || null,
-});
+      const heartbeats   = Number(user?.heartbeatCount) || 0;
+      const totalOnlineMs = heartbeats * HEARTBEAT_MS;
+      const lastSeenMs   = user?.lastSeenAt ? new Date(user.lastSeenAt).getTime() : 0;
+      const online       = lastSeenMs > 0 && (Date.now() - lastSeenMs) < TIMEOUT_MS;
+
+      return res.status(200).json({
+        success: true,
+        username,
+        displayName: user?.displayName || username,
+        realName: user?.realName || '',
+        pfp: user?.pfp || '',
+        totalPassed,
+        totalProblems: problems.length,
+        attempted,
+        allProblemIds: problems.map(p => p.id),
+        online,
+        totalOnlineMs,
+        lastSeenAt: user?.lastSeenAt || null,
+        // ⭐ Rating
+        rating: ratingResult.rating,
+        tierColor: ratingResult.tier.color,
+        tierGlow: ratingResult.tier.glow,
+        maxDifficulty: ratingResult.effectiveMax,
+        solvedCount: ratingResult.solvedCount,
+      });
     }
 
     // ========== 收藏/取消收藏 ==========
