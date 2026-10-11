@@ -258,26 +258,26 @@
   }
 
   // ⭐ 全局註冊表
-window.PD = {
-  S, problemId, mainContainer, PAGE_LOAD_AT,
-  esc, debounce, executeScriptsIn, loadScript, loadCssOnce,
-  getTopbarHeight, clampInt,
-  answersStore, saveAnswerDebounced, saveAnswerNow,
-  setWorkbenchStatus, setWorkbenchStatusHtml, statusBoxHtml,
-  updateProblemDetailIcon,
-  // ⭐ 快取相關
-  getCachedState,
-  setCachedState,
-  setProblemState,
-  // ⭐ 數學渲染（新增）
-  waitForKaTeX,
-  renderMath,
-  renderRichText,
-  // 註冊槽
-  workbench: null,
-  extras: null,
-  mcq: null,
-};
+  window.PD = {
+    S, problemId, mainContainer, PAGE_LOAD_AT,
+    esc, debounce, executeScriptsIn, loadScript, loadCssOnce,
+    getTopbarHeight, clampInt,
+    answersStore, saveAnswerDebounced, saveAnswerNow,
+    setWorkbenchStatus, setWorkbenchStatusHtml, statusBoxHtml,
+    updateProblemDetailIcon,
+    // ⭐ 快取相關
+    getCachedState,
+    setCachedState,
+    setProblemState,
+    // ⭐ 數學渲染（新增）
+    waitForKaTeX,
+    renderMath,
+    renderRichText,
+    // 註冊槽
+    workbench: null,
+    extras: null,
+    mcq: null,
+  };
 
   // ─────────────────────────────────────────────────────────────
   // [5] 頁面資料載入
@@ -797,7 +797,99 @@ async function renderRichText(target, text) {
       mainContainer.innerHTML = `<div class="error-msg">Failed to load problem: ${esc(err.message)}</div>`;
     }
   }
+  // ─────────────────────────────────────────────────────────────
+  // [10] 提交冷卻（防刷）
+  // ─────────────────────────────────────────────────────────────
+  const COOLDOWN_MS = {
+    text:  10_000,    // 10 秒
+    photo: 60_000,    // 1 分鐘
+    steps: 60_000,    // 1 分鐘
+  };
 
+  const cooldown = {
+    _raf: null,
+
+    _key(mode) { return `cd_${problemId}_${mode}`; },
+
+    _until(mode) {
+      try {
+        const v = Number(localStorage.getItem(this._key(mode)));
+        return (Number.isFinite(v) && v > Date.now()) ? v : 0;
+      } catch { return 0; }
+    },
+
+    isOn(mode) { return this._until(mode) > 0; },
+
+    remaining(mode) {
+      const until = this._until(mode);
+      return until > 0 ? until - Date.now() : 0;
+    },
+
+    start(mode) {
+      const dur = COOLDOWN_MS[mode];
+      if (!dur) return;
+      try {
+        localStorage.setItem(this._key(mode), String(Date.now() + dur));
+      } catch {}
+      this.refresh();
+    },
+
+    _currentMode() {
+      const wb = window.PD && window.PD.workbench;
+      return (wb && wb.mode && wb.mode !== 'none') ? wb.mode : null;
+    },
+
+    /**
+     * 刷新按鈕的冷卻顯示
+     * - 有冷卻 → 加 cooling 類 + disabled + RAF 更新 --cool-deg / --cool-pct
+     * - 沒冷卻 → 移除 cooling 類，按鈕啟用（若當前模式有效）
+     */
+    refresh() {
+      const btn = document.getElementById('checkAnswerBtn');
+      if (!btn) return;
+      if (this._raf) { cancelAnimationFrame(this._raf); this._raf = null; }
+
+      const mode = this._currentMode();
+      const until = mode ? this._until(mode) : 0;
+
+      if (!until) {
+        btn.classList.remove('cooling');
+        btn.style.removeProperty('--cool-deg');
+        btn.style.removeProperty('--cool-pct');
+        btn.disabled = !mode;      // 沒模式 → 禁用；有模式 → 啟用
+        if (window.PD.S) window.PD.S.cooldown = false;
+        return;
+      }
+
+      const dur = COOLDOWN_MS[mode];
+      const startedAt = until - dur;
+      btn.classList.add('cooling');
+      btn.disabled = true;
+      if (window.PD.S) window.PD.S.cooldown = true;
+
+      const tick = () => {
+        const pct = Math.min(1, (Date.now() - startedAt) / dur);
+        btn.style.setProperty('--cool-deg', (pct * 360) + 'deg');
+        btn.style.setProperty('--cool-pct', String(pct));
+
+        if (pct >= 1) {
+          btn.classList.remove('cooling');
+          btn.style.removeProperty('--cool-deg');
+          btn.style.removeProperty('--cool-pct');
+          btn.disabled = !this._currentMode();
+          if (window.PD.S) window.PD.S.cooldown = false;
+          try { localStorage.removeItem(this._key(mode)); } catch {}
+          this._raf = null;
+          return;
+        }
+        this._raf = requestAnimationFrame(tick);
+      };
+      tick();
+    },
+  };
+
+  // 暴露到 window.PD
+  window.PD.cooldown = cooldown;
   // ─────────────────────────────────────────────────────────────
   // [9] 生命週期（僅答案存儲，其餘由 extras 處理）
   // ─────────────────────────────────────────────────────────────

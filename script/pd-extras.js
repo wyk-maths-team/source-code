@@ -306,6 +306,7 @@ function clearWorkbenchStatus() {
 
       this.mode = newMode;
       restoreWorkbenchStatus();   // ⭐ 保留上次批改結果
+      if (window.PD.cooldown) window.PD.cooldown.refresh();
     },
   };
 
@@ -582,6 +583,7 @@ function clearWorkbenchStatus() {
         checkBtn.disabled = false;
         return;
       }
+      if (window.PD.cooldown) window.PD.cooldown.start('steps');
       startGradingProgress();
       pollStepsResult(res.taskId, checkBtn);
 
@@ -949,7 +951,14 @@ function clearWorkbenchStatus() {
           PD.setProblemState(problemId, 'failed');
         }
         updateProblemDetailIcon();
-
+        // ⭐ 啟動冷卻
+        if (window.PD.cooldown) {
+          window.PD.cooldown.start(
+            payload.type === 'steps' ? 'steps' :
+            payload.type === 'image' ? 'photo' :
+            'text'
+          );
+        }
         if (result.unlockedAchievements && typeof showAchievementToasts === 'function') {
           showAchievementToasts(result.unlockedAchievements);
         }
@@ -1290,6 +1299,7 @@ function clearWorkbenchStatus() {
 
       // 表達式預覽（若草稿有值）
       updateExprPreview();
+      if (window.PD.cooldown) window.PD.cooldown.refresh();
     },
   };
 

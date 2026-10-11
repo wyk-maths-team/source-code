@@ -108,70 +108,75 @@ async function waitForManualLogin() {
 
 // ═══════════════ 模式切換 ═══════════════
 async function setDeepThink(enabled) {
-  const btn = _page.locator('.ds-toggle-button', { hasText: '深度思考' }).first();
+  const result = await _page.evaluate((want) => {
+    const btn = Array.from(document.querySelectorAll('.ds-toggle-button'))
+      .find(b => (b.textContent || '').includes('深度思考'));
+    if (!btn) return { found: false };
 
-  const count = await btn.count();
-  if (count === 0) {
+    const isSelected = btn.classList.contains('ds-toggle-button--selected');
+    if (isSelected === want) return { found: true, already: true, isSelected };
+
+    btn.click();
+    return { found: true, already: false, before: isSelected };
+  }, enabled);
+
+  if (!result.found) {
     log.warn('找不到「深度思考」按鈕，略過切換');
     return false;
   }
+  if (result.already) return true;
 
-  const isSelected = await btn.evaluate(el =>
-    el.classList.contains('ds-toggle-button--selected')
-  );
-
-  if (isSelected !== enabled) {
-    await btn.click();
-    await sleep(400);
-    log.info(`切換模式 → ${enabled ? 'R1（深度思考）' : 'V3（快速）'}`);
-  }
+  // 等 UI 反應（400ms 太保守，200ms 夠）
+  await sleep(200);
+  log.info(`切換模式 → ${enabled ? 'R1（深度思考）' : 'V3（快速）'}`);
   return true;
 }
-
 // ═══════════════ 發送訊息 ═══════════════
 async function sendMessage(text) {
-  const input = _page.locator(
-    'textarea[name="search"], textarea[placeholder*="DeepSeek"]'
-  ).first();
+  // 用 evaluate 找元素 + 直接设值（绕过 Playwright 的 fill）
+  const ok = await _page.evaluate((t) => {
+    const input = document.querySelector('textarea[name="search"], textarea[placeholder*="DeepSeek"]');
+    if (!input) return false;
 
-  await input.waitFor({ state: 'visible', timeout: 10_000 });
-  await input.click();
-  await input.fill('');
-  await input.fill(text);
-  await sleep(300);
+    // React 受控组件需要 dispatch input 事件
+    const nativeSetter = Object.getOwnPropertyDescriptor(
+      window.HTMLTextAreaElement.prototype, 'value'
+    ).set;
+    nativeSetter.call(input, '');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    nativeSetter.call(input, t);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+  }, text);
 
-  const sendBtn = _page.locator(
-    'div[role="button"].ds-button--primary.ds-button--circle'
-  ).last();
+  if (!ok) throw new Error('找不到輸入框');
 
-  await sendBtn.waitFor({ state: 'visible', timeout: 5000 });
+  await sleep(150);  // 让 React 完成状态更新（300 → 150）
 
-  const maxWait = 3000;
-  const start = Date.now();
-  while (Date.now() - start < maxWait) {
-    const isDisabled = await sendBtn.evaluate(el =>
-      el.classList.contains('ds-button--disabled') ||
-      el.getAttribute('aria-disabled') === 'true'
+  // 找發送按鈕 + 點擊
+  const clicked = await _page.evaluate(() => {
+    const btns = document.querySelectorAll(
+      'div[role="button"].ds-button--primary.ds-button--circle'
     );
-    if (!isDisabled) break;
-    await sleep(100);
-  }
+    const btn = btns[btns.length - 1];
+    if (!btn) return false;
+    if (btn.classList.contains('ds-button--disabled')) return false;
+    btn.click();
+    return true;
+  });
 
-  const stillDisabled = await sendBtn.evaluate(el =>
-    el.classList.contains('ds-button--disabled')
-  );
-  if (stillDisabled) {
-    throw new Error('發送按鈕仍為 disabled，無法送出');
-  }
+  if (!clicked) throw new Error('發送按鈕不可用');
 
-  await sendBtn.click();
   log.send(`訊息已送出 (${text.length} chars)`);
 }
 
 // ═══════════════ DOM 查詢工具 ═══════════════
 async function countAssistantMessages() {
   try {
-    return await _page.locator(ASSISTANT_SELECTOR).count();
+    return await _page.evaluate((sel) =>
+      document.querySelectorAll(sel).length,
+      ASSISTANT_SELECTOR
+    );
   } catch {
     return 0;
   }
@@ -179,18 +184,16 @@ async function countAssistantMessages() {
 
 async function getLastAssistantText() {
   try {
-    const loc = _page.locator(ASSISTANT_SELECTOR).last();
-    if ((await loc.count()) === 0) return '';
-    return await loc.innerText({ timeout: 1500 });
-  } catch {
-    try {
-      return await _page
-        .locator(ASSISTANT_SELECTOR)
-        .last()
-        .evaluate(el => el.textContent || '');
-    } catch {
+    return await _page.evaluate((sel) => {
+      const nodes = document.querySelectorAll(sel);
+      for (let i = nodes.length - 1; i >= 0; i--) {
+        const t = (nodes[i].innerText || nodes[i].textContent || '').trim();
+        if (t) return t;
+      }
       return '';
-    }
+    }, ASSISTANT_SELECTOR);
+  } catch {
+    return '';
   }
 }
 /**
@@ -337,8 +340,52 @@ async function debugDump() {
   console.log(JSON.stringify(info, null, 2));
   return info;
 }
+// ═══════════════ 即時進度條 ═══════════════
+const _PROGRESS_WIDTH = 20;
+let _progressActive = false;
 
-// ═══════════════ 等待回覆 ═══════════════
+// 紅色進度條 + 秒數（1 位小數）+ 百分比
+function _formatProgress(elapsedMs, timeoutMs) {
+  const elapsedSec = elapsedMs / 1000;
+  const timeoutSec = timeoutMs / 1000;
+  const pct = Math.min(100, elapsedMs / timeoutMs * 100);
+
+  const filled = Math.round(pct * _PROGRESS_WIDTH / 100);
+  const empty  = _PROGRESS_WIDTH - filled;
+
+  // 紅色填充，灰色背景，充滿即 timeout
+  const bar =
+    '\x1b[31m' + '█'.repeat(filled) +
+    '\x1b[90m' + '░'.repeat(empty) +
+    '\x1b[0m';
+
+  return `⌛ \x1b[36m${elapsedSec.toFixed(1)}s\x1b[0m / ${timeoutSec.toFixed(1)}s [${bar}] \x1b[33m${pct.toFixed(1)}%\x1b[0m`;
+}
+
+// 原地重寫一行（不換行，不進 log 檔）
+function _drawProgress(text) {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+
+  const prefix = `\x1b[90m${hh}:${mm}:${ss}\x1b[0m \x1b[37m·\x1b[0m  \x1b[90m  │\x1b[0m `;
+  const plain  = text.replace(/\x1b\[[0-9;]*m/g, '');
+  const pad    = ' '.repeat(Math.max(0, 67 - plain.length));
+  const suffix = `\x1b[90m│\x1b[0m`;
+
+  // \r 回行首 + \x1b[K 清到行尾 + 寫新內容
+  process.stdout.write('\r\x1b[K' + prefix + text + pad + suffix);
+  _progressActive = true;
+}
+
+// 結束進度行（寫一個換行，讓下一個 log 從新行開始）
+function _endProgress() {
+  if (_progressActive) {
+    process.stdout.write('\n');
+    _progressActive = false;
+  }
+}
 async function waitForReply({
   timeoutMs = 60_000,
   baselineCount = 0,
@@ -349,48 +396,55 @@ async function waitForReply({
   let lastChangeAt = Date.now();
   let sawNewContent = false;
   let everSawText = false;
-  let lastProgressAt = 0;
 
-  while (Date.now() - startTime < timeoutMs) {
-    const count = await countAssistantMessages();
-    const currentText = await getLastAssistantText();
+  const stopProgress = () => {
+    if (_progressActive) _endProgress();
+  };
 
-    // ── 判斷是否已出現新回覆 ──
-    const countIncreased = count > baselineCount;
-    const textChanged =
-      currentText && baselineText !== undefined && currentText !== baselineText;
+  try {
+    // ⭐ 立即顯示初始進度（不等第一次輪詢）
+    _drawProgress(_formatProgress(0, timeoutMs));
 
-    if (countIncreased || textChanged) {
-      if (!sawNewContent) {
-        log.recv(
-          `偵測到新回覆 (count: ${baselineCount}→${count}, ` +
-          `textChanged: ${textChanged})`
-        );
+    while (Date.now() - startTime < timeoutMs) {
+      const count = await countAssistantMessages();
+      const currentText = await getLastAssistantText();
+
+      const countIncreased = count > baselineCount;
+      const textChanged =
+        currentText && baselineText !== undefined && currentText !== baselineText;
+
+      if (countIncreased || textChanged) {
+        if (!sawNewContent) {
+          // ⭐ 先清進度行，再印 log
+          stopProgress();
+          log.recv(
+            `偵測到新回覆 (count: ${baselineCount}→${count}, ` +
+            `textChanged: ${textChanged})`
+          );
+        }
+        sawNewContent = true;
       }
-      sawNewContent = true;
-    }
 
-    // ── 追蹤最後一條文字是否還在變 ──
-    if (currentText && currentText !== lastText) {
-      lastText = currentText;
-      lastChangeAt = Date.now();
-      everSawText = true;
-    }
+      if (currentText && currentText !== lastText) {
+        lastText = currentText;
+        lastChangeAt = Date.now();
+        everSawText = true;
+      }
 
-    // ── 每 10 秒印一次等待進度 ──
-    const elapsed = Date.now() - startTime;
-    if (elapsed - lastProgressAt > 10_000 && !sawNewContent) {
-      lastProgressAt = elapsed;
-      const pct = Math.round(elapsed / timeoutMs * 100);
-      log.poll(`等待中... ${(elapsed / 1000).toFixed(0)}s / ${(timeoutMs / 1000).toFixed(0)}s (${pct}%)`);
-    }
+      // 穩定判斷
+      if (sawNewContent && everSawText && Date.now() - lastChangeAt >= 800) {
+        return lastText;
+      }
 
-    // ── 穩定判斷 ──
-    if (sawNewContent && everSawText && Date.now() - lastChangeAt >= 1500) {
-      return lastText;
-    }
+      // ⭐ 有新內容 → 停止畫進度條；否則持續更新
+      if (!sawNewContent) {
+        _drawProgress(_formatProgress(Date.now() - startTime, timeoutMs));
+      }
 
-    await sleep(400);
+      await sleep(200);
+    }
+  } finally {
+    stopProgress();
   }
 
   // 超時
@@ -410,35 +464,23 @@ async function waitForReply({
 
 // ═══════════════ 完整流程 ═══════════════
 async function ask(text, { model = 'r1', timeoutMs = 60_000 } = {}) {
+  await setDeepThink(model === 'r1');
+  // ⭐ 删掉 sleep(500)，setDeepThink 内部已等
+
   const baselineCount = await countAssistantMessages();
   const baselineText = await getLastAssistantText();
-
   log.info(`baseline: count=${baselineCount}, textLen=${baselineText.length}`);
 
-  if (baselineCount === 0 && baselineText === '') {
-    log.warn(
-      'baseline 完全為空。若這是第一個問題屬正常;' +
-      '若不是，可能 selector 已失效，請呼叫 debugDump() 檢查。'
-    );
-  }
-
-  await setDeepThink(model === 'r1');
   await sendMessage(text);
 
   const replyDom = await waitForReply({ timeoutMs, baselineCount, baselineText });
   log.recv(`DOM 回覆完成 (${replyDom.length} chars)`);
 
-  // ⭐ 嘗試用複製按鈕拿乾淨原文
-  await sleep(500);   // 等 UI 出現工具列
+  // ⭐ sleep(500) → sleep(150)
+  await sleep(150);
   const replyClean = await copyLastReply();
 
-  if (replyClean && replyClean.length > 0) {
-    log.ok(`使用複製按鈕的文字 (${replyClean.length} chars)`);
-    return replyClean;
-  }
-
-  log.warn('複製按鈕失敗，回退到 DOM 文字');
-  return replyDom;
+  return (replyClean && replyClean.length > 0) ? replyClean : replyDom;
 }
 
 // ═══════════════ 截圖 ═══════════════
