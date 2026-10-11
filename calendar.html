@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calendar — WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/web_css/styles.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+<style>
+  /* ═══ 主容器 ═══ */
+  #calendarApp {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 80px);
+    max-width: 1000px;
+    margin: 0 auto;
+    background: var(--card-bg);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* ═══ 顶栏 ═══ */
+  .cal-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--card-bg);
+    flex-shrink: 0;
+  }
+  .cal-month-label {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -.2px;
+  }
+  .cal-topbar-actions { display: flex; gap: 8px; align-items: center; }
+  .cal-today-btn {
+    padding: 6px 14px;
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: .82rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .cal-today-btn:hover { background: var(--hover-bg); }
+  .cal-add-btn {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(74,144,217,.3);
+    transition: transform .15s, box-shadow .15s;
+  }
+  .cal-add-btn:hover {
+    transform: scale(1.08);
+    box-shadow: 0 4px 14px rgba(74,144,217,.4);
+  }
+
+  /* ═══ 可滚动区域 ═══ */
+  .cal-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0 12px 40px;
+    scroll-behavior: auto;   /* 不要 smooth，避免无限滚动时抖动 */
+  }
+
+  /* ═══ 月份区块 ═══ */
+  .cal-month { margin-bottom: 28px; }
+  .cal-month-header {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    padding: 16px 12px 8px;
+    letter-spacing: -.4px;
+    position: sticky;
+    top: 0;
+    background: var(--card-bg);
+    z-index: 5;
+  }
+  .cal-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    font-size: .72rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: 0 4px 6px;
+    position: sticky;
+    top: 48px;
+    background: var(--card-bg);
+    z-index: 4;
+  }
+  .cal-weekdays > div {
+    text-align: center;
+    padding: 4px 0;
+  }
+
+  /* ═══ 日期格子 ═══ */
+  .cal-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: minmax(90px, auto);   /* ⭐ 关键：自动撑高 */
+    gap: 4px;
+    padding: 0 4px;
+  }
+  .cal-day {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 6px 6px 4px;
+    display: flex;
+    flex-direction: column;
+    background: var(--card-bg);
+    min-height: 90px;
+    transition: border-color .15s;
+    position: relative;
+  }
+  .cal-day:hover { border-color: var(--accent); }
+  .cal-day.other-month { opacity: .4; }
+  .cal-day.today {
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .cal-day-num {
+    font-size: .78rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  .cal-day.today .cal-day-num { color: var(--accent); }
+
+  /* ═══ 任务卡片 ═══ */
+  .cal-tasks {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .cal-task {
+    font-size: .72rem;
+    padding: 3px 6px;
+    background: rgba(74,144,217,.14);
+    border-left: 2px solid var(--accent);
+    border-radius: 3px;
+    color: var(--accent);
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: background .12s;
+    user-select: none;
+  }
+  .cal-task:hover { background: rgba(74,144,217,.28); }
+  .cal-task.done {
+    text-decoration: line-through;
+    opacity: .55;
+    border-left-color: #888;
+    color: #888;
+  }
+
+  /* ═══ 空白区（点击新建）═══ */
+  .cal-day-empty {
+    flex: 1;
+    min-height: 24px;   /* 保证每天都有可点击的空白 */
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background .12s;
+  }
+  .cal-day-empty:hover { background: rgba(74,144,217,.07); }
+
+  /* ═══ 创建/编辑模态框 ═══ */
+  .cal-modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+  }
+  .cal-modal-overlay.open { display: flex; }
+  .cal-modal {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 480px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.4);
+    animation: calModalIn .2s ease;
+  }
+  @keyframes calModalIn {
+    from { opacity: 0; transform: scale(.95); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  .cal-modal-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .cal-modal-head h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .cal-modal-close {
+    background: none; border: none;
+    font-size: 1.4rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    line-height: 1;
+  }
+  .cal-modal-close:hover { background: var(--hover-bg); color: var(--text-primary); }
+
+  .cal-modal-body {
+    padding: 16px 18px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .cal-modal-body label {
+    font-size: .74rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    margin-top: 10px;
+  }
+  .cal-modal-body label:first-child { margin-top: 0; }
+  .cal-modal-body input,
+  .cal-modal-body textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: .92rem;
+    box-sizing: border-box;
+    resize: vertical;
+  }
+  .cal-modal-body input:focus,
+  .cal-modal-body textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(74,144,217,.15);
+  }
+
+  .cal-modal-foot {
+    display: flex; justify-content: flex-end; gap: 8px;
+    padding: 12px 18px;
+    border-top: 1px solid var(--border-color);
+  }
+  .cal-modal-foot button {
+    padding: 8px 18px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    font: inherit;
+    font-size: .88rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .cal-btn-primary { background: var(--accent); color: #fff; }
+  .cal-btn-primary:hover { filter: brightness(1.1); }
+  .cal-btn-secondary {
+    background: var(--card-bg);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+  }
+  .cal-btn-secondary:hover { background: var(--hover-bg); }
+  .cal-btn-danger {
+    background: #e74c3c; color: #fff;
+    margin-right: auto;   /* 推到左边 */
+  }
+  .cal-btn-danger:hover { filter: brightness(1.1); }
+
+  /* ═══ Tooltip ═══ */
+  .cal-tooltip {
+    position: fixed;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px 14px;
+    max-width: 260px;
+    box-shadow: 0 8px 28px rgba(0,0,0,.22);
+    z-index: 999;
+    animation: calTipIn .12s ease;
+  }
+  @keyframes calTipIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .cal-tooltip-head {
+    display: flex; justify-content: space-between;
+    align-items: flex-start; gap: 8px;
+    margin-bottom: 6px;
+  }
+  .cal-tooltip-title {
+    font-size: .9rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.3;
+    word-break: break-word;
+  }
+  .cal-tooltip-close {
+    background: none; border: none;
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0; line-height: 1;
+  }
+  .cal-tooltip-details {
+    font-size: .82rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .cal-tooltip-details:empty::after {
+    content: '(no details)';
+    font-style: italic;
+    opacity: .6;
+  }
+  .cal-tooltip-actions {
+    display: flex; gap: 6px;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-color);
+  }
+  .cal-tooltip-actions button {
+    flex: 1;
+    padding: 5px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: .78rem;
+    cursor: pointer;
+  }
+  .cal-tooltip-actions button:hover { background: var(--hover-bg); }
+
+  /* ═══ 响应式 ═══ */
+  @media (max-width: 640px) {
+    #calendarApp { height: calc(100vh - 60px); border-radius: 0; }
+    .cal-days { grid-auto-rows: minmax(70px, auto); }
+    .cal-day { min-height: 70px; padding: 4px; }
+    .cal-task { font-size: .66rem; padding: 2px 4px; }
+    .cal-day-num { font-size: .72rem; }
+    .cal-month-header { font-size: 1.1rem; }
+  }
+</style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+
+      <div id="calendarApp">
+        <div class="cal-topbar">
+          <div class="cal-month-label" id="calMonthLabel">—</div>
+          <div class="cal-topbar-actions">
+            <button class="cal-today-btn" id="calTodayBtn">Today</button>
+            <button class="cal-add-btn" id="calAddBtn" title="New task">+</button>
+          </div>
+        </div>
+        <div class="cal-scroll" id="calScroll"></div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- 模态框 -->
+  <div class="cal-modal-overlay" id="calModal">
+    <div class="cal-modal">
+      <div class="cal-modal-head">
+        <h3 id="calModalTitle">New Task</h3>
+        <button class="cal-modal-close" id="calModalClose">×</button>
+      </div>
+      <div class="cal-modal-body">
+        <label for="calModalDate">Date</label>
+        <input type="date" id="calModalDate">
+        <label for="calModalTitleInput">Title</label>
+        <input type="text" id="calModalTitleInput" maxlength="100" placeholder="What's this about?">
+        <label for="calModalDetails">Details</label>
+        <textarea id="calModalDetails" maxlength="2000" rows="5" placeholder="Optional details..."></textarea>
+      </div>
+      <div class="cal-modal-foot">
+        <button class="cal-btn-danger" id="calModalDelete" style="display:none">Delete</button>
+        <button class="cal-btn-secondary" id="calModalCancel">Cancel</button>
+        <button class="cal-btn-primary" id="calModalSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tooltip -->
+  <div class="cal-tooltip" id="calTooltip" hidden>
+    <div class="cal-tooltip-head">
+      <span class="cal-tooltip-title" id="calTooltipTitle"></span>
+      <button class="cal-tooltip-close" id="calTooltipClose">×</button>
+    </div>
+    <div class="cal-tooltip-details" id="calTooltipDetails"></div>
+    <div class="cal-tooltip-actions">
+      <button id="calTooltipEdit">Edit</button>
+      <button id="calTooltipDone">Toggle done</button>
+    </div>
+  </div>
+
+  <!-- 依赖 -->
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/heartbeat.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pk-invite.js"></script>
+
+<script>
+(function () {
+  'use strict';
+  if (!isLoggedIn()) { window.location.href = '/index.html'; return; }
+
+  // ───────────── 状态 ─────────────
+  const state = {
+    monthsLoaded: new Set(),
+    tasksByDate: Object.create(null),
+    editingId: null,
+    tooltipTaskId: null,
+    loading: false,
+  };
+
+  const $scroll  = document.getElementById('calScroll');
+  const $label   = document.getElementById('calMonthLabel');
+  const $modal   = document.getElementById('calModal');
+  const $tooltip = document.getElementById('calTooltip');
+
+  // ───────────── 日期工具 ─────────────
+  function pad2(n) { return String(n).padStart(2, '0'); }
+
+  function ymd(date) {
+    return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+  }
+
+  function monthKey(date) {
+    return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`;
+  }
+
+  const MTH = ['January','February','March','April','May','June','July',
+               'August','September','October','November','December'];
+
+  function monthLabel(ym) {
+    const [y, m] = ym.split('-').map(Number);
+    return `${MTH[m - 1]} ${y}`;
+  }
+
+  // 回传 42 天，含首尾补满整周（周一起始）
+  function getMonthGrid(ym) {
+    const [y, m] = ym.split('-').map(Number);
+    const first = new Date(y, m - 1, 1);
+    // 找到周一：getDay() 0=Sun, 1=Mon ... 6=Sat
+    const dow = first.getDay();
+    const offset = (dow === 0 ? 6 : dow - 1);
+    const start = new Date(y, m - 1, 1 - offset);
+
+    const out = [];
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+      out.push({ date: d, inMonth: d.getMonth() === (m - 1) });
+    }
+    return out;
+  }
+
+  // ───────────── 渲染 ─────────────
+  const WEEKDAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+  function renderMonth(ym, prepend) {
+    const old = $scroll.querySelector(`.cal-month[data-month="${ym}"]`);
+    if (old) old.remove();
+
+    const todayStr = ymd(new Date());
+    const grid = getMonthGrid(ym);
+
+    let dayHtml = '';
+    for (const { date, inMonth } of grid) {
+      const ds = ymd(date);
+      const tasks = state.tasksByDate[ds] || [];
+      const cls = [
+        'cal-day',
+        inMonth ? '' : 'other-month',
+        ds === todayStr ? 'today' : '',
+      ].filter(Boolean).join(' ');
+
+      let taskHtml = '';
+      for (const t of tasks) {
+        taskHtml += `<div class="cal-task${t.done ? ' done' : ''}" data-id="${t._id}">${escapeHtml(t.title)}</div>`;
+      }
+
+      dayHtml += `
+        <div class="${cls}" data-date="${ds}">
+          <div class="cal-day-num">${date.getDate()}</div>
+          <div class="cal-tasks">${taskHtml}</div>
+          <div class="cal-day-empty"></div>
+        </div>`;
+    }
+
+    const html = `
+      <div class="cal-month" data-month="${ym}">
+        <div class="cal-month-header">${monthLabel(ym)}</div>
+        <div class="cal-weekdays">${WEEKDAYS.map(d => `<div>${d}</div>`).join('')}</div>
+        <div class="cal-days">${dayHtml}</div>
+      </div>`;
+
+    if (prepend) {
+      $scroll.insertAdjacentHTML('afterbegin', html);
+    } else {
+      $scroll.insertAdjacentHTML('beforeend', html);
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, m => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[m]));
+  }
+
+  function updateLabel() {
+    const first = $scroll.querySelector('.cal-month');
+    if (first) $label.textContent = monthLabel(first.dataset.month);
+  }
+
+  // 局部重绘单个月份（保存后调用，避免重新拉数据）
+  function refreshMonth(ym) {
+    const el = $scroll.querySelector(`.cal-month[data-month="${ym}"]`);
+    if (!el) return;
+    el.outerHTML = buildMonthHtml(ym);
+  }
+
+  // 抽出 HTML 生成，方便复用
+  function buildMonthHtml(ym) {
+    const todayStr = ymd(new Date());
+    const grid = getMonthGrid(ym);
+    let dayHtml = '';
+    for (const { date, inMonth } of grid) {
+      const ds = ymd(date);
+      const tasks = state.tasksByDate[ds] || [];
+      const cls = ['cal-day', inMonth ? '' : 'other-month', ds === todayStr ? 'today' : ''].filter(Boolean).join(' ');
+      let taskHtml = '';
+      for (const t of tasks) {
+        taskHtml += `<div class="cal-task${t.done ? ' done' : ''}" data-id="${t._id}">${escapeHtml(t.title)}</div>`;
+      }
+      dayHtml += `
+        <div class="${cls}" data-date="${ds}">
+          <div class="cal-day-num">${date.getDate()}</div>
+          <div class="cal-tasks">${taskHtml}</div>
+          <div class="cal-day-empty"></div>
+        </div>`;
+    }
+    return `
+      <div class="cal-month" data-month="${ym}">
+        <div class="cal-month-header">${monthLabel(ym)}</div>
+        <div class="cal-weekdays">${WEEKDAYS.map(d => `<div>${d}</div>`).join('')}</div>
+        <div class="cal-days">${dayHtml}</div>
+      </div>`;
+  }
+
+  // ───────────── 数据 ─────────────
+  async function loadRange(fromYmd, toYmd) {
+    const res = await apiCall(
+      `/api/calendar?action=list&from=${fromYmd}&to=${toYmd}`
+    );
+    if (!res.success) throw new Error(res.message || 'Load failed');
+
+    // 清空这个区间的旧数据，避免重复
+    for (const t of res.tasks) {
+      if (!state.tasksByDate[t.date]) state.tasksByDate[t.date] = [];
+      state.tasksByDate[t.date].push(t);
+    }
+  }
+
+  function monthFirstLast(ym) {
+    const [y, m] = ym.split('-').map(Number);
+    const first = new Date(y, m - 1, 1);
+    const last = new Date(y, m, 0);   // 下个月第 0 天 = 本月最后一天
+    return { from: ymd(first), to: ymd(last) };
+  }
+
+  async function loadMonth(ym, prepend) {
+    if (state.monthsLoaded.has(ym)) return;
+    const { from, to } = monthFirstLast(ym);
+    await loadRange(from, to);
+    state.monthsLoaded.add(ym);
+    if (prepend) {
+      $scroll.insertAdjacentHTML('afterbegin', buildMonthHtml(ym));
+    } else {
+      $scroll.insertAdjacentHTML('beforeend', buildMonthHtml(ym));
+    }
+  }
+
+  // 用已有 task 数据重新排序后覆盖（保存/删除后调用）
+  function resortDate(dateStr) {
+    const arr = state.tasksByDate[dateStr] || [];
+    arr.sort((a, b) => (a.done - b.done) || 0);
+  }
+
+  // ───────────── 无限滚动 ─────────────
+  let _scrollTimer = null;
+
+  function checkScroll() {
+    if (state.loading) return;
+    clearTimeout(_scrollTimer);
+    _scrollTimer = setTimeout(_doCheckScroll, 120);
+  }
+
+  async function _doCheckScroll() {
+    const st = $scroll.scrollTop;
+    const sh = $scroll.scrollHeight;
+    const ch = $scroll.clientHeight;
+
+    // 顶部：向上加载
+    if (st < 200) {
+      const firstMonth = $scroll.querySelector('.cal-month')?.dataset.month;
+      if (!firstMonth) return;
+      const [y, m] = firstMonth.split('-').map(Number);
+      const prev = new Date(y, m - 2, 1);
+      const prevKey = monthKey(prev);
+      if (!state.monthsLoaded.has(prevKey)) {
+        state.loading = true;
+        const oldH = sh;
+        try {
+          await loadMonth(prevKey, true);
+          $scroll.scrollTop = st + ($scroll.scrollHeight - oldH);
+        } finally {
+          state.loading = false;
+        }
+      }
+      return;
+    }
+
+    // 底部：向下加载
+    if (sh - st - ch < 400) {
+      const lastMonth = [...$scroll.querySelectorAll('.cal-month')].pop()?.dataset.month;
+      if (!lastMonth) return;
+      const [y, m] = lastMonth.split('-').map(Number);
+      const next = new Date(y, m, 1);
+      const nextKey = monthKey(next);
+      if (!state.monthsLoaded.has(nextKey)) {
+        state.loading = true;
+        try {
+          await loadMonth(nextKey, false);
+        } finally {
+          state.loading = false;
+        }
+      }
+    }
+  }
+
+  // ───────────── 模态框 ─────────────
+  const $mDate    = document.getElementById('calModalDate');
+  const $mTitle   = document.getElementById('calModalTitleInput');
+  const $mDetails = document.getElementById('calModalDetails');
+  const $mHead    = document.getElementById('calModalTitle');
+  const $mDel     = document.getElementById('calModalDelete');
+
+  function openModal(dateStr, task) {
+    state.editingId = task ? task._id : null;
+    $mHead.textContent = task ? 'Edit Task' : 'New Task';
+    $mDate.value = dateStr;
+    $mTitle.value = task ? task.title : '';
+    $mDetails.value = task ? task.details : '';
+    $mDel.style.display = task ? '' : 'none';
+    $modal.classList.add('open');
+    setTimeout(() => $mTitle.focus(), 50);
+  }
+
+  function closeModal() {
+    $modal.classList.remove('open');
+    state.editingId = null;
+  }
+
+  async function saveModal() {
+    const date = $mDate.value;
+    const title = $mTitle.value.trim();
+    const details = $mDetails.value.trim();
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return alert('Invalid date');
+    if (!title) return alert('Title required');
+
+    try {
+      if (state.editingId) {
+        const r = await apiCall('/api/calendar?action=update', 'PUT', {
+          id: state.editingId, title, details
+        });
+        if (!r.success) throw new Error(r.message);
+        // 局部更新
+        for (const d in state.tasksByDate) {
+          const t = state.tasksByDate[d].find(x => x._id === state.editingId);
+          if (t) {
+            t.title = title;
+            t.details = details;
+            refreshMonth(d.slice(0, 7));
+            break;
+          }
+        }
+      } else {
+        const r = await apiCall('/api/calendar?action=create', 'POST', {
+          date, title, details
+        });
+        if (!r.success) throw new Error(r.message);
+        if (!state.tasksByDate[date]) state.tasksByDate[date] = [];
+        state.tasksByDate[date].push({
+          _id: r.id, date, title, details, done: false,
+        });
+        refreshMonth(date.slice(0, 7));
+      }
+      closeModal();
+    } catch (e) {
+      alert('Save failed: ' + e.message);
+    }
+  }
+
+  async function deleteTask() {
+    if (!state.editingId) return;
+    if (!confirm('Delete this task?')) return;
+
+    try {
+      const r = await apiCall('/api/calendar?action=delete', 'DELETE', {
+        id: state.editingId
+      });
+      if (!r.success) throw new Error(r.message);
+
+      for (const d in state.tasksByDate) {
+        const before = state.tasksByDate[d].length;
+        state.tasksByDate[d] = state.tasksByDate[d].filter(x => x._id !== state.editingId);
+        if (state.tasksByDate[d].length !== before) {
+          refreshMonth(d.slice(0, 7));
+          break;
+        }
+      }
+      closeModal();
+    } catch (e) {
+      alert('Delete failed: ' + e.message);
+    }
+  }
+
+  // ───────────── Tooltip ─────────────
+  const $tipTitle   = document.getElementById('calTooltipTitle');
+  const $tipDetails = document.getElementById('calTooltipDetails');
+
+  function findTaskById(id) {
+    for (const d in state.tasksByDate) {
+      const t = state.tasksByDate[d].find(x => x._id === id);
+      if (t) return { task: t, date: d };
+    }
+    return null;
+  }
+
+  function showTooltip(task, anchorRect) {
+    state.tooltipTaskId = task._id;
+    $tipTitle.textContent = task.title;
+    $tipDetails.textContent = task.details || '';
+    $tooltip.hidden = false;
+
+    // 定位：靠右或靠左
+    const tipW = $tooltip.offsetWidth;
+    const tipH = $tooltip.offsetHeight;
+    const left = anchorRect.left < window.innerWidth / 2
+      ? anchorRect.right + 8
+      : anchorRect.left - tipW - 8;
+    let top = anchorRect.top;
+    if (top + tipH > window.innerHeight - 8) top = window.innerHeight - tipH - 8;
+    if (top < 8) top = 8;
+
+    $tooltip.style.left = Math.max(8, left) + 'px';
+    $tooltip.style.top = top + 'px';
+  }
+
+  function hideTooltip() {
+    $tooltip.hidden = true;
+    state.tooltipTaskId = null;
+  }
+
+  async function toggleDone() {
+    if (!state.tooltipTaskId) return;
+    const found = findTaskById(state.tooltipTaskId);
+    if (!found) return;
+    const { task, date } = found;
+    const newDone = !task.done;
+
+    try {
+      const r = await apiCall('/api/calendar?action=update', 'PUT', {
+        id: task._id, done: newDone
+      });
+      if (!r.success) throw new Error(r.message);
+      task.done = newDone;
+      refreshMonth(date.slice(0, 7));
+      hideTooltip();
+    } catch (e) {
+      alert('Update failed: ' + e.message);
+    }
+  }
+
+  // ───────────── 事件绑定 ─────────────
+  function bindEvents() {
+    $scroll.addEventListener('scroll', checkScroll, { passive: true });
+
+    $scroll.addEventListener('click', (e) => {
+      // 点空白
+      const empty = e.target.closest('.cal-day-empty');
+      if (empty) {
+        const day = empty.closest('.cal-day');
+        openModal(day.dataset.date);
+        return;
+      }
+      // 点任务
+      const taskEl = e.target.closest('.cal-task');
+      if (taskEl) {
+        const found = findTaskById(taskEl.dataset.id);
+        if (found) showTooltip(found.task, taskEl.getBoundingClientRect());
+      }
+    });
+  }
+
+  function bindModalEvents() {
+    document.getElementById('calModalClose').addEventListener('click', closeModal);
+    document.getElementById('calModalCancel').addEventListener('click', closeModal);
+    document.getElementById('calModalSave').addEventListener('click', saveModal);
+    document.getElementById('calModalDelete').addEventListener('click', deleteTask);
+
+    $modal.addEventListener('click', (e) => {
+      if (e.target === $modal) closeModal();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { closeModal(); hideTooltip(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && $modal.classList.contains('open')) {
+        saveModal();
+      }
+    });
+  }
+
+  function bindTooltipEvents() {
+    document.getElementById('calTooltipClose').addEventListener('click', hideTooltip);
+
+    document.getElementById('calTooltipEdit').addEventListener('click', () => {
+      if (!state.tooltipTaskId) return;
+      const found = findTaskById(state.tooltipTaskId);
+      if (!found) return;
+      hideTooltip();
+      openModal(found.date, found.task);
+    });
+
+    document.getElementById('calTooltipDone').addEventListener('click', toggleDone);
+
+    document.addEventListener('click', (e) => {
+      if ($tooltip.hidden) return;
+      if ($tooltip.contains(e.target)) return;
+      if (e.target.closest('.cal-task')) return;
+      hideTooltip();
+    });
+  }
+
+  function bindTopbarEvents() {
+    document.getElementById('calAddBtn').addEventListener('click', () => {
+      openModal(ymd(new Date()));
+    });
+    document.getElementById('calTodayBtn').addEventListener('click', () => {
+      const todayStr = ymd(new Date());
+      const el = $scroll.querySelector(`.cal-day[data-date="${todayStr}"]`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
+
+  // ───────────── 初始化 ─────────────
+  async function init() {
+    bindEvents();
+    bindModalEvents();
+    bindTooltipEvents();
+    bindTopbarEvents();
+
+    // 当前月 + 前后各 2 个月（时间顺序加载，避免 scroll 补偿问题）
+    const now = new Date();
+    const months = [];
+    for (let i = -2; i <= 2; i++) {
+      months.push(monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
+    }
+
+    for (const ym of months) {
+      try { await loadMonth(ym, false); }
+      catch (e) { console.error('[calendar] load failed:', ym, e); }
+    }
+
+    // 滚到今天
+    const todayStr = ymd(new Date());
+    const el = $scroll.querySelector(`.cal-day[data-date="${todayStr}"]`);
+    if (el) el.scrollIntoView({ block: 'center' });
+
+    updateLabel();
+    $scroll.addEventListener('scroll', updateLabel, { passive: true });
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
