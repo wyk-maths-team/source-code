@@ -156,7 +156,7 @@ export default async function handler(req, res) {
       }
 
       if (req.method === 'POST') {
-        const { id, name, statement, ans, difficulty, tags, public: isPublic, logic } = req.body || {};
+        const { id, name, statement, ans, difficulty, tags, public: isPublic, logic, FS } = req.body || {};
         if (!id || !name || !statement || ans === undefined) {
           return res.status(400).json({ success: false, message: 'Missing fields' });
         }
@@ -172,7 +172,8 @@ export default async function handler(req, res) {
           difficulty: Number(difficulty) || 0,
           tags: Array.isArray(tags) ? tags : [],
           public: isPublic === false ? false : true,
-          logic: logic || ''
+          logic: logic || '',
+          FS: FS === true,
         };
         await db.collection('problems').insertOne(newProblem);
         await bumpProblemsVersion(db);
@@ -186,7 +187,7 @@ export default async function handler(req, res) {
       }
 
       if (req.method === 'PUT') {
-        const { id, ids, name, statement, ans, difficulty, tags, public: isPublic, logic } = req.body || {};
+        const { id, ids, name, statement, ans, difficulty, tags, public: isPublic, logic, FS } = req.body || {};
 
         // 批量更新 public
         if (Array.isArray(ids) && ids.length && isPublic !== undefined) {
@@ -218,6 +219,7 @@ export default async function handler(req, res) {
         if (tags !== undefined) upd.tags = Array.isArray(tags) ? tags : [];
         if (isPublic !== undefined) upd.public = isPublic === false ? false : true;
         if (logic !== undefined) upd.logic = logic;
+        if (FS !== undefined) upd.FS = FS === true;
 
         if (Object.keys(upd).length === 0) {
           return res.status(400).json({ success: false, message: 'No fields to update' });

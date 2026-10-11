@@ -411,7 +411,55 @@ function parseReply(raw) {
     return null;
   }
 }
+/**
+ * 把 statement 清洗成 AI 可讀的純文字
+ * - 移除 script / style / 註解
+ * - 移除自訂輸入容器（data-input 元素整塊）
+ * - 移除所有 HTML 標籤
+ * - 折疊多餘空白
+ */
+function cleanStatementForAI(raw) {
+  let s = String(raw || '');
 
+  // 1. script / style 完整塊
+  s = s.replace(/<script[\s\S]*?<\/script>/gi, ' ');
+  s = s.replace(/<style[\s\S]*?<\/style>/gi, ' ');
+
+  // 2. HTML 註解
+  s = s.replace(/<!--[\s\S]*?-->/g, ' ');
+
+  // 3. 自訂輸入容器（含內容）
+  //    <div data-input="number" data-count="2">...</div>
+  s = s.replace(/<div[^>]*\bdata-input\b[^>]*>[\s\S]*?<\/div>/gi, ' ');
+
+  // 4. 其他帶 data-input 的標籤（保險）
+  s = s.replace(/<([a-zA-Z][\w-]*)[^>]*\bdata-input\b[^>]*>[\s\S]*?<\/\1>/gi, ' ');
+
+  // 5. 圖片：保留 alt 文字（AI 看不到圖，但至少有文字描述）
+  s = s.replace(/<img[^>]*\balt=["']([^"']+)["'][^>]*>/gi, ' [FIGURE: $1] ');
+  s = s.replace(/<img[^>]*>/gi, ' [FIGURE] ');
+
+  // 6. 換行標籤保留為換行
+  s = s.replace(/<br\s*\/?>/gi, '\n');
+
+  // 7. 移除所有剩餘 HTML 標籤
+  s = s.replace(/<[^>]+>/g, ' ');
+
+  // 8. HTML entity 解碼（常見的）
+  s = s.replace(/&nbsp;/g, ' ')
+       .replace(/&lt;/g, '<')
+       .replace(/&gt;/g, '>')
+       .replace(/&amp;/g, '&')
+       .replace(/&quot;/g, '"')
+       .replace(/&#39;/g, "'");
+
+  // 9. 折疊空白（保留段落換行）
+  s = s.replace(/[ \t]+/g, ' ');
+  s = s.replace(/\n{3,}/g, '\n\n');
+  s = s.trim();
+
+  return s;
+}
 // ═══════════════ 拉題目 ═══════════════
 async function getProblem(problemId) {
   const d = db.getDb();
@@ -622,13 +670,7 @@ async function processTask(page, task) {
       return;
     }
 
-    // 準備 prompt
-    const statement = String(problem.statement || '')
-      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
+    const statement = cleanStatementForAI(problem.statement);
 
     const prompt = buildStepsPrompt({
       statement,

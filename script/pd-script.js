@@ -178,6 +178,7 @@
       name: problem.name || '',
       tags: Array.isArray(problem.tags) ? problem.tags : [],
       difficulty: Number(problem.difficulty) || 0,
+      FS: problem.FS === true,        // ⭐ 新增
       updatedAt: Date.now(),
     };
 
@@ -332,17 +333,24 @@ window.PD = {
         </div>
 
         <div class="answer-workbench" id="answerWorkbench">
-          <div class="wb-tabs" role="tablist">
-            <button type="button" class="wb-tab" data-mode="text" role="tab" title="Text">
-              <i class="fas fa-keyboard"></i>
-            </button>
-            <button type="button" class="wb-tab" data-mode="photo" role="tab" title="Photo">
-              <i class="fas fa-camera"></i>
-            </button>
-            <button type="button" class="wb-tab" data-mode="steps" role="tab" title="Steps (AI grading)">
-              <i class="fas fa-wand-magic-sparkles"></i>
-            </button>
-          </div>
+          ${(() => {
+            const fsForced = problem.FS === true;
+            return `
+              <div class="wb-tabs" role="tablist">
+                <button type="button" class="wb-tab" data-mode="text" role="tab" title="Text"
+                  ${fsForced ? 'disabled aria-disabled="true" style="opacity:.35;cursor:not-allowed;"' : ''}>
+                  <i class="fas fa-keyboard"></i><br>Text
+                </button>
+                <button type="button" class="wb-tab" data-mode="photo" role="tab" title="Photo">
+                  <i class="fas fa-camera"></i><br>Image
+                </button>
+                <button type="button" class="wb-tab" data-mode="steps" role="tab" title="Steps (AI grading)">
+                  <i class="fas fa-wand-magic-sparkles"></i><br>AI
+                </button>
+              </div>
+              ${fsForced ? '<div class="wb-hint" style="display:block;"><i class="fas fa-circle-info"></i> This problem contains proof, You should use the third mode to submit</div>' : ''}
+            `;
+          })()}
 
           <div class="wb-hint" id="wbHint" style="display:none"></div>
 
@@ -649,6 +657,7 @@ async function renderRichText(target, text) {
           name: cached.name,
           tags: cached.tags,
           difficulty: cached.difficulty,
+          FS: cached.FS === true,
         };
         S.problemName = cached.name || problemId;
 
@@ -701,10 +710,11 @@ async function renderRichText(target, text) {
       // ⭐ 同步到 localStorage（權威來源）
       setCachedState(problemId, pageData.state || 'not_started');
       S.favorites = new Set(pageData.favorited ? [problemId] : []);
-
+      
       // ═══════════════════════════════════════════════════
       // 階段 3：更新畫面
       // ═══════════════════════════════════════════════════
+      
       if (!cached) {
         // 沒快取 → 首次渲染完整頁面
         mainContainer.innerHTML = buildPageHTML(problem, {
@@ -743,6 +753,16 @@ async function renderRichText(target, text) {
           const isFav = S.favorites.has(problemId);
           starIcon.className = isFav ? 'fas fa-star' : 'far fa-star';
           starIcon.style.color = isFav ? '#f1c40f' : '#aaa';
+        }
+      }
+      // ⭐ FS 檢查：若強制 steps，禁用 text tab
+      if (S.problem && S.problem.FS === true) {
+        const textTab = document.querySelector('.wb-tab[data-mode="text"]');
+        if (textTab && !textTab.disabled) {
+          textTab.disabled = true;
+          textTab.setAttribute('aria-disabled', 'true');
+          textTab.style.opacity = '.35';
+          textTab.style.cursor = 'not-allowed';
         }
       }
 

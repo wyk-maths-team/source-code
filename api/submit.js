@@ -393,6 +393,14 @@ async function handleSingleSubmit(ctx) {
   if (!problem) {
     return res.status(404).json({ success: false, message: 'Problem not found' });
   }
+  // ⭐ FS（forced steps）：禁止 text 提交（admin/root 例外，方便测试）
+  if (problem.FS === true && type === 'text'
+      && role !== 'admin' && role !== 'root') {
+    return res.status(400).json({
+      success: false,
+      message: 'This problem requires the AI-graded steps mode or image submission. Please use the Steps tab.',
+    });
+  }
 
   // ── Determine contest membership ──
   let activeContest = null;

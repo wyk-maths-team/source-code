@@ -598,6 +598,15 @@
             </div>
             <div class="form-group"><label>Tags (comma-separated): <input type="text" id="editTags" value="${(problem.tags || []).join(', ')}" /></label></div>
             <div class="form-group"><label><input type="checkbox" id="editPublic" ${problem.public !== false ? 'checked' : ''}> Public (visible to students)</label></div>
+            <div class="form-group">
+              <label>
+                <input type="checkbox" id="editFS" ${problem.FS === true ? 'checked' : ''}>
+                Force Steps mode (reject text submissions)
+              </label>
+              <small style="color:#666;display:block;margin-top:.3rem;">
+                Proof problems: Text submit banned.
+              </small>
+            </div>
             <div style="margin-top:1.5rem;">
               <button type="submit" class="btn btn-primary">Save Changes</button>
               <a href="/admin/problems" class="btn btn-secondary">Cancel</a>
@@ -936,9 +945,10 @@
         const tags = document.getElementById('editTags').value.split(',').map(t => t.trim()).filter(t => t);
         const isPublic = document.getElementById('editPublic').checked;
         const logic = document.getElementById('editLogic').value.trim();
+        const FS = document.getElementById('editFS').checked;
         try {
           const result = await apiCall('/api/problem?action=adminProblems', 'PUT', {
-            id: problemId, name, statement, ans, difficulty, tags, public: isPublic, logic
+            id: problemId, name, statement, ans, difficulty, tags, public: isPublic, logic,FS
           });
           const msgEl = document.getElementById('message');
           msgEl.textContent = result.message;
