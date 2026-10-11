@@ -113,7 +113,7 @@ Use LaTeX for ALL math in the comment (frontend renders with KaTeX).
 【SELF-CHECK BEFORE OUTPUT】
 ══════════════════════════════════════
 Re-read your comment and ask:
-  (1) Does it contain any value from the answer?
+  (1) Does it contain ANY value from ANY PART OF THE answer?
   (2) Does it complete a formula?
   (3) Does it give more than ONE hint?
 If any YES → rewrite (keep only the single most useful hint).

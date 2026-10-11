@@ -32,8 +32,11 @@ temp.html
 *temp.html
 wasted.html
 
+
 # --------------- Local testing ---------------
 testcases/
 *.in
 *.out
 *.ans
+dse-data/
+tools/

@@ -464,7 +464,7 @@
   // ─────────────────────────────────────────────────────────────
   const MCQ_CSS_URL   = '/css/pd-pdf.css';        // PDF + MCQ 樣式
   const MCQ_JS_URL    = '/script/pd-mcq.js';
-  const EXTRAS_JS_URL = '/script/pd-extras.js';
+  const EXTRAS_JS_URL = '/escript/pd-extras.js';
 
   let _mcqPromise = null;
   let _extrasPromise = null;

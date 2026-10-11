@@ -1,4 +1,4 @@
-﻿// app.js - 全局初始化
+// app.js - 全局初始化
 (function() {
   // 初始化应用
   initApp();
