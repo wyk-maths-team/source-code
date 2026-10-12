@@ -506,6 +506,7 @@ async function handleSingleSubmit(ctx) {
       return sendSuccess(db, rawUsername, res, {
         success: true,
         subid: submissionData.subid,
+        imageUrl: submissionData.image,
         correct: false,
         systemError: false,
         message: 'Image submitted',
@@ -596,6 +597,7 @@ async function handleSingleSubmit(ctx) {
     return sendSuccess(db, rawUsername, res, {
       success: true,
       subid: submissionData.subid,
+      imageUrl: submissionData.image,
       correct: false,
       systemError: false,
       message: 'Image submitted for marking',

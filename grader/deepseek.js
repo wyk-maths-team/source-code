@@ -5,6 +5,13 @@ const config = require('./config');
 
 const ASSISTANT_SELECTOR = '.ds-assistant-message-main-content';
 
+// ⭐ 輸入框 / 按鈕選擇器（集中管理）
+const INPUT_SELECTOR     = 'textarea[name="search"], textarea[placeholder*="DeepSeek"]';
+const SEND_BTN_SELECTOR  = 'div[role="button"].ds-button--primary.ds-button--circle';
+// 回形針上傳按鈕（用戶提供的 SVG 路徑前綴 M5.5498）
+const UPLOAD_BTN_SELECTOR =
+  'div[role="button"].ds-button--iconLabelPrimary:has(svg path[d^="M5.5498"])';
+
 // ═══ 分級 logger ═══
 // 符號約定（bridge.js 的 styleFor 會依此上色）：
 //   ℹ  一般訊息
@@ -79,10 +86,7 @@ async function launch() {
 // ═══════════════ 登入檢查 ═══════════════
 async function isLoggedIn() {
   try {
-    await _page.waitForSelector(
-      'textarea[name="search"], textarea[placeholder*="DeepSeek"]',
-      { timeout: 5000, state: 'visible' }
-    );
+    await _page.waitForSelector(INPUT_SELECTOR, { timeout: 5000, state: 'visible' });
     return true;
   } catch {
     return false;
@@ -97,10 +101,7 @@ async function waitForManualLogin() {
   console.log(`${TAG} ╚═══════════════════════════════════════════════╝`);
   console.log('');
 
-  await _page.waitForSelector(
-    'textarea[name="search"], textarea[placeholder*="DeepSeek"]',
-    { timeout: 600_000, state: 'visible' }
-  );
+  await _page.waitForSelector(INPUT_SELECTOR, { timeout: 600_000, state: 'visible' });
 
   log.ok('已登入');
   await sleep(1500);
@@ -126,19 +127,19 @@ async function setDeepThink(enabled) {
   }
   if (result.already) return true;
 
-  // 等 UI 反應（400ms 太保守，200ms 夠）
   await sleep(200);
   log.info(`切換模式 → ${enabled ? 'R1（深度思考）' : 'V3（快速）'}`);
   return true;
 }
-// ═══════════════ 發送訊息 ═══════════════
-async function sendMessage(text) {
-  // 用 evaluate 找元素 + 直接设值（绕过 Playwright 的 fill）
-  const ok = await _page.evaluate((t) => {
-    const input = document.querySelector('textarea[name="search"], textarea[placeholder*="DeepSeek"]');
+
+// ═══════════════ 輸入框：貼文字 ═══════════════
+async function pasteText(text) {
+  const ok = await _page.evaluate((args) => {
+    const [t, sel] = args;
+    const input = document.querySelector(sel);
     if (!input) return false;
 
-    // React 受控组件需要 dispatch input 事件
+    // React 受控組件需要 dispatch input 事件
     const nativeSetter = Object.getOwnPropertyDescriptor(
       window.HTMLTextAreaElement.prototype, 'value'
     ).set;
@@ -147,27 +148,125 @@ async function sendMessage(text) {
     nativeSetter.call(input, t);
     input.dispatchEvent(new Event('input', { bubbles: true }));
     return true;
-  }, text);
+  }, [text, INPUT_SELECTOR]);
 
   if (!ok) throw new Error('找不到輸入框');
+  await sleep(150);
+}
 
-  await sleep(150);  // 让 React 完成状态更新（300 → 150）
+// ═══════════════ 點發送按鈕 ═══════════════
+async function clickSend({ maxWaitMs = 15_000 } = {}) {
+  const start = Date.now();
+  let attempt = 0;
+  let lastReason = '';
 
-  // 找發送按鈕 + 點擊
-  const clicked = await _page.evaluate(() => {
-    const btns = document.querySelectorAll(
-      'div[role="button"].ds-button--primary.ds-button--circle'
-    );
-    const btn = btns[btns.length - 1];
-    if (!btn) return false;
-    if (btn.classList.contains('ds-button--disabled')) return false;
-    btn.click();
-    return true;
+  while (Date.now() - start < maxWaitMs) {
+    attempt++;
+
+    const r = await _page.evaluate((sel) => {
+      const btns = document.querySelectorAll(sel);
+      if (btns.length === 0) return { ok: false, reason: 'no-buttons' };
+
+      const btn = btns[btns.length - 1];
+
+      // 檢查 disabled 狀態（class 或 attr）
+      if (btn.classList.contains('ds-button--disabled')) {
+        return { ok: false, reason: 'disabled-class' };
+      }
+      if (btn.disabled === true) {
+        return { ok: false, reason: 'disabled-attr' };
+      }
+
+      // 點擊
+      btn.click();
+      return { ok: true };
+    }, SEND_BTN_SELECTOR);
+
+    if (r.ok) {
+      if (attempt > 1) log.info(`發送按鈕第 ${attempt} 次嘗試成功`);
+      return true;
+    }
+
+    lastReason = r.reason;
+
+    // 每 200ms 一次
+    await sleep(200);
+  }
+
+  throw new Error(
+    `發送按鈕持續不可用（${maxWaitMs}ms / ${attempt} 次嘗試，last: ${lastReason}）`
+  );
+}
+
+// ═══════════════ 發送訊息（純文字，向後兼容） ═══════════════
+async function sendMessage(text) {
+  await pasteText(text);
+  await clickSend();
+  log.send(`訊息已送出 (${text.length} chars)`);
+}
+
+// ═══════════════ 圖片上傳 ═══════════════
+async function uploadImage(buffer, mimeType) {
+  // 1. 統計上傳前的圖片數（用於等待新縮圖出現）
+  const beforeCount = await _page.evaluate(() => {
+    return document.querySelectorAll(
+      'img[src^="blob:"], img[src^="data:image"]'
+    ).length;
   });
 
-  if (!clicked) throw new Error('發送按鈕不可用');
+  // 2. 找 file input
+  let fileInput = await _page.$('input[type="file"]');
 
-  log.send(`訊息已送出 (${text.length} chars)`);
+  // 若沒找到，點回形針按鈕觸發
+  if (!fileInput) {
+    log.info('未找到 file input，嘗試點擊上傳按鈕…');
+    try {
+      await _page.click(UPLOAD_BTN_SELECTOR, { timeout: 3000 });
+    } catch (e) {
+      log.warn(`點擊上傳按鈕失敗: ${e.message}`);
+    }
+    try {
+      await _page.waitForSelector('input[type="file"]', {
+        state: 'attached',
+        timeout: 5000,
+      });
+      fileInput = await _page.$('input[type="file"]');
+    } catch {}
+  }
+
+  if (!fileInput) throw new Error('找不到圖片上傳 input');
+
+  // 3. 用 Playwright 塞檔案
+  const ext = mimeType.includes('png')  ? 'png'
+            : mimeType.includes('webp') ? 'webp'
+            : mimeType.includes('gif')  ? 'gif'
+            : 'jpg';
+
+  await fileInput.setInputFiles({
+    name: `solution.${ext}`,
+    mimeType,
+    buffer,
+  });
+
+  // 4. 等縮圖出現
+  try {
+    await _page.waitForFunction(
+      (before) => {
+        const now = document.querySelectorAll(
+          'img[src^="blob:"], img[src^="data:image"]'
+        ).length;
+        return now > before;
+      },
+      beforeCount,
+      { timeout: 20_000, polling: 200 }
+    );
+    log.ok(`圖片已上傳 (${Math.round(buffer.length / 1024)} KB)`);
+  } catch {
+    log.warn(`等待縮圖超時，可能已上傳但 DOM 未更新`);
+  }
+
+  // 5. UI 穩定
+  await sleep(400);
 }
 
 // ═══════════════ DOM 查詢工具 ═══════════════
@@ -196,13 +295,9 @@ async function getLastAssistantText() {
     return '';
   }
 }
+
 /**
- * 精确定位「最后一条 assistant 消息」的复制按钮，并在必要时重试
- * 关键：从最后一条消息往上找容器，只在该容器里找复制按钮
- *       这样若最新消息的工具栏还没渲染，不会误点上一条的
- *
- * @param {number} timeoutMs
- * @returns {Promise<boolean>} 是否成功点到了按钮
+ * 精確定位「最後一條 assistant 消息」的複製按鈕
  */
 async function clickLastMessageCopyButton({ timeoutMs = 10_000 } = {}) {
   const COPY_SVG_PREFIX = 'M6.14929';
@@ -216,7 +311,6 @@ async function clickLastMessageCopyButton({ timeoutMs = 10_000 } = {}) {
 
       const lastMsg = msgs[msgs.length - 1];
 
-      // 從最後一條消息往上找容器，逐層檢查是否含複製按鈕
       let node = lastMsg;
       for (let depth = 0; depth < 10; depth++) {
         if (!node) break;
@@ -251,7 +345,6 @@ async function clickLastMessageCopyButton({ timeoutMs = 10_000 } = {}) {
 
 /**
  * 透過「複製」按鈕拿最後一條回覆的原始 Markdown
- * @returns {Promise<string|null>}
  */
 async function copyLastReply() {
   try {
@@ -278,16 +371,16 @@ async function copyLastReply() {
       window.__dsClipboardHook.text = null;
     });
 
-    // ⭐ 2. 記錄訊息數（防誤觸重新生成）
+    // ⭐ 2. 記錄訊息數
     const beforeCount = await countAssistantMessages();
 
-    // ⭐ 3. 精確點擊（含輪詢等待）
+    // ⭐ 3. 精確點擊
     const clicked = await clickLastMessageCopyButton({ timeoutMs: 10_000 });
     if (!clicked) return null;
 
     await sleep(300);
 
-    // ⭐ 4. 檢查是否觸發新回覆（防誤觸重新生成）
+    // ⭐ 4. 檢查是否觸發新回覆
     const afterCount = await countAssistantMessages();
     if (afterCount > beforeCount) {
       log.warn(`⚠️ 點擊後訊息數 ${beforeCount} → ${afterCount}，可能誤觸了重新生成`);
@@ -310,6 +403,7 @@ async function copyLastReply() {
     return null;
   }
 }
+
 // ═══════════════ 診斷 ═══════════════
 async function debugDump() {
   const info = await _page.evaluate(() => {
@@ -340,11 +434,11 @@ async function debugDump() {
   console.log(JSON.stringify(info, null, 2));
   return info;
 }
+
 // ═══════════════ 即時進度條 ═══════════════
 const _PROGRESS_WIDTH = 20;
 let _progressActive = false;
 
-// 紅色進度條 + 秒數（1 位小數）+ 百分比
 function _formatProgress(elapsedMs, timeoutMs) {
   const elapsedSec = elapsedMs / 1000;
   const timeoutSec = timeoutMs / 1000;
@@ -353,7 +447,6 @@ function _formatProgress(elapsedMs, timeoutMs) {
   const filled = Math.round(pct * _PROGRESS_WIDTH / 100);
   const empty  = _PROGRESS_WIDTH - filled;
 
-  // 紅色填充，灰色背景，充滿即 timeout
   const bar =
     '\x1b[31m' + '█'.repeat(filled) +
     '\x1b[90m' + '░'.repeat(empty) +
@@ -362,7 +455,6 @@ function _formatProgress(elapsedMs, timeoutMs) {
   return `⌛ \x1b[36m${elapsedSec.toFixed(1)}s\x1b[0m / ${timeoutSec.toFixed(1)}s [${bar}] \x1b[33m${pct.toFixed(1)}%\x1b[0m`;
 }
 
-// 原地重寫一行（不換行，不進 log 檔）
 function _drawProgress(text) {
   const now = new Date();
   const hh = String(now.getHours()).padStart(2, '0');
@@ -374,18 +466,17 @@ function _drawProgress(text) {
   const pad    = ' '.repeat(Math.max(0, 67 - plain.length));
   const suffix = `\x1b[90m│\x1b[0m`;
 
-  // \r 回行首 + \x1b[K 清到行尾 + 寫新內容
   process.stdout.write('\r\x1b[K' + prefix + text + pad + suffix);
   _progressActive = true;
 }
 
-// 結束進度行（寫一個換行，讓下一個 log 從新行開始）
 function _endProgress() {
   if (_progressActive) {
     process.stdout.write('\n');
     _progressActive = false;
   }
 }
+
 async function waitForReply({
   timeoutMs = 60_000,
   baselineCount = 0,
@@ -402,7 +493,6 @@ async function waitForReply({
   };
 
   try {
-    // ⭐ 立即顯示初始進度（不等第一次輪詢）
     _drawProgress(_formatProgress(0, timeoutMs));
 
     while (Date.now() - startTime < timeoutMs) {
@@ -415,7 +505,6 @@ async function waitForReply({
 
       if (countIncreased || textChanged) {
         if (!sawNewContent) {
-          // ⭐ 先清進度行，再印 log
           stopProgress();
           log.recv(
             `偵測到新回覆 (count: ${baselineCount}→${count}, ` +
@@ -431,12 +520,10 @@ async function waitForReply({
         everSawText = true;
       }
 
-      // 穩定判斷
       if (sawNewContent && everSawText && Date.now() - lastChangeAt >= 800) {
         return lastText;
       }
 
-      // ⭐ 有新內容 → 停止畫進度條；否則持續更新
       if (!sawNewContent) {
         _drawProgress(_formatProgress(Date.now() - startTime, timeoutMs));
       }
@@ -447,7 +534,6 @@ async function waitForReply({
     stopProgress();
   }
 
-  // 超時
   log.warn(
     `waitForReply 超時 (${timeoutMs}ms) — ` +
     `sawNewContent=${sawNewContent}, everSawText=${everSawText}, ` +
@@ -462,10 +548,9 @@ async function waitForReply({
   );
 }
 
-// ═══════════════ 完整流程 ═══════════════
+// ═══════════════ 完整流程（純文字） ═══════════════
 async function ask(text, { model = 'r1', timeoutMs = 60_000 } = {}) {
   await setDeepThink(model === 'r1');
-  // ⭐ 删掉 sleep(500)，setDeepThink 内部已等
 
   const baselineCount = await countAssistantMessages();
   const baselineText = await getLastAssistantText();
@@ -476,7 +561,35 @@ async function ask(text, { model = 'r1', timeoutMs = 60_000 } = {}) {
   const replyDom = await waitForReply({ timeoutMs, baselineCount, baselineText });
   log.recv(`DOM 回覆完成 (${replyDom.length} chars)`);
 
-  // ⭐ sleep(500) → sleep(150)
+  await sleep(150);
+  const replyClean = await copyLastReply();
+
+  return (replyClean && replyClean.length > 0) ? replyClean : replyDom;
+}
+
+// ═══════════════ 完整流程（文字 + 圖片） ═══════════════
+async function askWithImage(text, buffer, mimeType, {
+  model = 'r1',
+  timeoutMs = 180_000,
+} = {}) {
+  await setDeepThink(model === 'r1');
+
+  const baselineCount = await countAssistantMessages();
+  const baselineText  = await getLastAssistantText();
+  log.info(`baseline: count=${baselineCount}, textLen=${baselineText.length}`);
+
+  // ⭐ 順序：先圖後文
+  await uploadImage(buffer, mimeType);
+  await pasteText(text);
+  await clickSend();
+  log.send(
+    `訊息 + 圖片已送出 (${text.length} chars, ` +
+    `${Math.round(buffer.length / 1024)} KB)`
+  );
+
+  const replyDom = await waitForReply({ timeoutMs, baselineCount, baselineText });
+  log.recv(`DOM 回覆完成 (${replyDom.length} chars)`);
+
   await sleep(150);
   const replyClean = await copyLastReply();
 
@@ -514,9 +627,13 @@ module.exports = {
   waitForManualLogin,
   setDeepThink,
   sendMessage,
+  pasteText,
+  clickSend,
+  uploadImage,
+  askWithImage,
   countAssistantMessages,
   getLastAssistantText,
-  copyLastReply, 
+  copyLastReply,
   debugDump,
   waitForReply,
   ask,

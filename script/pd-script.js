@@ -365,6 +365,15 @@
               </div>
             </div>
             <div class="wb-pane" data-pane="photo">
+              <div class="wb-model-picker">
+                <span class="wb-model-label"><i class="fas fa-microchip"></i> AI model</span>
+                <button type="button" class="wb-model-btn" data-model="r1">
+                  R1 <small>Slow but accurate</small>
+                </button>
+                <button type="button" class="wb-model-btn" data-model="v3">
+                  V3 <small>Fast</small>
+                </button>
+              </div>
               <div class="wb-dropzone" id="wbDropzone">
                 <input type="file" id="imageFileInput" accept="image/*" hidden>
                 <i class="fas fa-cloud-upload-alt"></i>
@@ -464,7 +473,7 @@
   // ─────────────────────────────────────────────────────────────
   const MCQ_CSS_URL   = '/css/pd-pdf.css';        // PDF + MCQ 樣式
   const MCQ_JS_URL    = '/script/pd-mcq.js';
-  const EXTRAS_JS_URL = '/escript/pd-extras.js';
+  const EXTRAS_JS_URL = '/script/pd-extras.js';
 
   let _mcqPromise = null;
   let _extrasPromise = null;

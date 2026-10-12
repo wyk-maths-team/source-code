@@ -442,6 +442,7 @@ function clearWorkbenchStatus() {
       btn.classList.toggle('active', btn.dataset.model === model);
     });
   }
+
   // ═════════════════════════════════════════════════════════════
   // [E.1] AI 批改進度：轉圈圈 + 數字 + 進度條（RAF 平滑）
   // ═════════════════════════════════════════════════════════════
@@ -451,11 +452,10 @@ function clearWorkbenchStatus() {
   let _gradingFillEl = null;
 
   function startGradingProgress() {
-    stopGradingProgress();   // 保險：先清掉舊的
+    stopGradingProgress();
 
     _gradingStartAt = Date.now();
 
-    // ⭐ 一次寫好整個結構，之後只改 pct 文字 + 進度條 transform
     setWorkbenchStatusHtml(
       `<span class="wb-grading-card">` +
         `<span class="wb-grading-row">` +
@@ -477,21 +477,11 @@ function clearWorkbenchStatus() {
 
     const startMs = _gradingStartAt;
 
-    // 指數漸近曲線：95 * (1 - exp(-t / 12))
-    //   t=0   → 0%
-    //   t=5   → ~32%
-    //   t=10  → ~54%
-    //   t=15  → ~68%
-    //   t=30  → ~87%
-    //   t=60  → ~94%
-    //   t=∞   → 95%（永不 100，等真實回應）
     const tick = () => {
       const elapsed = (Date.now() - startMs) / 1000;
       const progress = Math.min(95, 95 * (1 - Math.exp(-elapsed / 12)));
 
       _gradingPctEl.textContent = Math.floor(progress) + '%';
-
-      // ⭐ 用 transform: scaleX 走 GPU，比改 width 順
       _gradingFillEl.style.transform = 'scaleX(' + (progress / 100) + ')';
 
       if (barEl) barEl.setAttribute('aria-valuenow', Math.floor(progress));
@@ -510,13 +500,9 @@ function clearWorkbenchStatus() {
     _gradingPctEl = null;
     _gradingFillEl = null;
   }
-    /**
-   * 從當前 % 平滑跑到 100%，然後 resolve。
-   * 用於批改完成時，讓進度條「演」完最後一段。
-   */
+
   function finishGradingProgress({ duration = 450 } = {}) {
     return new Promise((resolve) => {
-      // 先停掉原本的 RAF
       if (_gradingRAF) {
         cancelAnimationFrame(_gradingRAF);
         _gradingRAF = null;
@@ -525,13 +511,11 @@ function clearWorkbenchStatus() {
       const pctEl  = _gradingPctEl;
       const fillEl = _gradingFillEl;
 
-      // 沒元素 → 直接完成
       if (!pctEl || !fillEl) { resolve(); return; }
 
       const startPct = parseInt(pctEl.textContent, 10) || 0;
       const startAt  = performance.now();
 
-      // 已經到 100 → 不用跑
       if (startPct >= 100) {
         _gradingPctEl = null;
         _gradingFillEl = null;
@@ -541,7 +525,6 @@ function clearWorkbenchStatus() {
 
       const tick = (now) => {
         const t = Math.min(1, (now - startAt) / duration);
-        // easeOutCubic：起步快，收尾慢 → 看起來「衝到 100 再停」
         const eased = 1 - Math.pow(1 - t, 3);
         const pct = startPct + (100 - startPct) * eased;
 
@@ -551,11 +534,9 @@ function clearWorkbenchStatus() {
         if (t < 1) {
           requestAnimationFrame(tick);
         } else {
-          // 精確停在 100
           pctEl.textContent = '100%';
           fillEl.style.transform = 'scaleX(1)';
 
-          // ⭐ 停一下，讓用戶看到 100% 再切結果（避免突兀）
           setTimeout(() => {
             _gradingPctEl = null;
             _gradingFillEl = null;
@@ -567,6 +548,58 @@ function clearWorkbenchStatus() {
       requestAnimationFrame(tick);
     });
   }
+
+  // ═════════════════════════════════════════════════════════════
+  // [E.2] 通用 AI 批改輪詢（steps + image 共用）
+  // ═════════════════════════════════════════════════════════════
+function pollGradeResult({ endpoint, taskId, checkBtn, maxAttempts = 60 }) {
+  const POLL_INTERVAL = 3000;
+  let attempts = 0;
+
+  const tick = async () => {
+    attempts++;
+
+    if (attempts > maxAttempts) {
+      stopGradingProgress();
+      setWorkbenchStatus('AI grading timed out — please retry', 'err');
+      // ⭐ 不碰 checkBtn / S.cooldown，讓 cooldown 自己管
+      return;
+    }
+
+    try {
+      const sep = endpoint.includes('?') ? '&' : '?';
+      const res = await apiCall(
+        `${endpoint}${sep}taskId=${encodeURIComponent(taskId)}`
+      );
+
+      if (res?.status === 'done') {
+        await finishGradingProgress();
+        renderStepsResult(res.result, res.subid);
+        // ⭐ 不碰 checkBtn / S.cooldown
+        return;
+      }
+
+      if (res?.status === 'error') {
+        stopGradingProgress();
+        setWorkbenchStatus('AI error: ' + (res.message || 'unknown'), 'err');
+        // ⭐ 不碰 checkBtn / S.cooldown
+        return;
+      }
+
+      // pending / processing：繼續輪詢
+      setTimeout(tick, POLL_INTERVAL);
+    } catch (err) {
+      console.error('[poll]', err);
+      setTimeout(tick, POLL_INTERVAL);
+    }
+  };
+
+  setTimeout(tick, 2000);
+}
+
+  // ═════════════════════════════════════════════════════════════
+  // [E.3] Steps 提交
+  // ═════════════════════════════════════════════════════════════
   async function handleStepsSubmit(stepsText, checkBtn) {
     setWorkbenchStatus('Submitting to AI...', 'busy');
 
@@ -585,7 +618,12 @@ function clearWorkbenchStatus() {
       }
       if (window.PD.cooldown) window.PD.cooldown.start('steps');
       startGradingProgress();
-      pollStepsResult(res.taskId, checkBtn);
+      pollGradeResult({
+        endpoint: '/api/steps-grade',
+        taskId: res.taskId,
+        checkBtn,
+        maxAttempts: 40,   // 120 秒
+      });
 
     } catch (err) {
       console.error('[steps submit]', err);
@@ -595,54 +633,9 @@ function clearWorkbenchStatus() {
     }
   }
 
-  function pollStepsResult(taskId, checkBtn) {
-    const POLL_INTERVAL = 3000;
-    const MAX_ATTEMPTS  = 40;   // 120 秒上限
-    let attempts = 0;
-
-    const tick = async () => {
-      attempts++;
-
-      if (attempts > MAX_ATTEMPTS) {
-        stopGradingProgress();
-        setWorkbenchStatus('AI grading timed out — please retry', 'err');
-        S.cooldown = false;
-        checkBtn.disabled = false;
-        return;
-      }
-
-      try {
-        const res = await apiCall(`/api/steps-grade?taskId=${encodeURIComponent(taskId)}`);
-
-        if (res?.status === 'done') {
-          // ⭐ 先讓進度條跑完 100%，再顯示結果
-          await finishGradingProgress();
-          renderStepsResult(res.result, res.subid);
-          S.cooldown = false;
-          checkBtn.disabled = false;
-          return;
-        }
-
-        if (res?.status === 'error') {
-          stopGradingProgress();
-          setWorkbenchStatus('AI error: ' + (res.message || 'unknown'), 'err');
-          S.cooldown = false;
-          checkBtn.disabled = false;
-          return;
-        }
-
-        // ⭐ pending / processing：不動 UI（進度條由 startGradingProgress 控制）
-        setTimeout(tick, POLL_INTERVAL);
-
-      } catch (err) {
-        console.error('[steps poll]', err);
-        setTimeout(tick, POLL_INTERVAL);
-      }
-    };
-
-    setTimeout(tick, 2000);
-  }
-
+  // ═════════════════════════════════════════════════════════════
+  // [E.4] 渲染批改結果
+  // ═════════════════════════════════════════════════════════════
   function renderStepsResult(result, subid) {
     stopGradingProgress();
     const score   = Number(result?.score);
@@ -663,14 +656,12 @@ function clearWorkbenchStatus() {
     else if (s === 0)  { label = 'Wrong Answer (0)';      cls = 'status-wrong';    }
     else               { label = `Partial Score (${s})`;  cls = 'status-partial';  }
 
-    // ⭐ 分別組 HTML：label 安全，comment 保留 $...$ 給 KaTeX
     let statusHtml;
     if (!comment) {
       statusHtml = subid
         ? statusBoxHtml(subid, label, cls)
         : `<span class="feedback-box ${cls}" style="cursor:default">${esc(label)}</span>`;
     } else {
-      // escape HTML 特殊字元（防 XSS），但保留 $ \ { } 給 KaTeX
       const commentSafe = esc(comment).replace(/\n/g, '<br>');
       const inner = `${esc(label)} — <span class="comment-text">${commentSafe}</span>`;
       statusHtml = subid
@@ -699,50 +690,7 @@ function clearWorkbenchStatus() {
   }
 
   // ═════════════════════════════════════════════════════════════
-  // [F] 圖片狀態輪詢
-  // ═════════════════════════════════════════════════════════════
-  function startImageStatusPoll() {
-    clearInterval(S.pollTimer);
-    let attempts = 0;
-    S.pollTimer = setInterval(async () => {
-      if (++attempts > 120) {
-        clearInterval(S.pollTimer);
-        document.getElementById('detailSpinner').style.display = 'none';
-        document.getElementById('detailStatusIcon').style.display = '';
-        document.getElementById('detailStatusText').textContent = 'Timed out';
-        return;
-      }
-      try {
-        const data = await apiCall(`/api/submissions?problem_id=${encodeURIComponent(problemId)}`);
-        if (!data.success) return;
-        const sub = data.submissions[0];
-        if (!(sub && sub.type === 'image' && sub.marked)) return;
-
-        clearInterval(S.pollTimer);
-        document.getElementById('detailSpinner').style.display = 'none';
-        const iconEl = document.getElementById('detailStatusIcon');
-        iconEl.style.display = 'inline';
-        const status = sub.status;
-        if (status === 'Accepted') {
-          iconEl.innerHTML = '<i class="fa fa-check-circle fa-green"></i>';
-          PD.setProblemState(problemId, 'passed');
-        } else if (status === 'Wrong Answer') {
-          iconEl.innerHTML = '<i class="fa fa-times-circle fa-red"></i>';
-          if (S.userStates[problemId] !== 'passed') PD.setProblemState(problemId, 'failed');
-        } else if (status.startsWith('Partial Score')) {
-          iconEl.innerHTML = '<i class="fa fa-exclamation-triangle fa-yellow"></i>';
-          if (S.userStates[problemId] !== 'passed') PD.setProblemState(problemId, 'failed');
-        } else {
-          iconEl.innerHTML = '<span style="color:#888;">-</span>';
-        }
-        document.getElementById('detailStatusText').textContent = status;
-        updateProblemDetailIcon();
-      } catch {}
-    }, 5000);
-  }
-
-  // ═════════════════════════════════════════════════════════════
-  // [G] Neko
+  // [F] Neko
   // ═════════════════════════════════════════════════════════════
   function fetchNekoAndShow() {
     const container = document.getElementById('nekoContainer');
@@ -778,7 +726,7 @@ function clearWorkbenchStatus() {
   }
 
   // ═════════════════════════════════════════════════════════════
-  // [H] 事件綁定
+  // [G] 事件綁定
   // ═════════════════════════════════════════════════════════════
   function bindAnswerInteractions() {
     document.querySelectorAll('.wb-tab:not(:disabled)').forEach(tab => {
@@ -919,15 +867,69 @@ function clearWorkbenchStatus() {
           return;
         }
 
+        // ⭐ 圖片：一律走 AI 批改
         if (result.message && result.message.includes('Image submitted')) {
-          setWorkbenchStatusHtml(
-            statusBoxHtml(result.subid, 'Image submitted for marking', 'status-pending')
-          );
-          document.getElementById('detailStatusIcon').style.display = 'none';
-          document.getElementById('detailSpinner').style.display = 'inline-block';
-          document.getElementById('detailStatusText').textContent = 'Pending';
-          startImageStatusPoll();
-        } else if (result.systemError) {
+          S.cooldown = true;
+          checkBtn.disabled = true;
+
+          let imageUrl = result.imageUrl;
+          if (!imageUrl && result.subid) {
+            try {
+              const detailRes = await apiCall(
+                `/api/submissions?action=detail&subid=${encodeURIComponent(result.subid)}`
+              );
+              imageUrl = detailRes?.submission?.image || '';
+            } catch (e) {
+              console.error('[image-grade] fallback fetch failed:', e);
+            }
+          }
+
+          if (!imageUrl) {
+            setWorkbenchStatusHtml(
+              statusBoxHtml(result.subid, 'Image saved but AI grading unavailable (no imageUrl)', 'status-system')
+            );
+            S.cooldown = false;
+            checkBtn.disabled = false;
+            return;
+          }
+
+          try {
+            const gradeRes = await apiCall('/api/image-grade', 'POST', {
+              problemId,
+              subid: result.subid,
+              imageUrl,
+              model: getStepsModel(),
+            });
+
+            if (gradeRes?.success && gradeRes.taskId) {
+              if (window.PD.cooldown) window.PD.cooldown.start('photo');
+              startGradingProgress();
+              pollGradeResult({
+                endpoint: '/api/image-grade',
+                taskId: gradeRes.taskId,
+                checkBtn,
+                maxAttempts: 60,   // 180 秒
+              });
+              return;
+            }
+
+            setWorkbenchStatus(
+              gradeRes?.message || 'Failed to create AI grading task',
+              'err'
+            );
+            S.cooldown = false;
+            checkBtn.disabled = false;
+          } catch (e) {
+            console.error('[image-grade] create failed:', e);
+            setWorkbenchStatus('Network error: ' + (e.message || 'unknown'), 'err');
+            S.cooldown = false;
+            checkBtn.disabled = false;
+          }
+          return;
+        }
+
+        // ⭐ 文字：既有邏輯
+        if (result.systemError) {
           setWorkbenchStatusHtml(statusBoxHtml(result.subid, 'System Error: your answer NaN and suggested is number, otherwise please report.', 'status-system'));
         } else if (result.score !== undefined) {
           let txt, cls;
@@ -951,6 +953,7 @@ function clearWorkbenchStatus() {
           PD.setProblemState(problemId, 'failed');
         }
         updateProblemDetailIcon();
+
         // ⭐ 啟動冷卻
         if (window.PD.cooldown) {
           window.PD.cooldown.start(
@@ -972,7 +975,7 @@ function clearWorkbenchStatus() {
   }
 
   // ═════════════════════════════════════════════════════════════
-  // [I] Similar / Report
+  // [H] Similar / Report
   // ═════════════════════════════════════════════════════════════
   async function openSimilar() {
     const modal = document.getElementById('similarModal');
@@ -1066,7 +1069,7 @@ function clearWorkbenchStatus() {
   }
 
   // ═════════════════════════════════════════════════════════════
-  // [J] Discussions
+  // [I] Discussions
   // ═════════════════════════════════════════════════════════════
   const DOMPURIFY_CONFIG = {
     ALLOWED_TAGS: ['b','i','u','strong','em','a','p','br','ul','ol','li','span','div','code','pre','svg','g','defs','clipPath','foreignObject','path','circle','line','polyline','polygon','rect','text','tspan','linearGradient','radialGradient','stop','image','use','img'],
@@ -1131,7 +1134,7 @@ function clearWorkbenchStatus() {
   }
 
   // ═════════════════════════════════════════════════════════════
-  // [K] Navigation
+  // [J] Navigation
   // ═════════════════════════════════════════════════════════════
   async function setupNavigation(currentProblem) {
     const nav = document.getElementById('navButtons');
@@ -1164,7 +1167,7 @@ function clearWorkbenchStatus() {
   }
 
   // ═════════════════════════════════════════════════════════════
-  // [L] Cleanup
+  // [K] Cleanup
   // ═════════════════════════════════════════════════════════════
   function cleanup() {
     if (document.getElementById('timerRow')) { pauseTimer(); saveTimer(); }

@@ -9,10 +9,8 @@ const crypto = require('crypto');
 
 // ═══════════════════════════════════════════════════════════════
 // ⭐ 先建立 logger，再 require 任何其他模組
-//    這樣 deepseek.js 裡的 console.log 也會走彩色管道
 // ═══════════════════════════════════════════════════════════════
 
-// 顏色
 const C = {
   reset: '\x1b[0m',
   dim: '\x1b[2m',
@@ -43,17 +41,14 @@ const C = {
   bgGray: '\x1b[100m',
 };
 
-// 保存原始 console（避免遞迴）
 const _rawLog   = console.log.bind(console);
 const _rawError = console.error.bind(console);
 const _rawWarn  = console.warn.bind(console);
 
-// 檔案路徑（在 config 之後才確定）
 const LOG_FILE = path.join(config.LOG_DIR, 'bridge.log');
 try { fs.mkdirSync(config.LOG_DIR, { recursive: true }); } catch {}
 try { fs.mkdirSync(config.FAILED_DIR, { recursive: true }); } catch {}
 
-// ═══ 內部核心：寫檔案 + 輸出到終端 ═══
 function _emit(prefix, msg) {
   const line = `${prefix}${msg}`;
   try {
@@ -63,7 +58,6 @@ function _emit(prefix, msg) {
   _rawLog(line);
 }
 
-// 時間戳（彩色）
 function ts() {
   const d = new Date();
   const hh = String(d.getHours()).padStart(2, '0');
@@ -72,9 +66,7 @@ function ts() {
   return `${C.gray}${hh}:${mm}:${ss}${C.reset}`;
 }
 
-// ═══ 樣式判斷：偵測 [deepseek] / [mcq] 等前綴，給對應顏色 ═══
 function styleFor(msg) {
-  // ── [deepseek] 子類別（細分顏色 + 圖標）──
   if (/^\[deepseek\]\s*✔/.test(msg))  return { color: C.brightGreen,   icon: '🐋' };
   if (/^\[deepseek\]\s*✖/.test(msg))  return { color: C.brightRed,     icon: '🐋' };
   if (/^\[deepseek\]\s*⚠/.test(msg))  return { color: C.brightYellow,  icon: '🐋' };
@@ -86,7 +78,6 @@ function styleFor(msg) {
   if (/^\[deepseek\]\s*ℹ/.test(msg))  return { color: C.brightMagenta, icon: '🐋' };
   if (/^\[deepseek\]/.test(msg))      return { color: C.brightMagenta, icon: '🐋' };
 
-  // ── 其他模組前綴 ──
   if (/^\[mcq\]/i.test(msg))    return { color: C.brightBlue,   icon: '📄' };
   if (/^\[parse\]/i.test(msg))  return { color: C.brightYellow, icon: '🔍' };
   if (/^\[claim\]/i.test(msg))  return { color: C.brightCyan,   icon: '🔒' };
@@ -100,7 +91,6 @@ function styleFor(msg) {
   return { color: C.white, icon: '·' };
 }
 
-// ═══ 劫持 console ═══
 console.log = (...args) => {
   const msg = args.map(a =>
     typeof a === 'string' ? a : JSON.stringify(a)
@@ -124,17 +114,10 @@ console.error = (...args) => {
   _emit(`${ts()} ${C.red}✖${C.reset}  `, `${C.red}${msg}${C.reset}`);
 };
 
-// ═══ 對外的封裝（bridge.js 內部用） ═══
-function logInfo(msg)  { _emit(`${ts()} ${C.cyan}ℹ${C.reset}  `, `${msg}`); }
-function logOk(msg)    { _emit(`${ts()} ${C.green}✔${C.reset}  `, `${msg}`); }
-function logWarn(msg)  { _emit(`${ts()} ${C.yellow}⚠${C.reset}  `, `${C.yellow}${msg}${C.reset}`); }
-function logError(msg) { _emit(`${ts()} ${C.red}✖${C.reset}  `, `${C.red}${msg}${C.reset}`); }
-
-// ═══ 現在才 require（這樣它們的 console.log 已經被劫持） ═══
+// ═══ 現在才 require ═══
 const db = require('./db');
 const deepseek = require('./deepseek');
-const { buildStepsPrompt } = require('./prompt');
-
+const { buildStepsPrompt, buildImageGradePrompt } = require('./prompt');
 
 
 // ═══════════════ 全局統計 ═══════════════
@@ -146,8 +129,6 @@ const STATS = {
   totalElapsedMs: 0,
   scoreBuckets: { perfect: 0, good: 0, partial: 0, zero: 0, error: 0 },
 };
-
-
 
 function _write(line) {
   try {
@@ -191,12 +172,10 @@ function padL(s, n) {
   return s.length >= n ? s : ' '.repeat(n - s.length) + s;
 }
 
-// 移除 ANSI 計算可見長度
 function visibleLen(s) {
   return s.replace(/\x1b\[[0-9;]*m/g, '').length;
 }
 
-// 中英混合：中文佔 2，ASCII 佔 1
 function displayWidth(s) {
   let w = 0;
   const plain = s.replace(/\x1b\[[0-9;]*m/g, '');
@@ -255,7 +234,6 @@ function midBar(color, width = 66) {
 }
 
 function row(content, width = 66) {
-  // content 已含顏色碼；用 displayWidth 計算
   const w = displayWidth(content);
   const padW = Math.max(0, width - w - 1);
   return `${C.gray}  │${C.reset} ${content}${' '.repeat(padW)}${C.gray}│${C.reset}`;
@@ -285,11 +263,8 @@ function printBootstrap() {
   console.log(`${C.dim}  └────────────────────────────────────────────────────┘${C.reset}`);
   console.log('');
 }
+
 // ═══════════════ JSON 字串內控制字元轉義 ═══════════════
-/**
- * 把 JSON 字串內未轉義的控制字元（\n \r \t 等）轉成轉義序列
- * 追蹤字串狀態（"..." 內外）與轉義符（\），避免誤傷結構
- */
 function escapeControlCharsInJsonStrings(str) {
   let out = '';
   let inString = false;
@@ -332,25 +307,18 @@ function escapeControlCharsInJsonStrings(str) {
 }
 
 // ═══════════════ 壓縮單字符斷行 ═══════════════
-/**
- * 把「每個數學 token 一行」的模式合併
- *   "(\n2\n−\n1\n)"  →  "(2−1)"
- * 保留段落換行（兩個以上連續 \n）
- */
 function compactShortNewlines(text) {
   if (!text) return text;
   let prev;
   do {
     prev = text;
-    // \n<單字符>\n → <單字符>
     text = text.replace(/\n([^\n])\n/g, '$1');
   } while (text !== prev);
-  // 尾端
   text = text.replace(/\n([^\n])$/g, '$1');
-  // 開頭
   text = text.replace(/^([^\n])\n/g, '$1');
   return text;
 }
+
 // ═══════════════ 解析 AI 回覆 ═══════════════
 function parseReply(raw) {
   if (!raw) return null;
@@ -378,19 +346,14 @@ function parseReply(raw) {
 
   let jsonStr = s.slice(first, last + 1);
 
-  // ⭐ 1. 先把字串內未轉義的控制字元轉義
   jsonStr = escapeControlCharsInJsonStrings(jsonStr);
-
-  // 2. 移除尾逗號
   jsonStr = jsonStr.replace(/,(\s*[}\]])/g, '$1');
 
   try {
     const parsed = JSON.parse(jsonStr);
 
-    // ⭐ 3. comment 清理：合併單字符斷行
     if (parsed && typeof parsed.comment === 'string') {
       parsed.comment = compactShortNewlines(parsed.comment);
-      // 壓縮連續空白
       parsed.comment = parsed.comment.replace(/[ \t]+/g, ' ').trim();
     }
 
@@ -402,7 +365,6 @@ function parseReply(raw) {
     const bad = [];
     for (let i = 0; i < jsonStr.length; i++) {
       const cp = jsonStr.charCodeAt(i);
-      // ⭐ 只記錄真正的控制字元（不含 \t \n \r）
       if (cp < 32 && cp !== 9 && cp !== 10 && cp !== 13) {
         bad.push(`${i}:U+${cp.toString(16)}`);
       }
@@ -411,55 +373,33 @@ function parseReply(raw) {
     return null;
   }
 }
-/**
- * 把 statement 清洗成 AI 可讀的純文字
- * - 移除 script / style / 註解
- * - 移除自訂輸入容器（data-input 元素整塊）
- * - 移除所有 HTML 標籤
- * - 折疊多餘空白
- */
+
+// ═══════════════ 清洗 statement ═══════════════
 function cleanStatementForAI(raw) {
   let s = String(raw || '');
 
-  // 1. script / style 完整塊
   s = s.replace(/<script[\s\S]*?<\/script>/gi, ' ');
   s = s.replace(/<style[\s\S]*?<\/style>/gi, ' ');
-
-  // 2. HTML 註解
   s = s.replace(/<!--[\s\S]*?-->/g, ' ');
-
-  // 3. 自訂輸入容器（含內容）
-  //    <div data-input="number" data-count="2">...</div>
   s = s.replace(/<div[^>]*\bdata-input\b[^>]*>[\s\S]*?<\/div>/gi, ' ');
-
-  // 4. 其他帶 data-input 的標籤（保險）
   s = s.replace(/<([a-zA-Z][\w-]*)[^>]*\bdata-input\b[^>]*>[\s\S]*?<\/\1>/gi, ' ');
-
-  // 5. 圖片：保留 alt 文字（AI 看不到圖，但至少有文字描述）
   s = s.replace(/<img[^>]*\balt=["']([^"']+)["'][^>]*>/gi, ' [FIGURE: $1] ');
   s = s.replace(/<img[^>]*>/gi, ' [FIGURE] ');
-
-  // 6. 換行標籤保留為換行
   s = s.replace(/<br\s*\/?>/gi, '\n');
-
-  // 7. 移除所有剩餘 HTML 標籤
   s = s.replace(/<[^>]+>/g, ' ');
-
-  // 8. HTML entity 解碼（常見的）
   s = s.replace(/&nbsp;/g, ' ')
        .replace(/&lt;/g, '<')
        .replace(/&gt;/g, '>')
        .replace(/&amp;/g, '&')
        .replace(/&quot;/g, '"')
        .replace(/&#39;/g, "'");
-
-  // 9. 折疊空白（保留段落換行）
   s = s.replace(/[ \t]+/g, ' ');
   s = s.replace(/\n{3,}/g, '\n\n');
   s = s.trim();
 
   return s;
 }
+
 // ═══════════════ 拉題目 ═══════════════
 async function getProblem(problemId) {
   const d = db.getDb();
@@ -530,11 +470,10 @@ function scoreColors(score) {
   return { fg: C.red, bg: C.bgRed, label: '零分' };
 }
 
-// ═══════════════ 顯示評語（多行 + 引導） ═══════════════
+// ═══════════════ 顯示評語 ═══════════════
 function renderComment(comment, maxWidth = 62) {
   if (!comment) return [];
 
-  // 把 comment 按 \n 拆行
   const lines = String(comment).split(/\n/);
 
   const out = [];
@@ -543,7 +482,6 @@ function renderComment(comment, maxWidth = 62) {
       out.push('');
       continue;
     }
-    // 簡單的自動換行（中文按顯示寬度）
     let current = '';
     let currentW = 0;
     for (const ch of line) {
@@ -568,9 +506,8 @@ function renderComment(comment, maxWidth = 62) {
 
   return out;
 }
-// ═══════════════ 在框內渲染 deepseek 日誌 ═══════════════
 
-// 符號 → 顏色（跟 deepseek.js 的符號約定一致）
+// ═══════════════ 在框內渲染 deepseek 日誌 ═══════════════
 function symColor(sym) {
   switch (sym) {
     case '✔': return C.brightGreen;
@@ -586,13 +523,6 @@ function symColor(sym) {
   }
 }
 
-/**
- * 在 fn() 執行期間，把 [deepseek] 的 console.log 改寫成框內的行。
- * 非 [deepseek] 的訊息照常輸出。
- *
- * @param {number} W   框寬
- * @param {Function} fn 要執行的非同步函式
- */
 async function boxedDeepseekLog(W, fn) {
   const prevLog = console.log;
 
@@ -601,20 +531,17 @@ async function boxedDeepseekLog(W, fn) {
       typeof a === 'string' ? a : JSON.stringify(a)
     ).join(' ');
 
-    // 不是 deepseek 的訊息 → 直接透傳
     if (!msg.startsWith('[deepseek]')) {
       prevLog(...args);
       return;
     }
 
-    // 解析 [deepseek] <符號> <文字>
     const body = msg.replace(/^\[deepseek\]\s*/, '');
     const m = body.match(/^(ℹ|✔|✖|⚠|▶|◀|⏳|⌛|🔗)\s+([\s\S]*)$/);
     const sym  = m ? m[1] : '·';
     const text = (m ? m[2] : body).replace(/\s+/g, ' ').trim();
     const color = symColor(sym);
 
-    // 用框行渲染（呼叫原本的 console.log，會加上時間戳和 icon）
     prevLog(row(`${color}${C.bold}${sym}${C.reset} ${C.gray}${text}${C.reset}`, W));
   };
 
@@ -624,8 +551,14 @@ async function boxedDeepseekLog(W, fn) {
     console.log = prevLog;
   }
 }
-// ═══════════════ 處理單一任務 ═══════════════
+
+// ═══════════════ 處理文字任務 ═══════════════
 async function processTask(page, task) {
+  // ⭐ 圖片任務分流
+  if (task.type === 'image' && task.imageUrl) {
+    return processImageTask(page, task);
+  }
+
   const { taskId, problemId, steps, model } = task;
   const stepsLen = (steps || '').length;
   const useModel = (model === 'v3') ? 'v3' : 'r1';
@@ -636,7 +569,6 @@ async function processTask(page, task) {
   const tStart = Date.now();
   const W = 66;
 
-  // ── 任務開始 ──
   console.log('');
   console.log(topBar(C.blue, W));
   console.log(row(
@@ -654,7 +586,6 @@ async function processTask(page, task) {
   ));
 
   try {
-    // 拉題目
     const problem = await getProblem(problemId);
     if (!problem) {
       console.log(row(`${C.red}✖  題目不存在: ${problemId}${C.reset}`, W));
@@ -678,7 +609,6 @@ async function processTask(page, task) {
       student_steps: String(steps || ''),
     });
 
-    // 呼叫 AI
     console.log(row(
       `${C.dim}→${C.reset} 呼叫 DeepSeek ${useModel.toUpperCase()}...`,
       W
@@ -706,7 +636,6 @@ async function processTask(page, task) {
       W
     ));
 
-    // 解析
     const parsed = parseReply(reply);
 
     let scoreNum = NaN;
@@ -748,7 +677,6 @@ async function processTask(page, task) {
       completedAt: new Date(),
     });
 
-    // ── 完成顯示 ──
     const cols = scoreColors(score);
     const scoreBarLen = Math.round(score / 100 * 30);
     const scoreBar =
@@ -764,7 +692,6 @@ async function processTask(page, task) {
     ));
     console.log(midBar(C.blue, W));
 
-    // ⭐ 顯示評語（多行 + 引導）
     const commentLines = renderComment(comment, W - 4);
     if (commentLines.length === 0) {
       console.log(row(`${C.dim}(無評語)${C.reset}`, W));
@@ -775,7 +702,6 @@ async function processTask(page, task) {
       });
     }
 
-    // 耗時
     const totalMs = Date.now() - tStart;
     console.log(midBar(C.blue, W));
     console.log(row(
@@ -784,7 +710,6 @@ async function processTask(page, task) {
     ));
     console.log(botBar(C.blue, W));
 
-    // 統計
     STATS.processed++;
     STATS.succeeded++;
     STATS.totalElapsedMs += elapsed;
@@ -823,7 +748,232 @@ async function processTask(page, task) {
   }
 }
 
-// ═══════════════ 週期統計（每 10 個任務顯示一次） ═══════════════
+// ═══════════════ 處理圖片任務 ═══════════════
+async function processImageTask(page, task) {
+  const { taskId, problemId, imageUrl, model } = task;
+  const useModel = (model === 'v3') ? 'v3' : 'r1';
+  const modelTag = useModel === 'v3'
+    ? `${C.bgYellow}${C.bold} V3 ${C.reset}`
+    : `${C.bgMagenta}${C.white}${C.bold} R1 ${C.reset}`;
+
+  const tStart = Date.now();
+  const W = 66;
+
+  console.log('');
+  console.log(topBar(C.magenta, W));
+  console.log(row(
+    `${C.bold}${C.brightMagenta}◢ IMAGE TASK${C.reset}  ` +
+    `${C.magenta}${taskId}${C.reset}`,
+    W
+  ));
+  console.log(midBar(C.magenta, W));
+  console.log(row(
+    `${C.gray}Problem${C.reset}  ${C.brightCyan}${problemId}${C.reset}  ` +
+    `${C.gray}·${C.reset}  ` +
+    `${C.gray}Image${C.reset}  ${C.brightCyan}${String(imageUrl).slice(0, 40)}…${C.reset}  ` +
+    `${C.gray}·${C.reset}  ${modelTag}`,
+    W
+  ));
+
+  try {
+    const problem = await getProblem(problemId);
+    if (!problem) {
+      console.log(row(`${C.red}✖  題目不存在: ${problemId}${C.reset}`, W));
+      await updateTask(taskId, {
+        status: 'done',
+        result: { score: -100, comment: 'AI error' },
+        error: `Problem ${problemId} not found`,
+        completedAt: new Date(),
+      });
+      STATS.processed++;
+      STATS.failed++;
+      console.log(botBar(C.magenta, W));
+      return;
+    }
+
+    const statement = cleanStatementForAI(problem.statement);
+    const prompt = buildImageGradePrompt({
+      statement,
+      reference_answer: String(problem.ans ?? ''),
+    });
+
+    // 下載圖片（帶重試）
+    console.log(row(`${C.dim}→${C.reset} 下載學生圖片…`, W));
+
+    const MAX_ATTEMPTS = 3;
+    const RETRY_DELAY_MS = 1500;
+    const FETCH_TIMEOUT_MS = 20_000;
+
+    let buffer = null;
+    let mimeType = 'image/jpeg';
+    let lastErr = null;
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+        const imgRes = await fetch(imageUrl, { signal: controller.signal });
+        clearTimeout(timer);
+
+        if (!imgRes.ok) {
+          lastErr = new Error(`HTTP ${imgRes.status}`);
+          if (attempt < MAX_ATTEMPTS) {
+            console.log(row(
+              `${C.yellow}⚠ 下載失敗 (HTTP ${imgRes.status})，` +
+              `${RETRY_DELAY_MS}ms 後重試 (${attempt + 1}/${MAX_ATTEMPTS})…${C.reset}`,
+              W
+            ));
+            await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+            continue;
+          }
+          throw lastErr;
+        }
+
+        buffer = Buffer.from(await imgRes.arrayBuffer());
+        mimeType = imgRes.headers.get('content-type') || 'image/jpeg';
+
+        if (attempt > 1) {
+          console.log(row(`${C.green}✔ 第 ${attempt} 次下載成功${C.reset}`, W));
+        }
+        break;
+
+      } catch (e) {
+        lastErr = e;
+        const isAbort = e.name === 'AbortError';
+        const msg = isAbort ? `timeout (${FETCH_TIMEOUT_MS}ms)` : e.message;
+
+        if (attempt < MAX_ATTEMPTS) {
+          console.log(row(
+            `${C.yellow}⚠ 下載失敗 (${msg})，` +
+            `${RETRY_DELAY_MS}ms 後重試 (${attempt + 1}/${MAX_ATTEMPTS})…${C.reset}`,
+            W
+          ));
+          await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+        } else {
+          console.log(row(
+            `${C.red}✖ 下載失敗（已嘗試 ${MAX_ATTEMPTS} 次）: ${msg}${C.reset}`,
+            W
+          ));
+        }
+      }
+    }
+
+    if (!buffer) {
+      throw new Error(`圖片下載失敗（${MAX_ATTEMPTS} 次）: ${lastErr?.message || 'unknown'}`);
+    }
+
+    console.log(row(
+      `${C.dim}→${C.reset} 呼叫 DeepSeek ${useModel.toUpperCase()} ` +
+      `(含圖片 ${Math.round(buffer.length / 1024)} KB)…`,
+      W
+    ));
+
+    let reply, elapsed;
+    await boxedDeepseekLog(W, async () => {
+      const t0 = Date.now();
+      reply = await deepseek.askWithImage(prompt, buffer, mimeType, {
+        model: useModel,
+        timeoutMs: config.TASK_TIMEOUT_MS,
+      });
+      elapsed = Date.now() - t0;
+    });
+
+    console.log(row(
+      `${C.dim}←${C.reset} 回覆  ${C.brightCyan}${reply.length}${C.reset} chars  ` +
+      `${C.gray}·${C.reset}  ${fmtMs(elapsed)}`,
+      W
+    ));
+
+    const parsed = parseReply(reply);
+    let scoreNum = NaN;
+    if (parsed) {
+      const v = parsed.score ?? parsed.Score ?? parsed.SCORE;
+      scoreNum = typeof v === 'number' ? v : Number(v);
+    }
+
+    if (!parsed || !Number.isFinite(scoreNum)) {
+      console.log(midBar(C.magenta, W));
+      console.log(row(`${C.red}${C.bold}✖ 解析失敗${C.reset}`, W));
+      await updateTask(taskId, {
+        status: 'done',
+        result: { score: -100, comment: 'AI error' },
+        rawReply: reply.slice(0, 4000),
+        parsedRaw: JSON.stringify(parsed).slice(0, 1000),
+        completedAt: new Date(),
+      });
+      STATS.processed++;
+      STATS.failed++;
+      STATS.scoreBuckets.error++;
+      console.log(botBar(C.magenta, W));
+      return;
+    }
+
+    let score = Math.round(scoreNum);
+    score = Math.max(0, Math.min(100, score));
+    const comment = String(parsed.comment || '').slice(0, 3000);
+
+    await updateTask(taskId, {
+      status: 'done',
+      result: { score, comment },
+      rawReply: reply.slice(0, 4000),
+      elapsedMs: elapsed,
+      completedAt: new Date(),
+    });
+
+    const cols = scoreColors(score);
+    console.log(midBar(C.magenta, W));
+    console.log(row(
+      `${cols.bg}${C.black}${C.bold} ${padL(score, 3)} ${C.reset}  ` +
+      `${cols.fg}${C.bold}${cols.label}${C.reset}`,
+      W
+    ));
+
+    const commentLines = renderComment(comment, W - 4);
+    if (commentLines.length === 0) {
+      console.log(row(`${C.dim}(無評語)${C.reset}`, W));
+    } else {
+      commentLines.forEach((line, idx) => {
+        const prefix = idx === 0 ? `${C.cyan}${C.reset} ` : `${C.cyan}  ${C.reset} `;
+        console.log(row(`${prefix}${C.white}${line}${C.reset}`, W));
+      });
+    }
+
+    const totalMs = Date.now() - tStart;
+    console.log(midBar(C.magenta, W));
+    console.log(row(`${C.gray}⏱  總耗時  ${fmtMs(totalMs)}${C.reset}`, W));
+    console.log(botBar(C.magenta, W));
+
+    STATS.processed++;
+    STATS.succeeded++;
+    STATS.totalElapsedMs += elapsed;
+    if (score === 100) STATS.scoreBuckets.perfect++;
+    else if (score >= 60) STATS.scoreBuckets.good++;
+    else if (score > 0) STATS.scoreBuckets.partial++;
+    else STATS.scoreBuckets.zero++;
+
+  } catch (err) {
+    console.log(midBar(C.magenta, W));
+    console.log(row(
+      `${C.red}${C.bold}✖ 任務失敗${C.reset}  ${C.red}${err.message}${C.reset}`,
+      W
+    ));
+
+    await updateTask(taskId, {
+      status: 'done',
+      result: { score: -100, comment: 'AI error' },
+      error: String(err.message || err).slice(0, 300),
+      completedAt: new Date(),
+    });
+
+    STATS.processed++;
+    STATS.failed++;
+    STATS.scoreBuckets.error++;
+    console.log(botBar(C.magenta, W));
+  }
+}
+
+// ═══════════════ 週期統計 ═══════════════
 function maybePrintStats() {
   if (STATS.processed > 0 && STATS.processed % 10 === 0) {
     const avg = STATS.succeeded > 0
@@ -856,17 +1006,14 @@ async function main() {
 
   banner();
 
-  // 連 Mongo
   console.log(`${C.cyan}[1/3]${C.reset} 連接 MongoDB...`);
   await db.connect();
   logOk(`Mongo 已連線: ${C.brightCyan}${config.MONGODB_DB}${C.reset}`);
   console.log('');
 
-  // 開瀏覽器
   console.log(`${C.cyan}[2/3]${C.reset} 啟動 Chrome (CDP)...`);
   const { page } = await deepseek.launch();
 
-  // 登入檢查
   console.log(`${C.cyan}[3/3]${C.reset} 檢查 DeepSeek 登入狀態...`);
   if (!(await deepseek.isLoggedIn())) {
     await deepseek.waitForManualLogin();
@@ -877,7 +1024,6 @@ async function main() {
 
   printBootstrap();
 
-  // 訊號處理
   let running = true;
   const shutdown = async (sig) => {
     console.log('');
@@ -907,7 +1053,6 @@ async function main() {
   process.on('SIGINT',  () => shutdown('SIGINT'));
   process.on('SIGTERM', () => shutdown('SIGTERM'));
 
-  // 進入主循環
   console.log(
     `${C.brightGreen}${C.bold}🚀 進入主循環${C.reset}  ` +
     `${C.dim}(poll 間隔 ${config.POLL_INTERVAL_MS}ms)${C.reset}`
