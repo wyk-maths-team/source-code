@@ -31,23 +31,42 @@ ${student_steps}
 【GRADING RULES】
 0. FIRST, judge whether the student made a GENUINE ATTEMPT.
 
-   Treat the following as NO attempt:
+   Treat the following as NO attempt (understanding ≠ attempting):
      - Empty or near-empty input
      - Placeholder text such as "?", "...", "idk", "I don't know",
-       "不会", "我不会做", "不知道", "?"
+       "不会", "我不会做", "不知道"
      - Gibberish / random characters / keyboard mashing
      - Off-topic content (chit-chat, jokes, unrelated text)
-     - Copied problem statement only, with no working
-     - A bare final answer with ZERO working or reasoning shown
+     - Restating the problem in any form — paraphrased or verbatim,
+       including reformatting into "Given: / Find:" or similar
+     - Writing down definitions already in the problem
+       (e.g. "triangular number means 1, 3, 6, 10, ...")
+     - Quoting a standard formula that appears in every textbook
+       on the topic, with no indication of how to use it here
+       (e.g. "T_n = n(n+1)/2" alone)
+     - A bare final answer with ZERO working
      - Repeated characters, whitespace-only, emoji-only
+
+   Understanding the problem is NOT attempting it. Only count as
+   an attempt if the student has taken a concrete step TOWARD a
+   solution.
+
+   Treat the following AS a genuine attempt:
+     - Computing one or more small cases / concrete examples
+     - Trying a special case or boundary case to see what happens
+     - Stating a guess WITH at least one reason or observation
+     - Applying a formula to the specific problem (substituting in)
+     - Setting up an equation, sum, or expression aimed at the answer
+     - Any partial computation, even if it fails or is wrong
 
    If NO genuine attempt:
      - score MUST be 0
      - The comment MUST NOT contain any hint, theorem name, method name,
        formula fragment, "try to…" suggestion, or directional question.
      - The comment is a neutral, encouraging one-liner asking the student
-       to attempt the problem from the start.
-     - Do NOT give partial credit for a non-attempt.
+       to actually start working (compute a small case, plug in numbers,
+       attempt a step).
+     - Do NOT give partial credit for merely restating the problem.
 
    If there IS a genuine attempt (even if deeply flawed):
      - Proceed to the rules below.
@@ -127,9 +146,25 @@ Use LaTeX for ALL math in the comment (frontend renders with KaTeX).
   - No line breaks inside a formula
 
 ══════════════════════════════════════
-【LANGUAGE & FORMAT】
+【LANGUAGE — MATCH THE STUDENT】
 ══════════════════════════════════════
-  - English by default; Chinese if the student's steps are mainly Chinese.
+Detect the language used by the STUDENT in their submission and reply in
+the SAME language:
+
+  - If the student writes in Chinese → reply in TRADITIONAL CHINESE
+
+  - If the student writes in English → reply in English.
+
+  - If the student's language CANNOT be determined — for example the
+    submission is empty, symbols-only, gibberish, an unreadable image,
+    or the student has not written any prose — DEFAULT TO ENGLISH.
+
+Do NOT mix languages. Do NOT translate the student's work. The comment
+must be entirely in ONE language.
+
+══════════════════════════════════════
+【FORMAT】
+══════════════════════════════════════
   - Maximum 3000 characters.
   - Use \\n for paragraph breaks.
   - Plain text only (no markdown).
@@ -143,7 +178,9 @@ Re-read your comment and ask:
   (1) Does it contain any value from the answer?
   (2) Does it complete a formula?
   (3) Does it give more than ONE hint?
-If any YES → rewrite (keep only the single most useful hint).
+  (4) Is the comment in the SAME language as the student's submission?
+      If the language was undetermined, is it in English?
+If any YES → rewrite.
 
 【OUTPUT FORMAT】
 Output ONLY this JSON with no other characters:
@@ -205,7 +242,11 @@ If the image is unreadable or contains no mathematical work → score 0.
        to attempt the problem from the start.
      - Do NOT give partial credit for a non-attempt.
 
-   If there IS a genuine attempt (even if deeply flawed):
+   If there IS a genuine attempt :     
+   - A photo showing ANY computation: small cases, substitutions,
+       attempts at algebra, partial work, even if wrong
+     - A photo showing a guess with an accompanying reason or sketch
+     (even if deeply flawed):
      - Proceed to the rules below.
      - The comment MAY contain at most ONE directive hint.
 
@@ -283,9 +324,27 @@ Use LaTeX for ALL math in the comment (frontend renders with KaTeX).
   - No line breaks inside a formula
 
 ══════════════════════════════════════
-【LANGUAGE & FORMAT】
+【LANGUAGE — MATCH THE STUDENT】
 ══════════════════════════════════════
-  - English by default; Chinese if the student's steps are mainly Chinese.
+Detect the language used by the STUDENT in their IMAGE and reply in the
+SAME language:
+
+  - If the student writes in Chinese → reply in TRADITIONAL CHINESE
+    (繁體中文, Hong Kong style; use 繁體字, NOT 简体字; use HK math
+    terminology, e.g. 質數 not 素数, 對數 not 对数, 矩陣 not 矩阵).
+
+  - If the student writes in English → reply in English.
+
+  - If the student's language CANNOT be determined — for example the
+    image is blank, contains only symbols, contains only diagrams with
+    no text, or the handwriting is illegible — DEFAULT TO ENGLISH.
+
+Do NOT mix languages. Do NOT translate the student's work. The comment
+must be entirely in ONE language.
+
+══════════════════════════════════════
+【FORMAT】
+══════════════════════════════════════
   - Maximum 3000 characters.
   - Use \\n for paragraph breaks.
   - Plain text only (no markdown).
@@ -299,7 +358,9 @@ Re-read your comment and ask:
   (1) Does it contain any value from the answer?
   (2) Does it complete a formula?
   (3) Does it give more than ONE hint?
-If any YES → rewrite (keep only the single most useful hint).
+  (4) Is the comment in the SAME language as the student's submission?
+      If the language was undetermined, is it in English?
+If any YES → rewrite.
 
 【OUTPUT FORMAT】
 Output ONLY this JSON with no other characters:

@@ -41,6 +41,44 @@
     padding: 0.5rem 0;
   }
 
+  /* ═══════════ Exam Banner ═══════════ */
+  .exam-banner {
+    background: linear-gradient(135deg, #fff4e0 0%, #ffe4c4 100%);
+    border: 1px solid #f0c98f;
+    border-radius: 12px;
+    padding: 14px 18px;
+    color: #7a4a00;
+    box-shadow: 0 2px 10px rgba(240, 201, 143, .25);
+  }
+  [data-theme="dark"] .exam-banner {
+    background: linear-gradient(135deg, #2a1f0f 0%, #3a2a14 100%);
+    border-color: #5c4420;
+    color: #ffb86c;
+    box-shadow: 0 2px 10px rgba(0,0,0,.3);
+  }
+  .exam-banner-inner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .exam-banner-inner > i {
+    font-size: 1.15rem;
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+  .exam-banner-inner strong {
+    display: block;
+    font-size: 0.92rem;
+    margin-bottom: 3px;
+    font-weight: 700;
+    letter-spacing: -0.1px;
+  }
+  .exam-banner-inner span {
+    font-size: 0.83rem;
+    line-height: 1.55;
+    opacity: .92;
+  }
+
   /* ═══════════ Hero ═══════════ */
   .home-hero {
     position: relative;
@@ -337,6 +375,10 @@
     .hero-sub { font-size: .85rem; margin-bottom: 0.9rem; }
     .hero-btn { padding: 8px 16px; font-size: .82rem; }
 
+    .exam-banner { padding: 12px 14px; border-radius: 10px; }
+    .exam-banner-inner strong { font-size: .86rem; }
+    .exam-banner-inner span   { font-size: .78rem; }
+
     .progress-card { padding: 1.1rem 1.15rem 1.2rem; border-radius: 12px; }
     .progress-header h2 { font-size: .95rem; }
     .progress-stats { gap: 1.5rem; margin-bottom: 0.9rem; }
@@ -357,6 +399,17 @@
 
     <main class="main-content" id="mainContent">
       <div class="home-wrap">
+
+        <!-- ═══════ Exam Mode Banner ═══════ -->
+        <section class="exam-banner">
+          <div class="exam-banner-inner">
+            <i class="fas fa-book-open"></i>
+              <div>
+                <strong>Gone Studying (sort of)</strong>
+                <span>I'm off to grind for the DSE until April 2028. The site should be fine —— most of the cute little bugs are friendly. If you find a scary one (site down, data loss), please message me immediately. Everything else: noted, filed, forgotten, maybe fixed later.</span>
+              </div>
+          </div>
+        </section>
 
         <!-- ═══════ Hero ═══════ -->
         <section class="home-hero">
@@ -485,7 +538,6 @@
       const card = document.getElementById('progressCard');
       if (!card) return;
 
-      // 先顯示卡片（數據載入中顯示 —）
       card.style.display = '';
 
       try {
@@ -502,13 +554,11 @@
         document.getElementById('statTotal').textContent  = total;
         document.getElementById('statPct').textContent    = pct + '%';
 
-        // 觸發進度條動畫
         requestAnimationFrame(() => {
           document.getElementById('progressFill').style.width = pct + '%';
         });
       } catch (err) {
         console.warn('[home] progress load failed:', err);
-        // 失敗就不顯示卡片
         card.style.display = 'none';
       }
     })();
