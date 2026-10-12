@@ -122,7 +122,7 @@
       {
         title: 'Learn',
         tags: [
-          { name: 'Tricks', placeholder: true },
+          { name: 'Tricks' },
           { name: 'Advanced skills', placeholder: true },
         ],
       },
@@ -143,6 +143,7 @@
       {
         title: 'External Competitions',
         tags: [
+          { name: 'CHSML'},
           { name: 'IMO Shortlist', placeholder: true },
           { name: 'CMO', placeholder: true },
           { name: 'APMO', placeholder: true },

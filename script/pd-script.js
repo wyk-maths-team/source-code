@@ -365,10 +365,10 @@
               </div>
             </div>
             <div class="wb-pane" data-pane="photo">
-              <label class="wb-dropzone" id="wbDropzone">
+              <div class="wb-dropzone" id="wbDropzone">
                 <input type="file" id="imageFileInput" accept="image/*" hidden>
                 <i class="fas fa-cloud-upload-alt"></i>
-              </label>
+              </div>
               <div class="wb-photo-preview" id="wbPhotoPreview" hidden>
                 <img id="imagePreview" alt="preview">
                 <div class="wb-photo-actions">

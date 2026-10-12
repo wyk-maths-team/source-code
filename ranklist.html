@@ -309,19 +309,57 @@
     #leaderboardBody.refreshing {
       opacity: .5;
     }
+
+    /* ═══════════════════════════════════════════════
+       ⭐ Rating 徽章
+       ═══════════════════════════════════════════════ */
     .user-rating {
-      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1px 7px;
+      border-radius: 10px;
+      border: 1.5px solid currentColor;
       font-family: 'Consolas', monospace;
-      transition: color .2s;
+      font-size: 0.82em;
+      line-height: 1.4;
+      letter-spacing: 0.3px;
+      background: transparent;
+      white-space: nowrap;
+      transition: transform .15s, box-shadow .15s, background .15s;
     }
-    .user-rating[data-tier="legend"] { animation: glow 2s infinite alternate; }
-    @keyframes glow {
-      from { text-shadow: 0 0 6px currentColor; }
-      to   { text-shadow: 0 0 14px currentColor, 0 0 20px currentColor; }
+
+    .user-rating:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 10px rgba(0,0,0,.15);
+    }
+
+    [data-theme="dark"] .user-rating {
+      background: rgba(255,255,255,.04);
+    }
+
+    /* ⭐ 2900+：黑金传奇 */
+    .user-rating--legend {
+      color: #FBBF24;
+      border-color: #FBBF24;
+      background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+      padding: 2px 10px;
+      text-shadow: 0 0 8px rgba(251, 191, 36, .55);
+      animation: legendPulse 2.2s ease-in-out infinite alternate;
+    }
+
+    @keyframes legendPulse {
+      from { box-shadow: 0 0 6px rgba(251, 191, 36, .35); }
+      to   { box-shadow: 0 0 16px rgba(251, 191, 36, .75); }
+    }
+
+    /* ⭐ 2600+：额外光晕 */
+    .user-rating--elite {
+      box-shadow: 0 0 8px -2px currentColor;
     }
   </style>
 
-  <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
+  <!-- ⭐ PWA manifest（必须静态写入，不能 JS 注入） -->
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#1a1a2e">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
@@ -384,8 +422,8 @@ function formatLastSeen(ts) {
   }
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
+
 // ⭐ 头像 + 绿点
-    
     function avatarHtml(user, size = 24) {
       const pfp = user.pfp;
       const online = user.online;
@@ -394,6 +432,77 @@ function formatLastSeen(ts) {
         : `<div class="avatar-placeholder"><i class="fas fa-user"></i></div>`;
       const dot = online ? '<span class="online-dot" title="Online"></span>' : '';
       return `<span class="user-avatar-wrap" style="width:${size}px;height:${size}px;">${inner}${dot}</span>`;
+    }
+
+    /* ═══════════════════════════════════════════════
+       ⭐ Rating 字重 + 徽章
+       ═══════════════════════════════════════════════ */
+
+    // 分档字重规则：
+    //   每个区间内 → 线性变粗
+    //   区间边界（如 1200 / 1600 / 2200）→ 额外 +100 加成，
+    //     所以 1200 比 1201 粗（作为「上一阶段的顶」）
+    //   2900+ → 固定 900（黑金传奇）
+    function ratingWeight(rating) {
+      if (rating >= 2900) return 900;
+
+      const bounds = [
+        { min: 2600, base: 700, inc: 100 },  // [2600, 2900)
+        { min: 2400, base: 600, inc: 100 },  // [2400, 2600)
+        { min: 2200, base: 600, inc: 100 },  // [2200, 2400)
+        { min: 2100, base: 500, inc: 100 },  // [2100, 2200)
+        { min: 1900, base: 500, inc: 100 },  // [1900, 2100)
+        { min: 1600, base: 500, inc: 100 },  // [1600, 1900)
+        { min: 1400, base: 400, inc: 100 },  // [1400, 1600)
+        { min: 1200, base: 400, inc: 100 },  // [1200, 1400)
+        { min: 1000, base: 400, inc: 100 },  // [1000, 1200)
+      ];
+
+      let tier = bounds[bounds.length - 1];   // 默认最低档
+      let nextMin = 1200;
+      let tierIdx = bounds.length - 1;
+
+      for (let i = 0; i < bounds.length; i++) {
+        if (rating >= bounds[i].min) {
+          tier = bounds[i];
+          nextMin = i > 0 ? bounds[i - 1].min : 2900;
+          tierIdx = i;
+          break;
+        }
+      }
+
+      const range = nextMin - tier.min;
+      const p = range > 0 ? (rating - tier.min) / range : 0;
+      let weight = tier.base + p * tier.inc;
+
+      // ⭐ 边界点（非最低档）→ +100 加成
+      //    让 1200 > 1201、1600 > 1601、2200 > 2201 …
+      if (rating === tier.min && tierIdx < bounds.length - 1) {
+        weight += 100;
+      }
+
+      return Math.round(weight);
+    }
+
+    // 生成 rating 徽章 HTML（排行榜 + tooltip 共用）
+    function ratingBadge(rating, tierColor, tierGlow) {
+      const fw = ratingWeight(rating);
+
+      // 2900+：黑金传奇
+      if (rating >= 2900) {
+        return `<span class="user-rating user-rating--legend"
+                      style="font-weight:${fw};">${rating}</span>`;
+      }
+
+      // 2600+：额外光晕
+      const extraClass = rating >= 2600 ? ' user-rating--elite' : '';
+
+      return `<span class="user-rating${extraClass}"
+                    style="color:${tierColor};
+                           font-weight:${fw};
+                           text-shadow: 0 0 6px ${tierGlow};">
+                ${rating}
+              </span>`;
     }
 
     // ═══════════════ Skeleton ═══════════════
@@ -456,9 +565,7 @@ function formatLastSeen(ts) {
           <div class="tip-username">@${escapeHtml(user.username)}</div>
           ${user.realName ? `<div class="tip-realname">${escapeHtml(user.realName)}</div>` : ''}
           <div class="tip-realname" style="margin-top:4px;">
-            Rating: <span class="user-rating" style="color:${user.tierColor}; text-shadow: 0 0 6px ${user.tierGlow};">
-                    ${user.rating}
-                  </span><br>
+            Rating: ${ratingBadge(user.rating, user.tierColor, user.tierGlow)}<br>
             <span style="color:${user.online ? '#2ecc71' : '#aaa'};">
               <i class="fas fa-circle" style="font-size:6px;vertical-align:middle;"></i>
               ${user.online
@@ -537,9 +644,7 @@ function formatLastSeen(ts) {
                    style="display:flex;align-items:center;gap:6px;">
                   ${avatarHtml(entry, 24)}
                   <span>${escapeHtml(entry.username)} - ${escapeHtml(entry.displayName || entry.username)}</span>
-                  <span class="user-rating" style="color:${entry.tierColor}; text-shadow: 0 0 6px ${entry.tierGlow};">
-                    ${entry.rating}
-                  </span>
+                  ${ratingBadge(entry.rating, entry.tierColor, entry.tierGlow)}
                 </a>
               </td>
               <td class="text-center">${entry.solves}</td>
