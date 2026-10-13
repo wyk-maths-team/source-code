@@ -6,6 +6,7 @@ const path = require('path');
 const os = require('os');
 const config = require('./config');
 const crypto = require('crypto');
+const portDb = require('../lib/port-db');
 
 // ═══════════════════════════════════════════════════════════════
 // ⭐ 先建立 logger，再 require 任何其他模組
@@ -453,6 +454,182 @@ async function claimTask() {
   }
 
   return null;
+}
+// ═══════════════ Port 任務搶佔 ═══════════════
+async function claimPortTask() {
+  let d;
+  try { d = portDb.getDb(); } catch { return null; }
+  const now = new Date();
+  const stale = new Date(Date.now() - config.LOCK_TTL_MS);
+  const col = d.collection('port_tasks');
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const candidate = await col.findOne(
+      {
+        status: 'pending',
+        $or: [
+          { lockedAt: { $exists: false } },
+          { lockedAt: null },
+          { lockedAt: { $lt: stale } },
+        ],
+      },
+      { sort: { createdAt: 1 }, projection: { taskId: 1, _id: 0 } }
+    );
+    if (!candidate) return null;
+
+    const claimToken = crypto.randomUUID();
+    const r = await col.updateOne(
+      { taskId: candidate.taskId, status: 'pending' },
+      { $set: { status: 'processing', lockedAt: now, claimToken, pickedUpAt: now } }
+    );
+    if (r.modifiedCount === 1) {
+      return await col.findOne({ claimToken });
+    }
+  }
+  return null;
+}
+
+// ═══════════════ 處理 Port 任務 ═══════════════
+async function processPortTask(page, task) {
+  const { taskId, submissionId, subject, problemId, statement, answer, maxScore, steps, images, chatUrl } = task;
+  const W = 66;
+  const tStart = Date.now();
+
+  console.log('');
+  console.log(topBar(C.brightCyan, W));
+  console.log(row(`${C.bold}${C.brightCyan}◢ PORT TASK${C.reset}  ${C.magenta}${taskId}${C.reset}`, W));
+  console.log(midBar(C.brightCyan, W));
+  console.log(row(
+    `${C.gray}Subject${C.reset}  ${C.brightYellow}${subject.toUpperCase()}${C.reset}  ` +
+    `${C.gray}·${C.reset}  ` +
+    `${C.gray}Problem${C.reset}  ${C.brightCyan}${problemId}${C.reset}  ` +
+    `${C.gray}·${C.reset}  ` +
+    `${C.gray}Images${C.reset}  ${C.brightCyan}${(images || []).length}${C.reset}  ` +
+    `${C.gray}·${C.reset}  ` +
+    `${C.gray}Steps${C.reset}  ${C.brightCyan}${(steps || '').length}${C.reset} chars`,
+    W
+  ));
+
+  const portDbHandle = portDb.getDb();
+  const col = portDbHandle.collection('port_tasks');
+
+  try {
+    // ⭐ 若有 chatUrl 就先跳轉過去
+    if (chatUrl && page) {
+      console.log(row(`${C.dim}→${C.reset} 跳轉 DeepSeek 對話…`, W));
+      try {
+        await page.goto(chatUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+        await new Promise(r => setTimeout(r, 2500));
+      } catch (e) {
+        console.log(row(`${C.yellow}⚠ 跳轉失敗: ${e.message.slice(0, 60)}${C.reset}`, W));
+      }
+    }
+
+    // 下載所有圖片
+    const buffers = [];
+    for (let i = 0; i < (images || []).length; i++) {
+      const url = images[i];
+      console.log(row(`${C.dim}→${C.reset} 下載圖片 ${i + 1}/${images.length}…`, W));
+      let res, lastErr;
+      for (let k = 0; k < 3; k++) {
+        try {
+          res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+          if (res.ok) break;
+          lastErr = new Error(`HTTP ${res.status}`);
+        } catch (e) { lastErr = e; }
+        if (k < 2) await new Promise(r => setTimeout(r, 1500));
+      }
+      if (!res || !res.ok) throw new Error(`圖片下載失敗: ${lastErr?.message}`);
+      const buf = Buffer.from(await res.arrayBuffer());
+      const mime = res.headers.get('content-type') || 'image/jpeg';
+      buffers.push({ buffer: buf, mimeType: mime });
+    }
+
+    // 建 prompt
+    const { buildPortPrompt } = require('../lib/port-prompt');
+    const prompt = buildPortPrompt({
+      subject, statement, answer, maxScore,
+      steps: steps || '',
+      images: buffers,
+    });
+
+    // 呼叫 DeepSeek
+    let reply, elapsed;
+    await boxedDeepseekLog(W, async () => {
+      const t0 = Date.now();
+      if (buffers.length === 0) {
+        reply = await deepseek.ask(prompt, { model: 'r1', timeoutMs: config.TASK_TIMEOUT_MS });
+      } else {
+        // 多圖：先傳第一張 + 文字，剩下逐張貼上
+        // 簡化：只傳第一張（DeepSeek 網頁限制）
+        // 若要支援多圖，需要 page 上傳多張
+        // 暫且：串接
+        reply = await deepseek.askWithImage(prompt, buffers[0].buffer, buffers[0].mimeType, {
+          model: 'r1', timeoutMs: config.TASK_TIMEOUT_MS,
+        });
+        for (let i = 1; i < buffers.length; i++) {
+          // 目前先忽略（見下方備註）
+        }
+      }
+      elapsed = Date.now() - t0;
+    });
+
+    // 解析
+    const parsed = parseReply(reply);
+    if (!parsed) throw new Error('JSON 解析失敗');
+
+    const scoreNum = Number(parsed.score);
+    const result = {
+      score: Number.isFinite(scoreNum) ? scoreNum : -100,
+      comment: String(parsed.comment || '').slice(0, 5000),
+      details: parsed.details || null,
+    };
+
+    await col.updateOne(
+      { taskId },
+      { $set: { status: 'done', result, elapsedMs: elapsed, completedAt: new Date() } }
+    );
+
+    // 顯示
+    const cols = scoreColors(result.score < 0 ? 0 : result.score);
+    console.log(midBar(C.brightCyan, W));
+    console.log(row(
+      `${C.brightCyan}${C.bold}✔ 完成${C.reset}  ` +
+      (result.score < 0
+        ? `${C.gray}(診斷模式)${C.reset}  `
+        : `${cols.bg}${C.black}${C.bold} ${padL(result.score, 3)} ${C.reset}  `) +
+      `${C.gray}·${C.reset}  ${fmtMs(elapsed)}`,
+      W
+    ));
+
+    const lines = renderComment(result.comment, W - 4);
+    for (const line of lines) {
+      console.log(row(`${C.white}${line}${C.reset}`, W));
+    }
+    console.log(botBar(C.brightCyan, W));
+
+    STATS.processed++;
+    STATS.succeeded++;
+
+  } catch (err) {
+    console.log(midBar(C.brightCyan, W));
+    console.log(row(`${C.red}${C.bold}✖ Port 失敗${C.reset}  ${C.red}${err.message}${C.reset}`, W));
+    console.log(botBar(C.brightCyan, W));
+
+    try {
+      await col.updateOne(
+        { taskId },
+        { $set: { status: 'error', error: String(err.message).slice(0, 300), completedAt: new Date() } }
+      );
+      await portDbHandle.collection('port_submissions').updateOne(
+        { submissionId },
+        { $set: { status: 'error' } }
+      );
+    } catch {}
+
+    STATS.processed++;
+    STATS.failed++;
+  }
 }
 
 async function updateTask(taskId, update) {
@@ -1008,6 +1185,12 @@ async function main() {
 
   console.log(`${C.cyan}[1/3]${C.reset} 連接 MongoDB...`);
   await db.connect();
+    try {
+    await portDb.connect();
+    logOk(`Port DB (CS) 已連線`);
+  } catch (e) {
+    logWarn(`Port DB 連線失敗（將跳過 port 任務）: ${e.message}`);
+  }
   logOk(`Mongo 已連線: ${C.brightCyan}${config.MONGODB_DB}${C.reset}`);
   console.log('');
 
@@ -1061,13 +1244,20 @@ async function main() {
 
   while (running) {
     try {
-      const task = await claimTask();
+      // 先處理 Port 任務
+      const portTask = await claimPortTask();
+      if (portTask) {
+        await processPortTask(page, portTask);
+        maybePrintStats();
+        continue;
+      }
 
+      // 再處理主站任務
+      const task = await claimTask();
       if (!task) {
         await new Promise(r => setTimeout(r, config.POLL_INTERVAL_MS));
         continue;
       }
-
       await processTask(page, task);
       maybePrintStats();
 

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script>(function(){try{var t=localStorage.getItem('theme')||'light';if(t==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Port · WYK Maths</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<link rel="stylesheet" href="/css/port.css">
+</head>
+<body>
+  <header class="port-topbar">
+    <div class="ptb-left">
+      <i class="fas fa-terminal"></i>
+      <span>Port</span>
+    </div>
+    <nav class="ptb-nav">
+      <button class="ptb-tab active" data-view="tasks">Tasks</button>
+      <button class="ptb-tab" data-view="submissions">Submissions</button>
+      <button class="ptb-tab" data-view="settings"><i class="fas fa-cog"></i></button>
+    </nav>
+    <div class="ptb-right">
+      <button id="themeToggle" title="Toggle theme"><i class="fas fa-moon"></i></button>
+    </div>
+  </header>
+
+  <main class="port-main">
+    <!-- ═══════════ Tasks ═══════════ -->
+    <section class="port-view" id="view-tasks">
+      <div class="task-sidebar">
+        <div class="sidebar-block">
+          <label>Subject</label>
+          <select id="subjectSelect">
+            <option value="chin">中文</option>
+            <option value="eng">English</option>
+            <option value="maths">Mathematics</option>
+            <option value="m2" selected>M2</option>
+            <option value="phy">Physics</option>
+            <option value="chem">Chemistry</option>
+            <option value="bio">Biology</option>
+          </select>
+        </div>
+        <div class="sidebar-block">
+          <label>Chapter</label>
+          <select id="chapterSelect"><option value="">All</option></select>
+        </div>
+        <div class="problem-list" id="problemList"></div>
+      </div>
+
+      <div class="task-canvas">
+        <div id="problemPanel" class="problem-panel" hidden>
+          <div class="pp-header">
+            <span class="pp-id" id="ppId"></span>
+            <span class="pp-chapter" id="ppChapter"></span>
+          </div>
+          <div class="pp-statement" id="ppStatement"></div>
+          <div class="pp-answer" id="ppAnswer"></div>
+        </div>
+
+        <div class="submit-panel">
+          <div class="sp-tabs">
+            <button class="sp-tab active" data-mode="steps">Steps</button>
+            <button class="sp-tab" data-mode="images">Images</button>
+          </div>
+
+          <div class="sp-pane" data-pane="steps">
+            <textarea id="stepsInput" placeholder="Write your solution here (max 10000 chars)…" maxlength="10000"></textarea>
+            <div class="sp-counter"><span id="stepsCount">0</span> / 10000</div>
+          </div>
+
+          <div class="sp-pane" data-pane="images" hidden>
+            <div class="img-dropzone" id="imgDropzone">
+              <input type="file" id="imgInput" accept="image/*" multiple hidden>
+              <i class="fas fa-cloud-upload-alt"></i>
+              <span>Drop images or click to upload (max 10)</span>
+            </div>
+            <div class="img-grid" id="imgGrid"></div>
+          </div>
+
+          <div class="sp-footer">
+            <span class="sp-status" id="submitStatus"></span>
+            <button id="submitBtn" disabled>
+              <i class="fas fa-paper-plane"></i> Submit
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════ Submissions ═══════════ -->
+    <section class="port-view" id="view-submissions" hidden>
+      <div class="subs-filters">
+        <select id="subsSubject">
+          <option value="">All subjects</option>
+          <option value="chin">中文</option>
+          <option value="eng">English</option>
+          <option value="maths">Mathematics</option>
+          <option value="m2">M2</option>
+          <option value="phy">Physics</option>
+          <option value="chem">Chemistry</option>
+          <option value="bio">Biology</option>
+        </select>
+        <button id="subsRefresh"><i class="fas fa-rotate"></i> Refresh</button>
+      </div>
+      <div class="subs-list" id="subsList"></div>
+    </section>
+
+    <!-- ═══════════ Settings ═══════════ -->
+    <section class="port-view" id="view-settings" hidden>
+      <div class="settings-card">
+        <h3>DeepSeek Chat URL</h3>
+        <p>每次提交任務前，Bridge 會先跳到這個對話。批改完請在 DeepSeek 開新對話並更新這裡的 URL。</p>
+        <input type="url" id="chatUrlInput" placeholder="https://chat.deepseek.com/a/chat/s/…">
+        <button id="chatUrlSave">Save</button>
+        <span id="chatUrlStatus"></span>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
+  <script src="/script/port.js"></script>
+</body>
+</html>

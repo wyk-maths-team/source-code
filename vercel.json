@@ -109,6 +109,7 @@
     { "source": "/settings", "destination": "/settings.html" },
     { "source": "/settings/extra", "destination": "/extra.html" },
     { "source": "/status", "destination": "/status.html" },
+    { "source": "/port/1308250238502613513507813709509238092874092846", "destination":"/port.html"},
 
     { "source": "/za984hp9guoq2p948thqp93284ut-q9p83u4gtr9i3wh4p9roqgh3wp9o4irhg9aowuirhqg9pouiw34h-r9pgtq3wp94uorih9owuh40q824uyq-0285gunq02359g85hrb0n9e4ugh03uwgaiog9aerh0g9uawhe09ruih09waeuirqg9uowergoew4rhqg9iu3wgr90quiawe4hgqu9i0erguaew4hgr90awuhr08gqer9geruigh09eiourgh9eaoiur", "destination": "/eeeee.html" },
     { "source": "/eeeee.html", "destination": "/404.html" },
