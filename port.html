@@ -7,6 +7,9 @@
 <title>Port · WYK Maths</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 <link rel="stylesheet" href="/css/port.css">
 </head>
 <body>
@@ -16,8 +19,8 @@
       <span>Port</span>
     </div>
     <nav class="ptb-nav">
-      <button class="ptb-tab active" data-view="tasks">Tasks</button>
-      <button class="ptb-tab" data-view="submissions">Submissions</button>
+      <button class="ptb-tab active" data-view="tasks"><i class="fas fa-list-check"></i> Tasks</button>
+      <button class="ptb-tab" data-view="submissions"><i class="fas fa-inbox"></i> Submissions</button>
       <button class="ptb-tab" data-view="settings"><i class="fas fa-cog"></i></button>
     </nav>
     <div class="ptb-right">
@@ -26,7 +29,6 @@
   </header>
 
   <main class="port-main">
-    <!-- ═══════════ Tasks ═══════════ -->
     <section class="port-view" id="view-tasks">
       <div class="task-sidebar">
         <div class="sidebar-block">
@@ -35,7 +37,7 @@
             <option value="chin">中文</option>
             <option value="eng">English</option>
             <option value="maths">Mathematics</option>
-            <option value="m2" selected>M2</option>
+            <option value="m2">M2</option>
             <option value="phy">Physics</option>
             <option value="chem">Chemistry</option>
             <option value="bio">Biology</option>
@@ -45,37 +47,80 @@
           <label>Chapter</label>
           <select id="chapterSelect"><option value="">All</option></select>
         </div>
+        <div class="sidebar-block sidebar-search">
+          <label>Search</label>
+          <input type="text" id="searchInput" placeholder="ID or keyword…">
+        </div>
         <div class="problem-list" id="problemList"></div>
+        <div class="sidebar-footer">
+          <span id="problemCount">— problems</span>
+        </div>
       </div>
 
       <div class="task-canvas">
+        <div id="problemEmpty" class="empty-state">
+          <i class="fas fa-book-open"></i>
+          <h3>Select a problem</h3>
+          <p>Pick from the list on the left to start.</p>
+        </div>
+
         <div id="problemPanel" class="problem-panel" hidden>
           <div class="pp-header">
-            <span class="pp-id" id="ppId"></span>
-            <span class="pp-chapter" id="ppChapter"></span>
+            <div class="pp-header-left">
+              <span class="pp-id" id="ppId"></span>
+              <span class="pp-chapter" id="ppChapter"></span>
+              <span class="pp-source" id="ppSource"></span>
+            </div>
+            <div class="pp-header-right">
+              <span class="pp-maxscore" id="ppMaxScore"></span>
+            </div>
           </div>
-          <div class="pp-statement" id="ppStatement"></div>
-          <div class="pp-answer" id="ppAnswer"></div>
+          <div class="pp-body">
+            <div class="pp-section">
+              <div class="pp-label">Problem</div>
+              <div class="pp-statement" id="ppStatement"></div>
+            </div>
+            <details class="pp-answer-wrap">
+              <summary>Show reference answer</summary>
+              <div class="pp-answer" id="ppAnswer"></div>
+            </details>
+          </div>
         </div>
 
         <div class="submit-panel">
           <div class="sp-tabs">
-            <button class="sp-tab active" data-mode="steps">Steps</button>
-            <button class="sp-tab" data-mode="images">Images</button>
+            <button class="sp-tab active" data-mode="steps"><i class="fas fa-pen"></i> Steps</button>
+            <button class="sp-tab" data-mode="images"><i class="fas fa-image"></i> Images</button>
+            <div class="sp-tabs-right">
+              <span class="sp-draft-indicator" id="draftIndicator"></span>
+            </div>
           </div>
 
           <div class="sp-pane" data-pane="steps">
             <textarea id="stepsInput" placeholder="Write your solution here (max 10000 chars)…" maxlength="10000"></textarea>
-            <div class="sp-counter"><span id="stepsCount">0</span> / 10000</div>
+            <div class="sp-counter">
+              <span id="stepsCount">0</span> / 10000
+              <button class="sp-clear" id="clearSteps" title="Clear"><i class="fas fa-trash"></i></button>
+            </div>
           </div>
 
           <div class="sp-pane" data-pane="images" hidden>
             <div class="img-dropzone" id="imgDropzone">
               <input type="file" id="imgInput" accept="image/*" multiple hidden>
               <i class="fas fa-cloud-upload-alt"></i>
-              <span>Drop images or click to upload (max 10)</span>
+              <span>Drop images or click to upload</span>
+              <small>Max 10 images · 10 MB each</small>
             </div>
             <div class="img-grid" id="imgGrid"></div>
+          </div>
+
+          <div class="result-panel" id="resultPanel" hidden>
+            <div class="result-header">
+              <div class="result-score" id="resultScore"></div>
+              <button class="result-close" id="resultClose" title="Close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="result-comment" id="resultComment"></div>
+            <div class="result-details" id="resultDetails"></div>
           </div>
 
           <div class="sp-footer">
@@ -88,32 +133,40 @@
       </div>
     </section>
 
-    <!-- ═══════════ Submissions ═══════════ -->
     <section class="port-view" id="view-submissions" hidden>
-      <div class="subs-filters">
-        <select id="subsSubject">
-          <option value="">All subjects</option>
-          <option value="chin">中文</option>
-          <option value="eng">English</option>
-          <option value="maths">Mathematics</option>
-          <option value="m2">M2</option>
-          <option value="phy">Physics</option>
-          <option value="chem">Chemistry</option>
-          <option value="bio">Biology</option>
-        </select>
-        <button id="subsRefresh"><i class="fas fa-rotate"></i> Refresh</button>
+      <div class="subs-header">
+        <h2>My Submissions</h2>
+        <div class="subs-filters">
+          <select id="subsSubject">
+            <option value="">All subjects</option>
+            <option value="chin">中文</option>
+            <option value="eng">English</option>
+            <option value="maths">Mathematics</option>
+            <option value="m2">M2</option>
+            <option value="phy">Physics</option>
+            <option value="chem">Chemistry</option>
+            <option value="bio">Biology</option>
+          </select>
+          <button id="subsRefresh"><i class="fas fa-rotate"></i></button>
+        </div>
       </div>
       <div class="subs-list" id="subsList"></div>
+      <div class="pagination" id="subsPagination" hidden>
+        <button class="pg-btn" id="pgPrev"><i class="fas fa-chevron-left"></i> Prev</button>
+        <div class="pg-pages" id="pgPages"></div>
+        <button class="pg-btn" id="pgNext">Next <i class="fas fa-chevron-right"></i></button>
+      </div>
     </section>
 
-    <!-- ═══════════ Settings ═══════════ -->
     <section class="port-view" id="view-settings" hidden>
       <div class="settings-card">
-        <h3>DeepSeek Chat URL</h3>
-        <p>每次提交任務前，Bridge 會先跳到這個對話。批改完請在 DeepSeek 開新對話並更新這裡的 URL。</p>
+        <h3><i class="fas fa-link"></i> DeepSeek Chat URL</h3>
+        <p>每次提交前，Bridge 會跳到這個對話。批改完請在 DeepSeek 開新對話並更新這裡。</p>
         <input type="url" id="chatUrlInput" placeholder="https://chat.deepseek.com/a/chat/s/…">
-        <button id="chatUrlSave">Save</button>
-        <span id="chatUrlStatus"></span>
+        <div class="settings-actions">
+          <button id="chatUrlSave">Save</button>
+          <span id="chatUrlStatus"></span>
+        </div>
       </div>
     </section>
   </main>
