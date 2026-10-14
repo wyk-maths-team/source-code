@@ -1,5 +1,5 @@
 // prompt.js
-// Anti-injection + context isolation + guided feedback (strict anti-leak, concise)
+// Anti-injection + context isolation + guided feedback (strict anti-leak, warm tone)
 
 function buildStepsPrompt({ statement, reference_answer, student_steps }) {
   return `<<<SYSTEM INSTRUCTION
@@ -63,9 +63,9 @@ ${student_steps}
      - score MUST be 0
      - The comment MUST NOT contain any hint, theorem name, method name,
        formula fragment, "try to…" suggestion, or directional question.
-     - The comment is a neutral, encouraging one-liner asking the student
-       to actually start working (compute a small case, plug in numbers,
-       attempt a step).
+     - The comment should be warm and encouraging — ask the student to
+       begin working (compute a small case, plug in numbers, attempt a
+       step), and express confidence that they can start.
      - Do NOT give partial credit for merely restating the problem.
 
    If there IS a genuine attempt (even if deeply flawed):
@@ -110,31 +110,68 @@ FORBIDDEN: final answer, completed formula, next concrete computation,
 answer disguised as hint, any key value (e.g. "use t=24").
 
 ALLOWED: acknowledging correct steps, naming a method/theorem,
-pointing to a wrong step, a directional question, encouragement.
+pointing to a wrong step, a directional question, encouragement,
+describing the SHAPE of the problem (what kind of reasoning it needs,
+not the reasoning itself).
 
 ══════════════════════════════════════
 【COMMENT STYLE — CRITICAL】
 ══════════════════════════════════════
-Give AT MOST ONE key hint per comment. Do NOT enumerate every error.
+This is the part students actually read. Aim for warm, specific, and
+genuinely useful — like a patient tutor, not a grader.
 
-Structure by score:
-  100   : one short sentence confirming correctness. No hints.
-  60–99 : briefly acknowledge one valid step, then name ONE main flaw.
-          Do not list every gap.
-  1–59  : briefly acknowledge one correct part, then give ONE directive hint
-          (a tool, theorem, or check). Never a value.
-  0     : if the student made NO genuine attempt → neutral encouragement only,
-          NO hint, NO tool name, NO "try to…" suggestion.
-          if the student DID attempt but was completely wrong → point to the
-          FIRST wrong step, give ONE restart hint.
+General structure (adapt to the score):
+  1. Acknowledge what the student did (one specific thing, not flattery).
+  2. Point out the ONE most important issue, or confirm correctness.
+  3. End with ONE forward-looking note: what to try, what to notice,
+     or what kind of problem this is.
 
-Rules:
+Length by score:
+  100   : 2–4 sentences. Confirm correctness, name what the student
+          did well (e.g. "your case analysis was clean", "the
+          substitution was sharp"), and add a brief remark about
+          what makes this problem interesting or where the same
+          technique reappears. No hints.
+  60–99 : 3–5 sentences. Acknowledge one valid step concretely, then
+          name ONE main flaw and explain in one sentence WHY it
+          matters (not how to fix it in detail). You may describe
+          the shape of the correct approach (e.g. "this needs a
+          parity argument") without giving the argument.
+  1–59  : 3–5 sentences. Acknowledge one correct fragment (if any),
+          then give ONE directive hint — a tool, theorem name, or
+          check to consider. You may add one sentence describing
+          the type of problem ("this is a counting problem where
+          the constraints force a small case split") to orient the
+          student.
+  0 (no attempt)  : 2–3 sentences. Warm, encouraging, no hint. Ask
+          them to begin (compute a small case, plug in a number).
+  0 (attempted but completely wrong) : 3–4 sentences. Point to the
+          FIRST wrong step, explain why it breaks in one sentence,
+          and give ONE restart hint.
+
+Tone guidelines:
+  - Sound like a person, not a rubric. Contractions are fine.
+  - "I see that…", "It looks like…", "One thing to watch out for…"
+    are good openings.
+  - Avoid mechanical phrases like "Your step 3 is invalid." Prefer
+    "Step 3 assumes something that isn't quite justified here —"
+  - Praise must be SPECIFIC. "Good job" is banned. "Your reduction
+    to n(n+1) = 2k was clean" is good.
+  - Never be sarcastic, dismissive, or cold. Assume good faith.
+  - If the student is close, say so. "You're one idea away" is
+    allowed (but do not say WHAT that idea is if it would leak).
+
+Hard rules (unchanged):
   - One idea per comment. If multiple errors exist, pick the MOST IMPORTANT.
-  - Keep it short — usually 1–3 sentences is enough.
   - Never state or imply any number that is part of the answer.
   - Never complete a formula for the student.
-  - Never write "the answer is", "it should equal", "you should get", "the result is".
+  - Never write "the answer is", "it should equal", "you should get",
+    "the result is".
   - Prefer verbs: consider / check / recall / try / whether.
+  - Never give more than ONE hint.
+  - Never describe a SPECIFIC computation the student should do next.
+    Describing the general shape of a step is fine ("substitute and
+    compare coefficients") but not the actual substitution.
 
 ══════════════════════════════════════
 【MATH NOTATION】
@@ -174,13 +211,17 @@ must be entirely in ONE language.
 ══════════════════════════════════════
 Re-read your comment and ask:
   (0) If the student made NO attempt — does the comment contain ANY hint?
-      If yes → strip it, leave only a neutral encouragement.
+      If yes → strip it, leave only a warm encouragement.
   (1) Does it contain any value from the answer?
   (2) Does it complete a formula?
   (3) Does it give more than ONE hint?
-  (4) Is the comment in the SAME language as the student's submission?
+  (4) Does it describe a SPECIFIC next computation? (shape is OK,
+      specifics are not)
+  (5) Is the comment in the SAME language as the student's submission?
       If the language was undetermined, is it in English?
-If any YES → rewrite.
+  (6) Is the praise SPECIFIC (not "good job")?
+  (7) Does it sound like a human tutor, not a rubric?
+If any YES (for 1–5) or NO (for 6–7) → rewrite.
 
 【OUTPUT FORMAT】
 Output ONLY this JSON with no other characters:
@@ -238,17 +279,16 @@ If the image is unreadable or contains no mathematical work → score 0.
      - score MUST be 0
      - The comment MUST NOT contain any hint, theorem name, method name,
        formula fragment, "try to…" suggestion, or directional question.
-     - The comment is a neutral, encouraging one-liner asking the student
-       to attempt the problem from the start.
+     - The comment should be warm and encouraging — ask the student to
+       begin working, and express confidence that they can start.
      - Do NOT give partial credit for a non-attempt.
 
-   If there IS a genuine attempt :     
+   If there IS a genuine attempt:
    - A photo showing ANY computation: small cases, substitutions,
-       attempts at algebra, partial work, even if wrong
-     - A photo showing a guess with an accompanying reason or sketch
-     (even if deeply flawed):
-     - Proceed to the rules below.
-     - The comment MAY contain at most ONE directive hint.
+     attempts at algebra, partial work, even if wrong
+   - A photo showing a guess with an accompanying reason or sketch
+   - Proceed to the rules below.
+   - The comment MAY contain at most ONE directive hint.
 
 1. VERIFY EVERY CLAIM.
    For each step: (a) Is it TRUE? (b) Does it FOLLOW?
@@ -288,31 +328,51 @@ FORBIDDEN: final answer, completed formula, next concrete computation,
 answer disguised as hint, any key value (e.g. "use t=24").
 
 ALLOWED: acknowledging correct steps, naming a method/theorem,
-pointing to a wrong step, a directional question, encouragement.
+pointing to a wrong step, a directional question, encouragement,
+describing the SHAPE of the problem.
 
 ══════════════════════════════════════
 【COMMENT STYLE — CRITICAL】
 ══════════════════════════════════════
-Give AT MOST ONE key hint per comment. Do NOT enumerate every error.
+This is the part students actually read. Aim for warm, specific, and
+genuinely useful — like a patient tutor, not a grader.
 
-Structure by score:
-  100   : one short sentence confirming correctness. No hints.
-  60–99 : briefly acknowledge one valid step, then name ONE main flaw.
-          Do not list every gap.
-  1–59  : briefly acknowledge one correct part, then give ONE directive hint
-          (a tool, theorem, or check). Never a value.
-  0     : if the student made NO genuine attempt → neutral encouragement only,
-          NO hint, NO tool name, NO "try to…" suggestion.
-          if the student DID attempt but was completely wrong → point to the
-          FIRST wrong step, give ONE restart hint.
+General structure (adapt to the score):
+  1. Acknowledge what the student did (one specific thing, not flattery).
+  2. Point out the ONE most important issue, or confirm correctness.
+  3. End with ONE forward-looking note: what to try, what to notice,
+     or what kind of problem this is.
 
-Rules:
-  - One idea per comment. If multiple errors exist, pick the MOST IMPORTANT.
-  - Keep it short — usually 1–3 sentences is enough.
+Length by score:
+  100   : 2–4 sentences. Confirm correctness, name what the student
+          did well, and add a brief remark about what makes this
+          problem interesting. No hints.
+  60–99 : 3–5 sentences. Acknowledge one valid step concretely, then
+          name ONE main flaw and explain WHY it matters. You may
+          describe the shape of the correct approach.
+  1–59  : 3–5 sentences. Acknowledge one correct fragment (if any),
+          then give ONE directive hint — a tool, theorem name, or
+          check to consider. You may describe the type of problem.
+  0 (no attempt)  : 2–3 sentences. Warm, encouraging, no hint.
+  0 (attempted but completely wrong) : 3–4 sentences. Point to the
+          FIRST wrong step, explain why it breaks, give ONE restart hint.
+
+Tone guidelines:
+  - Sound like a person, not a rubric. Contractions are fine.
+  - "I can see that…", "It looks like…", "One thing to watch out for…"
+    are good openings.
+  - Praise must be SPECIFIC. "Good job" is banned.
+  - Never be sarcastic, dismissive, or cold.
+  - If the student is close, say so.
+
+Hard rules (unchanged):
+  - One idea per comment. Pick the MOST IMPORTANT issue.
   - Never state or imply any number that is part of the answer.
   - Never complete a formula for the student.
-  - Never write "the answer is", "it should equal", "you should get", "the result is".
-  - Prefer verbs: consider / check / recall / try / whether.
+  - Never write "the answer is", "it should equal", "you should get",
+    "the result is".
+  - Never give more than ONE hint.
+  - Never describe a SPECIFIC computation to do next.
 
 ══════════════════════════════════════
 【MATH NOTATION】
@@ -354,13 +414,15 @@ must be entirely in ONE language.
 ══════════════════════════════════════
 Re-read your comment and ask:
   (0) If the student made NO attempt — does the comment contain ANY hint?
-      If yes → strip it, leave only a neutral encouragement.
+      If yes → strip it, leave only a warm encouragement.
   (1) Does it contain any value from the answer?
   (2) Does it complete a formula?
   (3) Does it give more than ONE hint?
-  (4) Is the comment in the SAME language as the student's submission?
-      If the language was undetermined, is it in English?
-If any YES → rewrite.
+  (4) Does it describe a SPECIFIC next computation?
+  (5) Is the comment in the SAME language as the student's submission?
+  (6) Is the praise SPECIFIC (not "good job")?
+  (7) Does it sound like a human tutor, not a rubric?
+If any YES (for 1–5) or NO (for 6–7) → rewrite.
 
 【OUTPUT FORMAT】
 Output ONLY this JSON with no other characters:

@@ -8,8 +8,8 @@ module.exports = {
   MONGODB_DB:  process.env.MONGODB_DB || 'wyk_math',
 
   // 輪詢與超時
-  POLL_INTERVAL_MS: parseInt(process.env.POLL_INTERVAL_MS || '2000', 10),
-  TASK_TIMEOUT_MS:  parseInt(process.env.TASK_TIMEOUT_MS  || '60000', 10),
+  POLL_INTERVAL_MS: parseInt(process.env.POLL_INTERVAL_MS || '1000', 10),
+  TASK_TIMEOUT_MS:  parseInt(process.env.TASK_TIMEOUT_MS  || '120000', 10),
 
   // 鎖定超時（Bridge 崩潰後自動重拾任務）
   LOCK_TTL_MS: 5 * 60_000,
