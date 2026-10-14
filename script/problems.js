@@ -145,7 +145,7 @@
         tags: [
           { name: 'CHSML'},
           { name: 'IMO Shortlist', placeholder: true },
-          { name: 'CMO', placeholder: true },
+          { name: 'CMO'},
           { name: 'APMO', placeholder: true },
         ],
       },
