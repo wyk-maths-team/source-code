@@ -153,7 +153,7 @@
         // ⭐ 互斥组：同组内只能选一个
     const EXCLUSIVE_GROUPS = [
       // 来源互斥
-      ['DSE', 'HKMHASC', 'HKMO', 'IMO Prelim', 'IMO Shortlist', 'CMO', 'APMO'],
+      ['DSE', 'HKMHASC', 'HKMO', 'IMO Prelim', 'IMO Shortlist', 'CMO', 'APMO','CHSML'],
       // 领域互斥
       ['Algebra', 'NumberTheory', 'Geometry', 'Combinatorics'],
     ];
