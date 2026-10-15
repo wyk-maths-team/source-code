@@ -28,6 +28,7 @@ function genSubid() {
 
 export default async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
+  return;
 
   const decoded = await verifyToken(req);
   if (!decoded) {
