@@ -887,7 +887,6 @@ async function handleStepsSubmit(stepsText, checkBtn) {
               problemId,
               subid: result.subid,
               imageUrl,
-              model: getStepsModel(),
             });
 
             if (gradeRes?.success && gradeRes.taskId) {

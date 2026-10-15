@@ -610,6 +610,7 @@ async function processPortTask(page, task) {
       { taskId },
       { $set: { status: 'done', result, elapsedMs: elapsed, completedAt: new Date() } }
     );
+    const score=result.score;
     logAiGrade({
       kind: 'port',
       taskId,
