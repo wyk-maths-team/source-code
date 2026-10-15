@@ -28,7 +28,7 @@ function genSubid() {
 
 export default async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
-  return res.status(502).json({ success: false, message: 'AI service unavailable' });
+  //return res.status(502).json({ success: false, message: 'AI service unavailable' });
 
 
   const decoded = await verifyToken(req);
