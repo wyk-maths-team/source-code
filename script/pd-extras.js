@@ -690,7 +690,7 @@ function pollGradeResult({ endpoint, taskId, checkBtn, maxAttempts = 60 }) {
   }
 
   // ═════════════════════════════════════════════════════════════
-  // [F] Neko
+  // [F] Neko / 图片展示
   // ═════════════════════════════════════════════════════════════
   function fetchNekoAndShow() {
     const container = document.getElementById('nekoContainer');
@@ -699,19 +699,23 @@ function pollGradeResult({ endpoint, taskId, checkBtn, maxAttempts = 60 }) {
     if (!container || !img || !status) return;
 
     container.style.display = 'block';
-    status.textContent = 'Loading neko...';
+    status.textContent = 'Loading image...';
     status.style.color = 'var(--text-secondary)';
     status.style.display = 'block';
     img.style.display = 'none';
     img.src = '';
 
+    // ⭐ 从 localStorage 读取用户选择的类别
+    const category = localStorage.getItem('nekoCategory') || 'neko';
+    const apiUrl = `https://nekos.best/api/v2/${encodeURIComponent(category)}`;
+
     const ctrl = new AbortController();
     const to = setTimeout(() => ctrl.abort(), 8000);
 
-    fetch('https://nekos.best/api/v2/neko', { signal: ctrl.signal })
+    fetch(apiUrl, { signal: ctrl.signal })
       .then(res => { clearTimeout(to); if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
       .then(data => {
-        if (!data.results?.length) throw new Error('No neko results');
+        if (!data.results?.length) throw new Error('No results');
         img.src = data.results[0].url;
         img.style.display = 'block';
         status.style.display = 'none';
