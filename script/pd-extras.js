@@ -622,7 +622,7 @@ function pollGradeResult({ endpoint, taskId, checkBtn, maxAttempts = 60 }) {
         endpoint: '/api/steps-grade',
         taskId: res.taskId,
         checkBtn,
-        maxAttempts: 40,   // 120 秒
+        maxAttempts: 60,   // 180 秒（兼容 API 失败后走 bridge）
       });
 
     } catch (err) {
