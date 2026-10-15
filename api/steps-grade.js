@@ -16,7 +16,7 @@ import { auditLog } from '../lib/audit.js';
 import { askDeepSeekAPI } from '../lib/deepseek-api.js';
 import { askClaude } from '../lib/temp/claude-api.js';
 import { buildStepsPrompt } from '../lib/grade-prompt.js';
-import { getModelChain, getModelInfo } from '../lib/model-router.js';
+// import { getModelChain, getModelInfo } from '../lib/model-router.js';
 import { getModelChain, getModelInfo, pickThinkingEffort } from '../lib/model-router.js';
 import crypto from 'crypto';
 
