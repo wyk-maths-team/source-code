@@ -3,29 +3,13 @@
 <head>
 
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/arch-render.js"></script>
-<!-- <script>
-(function(){
-  try {
-    if (window.top !== window.self) return;
-    // if (sessionStorage.getItem('desktopPreferred')) return;   // 用戶手動選桌面版
-    var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (!isMobile) return;
-    if (location.pathname.indexOf('/mobile') === 0) return;
-    // if (location.pathname.indexOf('/os') === 0) return;
-    if (location.pathname.indexOf('/admin') === 0) return;
-    location.replace('/mobile/' + location.search + location.hash);
-  } catch(e){}
-})();
-</script> -->
 
-  
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
   if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
   if (localStorage.getItem('pageTransition') === 'off') return;
   if (sessionStorage.getItem('__pt') !== 'in') return;
-  // ⭐ 铺的是"遮罩色"，不是页面底色
   document.documentElement.style.background = (t === 'dark' ? '#0d1117' : '#0f3460');
 }catch(e){}})();</script>
 <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pageload.js" defer></script>
@@ -54,12 +38,25 @@
       justify-content: space-between;
       padding: 0.6rem 0;
       border-bottom: 1px solid var(--border-color);
+      gap: 12px;
     }
     .setting-row:last-child { border-bottom: none; }
-    .setting-label { font-weight: 500; }
+    .setting-label { font-weight: 500; flex-shrink: 0; }
+    .setting-hint {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+      font-weight: 400;
+    }
+    .setting-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
     .btn { padding: 0.4rem 1rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--card-bg); cursor: pointer; font-size: 0.9rem; }
     .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-    .toggle-switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+    .toggle-switch { position: relative; display: inline-block; width: 50px; height: 24px; flex-shrink: 0; }
     .toggle-switch input { opacity: 0; width: 0; height: 0; }
     .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 24px; }
     .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .3s; border-radius: 50%; }
@@ -68,10 +65,37 @@
     .message { margin-top: 1rem; font-size: 0.9rem; }
     .back-link { display: inline-block; margin-top: 1.5rem; color: var(--accent); text-decoration: none; }
     .back-link:hover { text-decoration: underline; }
-  </style>
-  <!-- ⭐ PWA（必須靜態寫入 <head>
 
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/arch-render.js"></script>，不能靠 JS 動態注入） -->
+    /* ⭐ 新增：图片类型下拉框 */
+    .neko-select {
+      padding: 0.4rem 0.6rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      cursor: pointer;
+      min-width: 120px;
+      font-family: inherit;
+    }
+    .neko-select:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+    .neko-custom-input {
+      padding: 0.4rem 0.6rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      width: 120px;
+      font-family: inherit;
+      display: none;
+    }
+    .neko-custom-input.visible { display: block; }
+  </style>
+  <!-- ⭐ PWA（必須靜態寫入 <head>，不能靠 JS 動態注入） -->
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#1a1a2e">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
@@ -88,13 +112,57 @@
     <main class="main-content" id="mainContent">
       <div class="container">
         <h2>Extra Settings</h2>
+
+        <!-- ⭐ 原有开关 -->
         <div class="setting-row">
-          <span class="setting-label">Show Nekos on accepted submissions</span>
+          <div>
+            <div class="setting-label">Show image on accepted submissions</div>
+            <div class="setting-hint">Display a random image/GIF when you solve a problem</div>
+          </div>
           <label class="toggle-switch">
             <input type="checkbox" id="showNekosToggle">
             <span class="slider"></span>
           </label>
         </div>
+
+        <!-- ⭐ 新增：图片类型选择 -->
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Image category</div>
+            <div class="setting-hint">Which type of image/GIF to show</div>
+          </div>
+          <div class="setting-control">
+            <select class="neko-select" id="nekoCategorySelect">
+              <option value="neko">Neko (Catgirl)</option>
+              <option value="hug">Hug</option>
+              <option value="pat">Pat</option>
+              <option value="kiss">Kiss</option>
+              <option value="wink">Wink</option>
+              <option value="wave">Wave</option>
+              <option value="highfive">Highfive</option>
+              <option value="poke">Poke</option>
+              <option value="dance">Dance</option>
+              <option value="smile">Smile</option>
+              <option value="happy">Happy</option>
+              <option value="cuddle">Cuddle</option>
+              <option value="baka">Baka</option>
+              <option value="blush">Blush</option>
+              <option value="cry">Cry</option>
+              <option value="laugh">Laugh</option>
+              <option value="sleep">Sleep</option>
+              <option value="smug">Smug</option>
+              <option value="think">Think</option>
+              <option value="thumbsup">Thumbs Up</option>
+              <option value="tickle">Tickle</option>
+              <option value="wave">Wave</option>
+              <option value="yawn">Yawn</option>
+              <option value="__custom__">Custom…</option>
+            </select>
+            <input type="text" class="neko-custom-input" id="nekoCustomInput"
+                   placeholder="e.g. kick" maxlength="30" />
+          </div>
+        </div>
+
         <button class="btn btn-primary" id="saveBtn">Save</button>
         <span id="saveMessage" class="message"></span>
         <div>
@@ -102,31 +170,72 @@
         </div>
       </div>
     </main>
-    <!-- <button class="sidebar-toggle" id="sidebarToggle">☰</button> -->
   </div>
 
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
-  
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/heartbeat.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pk-invite.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/heartbeat.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pk-invite.js"></script>
 
   <script>
     if (!isLoggedIn()) window.location.href = '/index.html';
 
-    const toggle = document.getElementById('showNekosToggle');
+    // ═══════════════ DOM ═══════════════
+    const toggle        = document.getElementById('showNekosToggle');
+    const categorySel   = document.getElementById('nekoCategorySelect');
+    const customInput   = document.getElementById('nekoCustomInput');
+
+    // ═══════════════ 读取已保存的设置 ═══════════════
     const showNekos = localStorage.getItem('showNekos') === 'true';
-    const unlocked = localStorage.getItem('nekoModeUnlocked') === 'true';
-    if (toggle) {
-      toggle.checked = showNekos && unlocked;
+    const unlocked  = localStorage.getItem('nekoModeUnlocked') === 'true';
+    const savedCategory = localStorage.getItem('nekoCategory') || 'neko';
+
+    if (toggle) toggle.checked = showNekos && unlocked;
+
+    // 判断是否为自定义类别（不在预设选项中）
+    const PRESET_CATEGORIES = [
+      'neko','hug','pat','kiss','wink','wave','highfive','poke','dance',
+      'smile','happy','cuddle','baka','blush','cry','laugh','sleep','smug',
+      'think','thumbsup','tickle','yawn'
+    ];
+    const isCustom = !PRESET_CATEGORIES.includes(savedCategory);
+
+    if (isCustom) {
+      categorySel.value = '__custom__';
+      customInput.value = savedCategory;
+      customInput.classList.add('visible');
+    } else {
+      categorySel.value = savedCategory;
+      customInput.classList.remove('visible');
     }
 
+    // ═══════════════ 下拉框切换逻辑 ═══════════════
+    categorySel.addEventListener('change', () => {
+      if (categorySel.value === '__custom__') {
+        customInput.classList.add('visible');
+        customInput.focus();
+      } else {
+        customInput.classList.remove('visible');
+        customInput.value = '';
+      }
+    });
+
+    // ═══════════════ 保存 ═══════════════
     document.getElementById('saveBtn').addEventListener('click', function() {
       const checked = toggle.checked;
       localStorage.setItem('showNekos', checked);
       if (checked) localStorage.setItem('nekoModeUnlocked', 'true');
+
+      // 保存类别
+      let category = categorySel.value;
+      if (category === '__custom__') {
+        category = customInput.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+        if (!category) category = 'neko';   // fallback
+      }
+      localStorage.setItem('nekoCategory', category);
+
       const msg = document.getElementById('saveMessage');
       msg.textContent = '✅ Saved!';
       msg.style.color = '#2e7d32';
