@@ -510,6 +510,104 @@ export default async function handler(req, res) {
       if (_leaderboardCache.data && _leaderboardCache.expireAt > now) {
         return res.status(200).json(_leaderboardCache.data);
       }
+      // ─────────── 判定期望周期 ───────────
+const period = String(req.query.period || 'overall').toLowerCase();
+const VALID_PERIODS = new Set(['daily', 'weekly', 'monthly']);
+const isPeriodMode = VALID_PERIODS.has(period);
+
+// ─────────── 缓存 key 也要按 period 区分 ───────────
+// 现有 _leaderboardCache 是单槽，用 Map 更稳：
+//   _leaderboardCache = new Map();  // key: period → { data, expireAt }
+
+// ─────────── 周期榜分支 ───────────
+if (isPeriodMode) {
+  const nowMs = Date.now();
+  const windowMs = period === 'daily'   ? 24 * 3600_000
+                 : period === 'weekly'  ? 7 * 24 * 3600_000
+                 :                        30 * 24 * 3600_000;
+  const since = new Date(nowMs - windowMs);
+
+  // 1) 聚合：窗口内每个用户 AC 的不同题目
+  const AC_FILTER = {
+    $or: [
+      { type: 'image', marked: true, score: 100 },
+      { type: { $ne: 'image' }, correct: true, systemError: { $ne: true } },
+    ],
+  };
+
+  const rows = await db.collection('submissions').aggregate([
+    { $match: { timestamp: { $gte: since }, ...AC_FILTER } },
+    { $group: { _id: { u: '$username', p: '$problemId' } } },
+    { $group: { _id: '$_id.u', solves: { $sum: 1 } } },
+    { $sort: { solves: -1, _id: 1 } },
+  ]).toArray();
+
+  if (rows.length === 0) {
+    const empty = {
+      success: true,
+      leaderboard: [],
+      period,
+      serverNow: nowMs,
+      heartbeatMs: Number(process.env.ONLINE_HEARTBEAT_MS) || 5 * 60 * 1000,
+      timeoutMs: (Number(process.env.ONLINE_HEARTBEAT_MS) || 5 * 60 * 1000) * 2,
+    };
+    return res.status(200).json(empty);
+  }
+
+  const usernames = rows.map(r => r._id);
+
+  // 2) 拉用户资料（保持和 overall 同样的字段）
+  const users = await db.collection('users')
+    .find(
+      { username: { $in: usernames } },
+      { projection: { username: 1, pfp: 1, displayName: 1, realName: 1,
+                      banned: 1, role: 1, lastSeenAt: 1, explicitlyOffline: 1 } }
+    )
+    .toArray();
+  const userMap = Object.fromEntries(users.map(u => [u.username, u]));
+
+  const HEARTBEAT_MS = Number(process.env.ONLINE_HEARTBEAT_MS) || 5 * 60 * 1000;
+  const TIMEOUT_MS   = Number(process.env.ONLINE_TIMEOUT_MS)   || HEARTBEAT_MS * 2;
+  const serverNow    = Date.now();
+
+  const leaderboard = rows
+    .filter(r => {
+      const u = userMap[r._id];
+      if (u && u.banned === true) return false;
+      if (u && u.role === 'team')  return false;
+      return true;
+    })
+    .map((r, idx) => {
+      const u = userMap[r._id] || {};
+      const lastSeenMs = u.lastSeenAt ? new Date(u.lastSeenAt).getTime() : 0;
+      const online = !u.explicitlyOffline && lastSeenMs > 0 &&
+                     (serverNow - lastSeenMs) < TIMEOUT_MS;
+      return {
+        rank: idx + 1,
+        username: r._id,
+        displayName: u.displayName || r._id,
+        solves: r.solves,
+        pfp: u.pfp || '',
+        realName: u.realName || '',
+        online,
+        lastSeenAt: u.lastSeenAt || null,
+        explicitlyOffline: !!u.explicitlyOffline,
+        // 周期榜不带 rating 字段（前端会跳过 ratingBadge）
+      };
+    });
+
+  return res.status(200).json({
+    success: true,
+    leaderboard,
+    period,
+    serverNow,
+    heartbeatMs: HEARTBEAT_MS,
+    timeoutMs: TIMEOUT_MS,
+  });
+}
+
+// ─────────── 以下保持原本 overall 逻辑不变 ───────────
+// （原代码里 "const leaderboardData = await db.collection('leaderboardView')..."）
       const leaderboardData = await db.collection('leaderboardView').find({}).toArray();
       const usernames = leaderboardData.map(e => e.username);
 

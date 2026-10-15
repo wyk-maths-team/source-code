@@ -55,6 +55,7 @@
       align-items: center;
       justify-content: space-between;
       flex-wrap: wrap;
+      gap: 0.6rem;
       margin-bottom: 0.75rem;
     }
     .page-header h1 {
@@ -62,6 +63,50 @@
       font-size: 1.5rem;
       color: var(--text-primary);
     }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    /* ⭐ Period 切换按钮（tab 风格） */
+    .period-tabs {
+      display: inline-flex;
+      gap: 3px;
+      background: var(--hover-bg);
+      padding: 3px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+    .period-btn {
+      padding: 0.32rem 0.85rem;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: 4px;
+      transition: background .15s, color .15s, box-shadow .15s;
+      font-family: inherit;
+      letter-spacing: 0.2px;
+      white-space: nowrap;
+    }
+    .period-btn:hover {
+      color: var(--text-primary);
+    }
+    .period-btn.active {
+      background: var(--card-bg);
+      color: var(--accent);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    }
+    [data-theme="dark"] .period-btn.active {
+      background: #2c2c2c;
+      color: #5ea5dc;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+
     .btn-group {
       display: flex;
       gap: 0.5rem;
@@ -392,38 +437,39 @@
     function escapeHtml(str) {
       return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
     }
-    // ⭐ 相对时间：3 分钟前 / 2 小时前 / 昨天 14:32 / 10-04 14:32
-function formatLastSeen(ts) {
-  if (!ts) return 'never';
-  const d = new Date(ts);
-  const now = Date.now();
-  const diff = now - d.getTime();
 
-  if (diff < 0) return 'just now';
-  if (diff < 60_000) return 'just now';
-  if (diff < 3600_000) {
-    const m = Math.floor(diff / 60_000);
-    return `${m} minute${m > 1 ? 's' : ''} ago`;
-  }
-  if (diff < 86400_000) {
-    const h = Math.floor(diff / 3600_000);
-    return `${h} hour${h > 1 ? 's' : ''} ago`;
-  }
+    // ⭐ 相对时间
+    function formatLastSeen(ts) {
+      if (!ts) return 'never';
+      const d = new Date(ts);
+      const now = Date.now();
+      const diff = now - d.getTime();
 
-  const p = n => String(n).padStart(2, '0');
-  const hhmm = `${p(d.getHours())}:${p(d.getMinutes())}`;
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
+      if (diff < 0) return 'just now';
+      if (diff < 60_000) return 'just now';
+      if (diff < 3600_000) {
+        const m = Math.floor(diff / 60_000);
+        return `${m} minute${m > 1 ? 's' : ''} ago`;
+      }
+      if (diff < 86400_000) {
+        const h = Math.floor(diff / 3600_000);
+        return `${h} hour${h > 1 ? 's' : ''} ago`;
+      }
 
-  if (d.toDateString() === yesterday.toDateString()) return `yesterday ${hhmm}`;
-  if (d.getFullYear() === today.getFullYear()) {
-    return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${hhmm}`;
-  }
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
+      const p = n => String(n).padStart(2, '0');
+      const hhmm = `${p(d.getHours())}:${p(d.getMinutes())}`;
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
 
-// ⭐ 头像 + 绿点
+      if (d.toDateString() === yesterday.toDateString()) return `yesterday ${hhmm}`;
+      if (d.getFullYear() === today.getFullYear()) {
+        return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${hhmm}`;
+      }
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    }
+
+    // ⭐ 头像 + 绿点
     function avatarHtml(user, size = 24) {
       const pfp = user.pfp;
       const online = user.online;
@@ -438,11 +484,6 @@ function formatLastSeen(ts) {
        ⭐ Rating 字重 + 徽章
        ═══════════════════════════════════════════════ */
 
-    // 分档字重规则：
-    //   每个区间内 → 线性变粗
-    //   区间边界（如 1200 / 1600 / 2200）→ 额外 +100 加成，
-    //     所以 1200 比 1201 粗（作为「上一阶段的顶」）
-    //   2900+ → 固定 900（黑金传奇）
     function ratingWeight(rating) {
       if (rating >= 2900) return 900;
 
@@ -458,7 +499,7 @@ function formatLastSeen(ts) {
         { min: 1000, base: 400, inc: 100 },  // [1000, 1200)
       ];
 
-      let tier = bounds[bounds.length - 1];   // 默认最低档
+      let tier = bounds[bounds.length - 1];
       let nextMin = 1200;
       let tierIdx = bounds.length - 1;
 
@@ -475,8 +516,6 @@ function formatLastSeen(ts) {
       const p = range > 0 ? (rating - tier.min) / range : 0;
       let weight = tier.base + p * tier.inc;
 
-      // ⭐ 边界点（非最低档）→ +100 加成
-      //    让 1200 > 1201、1600 > 1601、2200 > 2201 …
       if (rating === tier.min && tierIdx < bounds.length - 1) {
         weight += 100;
       }
@@ -484,17 +523,15 @@ function formatLastSeen(ts) {
       return Math.round(weight);
     }
 
-    // 生成 rating 徽章 HTML（排行榜 + tooltip 共用）
     function ratingBadge(rating, tierColor, tierGlow) {
+      if (typeof rating !== 'number' || !Number.isFinite(rating)) return '';
       const fw = ratingWeight(rating);
 
-      // 2900+：黑金传奇
       if (rating >= 2900) {
         return `<span class="user-rating user-rating--legend"
                       style="font-weight:${fw};">${rating}</span>`;
       }
 
-      // 2600+：额外光晕
       const extraClass = rating >= 2600 ? ' user-rating--elite' : '';
 
       return `<span class="user-rating${extraClass}"
@@ -510,9 +547,18 @@ function formatLastSeen(ts) {
       mainContainer.innerHTML = `
         <div class="leaderboard-container">
           <div class="page-header">
-            <h1>Leaderboard</h1>
+            <div class="header-left">
+              <h1>Leaderboard</h1>
+              <div class="period-tabs" id="periodTabs">
+                <button class="period-btn active" data-period="overall">Overall</button>
+                <button class="period-btn" data-period="monthly">Monthly</button>
+                <button class="period-btn" data-period="weekly">Weekly</button>
+                <button class="period-btn" data-period="daily">Daily</button>
+              </div>
+            </div>
             <div class="btn-group">
-              <button class="btn btn-info disabled" disabled>Leaderboard</button>
+              <button class="btn btn-info" data-sort="solves">By Solves</button>
+              <button class="btn" data-sort="rating">By Rating</button>
               <a href="/charts" class="btn">Chart</a>
               <button class="btn" id="refreshBtn" title="Refresh leaderboard">
                 <i class="fas fa-rotate"></i> Refresh <span class="rf-time" id="refreshTime"></span>
@@ -525,7 +571,7 @@ function formatLastSeen(ts) {
                 <tr>
                   <th style="width:10%" class="text-center">Rank</th>
                   <th style="width:75%">User</th>
-                  <th style="width:15%" class="text-center">Tasks Solved</th>
+                  <th id="metricHead" style="width:15%" class="text-center">Tasks Solved</th>
                 </tr>
               </thead>
               <tbody id="leaderboardBody">
@@ -558,6 +604,11 @@ function formatLastSeen(ts) {
           ${avatarInner}
           ${user.online ? '<span class="online-dot" title="Online"></span>' : ''}
         </div>`;
+
+      const ratingLine = (typeof user.rating === 'number')
+        ? `Rating: ${ratingBadge(user.rating, user.tierColor, user.tierGlow)}<br>`
+        : '';
+
       tooltip.innerHTML = `
         ${avatar}
         <div class="tip-info">
@@ -565,7 +616,7 @@ function formatLastSeen(ts) {
           <div class="tip-username">@${escapeHtml(user.username)}</div>
           ${user.realName ? `<div class="tip-realname">${escapeHtml(user.realName)}</div>` : ''}
           <div class="tip-realname" style="margin-top:4px;">
-            Rating: ${ratingBadge(user.rating, user.tierColor, user.tierGlow)}<br>
+            ${ratingLine}
             <span style="color:${user.online ? '#2ecc71' : '#aaa'};">
               <i class="fas fa-circle" style="font-size:6px;vertical-align:middle;"></i>
               ${user.online
@@ -605,10 +656,114 @@ function formatLastSeen(ts) {
 
     // ═══════════════ Leaderboard ═══════════════
     let isLoadingLeaderboard = false;
+    let periodMode = 'overall';   // 'overall' | 'monthly' | 'weekly' | 'daily'
+    let sortMode = 'solves';      // 'solves' | 'rating'
+    let lastData = null;
 
     function formatTime(d) {
       const p = n => String(n).padStart(2, '0');
       return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+    }
+
+    // ⭐ 只有 overall 才允许按 rating 排序，其余周期榜强制按 solves
+    function sortedEntries(entries) {
+      if (periodMode !== 'overall' || sortMode !== 'rating') return entries;
+      return [...entries]
+        .sort((a, b) => (b.rating - a.rating) || (b.solves - a.solves) || a.username.localeCompare(b.username))
+        .map((e, i) => ({ ...e, rank: i + 1 }));
+    }
+
+    function updatePeriodButtons() {
+      document.querySelectorAll('[data-period]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.period === periodMode);
+      });
+    }
+
+    function updateSortButtons() {
+      document.querySelectorAll('[data-sort]').forEach(btn => {
+        const active = btn.dataset.sort === sortMode && periodMode === 'overall';
+        const forcedDisabled = (periodMode !== 'overall' && btn.dataset.sort === 'rating');
+        btn.classList.toggle('btn-info', active);
+        btn.disabled = active || forcedDisabled;
+      });
+
+      const mh = document.getElementById('metricHead');
+      if (mh) {
+        if (periodMode !== 'overall') {
+          const label = { monthly: 'This Month', weekly: 'This Week', daily: 'Today' }[periodMode] || 'Solves';
+          mh.textContent = label;
+        } else {
+          mh.textContent = sortMode === 'rating' ? 'Rating' : 'Tasks Solved';
+        }
+      }
+    }
+
+    function renderLeaderboardBody(data) {
+      const tbody = document.getElementById('leaderboardBody');
+      if (!tbody) return;
+      if (!data || !data.leaderboard || data.leaderboard.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center">No solves yet.</td></tr>';
+        updateSortButtons();
+        return;
+      }
+
+      leaderboardUserMap = {};
+      const entries = sortedEntries(data.leaderboard);
+      let html = '';
+      let rendered = 0;
+
+      entries.forEach(entry => {
+        if (entry.solves === 0) return;   // 跳过 0 solves
+        rendered++;
+        leaderboardUserMap[entry.username] = entry;
+        const isMe = (currentUsername && entry.username === currentUsername);
+        const hasRating = typeof entry.rating === 'number' && Number.isFinite(entry.rating);
+
+        // 右侧指标单元格
+        let metricCell;
+        if (periodMode === 'overall' && sortMode === 'rating' && hasRating) {
+          metricCell = ratingBadge(entry.rating, entry.tierColor, entry.tierGlow);
+        } else {
+          metricCell = entry.solves;
+        }
+
+        html += `
+          <tr${isMe ? ' class="mine"' : ''}>
+            <td class="text-center">${entry.rank}</td>
+            <td>
+              <a href="/users/${encodeURIComponent(entry.username)}"
+                 class="user-link"
+                 data-username="${escapeHtml(entry.username)}"
+                 style="display:flex;align-items:center;gap:6px;">
+                ${avatarHtml(entry, 24)}
+                <span>${escapeHtml(entry.username)} - ${escapeHtml(entry.displayName || entry.username)}</span>
+                ${periodMode === 'overall' && hasRating ? ratingBadge(entry.rating, entry.tierColor, entry.tierGlow) : ''}
+              </a>
+            </td>
+            <td class="text-center">${metricCell}</td>
+          </tr>`;
+      });
+
+      if (rendered === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center">No solves in this period.</td></tr>';
+        updateSortButtons();
+        return;
+      }
+
+      tbody.innerHTML = html;
+      updateSortButtons();
+
+      tbody.querySelectorAll('.user-link').forEach(link => {
+        link.addEventListener('mouseenter', (e) => {
+          const u = leaderboardUserMap[link.dataset.username];
+          if (!u) return;
+          tooltipTargetEl = link;
+          showTooltip(u);
+          moveTooltip(e);
+        });
+        link.addEventListener('mousemove', moveTooltip);
+        link.addEventListener('mouseleave', hideTooltip);
+      });
     }
 
     async function loadLeaderboard() {
@@ -623,48 +778,15 @@ function formatLastSeen(ts) {
       if (btn) { btn.disabled = true; btn.classList.add('spinning'); }
 
       try {
-        const data = await apiCall('/api/users?action=leaderboard');
-        if (!data.success || !data.leaderboard || data.leaderboard.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="3" class="text-center">No solves yet.</td></tr>';
-          return;
+        // ⭐ 根据 period 拼接 API
+        let url = '/api/users?action=leaderboard';
+        if (periodMode !== 'overall') {
+          url += `&period=${encodeURIComponent(periodMode)}`;
         }
-        leaderboardUserMap = {};
-        let html = '';
-        data.leaderboard.forEach(entry => {
-          if (entry.solves === 0) return;
-          leaderboardUserMap[entry.username] = entry;
-          const isMe = (currentUsername && entry.username === currentUsername);
-          html += `
-            <tr${isMe ? ' class="mine"' : ''}>
-              <td class="text-center">${entry.rank}</td>
-              <td>
-                <a href="/users/${encodeURIComponent(entry.username)}"
-                   class="user-link"
-                   data-username="${escapeHtml(entry.username)}"
-                   style="display:flex;align-items:center;gap:6px;">
-                  ${avatarHtml(entry, 24)}
-                  <span>${escapeHtml(entry.username)} - ${escapeHtml(entry.displayName || entry.username)}</span>
-                  ${ratingBadge(entry.rating, entry.tierColor, entry.tierGlow)}
-                </a>
-              </td>
-              <td class="text-center">${entry.solves}</td>
-            </tr>`;
-        });
-        tbody.innerHTML = html;
+        const data = await apiCall(url);
+        lastData = data;
+        renderLeaderboardBody(data);
 
-        tbody.querySelectorAll('.user-link').forEach(link => {
-          link.addEventListener('mouseenter', (e) => {
-            const u = leaderboardUserMap[link.dataset.username];
-            if (!u) return;
-            tooltipTargetEl = link;
-            showTooltip(u);
-            moveTooltip(e);
-          });
-          link.addEventListener('mousemove', moveTooltip);
-          link.addEventListener('mouseleave', hideTooltip);
-        });
-
-        // ⭐ 记录刷新时间
         const rt = document.getElementById('refreshTime');
         if (rt) rt.textContent = `(${formatTime(new Date())})`;
       } catch (err) {
@@ -677,15 +799,46 @@ function formatLastSeen(ts) {
       }
     }
 
-    // ═══════════════ 手动刷新 ═══════════════
+    // ═══════════════ 事件（手动刷新 + 排序切换 + period 切换） ═══════════════
     document.addEventListener('click', (e) => {
-      const btn = e.target.closest('#refreshBtn');
-      if (!btn) return;
-      if (isLoadingLeaderboard) return;
-      loadLeaderboard();
+      // period 切换
+      const periodBtn = e.target.closest('[data-period]');
+      if (periodBtn) {
+        const p = periodBtn.dataset.period;
+        if (p === periodMode || isLoadingLeaderboard) return;
+        periodMode = p;
+        // 周期榜强制按 solves；切换时重置 sort
+        if (p !== 'overall') sortMode = 'solves';
+        updatePeriodButtons();
+        updateSortButtons();
+        loadLeaderboard();
+        return;
+      }
+
+      // 手动刷新
+      const refreshBtn = e.target.closest('#refreshBtn');
+      if (refreshBtn) {
+        if (isLoadingLeaderboard) return;
+        loadLeaderboard();
+        return;
+      }
+
+      // 排序切换
+      const sortBtn = e.target.closest('[data-sort]');
+      if (sortBtn) {
+        if (sortBtn.disabled) return;
+        const mode = sortBtn.dataset.sort;
+        // 周期榜不允许切到 rating
+        if (periodMode !== 'overall' && mode === 'rating') return;
+        if (mode === sortMode) return;
+        sortMode = mode;
+        if (lastData) renderLeaderboardBody(lastData);
+      }
     });
 
     renderSkeleton();
+    updatePeriodButtons();
+    updateSortButtons();
     loadLeaderboard();
   </script>
 </body>
