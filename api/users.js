@@ -505,13 +505,7 @@ export default async function handler(req, res) {
 
     if (action === 'leaderboard') {
       res.setHeader('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=120');
-
-      const now = Date.now();
-      if (_leaderboardCache.data && _leaderboardCache.expireAt > now) {
-        return res.status(200).json(_leaderboardCache.data);
-      }
-      // ─────────── 判定期望周期 ───────────
-const period = String(req.query.period || 'overall').toLowerCase();
+      const period = String(req.query.period || 'overall').toLowerCase();
 const VALID_PERIODS = new Set(['daily', 'weekly', 'monthly']);
 const isPeriodMode = VALID_PERIODS.has(period);
 
@@ -605,6 +599,12 @@ if (isPeriodMode) {
     timeoutMs: TIMEOUT_MS,
   });
 }
+      const now = Date.now();
+      if (_leaderboardCache.data && _leaderboardCache.expireAt > now) {
+        return res.status(200).json(_leaderboardCache.data);
+      }
+      // ─────────── 判定期望周期 ───────────
+
 
 // ─────────── 以下保持原本 overall 逻辑不变 ───────────
 // （原代码里 "const leaderboardData = await db.collection('leaderboardView')..."）
