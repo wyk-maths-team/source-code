@@ -429,19 +429,7 @@ function clearWorkbenchStatus() {
   // ═════════════════════════════════════════════════════════════
   // [E] Steps 模式
   // ═════════════════════════════════════════════════════════════
-  const STEPS_MODEL_KEY = 'pd_steps_model';
 
-  function getStepsModel() {
-    const m = localStorage.getItem(STEPS_MODEL_KEY);
-    return (m === 'v3') ? 'v3' : 'r1';
-  }
-  function setStepsModel(model) {
-    if (!['r1', 'v3'].includes(model)) model = 'r1';
-    localStorage.setItem(STEPS_MODEL_KEY, model);
-    document.querySelectorAll('.wb-model-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.model === model);
-    });
-  }
 
   // ═════════════════════════════════════════════════════════════
   // [E.1] AI 批改進度：轉圈圈 + 數字 + 進度條（RAF 平滑）
@@ -600,38 +588,38 @@ function pollGradeResult({ endpoint, taskId, checkBtn, maxAttempts = 60 }) {
   // ═════════════════════════════════════════════════════════════
   // [E.3] Steps 提交
   // ═════════════════════════════════════════════════════════════
-  async function handleStepsSubmit(stepsText, checkBtn) {
-    setWorkbenchStatus('Submitting to AI...', 'busy');
+async function handleStepsSubmit(stepsText, checkBtn) {
+  setWorkbenchStatus('Submitting to AI...', 'busy');
 
-    const model = getStepsModel();
+  try {
+    const res = await apiCall('/api/steps-grade', 'POST', {
+      problemId,
+      steps: stepsText,
+      // ⭐ 不传 model，后端自动选
+    });
 
-    try {
-      const res = await apiCall('/api/steps-grade', 'POST', {
-        problemId, steps: stepsText, model,
-      });
-
-      if (!res?.success || !res.taskId) {
-        setWorkbenchStatus(res?.message || 'Submission failed', 'err');
-        S.cooldown = false;
-        checkBtn.disabled = false;
-        return;
-      }
-      if (window.PD.cooldown) window.PD.cooldown.start('steps');
-      startGradingProgress();
-      pollGradeResult({
-        endpoint: '/api/steps-grade',
-        taskId: res.taskId,
-        checkBtn,
-        maxAttempts: 60,   // 180 秒（兼容 API 失败后走 bridge）
-      });
-
-    } catch (err) {
-      console.error('[steps submit]', err);
-      setWorkbenchStatus('Network error: ' + (err.message || 'unknown'), 'err');
+    if (!res?.success || !res.taskId) {
+      setWorkbenchStatus(res?.message || 'Submission failed', 'err');
       S.cooldown = false;
       checkBtn.disabled = false;
+      return;
     }
+    if (window.PD.cooldown) window.PD.cooldown.start('steps');
+    startGradingProgress();
+    pollGradeResult({
+      endpoint: '/api/steps-grade',
+      taskId: res.taskId,
+      checkBtn,
+      maxAttempts: 100,   // 300 秒（Claude 可能慢）
+    });
+
+  } catch (err) {
+    console.error('[steps submit]', err);
+    setWorkbenchStatus('Network error: ' + (err.message || 'unknown'), 'err');
+    S.cooldown = false;
+    checkBtn.disabled = false;
   }
+}
 
   // ═════════════════════════════════════════════════════════════
   // [E.4] 渲染批改結果
@@ -736,10 +724,7 @@ function pollGradeResult({ endpoint, taskId, checkBtn, maxAttempts = 60 }) {
     document.querySelectorAll('.wb-tab:not(:disabled)').forEach(tab => {
       tab.addEventListener('click', () => workbench.setMode(tab.dataset.mode));
     });
-    document.querySelectorAll('.wb-model-btn').forEach(btn => {
-      btn.addEventListener('click', () => setStepsModel(btn.dataset.model));
-    });
-    setStepsModel(getStepsModel());
+
 
     const answerInput = document.getElementById('answerInput');
     answerInput.addEventListener('input', () => {

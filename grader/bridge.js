@@ -11,7 +11,22 @@ const portDb = require('../lib/port-db');
 // ═══════════════════════════════════════════════════════════════
 // ⭐ 先建立 logger，再 require 任何其他模組
 // ═══════════════════════════════════════════════════════════════
+// ═══ AI 审计日志 ═══
+const AI_LOG_DIR  = path.join(__dirname, '..', 'private');
+const AI_LOG_FILE = path.join(AI_LOG_DIR, 'ai-grade.jsonl');
+try { fs.mkdirSync(AI_LOG_DIR, { recursive: true }); } catch {}
 
+function logAiGrade(entry) {
+  try {
+    const line = JSON.stringify({
+      ts: new Date().toISOString(),
+      ...entry,
+    });
+    fs.appendFileSync(AI_LOG_FILE, line + '\n', 'utf8');
+  } catch (e) {
+    logError(`[ai-log] ${e.message}`);
+  }
+}
 const C = {
   reset: '\x1b[0m',
   dim: '\x1b[2m',
@@ -589,6 +604,20 @@ async function processPortTask(page, task) {
       { taskId },
       { $set: { status: 'done', result, elapsedMs: elapsed, completedAt: new Date() } }
     );
+    logAiGrade({
+      kind: 'port',
+      taskId,
+      username: task.username || 'unknown',
+      subject,
+      problemId,
+      model: 'r1',
+      imagesCount: (images || []).length,
+      stepsPreview: String(steps || '').slice(0, 200),
+      score,
+      commentPreview: String(result.comment || '').slice(0, 200),
+      elapsedMs: elapsed,
+      status: 'success',
+    });
 
     // 顯示
     const cols = scoreColors(result.score < 0 ? 0 : result.score);
@@ -853,6 +882,18 @@ async function processTask(page, task) {
       elapsedMs: elapsed,
       completedAt: new Date(),
     });
+    logAiGrade({
+      kind: 'steps',
+      taskId,
+      username: task.username || 'unknown',
+      problemId,
+      model: useModel,
+      stepsPreview: String(steps || '').slice(0, 200),
+      score,
+      commentPreview: comment.slice(0, 200),
+      elapsedMs: elapsed,
+      status: 'success',
+    });
 
     const cols = scoreColors(score);
     const scoreBarLen = Math.round(score / 100 * 30);
@@ -916,6 +957,15 @@ async function processTask(page, task) {
       error: String(err.message || err).slice(0, 300),
       screenshot: shotPath,
       completedAt: new Date(),
+    });
+    logAiGrade({
+      kind: 'steps',
+      taskId,
+      username: task.username || 'unknown',
+      problemId,
+      model: useModel,
+      status: 'error',
+      error: String(err.message || err).slice(0, 300),
     });
 
     STATS.processed++;
@@ -1096,6 +1146,18 @@ async function processImageTask(page, task) {
       rawReply: reply.slice(0, 4000),
       elapsedMs: elapsed,
       completedAt: new Date(),
+    });
+    logAiGrade({
+      kind: 'image',
+      taskId,
+      username: task.username || 'unknown',
+      problemId,
+      model: useModel,
+      images: (task.images || [task.imageUrl]).filter(Boolean),
+      score,
+      commentPreview: comment.slice(0, 200),
+      elapsedMs: elapsed,
+      status: 'success',
     });
 
     const cols = scoreColors(score);

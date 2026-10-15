@@ -365,15 +365,7 @@
               </div>
             </div>
             <div class="wb-pane" data-pane="photo">
-              <div class="wb-model-picker">
-                <span class="wb-model-label"><i class="fas fa-microchip"></i> AI model</span>
-                <button type="button" class="wb-model-btn" data-model="r1">
-                  R1 <small>Slow but accurate</small>
-                </button>
-                <button type="button" class="wb-model-btn" data-model="v3">
-                  V3 <small>Fast</small>
-                </button>
-              </div>
+
               <div class="wb-dropzone" id="wbDropzone">
                 <input type="file" id="imageFileInput" accept="image/*" hidden>
                 <i class="fas fa-cloud-upload-alt"></i>
@@ -388,15 +380,7 @@
             </div>
 
             <div class="wb-pane" data-pane="steps">
-              <div class="wb-model-picker">
-                <span class="wb-model-label"><i class="fas fa-microchip"></i> AI model</span>
-                <button type="button" class="wb-model-btn" data-model="r1">
-                  R1 <small>Slow but accurate</small>
-                </button>
-                <button type="button" class="wb-model-btn" data-model="v3">
-                  V3 <small>Fast</small>
-                </button>
-              </div>
+
               <textarea id="stepsInput" class="wb-textarea" rows="10"
                 maxlength="1000"></textarea>
               <div class="wb-counter"><span id="stepsCount">0</span> / 1000</div>

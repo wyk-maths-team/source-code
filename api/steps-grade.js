@@ -2,32 +2,25 @@
 //
 // Steps 模式：建立 AI 批改任務 + 輪詢結果
 //
-// POST { problemId, steps, model } → { success: true, taskId }
-// GET  ?taskId=xxx                 → { success, status, result?, subid? }
-//
 // ⭐ 流程：
-//   1. POST 建任務到 steps_grading_tasks (status: 'pending')
-//   2. 立刻嘗試直接呼叫 DeepSeek API（≤ 50 秒）
+//   1. POST 建任務 (status: 'pending')
+//   2. 根據題目難度自動選模型，依次嘗試 fallback 鏈
 //      - 成功 → status: 'done', handledBy: 'api'
-//      - 失敗 → status 保持 'pending'，交給 bridge 處理
+//      - 全部失敗 → 保持 pending，交給 bridge
 //   3. GET 輪詢 → done 時寫入 submissions + userstats
-//
-// Bridge 端不變（它仍然從 steps_grading_tasks 搶 pending 任務）
 
 import { connectToDatabase } from './_db.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';
 import { askDeepSeekAPI } from '../lib/deepseek-api.js';
+import { askClaude } from '../lib/temp/claude-api.js';
 import { buildStepsPrompt } from '../lib/grade-prompt.js';
+import { getModelChain, getModelInfo } from '../lib/model-router.js';
 import crypto from 'crypto';
 
 const MAX_STEPS_LEN = 1000;
-const VALID_MODELS  = new Set(['r1', 'v3']);
 const TASK_TTL_MS   = 30 * 60_000;
-
-// ⭐ API 直連超時（Vercel Pro maxDuration 上限內留餘量）
-const API_TIMEOUT_MS = 50_000;
 
 function genTaskId() {
   return 'SGT' + crypto.randomBytes(8).toString('hex');
@@ -36,7 +29,7 @@ function genSubid() {
   return 'SGS' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex');
 }
 
-// ═══ 清洗 statement（與 bridge 相同邏輯） ═══
+// ═══ 清洗 statement ═══
 function cleanStatementForAI(raw) {
   let s = String(raw || '');
   s = s.replace(/<script[\s\S]*?<\/script>/gi, ' ');
@@ -59,7 +52,7 @@ function cleanStatementForAI(raw) {
   return s.trim();
 }
 
-// ═══ 解析 AI 回覆（與 bridge 相同邏輯） ═══
+// ═══ JSON 解析 ═══
 function escapeControlCharsInJsonStrings(str) {
   let out = '', inString = false, escaped = false;
   for (let i = 0; i < str.length; i++) {
@@ -84,23 +77,9 @@ function escapeControlCharsInJsonStrings(str) {
   return out;
 }
 
-function compactShortNewlines(text) {
-  if (!text) return text;
-  let prev;
-  do {
-    prev = text;
-    text = text.replace(/\n([^\n])\n/g, '$1');
-  } while (text !== prev);
-  text = text.replace(/\n([^\n])$/g, '$1');
-  text = text.replace(/^([^\n])\n/g, '$1');
-  return text;
-}
-
 function parseReply(raw) {
   if (!raw) return null;
-  const original = String(raw);
-  let s = original;
-
+  let s = String(raw);
   s = s.replace(/[\uFEFF\u200B-\u200D\u2028\u2029]/g, '');
   s = s.replace(/[\u201C\u201D]/g, '"')
        .replace(/\uFF1A/g, ':')
@@ -121,13 +100,61 @@ function parseReply(raw) {
   try {
     const parsed = JSON.parse(jsonStr);
     if (parsed && typeof parsed.comment === 'string') {
-      parsed.comment = compactShortNewlines(parsed.comment);
       parsed.comment = parsed.comment.replace(/[ \t]+/g, ' ').trim();
     }
     return parsed;
   } catch {
     return null;
   }
+}
+
+// ═══ 尝试单个模型 ═══
+async function tryOneModel({ modelKey, prompt, db, taskId, problem, username }) {
+  const info = getModelInfo(modelKey);
+  if (!info) throw new Error(`Unknown model key: ${modelKey}`);
+
+  const t0 = Date.now();
+
+  let reply;
+  if (info.provider === 'claude') {
+    reply = await askClaude(prompt, {
+      model: modelKey,
+      timeoutMs: 280_000,
+      maxTokens: 8192,
+      thinking: false, // ⭐ 批改任务关掉 thinking，省钱省时
+    });
+  } else if (info.provider === 'deepseek') {
+    reply = await askDeepSeekAPI(prompt, {
+      model: 'deepseek-flash',
+      timeoutMs: 50_000,
+      thinking: false,
+    });
+  } else {
+    throw new Error(`Unknown provider: ${info.provider}`);
+  }
+
+  const elapsed = Date.now() - t0;
+  const parsed = parseReply(reply);
+
+  let scoreNum = NaN;
+  if (parsed) {
+    const v = parsed.score ?? parsed.Score ?? parsed.SCORE;
+    scoreNum = typeof v === 'number' ? v : Number(v);
+  }
+
+  if (!parsed || !Number.isFinite(scoreNum)) {
+    const err = new Error('JSON parse failed');
+    err.parseFailed = true;
+    throw err;
+  }
+
+  return {
+    score: Math.max(0, Math.min(100, Math.round(scoreNum))),
+    comment: String(parsed.comment || '').slice(0, 3000),
+    elapsed,
+    rawReply: reply,
+    modelKey,
+  };
 }
 
 export default async function handler(req, res) {
@@ -146,9 +173,9 @@ export default async function handler(req, res) {
   return res.status(405).json({ success: false, message: 'Method not allowed' });
 }
 
-// ═══════════════ POST：建立任務 + 嘗試 API ═══════════════
+// ═══════════════ POST ═══════════════
 async function handleCreate(req, res, db, decoded) {
-  const { problemId, steps, model } = req.body || {};
+  const { problemId, steps } = req.body || {};
 
   if (!problemId || typeof problemId !== 'string') {
     return res.status(400).json({ success: false, message: 'Missing problemId' });
@@ -167,11 +194,9 @@ async function handleCreate(req, res, db, decoded) {
     });
   }
 
-  const useModel = VALID_MODELS.has(model) ? model : 'r1';
-
   const problem = await db.collection('problems').findOne(
     { id: String(problemId) },
-    { projection: { id: 1, statement: 1, ans: 1, _id: 0 } }
+    { projection: { id: 1, statement: 1, ans: 1, difficulty: 1, _id: 0 } }
   );
   if (!problem) {
     return res.status(404).json({ success: false, message: 'Problem not found' });
@@ -180,62 +205,27 @@ async function handleCreate(req, res, db, decoded) {
   const taskId = genTaskId();
   const now = new Date();
 
-  // 建任務（status: pending）—— bridge 也會搶 pending 的
   await db.collection('steps_grading_tasks').insertOne({
     taskId,
     username: decoded.username,
     problemId: String(problemId),
     steps: trimmed,
-    model: useModel,
     status: 'pending',
     handledBy: null,
+    difficulty: Number(problem.difficulty) || 0,
     createdAt: now,
     expiresAt: new Date(now.getTime() + TASK_TTL_MS),
   });
-    // ⭐ root 用户跳过 API，直接交给 bridge（省 token）
+
+  // root 用户跳过 API，直接走 bridge
   if (decoded.role === 'root') {
-    return res.status(202).json({
-      success: true,
-      taskId,
-      handledBy: 'bridge',
-    });
+    return res.status(202).json({ success: true, taskId, handledBy: 'bridge' });
   }
 
-  // ⭐ 立刻嘗試直連 DeepSeek API
-  const apiResult = await tryApiDirect({
-    problem, trimmed, useModel, taskId, db, username: decoded.username,
-  });
+  // ⭐ 根据难度自动选模型链
+  const chain = getModelChain(problem.difficulty);
+  const errors = [];
 
-  if (apiResult.ok) {
-    return res.status(202).json({ success: true, taskId, handledBy: 'api' });
-  }
-
-  // 永久性失敗（key 問題、余额不足）—— 直接報錯，不 fallback
-  if (apiResult.permanent) {
-    await db.collection('steps_grading_tasks').updateOne(
-      { taskId },
-      {
-        $set: {
-          status: 'error',
-          error: apiResult.error || 'API permanent error',
-          completedAt: new Date(),
-        },
-      }
-    );
-    return res.status(202).json({
-      success: true,
-      taskId,
-      handledBy: 'api',
-      warn: 'AI service unavailable',
-    });
-  }
-
-  // 暫時性失敗 → 保持 pending，讓 bridge 接手
-  return res.status(202).json({ success: true, taskId, handledBy: 'bridge' });
-}
-
-// ═══════════════ 嘗試 API 直連 ═══════════════
-async function tryApiDirect({ problem, trimmed, useModel, taskId, db, username }) {
   const statement = cleanStatementForAI(problem.statement);
   const prompt = buildStepsPrompt({
     statement,
@@ -243,88 +233,73 @@ async function tryApiDirect({ problem, trimmed, useModel, taskId, db, username }
     student_steps: trimmed,
   });
 
-  const t0 = Date.now();
+  for (const modelKey of chain) {
+    try {
+      const result = await tryOneModel({
+        modelKey, prompt, db, taskId, problem, username: decoded.username,
+      });
 
-  try {
-    const reply = await askDeepSeekAPI(prompt, {
-      model: useModel,
-      timeoutMs: API_TIMEOUT_MS,
-    });
-    const elapsed = Date.now() - t0;
-
-    const parsed = parseReply(reply);
-    let scoreNum = NaN;
-    if (parsed) {
-      const v = parsed.score ?? parsed.Score ?? parsed.SCORE;
-      scoreNum = typeof v === 'number' ? v : Number(v);
-    }
-
-    if (!parsed || !Number.isFinite(scoreNum)) {
-      // 解析失敗 → 讓 bridge 試一次（可能 R1 格式不同）
       await db.collection('steps_grading_tasks').updateOne(
         { taskId },
         {
           $set: {
-            apiAttemptedAt: new Date(),
-            apiError: 'JSON parse failed',
+            status: 'done',
+            handledBy: 'api',
+            usedModel: modelKey,
+            result: { score: result.score, comment: result.comment },
+            rawReply: result.rawReply.slice(0, 4000),
+            elapsedMs: result.elapsed,
+            completedAt: new Date(),
           },
         }
       );
-      return { ok: false, permanent: false, error: 'JSON parse failed' };
-    }
 
-    const score = Math.max(0, Math.min(100, Math.round(scoreNum)));
-    const comment = String(parsed.comment || '').slice(0, 3000);
+      auditLog(db, 'steps_grade', {
+        problemId: problem.id,
+        score: result.score,
+        taskId,
+        model: modelKey,
+        difficulty: problem.difficulty,
+        handledBy: 'api',
+      }, decoded.username, 'info').catch(() => {});
 
-    // 標記為 done
-    await db.collection('steps_grading_tasks').updateOne(
-      { taskId },
-      {
-        $set: {
-          status: 'done',
+      return res.status(202).json({ success: true, taskId, handledBy: 'api' });
+
+    } catch (err) {
+      const msg = String(err.message || err).slice(0, 200);
+      errors.push(`${modelKey}: ${msg}`);
+
+      // 永久错误（key 问题、余额不足）→ 不试下一个
+      if (err.permanent) {
+        await db.collection('steps_grading_tasks').updateOne(
+          { taskId },
+          { $set: {
+              status: 'error',
+              error: msg,
+              completedAt: new Date(),
+            } }
+        );
+        return res.status(202).json({
+          success: true,
+          taskId,
           handledBy: 'api',
-          result: { score, comment },
-          rawReply: reply.slice(0, 4000),
-          elapsedMs: elapsed,
-          completedAt: new Date(),
-        },
+          warn: 'AI service unavailable',
+        });
       }
-    );
-
-    // 審計
-    auditLog(db, 'steps_grade', {
-      problemId: problem.id,
-      score,
-      taskId,
-      model: useModel,
-      handledBy: 'api',
-    }, username, 'info').catch(() => {});
-
-    return { ok: true, elapsed };
-
-  } catch (err) {
-    const elapsed = Date.now() - t0;
-
-    await db.collection('steps_grading_tasks').updateOne(
-      { taskId },
-      {
-        $set: {
-          apiAttemptedAt: new Date(),
-          apiError: String(err.message || err).slice(0, 200),
-          apiElapsedMs: elapsed,
-        },
-      }
-    );
-
-    return {
-      ok: false,
-      permanent: !!err.permanent,
-      error: String(err.message || err).slice(0, 200),
-    };
+      // 暂时错误 → 试下一个模型
+    }
   }
+
+  // 全部失败 → 交给 bridge
+  await db.collection('steps_grading_tasks').updateOne(
+    { taskId },
+    { $set: { apiAttemptedAt: new Date(), apiErrors: errors } }
+  );
+
+  return res.status(202).json({ success: true, taskId, handledBy: 'bridge' });
 }
 
-// ═══════════════ GET：輪詢 ═══════════════
+// ═══════════════ GET（轮询） ═══════════════
 async function handlePoll(req, res, db, decoded) {
   const { taskId } = req.query;
   if (!taskId) {
@@ -337,13 +312,11 @@ async function handlePoll(req, res, db, decoded) {
   }
   if (
     task.username !== decoded.username &&
-    decoded.role !== 'admin' &&
-    decoded.role !== 'root'
+    decoded.role !== 'admin' && decoded.role !== 'root'
   ) {
     return res.status(403).json({ success: false, message: 'Not yours' });
   }
 
-  // 未完成
   if (task.status === 'pending' || task.status === 'processing') {
     return res.status(200).json({
       success: true,
@@ -352,7 +325,6 @@ async function handlePoll(req, res, db, decoded) {
     });
   }
 
-  // 錯誤
   if (task.status === 'error') {
     return res.status(200).json({
       success: true,
@@ -361,7 +333,6 @@ async function handlePoll(req, res, db, decoded) {
     });
   }
 
-  // 完成
   if (task.status === 'done') {
     if (task.consumed === true && task.subid) {
       return res.status(200).json({
@@ -373,7 +344,6 @@ async function handlePoll(req, res, db, decoded) {
       });
     }
 
-    // 原子搶佔
     const lockResult = await db.collection('steps_grading_tasks').updateOne(
       { taskId, status: 'done', consumed: { $ne: true } },
       { $set: { consumed: true, consumedAt: new Date() } }
@@ -430,8 +400,8 @@ async function handlePoll(req, res, db, decoded) {
           answer: claimed.steps,
           markedAt: new Date(),
           aiGraded: true,
-          aiModel: claimed.model,
           handledBy: claimed.handledBy || 'unknown',
+          usedModel: claimed.usedModel || null,
           taskId,
         });
 
@@ -489,7 +459,7 @@ async function handlePoll(req, res, db, decoded) {
   });
 }
 
-// ⭐ Vercel Pro 需要這個才能跑超過 10 秒
 export const config = {
-  maxDuration: 60,
+  maxDuration: 300,
+  regions: ['iad1'],
 };
