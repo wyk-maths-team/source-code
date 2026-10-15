@@ -17,6 +17,7 @@ import { askDeepSeekAPI } from '../lib/deepseek-api.js';
 import { askClaude } from '../lib/temp/claude-api.js';
 import { buildStepsPrompt } from '../lib/grade-prompt.js';
 import { getModelChain, getModelInfo } from '../lib/model-router.js';
+import { getModelChain, getModelInfo, pickThinkingEffort } from '../lib/model-router.js';
 import crypto from 'crypto';
 
 const MAX_STEPS_LEN = 1000;
@@ -109,7 +110,7 @@ function parseReply(raw) {
 }
 
 // ═══ 尝试单个模型 ═══
-async function tryOneModel({ modelKey, prompt, db, taskId, problem, username }) {
+async function tryOneModel({ modelKey, prompt, db, taskId, problem, username, effort }) {
   const info = getModelInfo(modelKey);
   if (!info) throw new Error(`Unknown model key: ${modelKey}`);
 
@@ -121,15 +122,15 @@ async function tryOneModel({ modelKey, prompt, db, taskId, problem, username }) 
       model: modelKey,
       timeoutMs: 280_000,
       maxTokens: 8192,
-      thinking: false, // ⭐ 批改任务关掉 thinking，省钱省时
+      effort,   // ⭐ 传下去
     });
   } else if (info.provider === 'deepseek') {
     reply = await askDeepSeekAPI(prompt, {
-      model: 'deepseek-flash',
+      model: info.id,   // ⭐ 用 info.id（deepseek-flash 或 deepseek-v4-pro）
       timeoutMs: 50_000,
-      thinking: false,
+      effort,
     });
-  } else {
+  }else {
     throw new Error(`Unknown provider: ${info.provider}`);
   }
 
@@ -212,6 +213,7 @@ async function handleCreate(req, res, db, decoded) {
     steps: trimmed,
     status: 'pending',
     handledBy: null,
+    apiLockedAt: new Date(),   // ⭐ 给 bridge 看：这任务我锁了
     difficulty: Number(problem.difficulty) || 0,
     createdAt: now,
     expiresAt: new Date(now.getTime() + TASK_TTL_MS),
@@ -232,11 +234,17 @@ async function handleCreate(req, res, db, decoded) {
     reference_answer: String(problem.ans ?? ''),
     student_steps: trimmed,
   });
-
+    const effort = pickThinkingEffort(problem.difficulty);
   for (const modelKey of chain) {
     try {
       const result = await tryOneModel({
-        modelKey, prompt, db, taskId, problem, username: decoded.username,
+        modelKey,
+        prompt,
+        db,
+        taskId,
+        problem,
+        username: decoded.username,
+        effort,   // ⭐ 传下去
       });
 
       await db.collection('steps_grading_tasks').updateOne(
@@ -293,7 +301,10 @@ async function handleCreate(req, res, db, decoded) {
   // 全部失败 → 交给 bridge
   await db.collection('steps_grading_tasks').updateOne(
     { taskId },
-    { $set: { apiAttemptedAt: new Date(), apiErrors: errors } }
+    {
+      $set:  { apiAttemptedAt: new Date(), apiErrors: errors },
+      $unset: { apiLockedAt: '' },   // ⭐ 解锁，让 bridge 接手
+    }
   );
 
   return res.status(202).json({ success: true, taskId, handledBy: 'bridge' });

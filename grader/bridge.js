@@ -437,10 +437,16 @@ async function claimTask() {
       {
         status: 'pending',
         $or: [
-          { lockedAt: { $exists: false } },
-          { lockedAt: null },
-          { lockedAt: { $lt: staleThreshold } },
+          { apiLockedAt: { $exists: false } },
+          { apiLockedAt: { $lt: new Date(Date.now() - 5 * 60_000) } },  // ⭐ 5 分钟超时
         ],
+        $and: [{
+          $or: [
+            { lockedAt: { $exists: false } },
+            { lockedAt: null },
+            { lockedAt: { $lt: staleThreshold } },
+          ],
+        }],
       },
       { sort: { createdAt: 1 }, projection: { taskId: 1, _id: 0 } }
     );
