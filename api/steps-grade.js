@@ -415,6 +415,9 @@ async function handlePoll(req, res, db, decoded) {
           handledBy: claimed.handledBy || 'unknown',
           usedModel: claimed.usedModel || null,
           taskId,
+          // ⭐ 新增：AI 判题耗时
+          judgingMs: claimed.elapsedMs || null,
+          judgingModel: claimed.usedModel || null,
         });
 
         const statsCol = db.collection('userstats');
