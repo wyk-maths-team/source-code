@@ -118,19 +118,20 @@ async function tryOneModel({ modelKey, prompt, db, taskId, problem, username, ef
 
   let reply;
   if (info.provider === 'claude') {
+    // ⭐ Claude 不传 effort，用默认（省 token）
     reply = await askClaude(prompt, {
       model: modelKey,
       timeoutMs: 280_000,
       maxTokens: 8192,
-      effort,   // ⭐ 传下去
     });
   } else if (info.provider === 'deepseek') {
+    // ⭐ DeepSeek 仍然按难度传 effort
     reply = await askDeepSeekAPI(prompt, {
-      model: info.id,   // ⭐ 用 info.id（deepseek-flash 或 deepseek-v4-pro）
+      model: info.id,
       timeoutMs: 50_000,
       effort,
     });
-  }else {
+  } else {
     throw new Error(`Unknown provider: ${info.provider}`);
   }
 
