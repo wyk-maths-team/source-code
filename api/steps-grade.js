@@ -192,6 +192,14 @@ async function handleCreate(req, res, db, decoded) {
     createdAt: now,
     expiresAt: new Date(now.getTime() + TASK_TTL_MS),
   });
+    // ⭐ root 用户跳过 API，直接交给 bridge（省 token）
+  if (decoded.role === 'root') {
+    return res.status(202).json({
+      success: true,
+      taskId,
+      handledBy: 'bridge',
+    });
+  }
 
   // ⭐ 立刻嘗試直連 DeepSeek API
   const apiResult = await tryApiDirect({
