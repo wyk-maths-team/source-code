@@ -214,7 +214,6 @@ async function handleCreate(req, res, db, decoded) {
     steps: trimmed,
     status: 'pending',
     handledBy: null,
-    apiLockedAt: new Date(),   // ⭐ 给 bridge 看：这任务我锁了
     difficulty: Number(problem.difficulty) || 0,
     createdAt: now,
     expiresAt: new Date(now.getTime() + TASK_TTL_MS),
@@ -224,6 +223,12 @@ async function handleCreate(req, res, db, decoded) {
   if (decoded.role === 'root') {
     return res.status(202).json({ success: true, taskId, handledBy: 'bridge' });
   }
+
+  // ⭐ 非 root：开始走 API，上锁
+  await db.collection('steps_grading_tasks').updateOne(
+    { taskId },
+    { $set: { apiLockedAt: new Date() } }
+  );
 
   // ⭐ 根据难度自动选模型链
   const chain = getModelChain(problem.difficulty);
