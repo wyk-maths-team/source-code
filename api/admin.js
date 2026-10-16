@@ -1,4 +1,4 @@
-﻿// api/admin.js
+// api/admin.js
 //
 // 管理員 API — 整理版
 //
@@ -543,7 +543,7 @@ async function handleCmd(req, res, db, decoded) {
 
   const { mode, code } = req.body || {};
   if (!code || typeof code !== 'string') return fail(res, 400, 'Missing code');
-  if (code.length > 5000) return fail(res, 400, 'Code too long (max 5000)');
+  //if (code.length > 5000) return fail(res, 400, 'Code too long (max 5000)');
 
   // 審計：先寫，再執行
   await safeAudit(db, 'admin_cmd_exec', {
