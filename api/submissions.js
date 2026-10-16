@@ -375,7 +375,7 @@ export default async function handler(req, res) {
       if (sf) Object.assign(filter, sf);
     }
 
-    //if (!isAdmin) {
+    if (!isAdmin) {
       const allowedSet = await getPublicProblemIds(db);
       if (!allowedSet.size) {
         const header = includeHeader === '1' ? await buildHeader(db, targetProblem, targetUser) : null;
@@ -394,7 +394,7 @@ export default async function handler(req, res) {
           });
         }
         filter.problemId = { $in: buildProblemIdFilter(requested) };
-        /*
+      
       } else {
         const allIds = [];
         allowedSet.forEach(id => {
@@ -403,7 +403,7 @@ export default async function handler(req, res) {
         });
         filter.problemId = { $in: allIds };
       }
-      */
+
     }
 
     // ⭐ 去掉 countDocuments（O(N)），改用 limit+1 判斷 hasMore
