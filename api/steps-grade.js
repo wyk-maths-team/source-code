@@ -20,7 +20,7 @@ import { buildStepsPrompt } from '../lib/grade-prompt.js';
 import { getModelChain, getModelInfo, pickThinkingEffort } from '../lib/model-router.js';
 import crypto from 'crypto';
 
-const MAX_STEPS_LEN = 1000;
+const MAX_STEPS_LEN = 10000;
 const TASK_TTL_MS   = 30 * 60_000;
 
 function genTaskId() {
