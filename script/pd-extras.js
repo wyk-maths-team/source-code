@@ -317,7 +317,7 @@ function clearWorkbenchStatus() {
     const wrap = cnt.parentElement;
     const n = el.value.length;
     cnt.textContent = n;
-    wrap.className = 'wb-counter' + (n >= 1000 ? ' limit' : n >= 900 ? ' warn' : '');
+    wrap.className = 'wb-counter' + (n >= 10000 ? ' limit' : n >= 9000 ? ' warn' : '');
   }
 
   // ═════════════════════════════════════════════════════════════
@@ -420,7 +420,7 @@ function clearWorkbenchStatus() {
       const steps = document.getElementById('stepsInput').value.trim();
       if (!steps)              return { error: 'Please enter your solution steps' };
       if (steps.length < 10)   return { error: 'Solution too short (min 10 chars)' };
-      if (steps.length > 1000) return { error: 'Solution too long (max 1000 chars)' };
+      if (steps.length > 10000) return { error: 'Solution too long (max 10000 chars)' };
       return { type: 'steps', answer: steps };
     }
     return { error: 'Unknown mode' };
@@ -735,8 +735,8 @@ async function handleStepsSubmit(stepsText, checkBtn) {
 
     const stepsInput = document.getElementById('stepsInput');
     stepsInput.addEventListener('input', () => {
-      if (stepsInput.value.length > 1000) {
-        stepsInput.value = stepsInput.value.slice(0, 1000);
+      if (stepsInput.value.length > 10000) {
+        stepsInput.value = stepsInput.value.slice(0, 10000);
       }
       updateStepsCounter();
       workbench.saveDraft('steps', stepsInput.value);
