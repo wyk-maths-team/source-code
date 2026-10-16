@@ -1,4 +1,4 @@
-﻿<!-- File: C:\moj\admin\terminal.html -->
+<!-- File: C:\moj\admin\terminal.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -110,6 +110,19 @@
           <button class="btn btn-primary" id="executeBtn">Execute</button>
         </div>
         <div class="output" id="output"></div>
+
+        <hr style="margin:1.5rem 0;border:none;border-top:1px solid var(--border-color);">
+        <h2>Difficulty Adjust</h2>
+        <div class="input-group" style="flex-wrap:wrap;">
+          <input id="diffProblemId" class="code-input" placeholder="problem id" style="flex:0 0 140px;min-height:40px;">
+          <input id="diffValue" class="code-input" type="number" step="0.01" min="1" max="10" placeholder="difficulty (1-10)" style="flex:0 0 170px;min-height:40px;">
+          <label style="display:flex;align-items:center;gap:0.4rem;white-space:nowrap;color:var(--text-secondary);">
+            <input type="checkbox" id="diffLock"> Lock
+          </label>
+          <button class="btn btn-primary" id="setDifficultyBtn">Set Difficulty</button>
+          <button class="btn btn-success" id="runAdjustBtn">Run Auto Adjust</button>
+        </div>
+        <div class="output" id="diffOutput" style="max-height:300px;font-size:0.8rem;">Manual override + trigger the nightly difficulty sweep on demand.</div>
       </div>
     </main>
     <!-- <button class="sidebar-toggle" id="sidebarToggle">☰</button> -->
@@ -181,6 +194,53 @@
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         document.getElementById('executeBtn').click();
+      }
+    });
+
+    // ===== 难度调整 =====
+    const diffOutput = document.getElementById('diffOutput');
+
+    document.getElementById('setDifficultyBtn').addEventListener('click', async () => {
+      const problemId = document.getElementById('diffProblemId').value.trim();
+      const difficulty = document.getElementById('diffValue').value;
+      const lock = document.getElementById('diffLock').checked;
+      if (!problemId || !difficulty) {
+        diffOutput.textContent = 'Please fill in problem id and difficulty.';
+        return;
+      }
+      diffOutput.textContent = 'Setting difficulty...';
+      try {
+        const data = await apiCall('/api/admin?action=setDifficulty', 'POST', {
+          problemId,
+          difficulty: Number(difficulty),
+          lock,
+        });
+        diffOutput.textContent = data.success
+          ? `Done. problemId=${data.problemId}  difficulty=${data.difficulty}  locked=${data.locked}`
+          : 'Error: ' + (data.message || 'Unknown error');
+      } catch (err) {
+        diffOutput.textContent = 'Error: ' + (err.message || 'Network error');
+      }
+    });
+
+    document.getElementById('runAdjustBtn').addEventListener('click', async () => {
+      diffOutput.textContent = 'Running auto difficulty adjustment...';
+      try {
+        const data = await apiCall('/api/admin?action=runDifficultyAdjust', 'POST', {});
+        if (data.success) {
+          const lines = (data.results || []).map(r =>
+            r.skipped
+              ? `${r.problemId}: skipped (${r.reason})`
+              : `${r.problemId}: ${r.newDifficulty}  (Δ${r.delta}, ${r.reason}, n=${r.sampleSize})`
+          );
+          diffOutput.textContent =
+            `Done. total=${data.total}  adjusted=${data.adjusted}  skipped=${data.skipped}\n\n` +
+            lines.join('\n');
+        } else {
+          diffOutput.textContent = 'Error: ' + (data.message || 'Unknown error');
+        }
+      } catch (err) {
+        diffOutput.textContent = 'Error: ' + (err.message || 'Network error');
       }
     });
   </script>

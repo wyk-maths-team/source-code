@@ -112,6 +112,20 @@ export default async function handler(req, res) {
   });
 }
 
+    if (action === 'adjustDifficulty') {
+      const { sweepDifficulties } = await import('../lib/difficulty-sweep.js');
+
+      const summary = await sweepDifficulties(db);
+
+      await auditLog(db, 'cron_adjust_difficulty', {
+        total: summary.total,
+        adjusted: summary.adjusted,
+        skipped: summary.skipped,
+      }, 'system', 'info').catch(() => {});
+
+      return res.status(200).json({ success: true, ...summary });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Cron error:', err);

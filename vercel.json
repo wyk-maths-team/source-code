@@ -137,6 +137,7 @@
       "path": "/api/cron?action=dailyBackup",
       "schedule": "0 18 * * *"
     },
-    { "path": "/api/cron?action=dailyOnlineSnapshot", "schedule": "30 18 * * *" }
+    { "path": "/api/cron?action=dailyOnlineSnapshot", "schedule": "30 18 * * *" },
+    { "path": "/api/cron?action=adjustDifficulty", "schedule": "0 19 * * *" }
   ]
 }
