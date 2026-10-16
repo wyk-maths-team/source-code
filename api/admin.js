@@ -536,6 +536,59 @@ async function handleSyncVersion(req, res, db, decoded) {
   return ok(res, { success: true, version: newVer });
 }
 
+// ── 手動設定題目難度 ──
+async function handleSetDifficulty(req, res, db, decoded) {
+  if (req.method !== 'POST') return fail(res, 405, 'Method not allowed');
+
+  const { problemId, difficulty, lock } = req.body || {};
+  if (!problemId) return fail(res, 400, 'Missing problemId');
+
+  const d = Number(difficulty);
+  if (!Number.isFinite(d) || d < 1 || d > 10) {
+    return fail(res, 400, 'Difficulty must be between 1 and 10');
+  }
+
+  const problem = await db.collection('problems').findOne(
+    { id: String(problemId) },
+    { projection: { id: 1, _id: 0 } }
+  );
+  if (!problem) return fail(res, 404, 'Problem not found');
+
+  const rounded = Math.round(d * 100) / 100;
+  await db.collection('problems').updateOne(
+    { id: String(problemId) },
+    {
+      $set: {
+        difficulty: rounded,
+        manualDifficulty: rounded,          // 手动值成为后续自动调整的先验
+        difficultyLocked: lock === true,    // 锁定后 cron 跳过此题
+        difficultyLastAdjustedAt: new Date(),
+      },
+    }
+  );
+
+  await safeAudit(db, 'set_difficulty',
+    { problemId: String(problemId), difficulty: rounded, locked: lock === true },
+    decoded.username, 'warn');
+
+  return ok(res, { success: true, problemId: String(problemId), difficulty: rounded, locked: lock === true });
+}
+
+// ── 手動觸發全量難度調整 ──
+async function handleRunDifficultyAdjust(req, res, db, decoded) {
+  if (decoded.role !== 'root') return fail(res, 403, 'Root only');
+  if (req.method !== 'POST') return fail(res, 405, 'Method not allowed');
+
+  const { sweepDifficulties } = await import('../lib/difficulty-sweep.js');
+  const summary = await sweepDifficulties(db);
+
+  await safeAudit(db, 'run_difficulty_adjust',
+    { total: summary.total, adjusted: summary.adjusted, skipped: summary.skipped },
+    decoded.username, 'info');
+
+  return ok(res, { success: true, ...summary });
+}
+
 // ── 高級命令終端（加固版） ──
 async function handleCmd(req, res, db, decoded) {
   if (decoded.role !== 'root') return fail(res, 403, 'Only root can use this terminal');
@@ -695,6 +748,8 @@ export default async function handler(req, res) {
       case 'restoreDatabase': return await handleRestoreDatabase(req, res, db, decoded);
       case 'logs':            return await handleLogs(req, res, db);
       case 'syncVersion':     return await handleSyncVersion(req, res, db, decoded);
+      case 'setDifficulty':   return await handleSetDifficulty(req, res, db, decoded);
+      case 'runDifficultyAdjust': return await handleRunDifficultyAdjust(req, res, db, decoded);
       case 'cmd':             return await handleCmd(req, res, db, decoded);
       default:
         return fail(res, 400, 'Invalid action');
