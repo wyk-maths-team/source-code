@@ -130,6 +130,7 @@ async function tryOneModel({ modelKey, prompt, db, taskId, problem, username, ef
       model: info.id,
       timeoutMs: 50_000,
       effort,
+      maxTokens: 8192,
     });
   } else {
     throw new Error(`Unknown provider: ${info.provider}`);
