@@ -382,8 +382,8 @@
             <div class="wb-pane" data-pane="steps">
 
               <textarea id="stepsInput" class="wb-textarea" rows="10"
-                maxlength="1000"></textarea>
-              <div class="wb-counter"><span id="stepsCount">0</span> / 1000</div>
+                maxlength="10000"></textarea>
+              <div class="wb-counter"><span id="stepsCount">0</span> / 10000</div>
             </div>
           </div>
 
