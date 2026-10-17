@@ -1,5 +1,5 @@
 // sw.js
-const CACHE_NAME = 'wyk-maths-v3';   // ⭐ bump 版本
+const CACHE_NAME = 'wyk-maths-v5';   // ⭐ bump 版本
 const PRECACHE_URLS = [
   '/favicon.svg',
   '/manifest.json',
