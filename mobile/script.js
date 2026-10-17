@@ -677,13 +677,41 @@ async function syncDrafts() {
   }
 }
 
-// 統一提交入口
+// 統一提交入口（離線優先）
+// 只要無法可靠送達（離線 / 網路錯誤 / 5xx / 429），一律先存草稿，之後自動重試，
+// 避免「顯示在線但請求失敗」時丟答案。
 async function submitAnswer(problemId, answer, type = 'text', image = '') {
+  const body = { problemId, answer, type, image };
+
+  // 1) 離線 → 直接存草稿
   if (!navigator.onLine) {
     const d = await saveDraft(problemId, answer, type, image);
     return { success: true, drafted: true, draftId: d.id };
   }
-  return await apiCall('/api/submit', 'POST', { problemId, answer, type, image });
+
+  // 2) 發送；網路層錯誤 → 存草稿
+  let res;
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    const t = getToken();
+    if (t) headers['Authorization'] = 'Bearer ' + t;
+    res = await fetch('/api/submit', { method: 'POST', headers, body: JSON.stringify(body) });
+  } catch (e) {
+    const d = await saveDraft(problemId, answer, type, image);
+    return { success: true, drafted: true, draftId: d.id };
+  }
+
+  // 3) 伺服器臨時錯誤（5xx / 429 限流）→ 存草稿，稍後重試
+  if (res.status >= 500 || res.status === 429) {
+    const d = await saveDraft(problemId, answer, type, image);
+    return { success: true, drafted: true, draftId: d.id };
+  }
+
+  // 4) 其餘（2xx / 明確的 4xx 業務錯誤）→ 正常處理
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401) { setToken(null); throw new Error('Session expired'); }
+  if (!res.ok) throw new Error(data.message || ('HTTP ' + res.status));
+  return data;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -710,6 +738,8 @@ function routeTitle() {
   const headName = head.charAt(0).toUpperCase() + head.slice(1);
   if (head === 'submissions') return 'Submissions';
   if (head === 'rank') return 'Rank';
+  if (head === 'drafts') return 'Drafts';
+  if (head === 'resources') return 'Resources';
   if (p.length === 1) return headName;
   return headName + ' - ' + p[p.length - 1];
 }
@@ -884,6 +914,16 @@ async function renderHome() {
           <i class="fas fa-trophy"></i>
           <div class="ml-quick-t">Contests</div>
           <div class="ml-quick-d">Join events</div>
+        </a>
+        <a class="ml-quick" data-nav="/resources">
+          <i class="fas fa-folder-open"></i>
+          <div class="ml-quick-t">Resources</div>
+          <div class="ml-quick-d">Notes & PDFs</div>
+        </a>
+        <a class="ml-quick" data-nav="/drafts">
+          <i class="fas fa-inbox"></i>
+          <div class="ml-quick-t">Drafts</div>
+          <div class="ml-quick-d">Offline queue</div>
         </a>
       </div>
 
@@ -2712,6 +2752,249 @@ async function renderSettings() {
   await updateDraftsUI();
 }
 
+// ═══════════════════════════════════════════════════════════
+// 20b. 草稿箱管理頁
+// ═══════════════════════════════════════════════════════════
+async function renderDrafts() {
+  const content = $('#ml-content');
+  content.innerHTML = `
+    <div class="ml-page">
+      <div class="ml-set-group">
+        <div class="ml-set-item">
+          <span class="lbl">
+            <i class="fas fa-inbox" style="margin-right:8px;opacity:.6;width:16px"></i>Draft Queue
+            <span class="hint" id="ml-drafts-count">Loading…</span>
+          </span>
+          <button class="ml-pfp-btn" id="ml-drafts-sync-all" disabled><i class="fas fa-cloud-arrow-up"></i> Sync all</button>
+        </div>
+      </div>
+      <div id="ml-draft-list"></div>
+      <p class="ml-draft-foot">Offline submissions are stored on this device and auto-synced when you're back online.</p>
+    </div>`;
+
+  const syncAll = $('#ml-drafts-sync-all');
+  syncAll.onclick = async () => {
+    if (syncAll.disabled) return;
+    haptic(10);
+    syncAll.disabled = true;
+    syncAll.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing…';
+    await syncDrafts();
+    await renderDraftList();
+  };
+
+  await renderDraftList();
+}
+
+async function renderDraftList() {
+  const wrap = $('#ml-draft-list');
+  const count = $('#ml-drafts-count');
+  const syncAll = $('#ml-drafts-sync-all');
+  if (!wrap) return;
+
+  const drafts = await getAllDrafts();
+  if (count) count.textContent = `${drafts.length} pending`;
+  if (syncAll) {
+    syncAll.disabled = !drafts.length || !navigator.onLine;
+    syncAll.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Sync all';
+  }
+
+  if (!drafts.length) {
+    wrap.innerHTML = `<div class="ml-empty"><i class="fas fa-circle-check"></i>No pending drafts — all synced</div>`;
+    return;
+  }
+
+  wrap.innerHTML = drafts.map(d => {
+    const dt = fmtDateTime(d.createdAt);
+    const preview = String(d.answer || '').slice(0, 80);
+    const tries = d.tries || 0;
+    return `
+      <div class="ml-draft-card" data-id="${d.id}">
+        <div class="ml-draft-main">
+          <div class="ml-draft-problem">${esc(d.problemId)}${d.type === 'image' ? ' <i class="fas fa-image"></i>' : ''}</div>
+          <div class="ml-draft-answer">${esc(preview) || '<em>(empty)</em>'}</div>
+          <div class="ml-draft-meta"><i class="far fa-clock"></i> ${dt.short}${tries ? ` · ${tries} retr${tries === 1 ? 'y' : 'ies'}` : ''}</div>
+        </div>
+        <div class="ml-draft-actions">
+          <button class="ml-draft-btn retry" data-id="${d.id}" ${navigator.onLine ? '' : 'disabled'} title="Submit now"><i class="fas fa-rotate"></i></button>
+          <button class="ml-draft-btn del" data-id="${d.id}" title="Delete"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>`;
+  }).join('');
+
+  // 单个重试：不预先删除，提交成功或转存草稿后才删原稿（避免 4xx 丢答案）
+  $$('.ml-draft-btn.retry', wrap).forEach(btn => {
+    btn.onclick = async () => {
+      const id = Number(btn.dataset.id);
+      const drafts = await getAllDrafts();
+      const d = drafts.find(x => x.id === id);
+      if (!d) { await renderDraftList(); return; }
+      haptic(6);
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+      try {
+        const r = await submitAnswer(d.problemId, d.answer, d.type || 'text', d.image || '');
+        if (r && r.drafted) {
+          // 已存成新草稿，删掉旧稿避免重复
+          await deleteDraft(id);
+          toast('Still offline — kept in queue', 'fa-plane');
+        } else {
+          await deleteDraft(id);
+          if (r && (r.correct || r.score === 100)) {
+            state.states = state.states || {};
+            state.states[d.problemId] = 'passed';
+            saveAcAnswer(d.problemId, d.answer);
+          } else if (state.states && state.states[d.problemId] !== 'passed') {
+            state.states[d.problemId] = 'failed';
+          }
+          saveStatesCache(state.states || {});
+          toast('Submitted', 'fa-circle-check');
+          haptic(10);
+        }
+      } catch (e) {
+        // 明确的业务错误（4xx）→ 保留草稿，提示用户
+        toast('Failed: ' + (e.message || 'unknown'), 'fa-circle-exclamation');
+      }
+      await renderDraftList();
+    };
+  });
+
+  // 删除
+  $$('.ml-draft-btn.del', wrap).forEach(btn => {
+    btn.onclick = async () => {
+      const id = Number(btn.dataset.id);
+      haptic(6);
+      await deleteDraft(id);
+      await renderDraftList();
+    };
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// 20c. Resources 學習資源頁（瀏覽 GitHub 資源庫，離線緩存目錄）
+// ═══════════════════════════════════════════════════════════
+const RES_OWNER = 'wyk-math-team';
+const RES_REPO  = 'resources';
+const RES_HIDDEN = ['script', 'static', 'tools', 'web_css', '.github'];
+
+function resCacheKey(path) { return 'mobile_res_' + (path || '_root_'); }
+
+async function loadResDir(path) {
+  const key = resCacheKey(path);
+  // 先看本地快取（離線也能瀏覽之前開過的目錄）
+  try {
+    const cached = localStorage.getItem(key);
+    if (cached) return JSON.parse(cached);
+  } catch {}
+  if (!navigator.onLine) return null;
+  const url = `https://api.github.com/repos/${RES_OWNER}/${RES_REPO}/contents/${path || ''}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const data = await res.json();
+  try { localStorage.setItem(key, JSON.stringify(data)); } catch {}
+  return data;
+}
+
+function resFileIcon(name) {
+  const n = String(name || '').toLowerCase();
+  if (n.endsWith('.pdf')) return 'fa-file-pdf';
+  if (/\.(png|jpe?g|gif|webp|svg|bmp)$/.test(n)) return 'fa-file-image';
+  if (/\.(zip|rar|7z|tar|gz)$/.test(n)) return 'fa-file-archive';
+  if (/\.(docx?|odt)$/.test(n)) return 'fa-file-word';
+  if (/\.(xlsx?|ods|csv)$/.test(n)) return 'fa-file-excel';
+  if (/\.(pptx?|odp)$/.test(n)) return 'fa-file-powerpoint';
+  if (/\.(tex|md|txt|log)$/.test(n)) return 'fa-file-alt';
+  return 'fa-file';
+}
+
+async function renderResources(path) {
+  const content = $('#ml-content');
+  content.innerHTML = `
+    <div class="ml-page">
+      <div class="ml-res-breadcrumb" id="ml-res-breadcrumb"></div>
+      <div id="ml-res-list"></div>
+    </div>`;
+  await renderResDir(path);
+}
+
+async function renderResDir(path) {
+  const list = $('#ml-res-list');
+  const bread = $('#ml-res-breadcrumb');
+  if (!list) return;
+
+  // 面包屑
+  let bc = `<a data-nav="/resources"><i class="fas fa-folder-open"></i> Root</a>`;
+  if (path) {
+    const parts = String(path).split('/').filter(Boolean);
+    let cur = '';
+    parts.forEach((p, i) => {
+      cur += (i ? '/' : '') + p;
+      bc += `<span class="ml-res-sep">/</span><a data-nav="/resources/${encodeURIComponent(cur)}">${esc(p)}</a>`;
+    });
+  }
+  bread.innerHTML = bc;
+  $$('a[data-nav]', bread).forEach(a => {
+    a.onclick = () => { haptic(6); navigate(a.dataset.nav); };
+  });
+
+  list.innerHTML = `<div class="ml-empty"><i class="fas fa-spinner fa-spin"></i> Loading…</div>`;
+
+  let data;
+  try {
+    data = await loadResDir(path);
+  } catch (e) {
+    list.innerHTML = `<div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Failed to load</div>`;
+    return;
+  }
+
+  if (data === null) {
+    list.innerHTML = `<div class="ml-empty"><i class="fas fa-plane"></i>Offline — this folder isn't cached yet</div>`;
+    return;
+  }
+
+  // 直接命中单个文件（一般不会发生）
+  if (!Array.isArray(data)) {
+    window.open(`https://cdn.jsdelivr.net/gh/${RES_OWNER}/${RES_REPO}/${data.path}`, '_blank');
+    return;
+  }
+
+  const items = data
+    .filter(it => !RES_HIDDEN.includes(it.name))
+    .sort((a, b) => {
+      if (a.type === 'dir' && b.type !== 'dir') return -1;
+      if (a.type !== 'dir' && b.type === 'dir') return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+  if (!items.length) {
+    list.innerHTML = `<div class="ml-empty"><i class="fas fa-folder-open"></i>Empty folder</div>`;
+    return;
+  }
+
+  list.innerHTML = items.map(it => {
+    const isDir = it.type === 'dir';
+    const icon = isDir ? 'fa-folder' : resFileIcon(it.name);
+    const size = it.size ? (it.size / 1024).toFixed(1) + ' KB' : '';
+    const target = isDir
+      ? '/resources/' + encodeURIComponent(it.path)
+      : `https://cdn.jsdelivr.net/gh/${RES_OWNER}/${RES_REPO}/${it.path}`;
+    return `
+      <div class="ml-res-item" data-dir="${isDir ? '1' : '0'}" data-target="${escAttr(target)}">
+        <i class="fas ${icon} ico"></i>
+        <span class="lbl">${esc(it.name)}</span>
+        <span class="size">${esc(size)}</span>
+        <i class="fas fa-chevron-right chev"></i>
+      </div>`;
+  }).join('');
+
+  $$('.ml-res-item', list).forEach(el => {
+    el.onclick = () => {
+      haptic(6);
+      if (el.dataset.dir === '1') navigate(el.dataset.target);
+      else window.open(el.dataset.target, '_blank');
+    };
+  });
+}
+
 // 圖片壓縮
 function compressImage(file, maxDim, quality) {
   return new Promise((resolve, reject) => {
@@ -2784,6 +3067,8 @@ async function renderRoute() {
   } else if (p[0] === 'rank') await renderRank();
   else if (p[0] === 'me') await renderMe();
   else if (p[0] === 'settings') await renderSettings();
+  else if (p[0] === 'drafts') await renderDrafts();
+  else if (p[0] === 'resources') await renderResources(p.slice(1).join('/'));
   else await renderHome();
 
   if (doTransition) {
@@ -2939,14 +3224,23 @@ function setupOfflineIndicator() {
     document.body.classList.toggle('ml-offline', navigator.onLine === false);
   };
   update();
+
   window.addEventListener('online', () => {
     update();
-    toast('Online', 'fa-wifi');
+    toast('Back online', 'fa-wifi');
     setTimeout(() => { syncDrafts(); }, 800);
   });
   window.addEventListener('offline', () => {
     update();
     toast('Offline mode', 'fa-plane');
+  });
+
+  // 應用恢復前台（從後台切回）→ 有網就自動同步草稿
+  document.addEventListener('visibilitychange', () => {
+    update();
+    if (document.visibilityState === 'visible' && navigator.onLine) {
+      syncDrafts();
+    }
   });
 }
 
