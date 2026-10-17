@@ -86,6 +86,18 @@
   }
 
   function statusOf(s) {
+    // List endpoint (/api/submissions) returns a `status` string, e.g.
+    // "Accepted", "Wrong Answer", "Partial Score (75)", "Pending", "System Error".
+    if (typeof s.status === 'string' && s.status) {
+      const st = s.status;
+      if (st === 'Accepted') return { text: 'Accepted', cls: 'status-accepted' };
+      if (st === 'Wrong Answer') return { text: 'Wrong Answer', cls: 'status-wrong' };
+      if (st === 'System Error') return { text: 'System Error', cls: 'status-system' };
+      if (st === 'Pending') return { text: 'Pending', cls: 'status-pending' };
+      if (st.indexOf('Partial') === 0) return { text: st.replace('Partial Score', 'Partial'), cls: 'status-partial' };
+      return { text: st, cls: 'status-pending' };
+    }
+    // Detail endpoint returns the raw marked / score / correct / systemError fields.
     if (s.marked && s.score !== undefined) {
       if (s.score === 100) return { text: 'Accepted', cls: 'status-accepted' };
       if (s.score === 0) return { text: 'Wrong Answer', cls: 'status-wrong' };
