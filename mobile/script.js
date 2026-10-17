@@ -1,3396 +1,1786 @@
-/* ═══════════════════════════════════════════════════════════
- * WYK Maths Team — Mobile App
- * ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════
+ * WYK Maths Team — Mobile PWA (single-file app)
+ *
+ * 6 bottom tabs (icon-only): Home / Problems / Submissions /
+ * Leaderboard / Contests / Me. Detail views (problem, submission,
+ * user, contest, settings) are hash-routed sub-views layered on top
+ * of the tab bar.
+ *
+ * Offline-first:
+ *   - problems list cached in localStorage
+ *   - statements + images cached in IndexedDB (bulk cache in Settings)
+ *   - submissions made while offline go to a draft box (IndexedDB),
+ *     then are flushed to the server automatically when back online.
+ *
+ * Navigation lock:
+ *   - while a view is loading, tab / back / in-view navigation is
+ *     blocked to prevent stale async results from clobbering the view.
+ *   - the heartbeat (online-status report) is intentionally NOT part of
+ *     this lock — it keeps running in the background at all times.
+ * ═══════════════════════════════════════════════════════════════════ */
 (function () {
-'use strict';
+  'use strict';
 
-// ═══════════════════════════════════════════════════════════
-// 0. Auth
-// ═══════════════════════════════════════════════════════════
-const TOKEN_KEY = 'auth_token';
+  /* ────────────────────────────────────────────────
+   * 0. Utils
+   * ──────────────────────────────────────────────── */
+  const $  = (sel, root) => (root || document).querySelector(sel);
+  const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
 
-(function () {
-  try {
-    const p = new URLSearchParams(location.search);
-    const t = p.get('token');
-    if (t) {
-      localStorage.setItem(TOKEN_KEY, t);
-      const newUrl = location.pathname + location.search.replace(/[?&]token=[^&]*/, '').replace(/^&/, '?');
-      history.replaceState({}, document.title, newUrl);
-      location.reload();
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+    m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+
+  function debounce(fn, ms) {
+    let t;
+    return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+  }
+
+  function toast(msg, type) {
+    const root = $('#toastRoot');
+    const el = document.createElement('div');
+    el.className = 'toast' + (type ? ' ' + type : '');
+    el.textContent = msg;
+    root.appendChild(el);
+    setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; }, 2600);
+    setTimeout(() => el.remove(), 3000);
+  }
+
+  function formatTime(iso, withDate) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso);
+    const p = n => String(n).padStart(2, '0');
+    const hm = `${p(d.getHours())}:${p(d.getMinutes())}`;
+    if (withDate) return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${hm}`;
+    return hm;
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso);
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  }
+
+  function timeAgo(iso) {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    const s = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (s < 60) return s + 's ago';
+    if (s < 3600) return Math.floor(s / 60) + 'm ago';
+    if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+    return Math.floor(s / 86400) + 'd ago';
+  }
+
+  // difficulty → color pill (mirrors web)
+  function diffColor(d) {
+    if (!d) return { label: '∞', cls: 'diff', style: 'background:#777' };
+    if (d < 2)  return { label: d.toFixed(2), cls: 'diff', style: 'background:#888' };
+    if (d < 3)  return { label: d.toFixed(2), cls: 'diff', style: 'background:#2e9e5b' };
+    if (d < 4)  return { label: d.toFixed(2), cls: 'diff', style: 'background:#337ab7' };
+    if (d < 5)  return { label: d.toFixed(2), cls: 'diff', style: 'background:#7a3fbf' };
+    if (d < 6)  return { label: d.toFixed(2), cls: 'diff', style: 'background:#c98a00' };
+    if (d < 7)  return { label: d.toFixed(2), cls: 'diff', style: 'background:#c0392b' };
+    return { label: d.toFixed(2), cls: 'diff', style: 'background:#1a1a2e' };
+  }
+
+  function statusOf(s) {
+    if (s.marked && s.score !== undefined) {
+      if (s.score === 100) return { text: 'Accepted', cls: 'status-accepted' };
+      if (s.score === 0) return { text: 'Wrong Answer', cls: 'status-wrong' };
+      return { text: `Partial (${s.score})`, cls: 'status-partial' };
     }
-  } catch {}
-})();
+    if (s.type === 'image' && !s.marked) return { text: 'Pending', cls: 'status-pending' };
+    if (s.systemError) return { text: 'System Error', cls: 'status-system' };
+    if (typeof s.correct === 'boolean') return s.correct
+      ? { text: 'Accepted', cls: 'status-accepted' }
+      : { text: 'Wrong Answer', cls: 'status-wrong' };
+    return { text: 'Pending', cls: 'status-pending' };
+  }
 
-function getToken() { return localStorage.getItem(TOKEN_KEY); }
-function setToken(t) { if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); }
-function parseJwt(t) { try { return JSON.parse(atob(t.split('.')[1])); } catch { return null; } }
-function isLoggedIn() {
-  const t = getToken();
-  if (!t) return false;
-  const p = parseJwt(t);
-  if (!p || p.exp * 1000 < Date.now()) { setToken(null); return false; }
-  return true;
-}
-function getCurrentUser() {
-  const t = getToken();
-  if (!t) return null;
-  const p = parseJwt(t);
-  if (!p) return null;
-  return {
-    username: p.username,
-    role: p.role || 'student',
-    displayName: p.displayName || p.username,
-    pfp: p.pfp || '',
+  /* ────────────────────────────────────────────────
+   * 1. Settings (theme / font size) — shared keys with web
+   * ──────────────────────────────────────────────── */
+  const Settings = {
+    get theme() { return localStorage.getItem('theme') || 'light'; },
+    setTheme(t) {
+      localStorage.setItem('theme', t);
+      if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      else document.documentElement.removeAttribute('data-theme');
+    },
+    get fontSize() { return parseInt(localStorage.getItem('fontSize')) || 16; },
+    setFontSize(n) {
+      n = Math.min(24, Math.max(12, n));
+      localStorage.setItem('fontSize', String(n));
+      document.documentElement.style.fontSize = n + 'px';
+    },
   };
-}
-async function doLogin(username, password) {
-  try {
-    const res = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    });
-    const data = await res.json();
-    if (data.success) setToken(data.token);
-    return data;
-  } catch {
-    return { success: false, message: 'Network error' };
-  }
-}
-async function apiCall(endpoint, method = 'GET', body = null) {
-  const url = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
-  const headers = { 'Content-Type': 'application/json' };
-  const t = getToken();
-  if (t) headers['Authorization'] = 'Bearer ' + t;
-  const opts = { method, headers };
-  if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(url, opts);
-  if (res.status === 401) { setToken(null); throw new Error('Session expired'); }
-  if (!res.ok) {
-    const d = await res.json().catch(() => ({ message: 'HTTP ' + res.status }));
-    throw new Error(d.message || ('HTTP ' + res.status));
-  }
-  return res.json();
-}
 
-// ═══════════════════════════════════════════════════════════
-// 1. IndexedDB 封裝
-// ═══════════════════════════════════════════════════════════
-const DB_NAME = 'wyk-mobile-db';
-const DB_VERSION = 1;
-let _dbPromise = null;
-
-function openDB() {
-  if (_dbPromise) return _dbPromise;
-  _dbPromise = new Promise((resolve, reject) => {
-    if (!('indexedDB' in window)) { reject(new Error('No IndexedDB')); return; }
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains('problems')) {
-        db.createObjectStore('problems', { keyPath: 'id' });
-      }
-      if (!db.objectStoreNames.contains('meta')) {
-        db.createObjectStore('meta', { keyPath: 'key' });
-      }
-      if (!db.objectStoreNames.contains('drafts')) {
-        const s = db.createObjectStore('drafts', { keyPath: 'id', autoIncrement: true });
-        s.createIndex('byProblem', 'problemId');
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-  return _dbPromise;
-}
-
-function dbGet(store, key) {
-  return openDB().then(db => new Promise((resolve, reject) => {
-    const tx = db.transaction(store, 'readonly');
-    const req = tx.objectStore(store).get(key);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  }));
-}
-function dbPut(store, value) {
-  return openDB().then(db => new Promise((resolve, reject) => {
-    const tx = db.transaction(store, 'readwrite');
-    tx.objectStore(store).put(value);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  }));
-}
-function dbGetAll(store) {
-  return openDB().then(db => new Promise((resolve, reject) => {
-    const tx = db.transaction(store, 'readonly');
-    const req = tx.objectStore(store).getAll();
-    req.onsuccess = () => resolve(req.result || []);
-    req.onerror = () => reject(req.error);
-  }));
-}
-function dbDelete(store, key) {
-  return openDB().then(db => new Promise((resolve, reject) => {
-    const tx = db.transaction(store, 'readwrite');
-    tx.objectStore(store).delete(key);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  }));
-}
-
-// ═══════════════════════════════════════════════════════════
-// 2. 常量 & 狀態
-// ═══════════════════════════════════════════════════════════
-const LS = {
-  problems: 'mobile_problems_v1',
-  states:   'mobile_states_v1',
-  fav:      'mobile_fav_v1',
-  settings: 'mobile_settings_v1',
-  welcome:  'mobile_welcome_done_v1',
-  acAnswers: 'mobile_ac_answers_v1',
-};
-
-const CACHE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
-
-const DEFAULT_SETTINGS = {
-  theme: 'dark',
-  showDifficulty: true,
-  showTags: true,
-  showSolves: true,
-  showFavorite: true,
-  compact: false,
-  animations: true,
-  pageSize: 30,
-};
-
-const TABS = [
-  { id: 'home',        icon: 'fa-house',        label: 'Home',        match: /^\/?$/ },
-  { id: 'problems',    icon: 'fa-list-check',   label: 'Problems',    match: /^\/problems/ },
-  { id: 'submissions', icon: 'fa-paper-plane',  label: 'Submissions', match: /^\/submissions/ },
-  { id: 'contests',    icon: 'fa-trophy',       label: 'Contests',    match: /^\/contests/ },
-  { id: 'rank',        icon: 'fa-ranking-star', label: 'Rank',        match: /^\/rank/ },
-  { id: 'me',          icon: 'fa-user',         label: 'Me',          match: /^\/(me|settings)/ },
-];
-
-const state = {
-  user: null,
-  problems: null,
-  states: null,
-  favorites: null,
-  settings: { ...DEFAULT_SETTINGS },
-  route: { path: '/', parts: [] },
-  problemsLoaded: false,
-  lastScrollTop: 0,
-  appReady: false,
-  _updates: null,
-  _firstRender: true,
-  _scrollMemory: {},
-  _cacheInProgress: false,
-};
-
-// ═══════════════════════════════════════════════════════════
-// 3. 工具
-// ═══════════════════════════════════════════════════════════
-const $  = (s, r) => (r || document).querySelector(s);
-const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
-
-function esc(s) {
-  return String(s == null ? '' : s).replace(/[&<>"']/g,
-    m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
-}
-function escAttr(s) { return esc(s); }
-
-function toast(msg, icon) {
-  let t = $('#ml-toast');
-  if (!t) { t = document.createElement('div'); t.id = 'ml-toast'; document.body.appendChild(t); }
-  t.innerHTML = (icon ? `<i class="fas ${icon}" style="margin-right:6px;opacity:.85"></i>` : '') + esc(msg);
-  t.classList.add('show');
-  clearTimeout(t._t);
-  t._t = setTimeout(() => t.classList.remove('show'), 1800);
-}
-
-function haptic(ms = 8) {
-  try { navigator.vibrate && navigator.vibrate(ms); } catch {}
-}
-
-function fmtDateTime(ts) {
-  const d = new Date(ts);
-  if (isNaN(d.getTime())) return { date: '—', time: '—', short: '—' };
-  const pad = n => String(n).padStart(2, '0');
-  const local = new Date(d.getTime() + 8 * 3600000);
-  return {
-    date: `${local.getUTCFullYear()}-${pad(local.getUTCMonth() + 1)}-${pad(local.getUTCDate())}`,
-    time: `${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}:${pad(local.getUTCSeconds())}`,
-    short: `${pad(local.getUTCMonth() + 1)}-${pad(local.getUTCDate())} ${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}`,
-  };
-}
-function faviconOf(name) {
-  return String(name || '?').trim()[0]?.toUpperCase() || '?';
-}
-
-// 通用分頁
-function computePageItems(current, total, maxVisible) {
-  if (total <= maxVisible) return Array.from({ length: total }, (_, i) => i + 1);
-  const inner = maxVisible - 2;
-  const half = Math.floor(inner / 2);
-  let start = Math.max(2, current - half);
-  let end = Math.min(total - 1, start + inner - 1);
-  start = Math.max(2, end - inner + 1);
-  const items = [1];
-  if (start > 2) items.push('…');
-  for (let p = start; p <= end; p++) items.push(p);
-  if (end < total - 1) items.push('…');
-  items.push(total);
-  return items;
-}
-
-function renderPagination(current, total, onNav) {
-  if (total <= 1) return '';
-  const items = computePageItems(current, total, 5);
-  let html = '<div class="ml-pagination">';
-  html += `<button class="ml-page-btn" data-p="${current - 1}" ${current <= 1 ? 'disabled' : ''} aria-label="Prev"><i class="fas fa-chevron-left"></i></button>`;
-  for (const it of items) {
-    if (it === '…') html += `<span class="ml-page-ellipsis">…</span>`;
-    else html += `<button class="ml-page-btn ${it === current ? 'active' : ''}" data-p="${it}">${it}</button>`;
-  }
-  html += `<button class="ml-page-btn" data-p="${current + 1}" ${current >= total ? 'disabled' : ''} aria-label="Next"><i class="fas fa-chevron-right"></i></button>`;
-  html += '</div>';
-  return html;
-}
-function bindPagination(root, onNav) {
-  $$('.ml-page-btn[data-p]', root).forEach(btn => {
-    btn.onclick = () => {
-      const p = parseInt(btn.dataset.p, 10);
-      if (p && p >= 1) { haptic(6); onNav(p); }
-    };
-  });
-}
-
-function animateNumber(el, to, duration = 650) {
-  if (!el) return;
-  if (!state.settings.animations) { el.textContent = to; return; }
-  const from = 0;
-  const start = performance.now();
-  const tick = (now) => {
-    const t = Math.min(1, (now - start) / duration);
-    const eased = 1 - Math.pow(1 - t, 3);
-    el.textContent = Math.round(from + (to - from) * eased);
-    if (t < 1) requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
-}
-
-async function withMinSkeleton(fn, minMs = 250) {
-  const start = Date.now();
-  const result = await fn();
-  const remain = Math.max(0, minMs - (Date.now() - start));
-  if (remain) await new Promise(r => setTimeout(r, remain));
-  return result;
-}
-
-// ── KaTeX 就緒 ──
-async function ensureKatex() {
-  if (typeof window.renderMathInElement === 'function') return true;
-  for (let i = 0; i < 30; i++) {
-    await new Promise(r => setTimeout(r, 100));
-    if (typeof window.renderMathInElement === 'function') return true;
-  }
-  return false;
-}
-
-// ── math.js 就緒（表達式計算用） ──
-let _mathLoading = null;
-function ensureMath() {
-  if (window.math && typeof window.math.evaluate === 'function') return Promise.resolve(true);
-  if (_mathLoading) return _mathLoading;
-  _mathLoading = new Promise((resolve) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/mathjs@11.8.0/lib/browser/math.js';
-    s.async = true;
-    s.onload = () => resolve(!!(window.math && typeof window.math.evaluate === 'function'));
-    s.onerror = () => resolve(false);
-    document.head.appendChild(s);
-  });
-  return _mathLoading;
-}
-
-// 格式化計算結果（去尾零，最大 12 位小數）
-function formatMathNumber(n) {
-  if (!Number.isFinite(n)) return null;
-  if (Number.isInteger(n)) return String(n);
-  let s = n.toFixed(12);
-  s = s.replace(/0+$/, '').replace(/\.$/, '');
-  return s;
-}
-
-// 計算表達式，成功回傳字串，失敗回傳 null
-async function evaluateExpression(expr) {
-  const raw = String(expr || '').trim();
-  if (!raw) return { ok: false, reason: 'empty' };
-
-  const ready = await ensureMath();
-  if (!ready) return { ok: false, reason: 'unavailable' };
-
-  try {
-    const result = window.math.evaluate(raw);
-    let num = null;
-    if (typeof result === 'number') num = result;
-    else if (result && typeof result.toNumber === 'function') num = result.toNumber();
-    else if (result && typeof result.valueOf === 'function') {
-      const v = result.valueOf();
-      if (typeof v === 'number') num = v;
-    }
-    if (typeof num !== 'number' || !Number.isFinite(num)) {
-      return { ok: false, reason: 'not-number' };
-    }
-    const formatted = formatMathNumber(num);
-    if (formatted == null) return { ok: false, reason: 'not-number' };
-    return { ok: true, value: formatted, num };
-  } catch (e) {
-    return { ok: false, reason: 'syntax' };
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-// 4. AC 答案緩存
-// ═══════════════════════════════════════════════════════════
-function loadAcAnswers() {
-  try {
-    const raw = localStorage.getItem(LS.acAnswers);
-    if (!raw) return {};
-    const obj = JSON.parse(raw);
-    return obj && typeof obj === 'object' ? obj : {};
-  } catch { return {}; }
-}
-function saveAcAnswer(pid, ans) {
-  if (!pid) return;
-  const s = String(ans == null ? '' : ans).trim();
-  if (!s) return;
-  try {
-    const all = loadAcAnswers();
-    all[pid] = s;
-    localStorage.setItem(LS.acAnswers, JSON.stringify(all));
-  } catch {}
-}
-function getAcAnswer(pid) {
-  const all = loadAcAnswers();
-  return all[pid] || '';
-}
-
-// ═══════════════════════════════════════════════════════════
-// 5. 頁面過渡動畫
-// ═══════════════════════════════════════════════════════════
-const TAB_ORDER = ['/', '/problems', '/submissions', '/contests', '/rank', '/me'];
-
-function getTabIdx(path) {
-  for (let i = 0; i < TAB_ORDER.length; i++) {
-    const t = TAB_ORDER[i];
-    if (path === t || path.startsWith(t + '/')) return i;
-  }
-  return -1;
-}
-
-function detectDirection(prevPath, nextPath) {
-  if (!prevPath || !nextPath || prevPath === nextPath) return 'fade';
-  const pParts = prevPath.split('/').filter(Boolean);
-  const nParts = nextPath.split('/').filter(Boolean);
-  if (pParts[0] === nParts[0] && pParts.length !== nParts.length) {
-    return nParts.length > pParts.length ? 'forward' : 'back';
-  }
-  const pi = getTabIdx(prevPath);
-  const ni = getTabIdx(nextPath);
-  if (pi >= 0 && ni >= 0 && pi !== ni) {
-    return ni > pi ? 'forward' : 'back';
-  }
-  return 'fade';
-}
-
-function animatePageEnter(el, direction) {
-  if (!state.settings.animations || !el || typeof el.animate !== 'function') return;
-  let from;
-  if (direction === 'forward')      from = { opacity: 0, transform: 'translateX(28px)' };
-  else if (direction === 'back')    from = { opacity: 0, transform: 'translateX(-28px)' };
-  else                              from = { opacity: 0, transform: 'translateY(6px)' };
-  try {
-    el.animate([from, { opacity: 1, transform: 'none' }],
-      { duration: 300, easing: 'cubic-bezier(.32,.72,0,1)' });
-  } catch (e) {}
-}
-
-const STAGGER_SELECTORS = '.ml-prob, .ml-sub, .ml-update, .ml-quick, .ml-me-stat, .ml-rank-item, .ml-pd-sub, .ml-result-row, .ml-list-item';
-
-function staggerIn(root) {
-  if (!state.settings.animations || !root || typeof Element.prototype.animate !== 'function') return;
-  const items = Array.from(root.querySelectorAll(STAGGER_SELECTORS));
-  const max = 15;
-  items.slice(0, max).forEach((el, i) => {
+  /* ────────────────────────────────────────────────
+   * 2. Auth
+   * ──────────────────────────────────────────────── */
+  const TOKEN_KEY = 'auth_token';
+  function getToken() { return localStorage.getItem(TOKEN_KEY); }
+  function isLoggedIn() { return !!getToken(); }
+  function getCurrentUser() {
+    const token = getToken();
+    if (!token) return null;
     try {
-      el.animate(
-        [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }],
-        { duration: 240, delay: Math.min(i * 22, 320), easing: 'cubic-bezier(.32,.72,0,1)', fill: 'backwards' }
-      );
-    } catch (e) {}
-  });
-}
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (payload.exp * 1000 < Date.now()) { localStorage.removeItem(TOKEN_KEY); return null; }
+      return { username: payload.username, role: payload.role || 'student', displayName: payload.displayName || payload.username };
+    } catch { return null; }
+  }
 
-function animateTitle(el, text) {
-  if (!el) return;
-  el.textContent = text;
-  if (!state.settings.animations || typeof el.animate !== 'function') return;
-  try {
-    el.animate(
-      [{ opacity: 0, transform: 'translateY(3px)' }, { opacity: 1, transform: 'none' }],
-      { duration: 220, easing: 'cubic-bezier(.32,.72,0,1)' }
-    );
-  } catch (e) {}
-}
-
-// ═══════════════════════════════════════════════════════════
-// 6. 進度條
-// ═══════════════════════════════════════════════════════════
-const _progressStart = Date.now();
-function tickProgress() {
-  const fill = $('#mlFill');
-  const pct  = $('#mlPct');
-  const wrap = $('#ml-loading');
-  if (!fill || !pct || !wrap) return;
-  let target;
-  if (state.appReady) {
-    const cur = parseFloat(fill.style.width) || 0;
-    target = cur + (100 - cur) * 0.25;
-    if (target > 99.5) {
-      fill.style.width = '100%';
-      pct.textContent = '100%';
-      setTimeout(() => { wrap.classList.add('ml-hide'); setTimeout(() => wrap.remove(), 400); }, 160);
-      return;
+  async function login(username, password) {
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (data.success) localStorage.setItem(TOKEN_KEY, data.token);
+      return data;
+    } catch (e) {
+      return { success: false, message: 'Network error' };
     }
-  } else {
-    const elapsed = Date.now() - _progressStart;
-    const t = Math.min(1, elapsed / 4500);
-    const eased = 1 - Math.pow(1 - t, 3);
-    target = eased * 88;
-    if (elapsed > 5000) {
-      const over = Math.min(1, (elapsed - 5000) / 3000);
-      target = 88 + over * 11;
+  }
+
+  function logout() {
+    const token = getToken();
+    if (token) {
+      try { fetch('/api/heartbeat?action=offline', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, keepalive: true }).catch(() => {}); } catch (e) {}
     }
-    target = Math.min(target, 99);
-    const cur = parseFloat(fill.style.width) || 0;
-    if (cur > target) target = cur;
-  }
-  fill.style.width = target.toFixed(2) + '%';
-  pct.textContent = Math.floor(target) + '%';
-  requestAnimationFrame(tickProgress);
-}
-
-// ═══════════════════════════════════════════════════════════
-// 7. LocalStorage
-// ═══════════════════════════════════════════════════════════
-function lsRead(key, ttl) {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const data = JSON.parse(raw);
-    if (ttl && data.ts && Date.now() - data.ts > ttl) return null;
-    return data;
-  } catch { return null; }
-}
-function lsWrite(key, value) {
-  try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), v: value })); } catch {}
-}
-
-function loadSettings() {
-  const c = lsRead(LS.settings);
-  if (c && c.v && typeof c.v === 'object') Object.assign(state.settings, c.v);
-  applyTheme();
-  applyCompact();
-  applyAnimations();
-}
-function saveSettings() {
-  lsWrite(LS.settings, state.settings);
-  applyTheme();
-  applyCompact();
-  applyAnimations();
-}
-function applyTheme() {
-  const t = state.settings.theme === 'auto'
-    ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-    : state.settings.theme;
-  document.documentElement.setAttribute('data-theme', t);
-}
-function applyCompact() {
-  document.body.classList.toggle('ml-compact', !!state.settings.compact);
-}
-function applyAnimations() {
-  document.body.classList.toggle('ml-no-anim', !state.settings.animations);
-}
-
-function loadProblemsCache() {
-  const c = lsRead(LS.problems, 24 * 60 * 60 * 1000);
-  if (c && c.v && Array.isArray(c.v.problems)) {
-    state.problems = c.v.problems;
-    state.problemsLoaded = true;
-    return true;
-  }
-  return false;
-}
-function saveProblemsCache(problems) { lsWrite(LS.problems, { problems }); }
-
-function loadStatesCache() {
-  const c = lsRead(LS.states, 24 * 60 * 60 * 1000);
-  if (c && c.v) { state.states = c.v; return true; }
-  return false;
-}
-function saveStatesCache(states) { lsWrite(LS.states, states); }
-
-function loadFavCache() {
-  const c = lsRead(LS.fav, 24 * 60 * 60 * 1000);
-  if (c && Array.isArray(c.v)) { state.favorites = new Set(c.v); return true; }
-  return false;
-}
-function saveFavCache() { lsWrite(LS.fav, Array.from(state.favorites || [])); }
-
-// ═══════════════════════════════════════════════════════════
-// 8. Cache All Problems
-// ═══════════════════════════════════════════════════════════
-async function getCacheStatus() {
-  try {
-    const last = await dbGet('meta', 'cacheAllAt');
-    const problems = await dbGetAll('problems');
-    const lastAt = last ? last.value : 0;
-    const remaining = Math.max(0, CACHE_COOLDOWN_MS - (Date.now() - lastAt));
-    return { lastAt, remaining, count: problems.length };
-  } catch {
-    return { lastAt: 0, remaining: 0, count: 0 };
-  }
-}
-
-async function cacheAllProblems(onProgress) {
-  const d = await apiCall('/api/problem?all=1&withStatement=1');
-  if (!d || !d.success || !Array.isArray(d.problems)) {
-    throw new Error('Failed to load problems: apicall failed or database broken');
-  }
-  const problems = d.problems;
-
-  const db = await openDB();
-  const tx = db.transaction('problems', 'readwrite');
-  const store = tx.objectStore('problems');
-  store.clear();
-  const now = Date.now();
-  for (let i = 0; i < problems.length; i++) {
-    store.put({ ...problems[i], cachedAt: now });
-    if (onProgress && i % 10 === 0) onProgress(i + 1, problems.length);
-  }
-  await new Promise((res, rej) => {
-    tx.oncomplete = res;
-    tx.onerror = () => rej(tx.error);
-  });
-  await dbPut('meta', { key: 'cacheAllAt', value: Date.now() });
-
-  const light = problems.map(p => ({
-    id: p.id, name: p.name, difficulty: p.difficulty,
-    tags: p.tags, public: p.public, solves: p.solves,
-  }));
-  state.problems = light;
-  state.problemsLoaded = true;
-  saveProblemsCache(light);
-
-  return problems.length;
-}
-
-async function getCachedProblem(id) {
-  try { return await dbGet('problems', id); }
-  catch { return null; }
-}
-
-// ═══════════════════════════════════════════════════════════
-// 9. 草稿箱
-// ═══════════════════════════════════════════════════════════
-async function saveDraft(problemId, answer, type = 'text', image = '') {
-  const draft = {
-    problemId,
-    answer,
-    type,
-    image,
-    createdAt: Date.now(),
-    tries: 0,
-  };
-  await dbPut('drafts', draft);
-  return draft;
-}
-async function getAllDrafts() {
-  try { return await dbGetAll('drafts'); }
-  catch { return []; }
-}
-async function deleteDraft(id) { await dbDelete('drafts', id); }
-async function updateDraft(draft) { await dbPut('drafts', draft); }
-
-let _syncingDrafts = false;
-async function syncDrafts() {
-  if (!navigator.onLine || _syncingDrafts) return;
-  _syncingDrafts = true;
-  try {
-    const drafts = await getAllDrafts();
-    if (!drafts.length) return;
-
-    let synced = 0, failed = 0;
-    for (const draft of drafts) {
-      try {
-        const r = await apiCall('/api/submit', 'POST', {
-          problemId: draft.problemId,
-          answer: draft.answer,
-          type: draft.type || 'text',
-          image: draft.image || '',
-          clientTimestamp: new Date(draft.createdAt).toISOString(),
-        });
-        if (r && r.success) {
-          await deleteDraft(draft.id);
-          synced++;
-          if (r.correct || r.score === 100) {
-            state.states = state.states || {};
-            state.states[draft.problemId] = 'passed';
-            // ⭐ 保存 AC 答案
-            saveAcAnswer(draft.problemId, draft.answer);
-          } else if (state.states && state.states[draft.problemId] !== 'passed') {
-            state.states[draft.problemId] = 'failed';
-          }
-          saveStatesCache(state.states || {});
-        } else {
-          await deleteDraft(draft.id);
-          failed++;
-        }
-      } catch (e) {
-        draft.tries = (draft.tries || 0) + 1;
-        if (draft.tries >= 5) {
-          await deleteDraft(draft.id);
-          failed++;
-        } else {
-          await updateDraft(draft);
-        }
-      }
-    }
-    if (synced || failed) {
-      const total = synced + failed;
-      toast(`Synced ${synced}/${total} draft${total > 1 ? 's' : ''}`, 'fa-cloud-arrow-up');
-    }
-  } finally {
-    _syncingDrafts = false;
-  }
-}
-
-// 統一提交入口（離線優先）
-// 只要無法可靠送達（離線 / 網路錯誤 / 5xx / 429），一律先存草稿，之後自動重試，
-// 避免「顯示在線但請求失敗」時丟答案。
-async function submitAnswer(problemId, answer, type = 'text', image = '') {
-  const body = { problemId, answer, type, image };
-
-  // 1) 離線 → 直接存草稿
-  if (!navigator.onLine) {
-    const d = await saveDraft(problemId, answer, type, image);
-    return { success: true, drafted: true, draftId: d.id };
+    localStorage.clear();
+    location.hash = '#/login';
+    render();
   }
 
-  // 2) 發送；網路層錯誤 → 存草稿
-  let res;
-  try {
+  // apiCall throws Error with .offline=true on network failure
+  async function apiCall(endpoint, method, body) {
+    const url = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
     const headers = { 'Content-Type': 'application/json' };
-    const t = getToken();
-    if (t) headers['Authorization'] = 'Bearer ' + t;
-    res = await fetch('/api/submit', { method: 'POST', headers, body: JSON.stringify(body) });
-  } catch (e) {
-    const d = await saveDraft(problemId, answer, type, image);
-    return { success: true, drafted: true, draftId: d.id };
-  }
+    const token = getToken();
+    if (token) headers['Authorization'] = 'Bearer ' + token;
 
-  // 3) 伺服器臨時錯誤（5xx / 429 限流）→ 存草稿，稍後重試
-  if (res.status >= 500 || res.status === 429) {
-    const d = await saveDraft(problemId, answer, type, image);
-    return { success: true, drafted: true, draftId: d.id };
-  }
-
-  // 4) 其餘（2xx / 明確的 4xx 業務錯誤）→ 正常處理
-  const data = await res.json().catch(() => ({}));
-  if (res.status === 401) { setToken(null); throw new Error('Session expired'); }
-  if (!res.ok) throw new Error(data.message || ('HTTP ' + res.status));
-  return data;
-}
-
-// ═══════════════════════════════════════════════════════════
-// 10. 路由
-// ═══════════════════════════════════════════════════════════
-function parseRoute() {
-  const raw = location.hash.replace(/^#/, '') || '/';
-  const parts = raw.split('/').filter(Boolean).map(decodeURIComponent);
-  return { path: '/' + parts.join('/'), parts };
-}
-function navigate(path) {
-  const content = $('#ml-content');
-  if (content) state._scrollMemory[state.route.path] = content.scrollTop;
-  haptic(6);
-  const h = '#' + path;
-  if (location.hash === h) renderRoute();
-  else location.hash = h;
-}
-function routeTitle() {
-  const p = state.route.parts;
-  if (p.length === 0) return 'WYK Maths Team';
-  const head = p[0];
-  if (head === 'me' || head === 'settings') return '';
-  const headName = head.charAt(0).toUpperCase() + head.slice(1);
-  if (head === 'submissions') return 'Submissions';
-  if (head === 'rank') return 'Rank';
-  if (head === 'drafts') return 'Drafts';
-  if (head === 'resources') return 'Resources';
-  if (p.length === 1) return headName;
-  return headName + ' - ' + p[p.length - 1];
-}
-
-// ═══════════════════════════════════════════════════════════
-// 11. AppBar / TabBar
-// ═══════════════════════════════════════════════════════════
-function renderAppBar(opts) {
-  opts = opts || {};
-  const bar = $('#ml-appbar');
-  if (!bar) return;
-  const title = routeTitle();
-  const leftIcon = opts.leftIcon || 'fa-chevron-left';
-  const rightIcon = opts.rightIcon || 'fa-chevron-right';
-
-  let backBtn = $('#ml-ab-back');
-  let titleEl = $('.ml-ab-title', bar);
-  let fwdBtn  = $('#ml-ab-fwd');
-
-  if (!backBtn || !titleEl || !fwdBtn) {
-    bar.innerHTML = `
-      <button class="ml-ab-btn" id="ml-ab-back" aria-label="Back"><i class="fas ${leftIcon}"></i></button>
-      <div class="ml-ab-title"></div>
-      <button class="ml-ab-btn" id="ml-ab-fwd" aria-label="Forward"><i class="fas ${rightIcon}"></i></button>`;
-    backBtn = $('#ml-ab-back');
-    titleEl = $('.ml-ab-title', bar);
-    fwdBtn  = $('#ml-ab-fwd');
-  } else {
-    const bi = backBtn.querySelector('i');
-    const fi = fwdBtn.querySelector('i');
-    if (bi) bi.className = 'fas ' + leftIcon;
-    if (fi) fi.className = 'fas ' + rightIcon;
-  }
-
-  backBtn.disabled = !!opts.leftDisabled;
-  fwdBtn.disabled  = !!opts.rightDisabled;
-
-  if (titleEl.textContent !== title) {
-    titleEl.classList.toggle('hidden', !title);
-    animateTitle(titleEl, title);
-  }
-
-  backBtn.onclick = () => { haptic(6); if (opts.onLeft) opts.onLeft(); else history.back(); };
-  fwdBtn.onclick  = () => { haptic(6); if (opts.onRight) opts.onRight(); else history.forward(); };
-}
-
-function renderTabBar() {
-  const bar = $('#ml-tabbar');
-  if (!bar) return;
-  const path = state.route.path;
-  bar.innerHTML = TABS.map(t => {
-    const active = t.match.test(path) ? ' active' : '';
-    return `<button class="ml-tb-btn${active}" data-tab="${t.id}" aria-label="${t.label}">
-      <i class="fas ${t.icon}"></i>
-    </button>`;
-  }).join('');
-  $$('.ml-tb-btn', bar).forEach(btn => {
-    btn.onclick = () => {
-      const target = {
-        home: '/', problems: '/problems', submissions: '/submissions',
-        contests: '/contests', rank: '/rank', me: '/me',
-      }[btn.dataset.tab];
-      navigate(target);
-    };
-  });
-}
-
-// ═══════════════════════════════════════════════════════════
-// 12. 預取
-// ═══════════════════════════════════════════════════════════
-async function prefetchAll() {
-  await Promise.allSettled([
-    (async () => {
-      try {
-        if (loadProblemsCache()) return;
-        const d = await apiCall('/api/problem?all=1');
-        if (d && d.success && Array.isArray(d.problems)) {
-          state.problems = d.problems;
-          state.problemsLoaded = true;
-          saveProblemsCache(d.problems);
-        }
-      } catch (e) { console.warn('prefetch problems failed', e); }
-    })(),
-    (async () => {
-      try {
-        if (loadStatesCache() && loadFavCache()) return;
-        const d = await apiCall('/api/users?action=preload');
-        if (d && d.success) {
-          state.states = d.states || {};
-          state.favorites = new Set(d.favorites || []);
-          saveStatesCache(state.states);
-          saveFavCache();
-        }
-      } catch (e) { console.warn('prefetch preload failed', e); }
-    })(),
-    (async () => {
-      if (state._updates) return;   // ⭐ 這行才是對的位置
-      try {
-        const d = await fetch('/api/updates').then(r => r.json());
-        if (d && d.success && Array.isArray(d.updates)) state._updates = d.updates;
-      } catch (e) {}
-    })(),
-  ]);
-}
-
-// ═══════════════════════════════════════════════════════════
-// 13. Home
-// ═══════════════════════════════════════════════════════════
-async function renderHome() {
-  const content = $('#ml-content');
-  const u = state.user || {};
-  const hour = new Date().getHours();
-  const greet = hour < 5 ? 'Late night' : hour < 12 ? 'Good morning' :
-                hour < 18 ? 'Good afternoon' : 'Good evening';
-  const totalProblems = state.problems ? state.problems.length : 0;
-  let solvedCount = 0;
-  if (state.states) solvedCount = Object.values(state.states).filter(v => v === 'passed').length;
-
-  const showWelcome = localStorage.getItem(LS.welcome) !== '1';
-
-  content.innerHTML = `
-    <div class="ml-page">
-      ${showWelcome ? `
-        <div class="ml-welcome" id="ml-welcome">
-          <div class="ml-welcome-icon"><i class="fas fa-rocket"></i></div>
-          <div class="ml-welcome-text">
-            <b>Welcome to WYK Maths</b>
-            <span>Add to Home Screen for full experience</span>
-          </div>
-          <button class="ml-welcome-close" id="ml-welcome-close" aria-label="Close">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-      ` : ''}
-
-      <div class="ml-greet">
-        <h1 class="ml-greet-h1">${esc(greet)},<br><em>${esc(u.displayName || u.username || 'Guest')}</em></h1>
-        <p class="ml-greet-sub"><i class="fas fa-bolt" style="margin-right:4px;opacity:.7"></i>What are we solving today?</p>
-      </div>
-
-      <div class="ml-stats-grid">
-        <div class="ml-stat">
-          <i class="fas fa-circle-check ml-stat-icon"></i>
-          <div class="ml-stat-val" id="stat-solved">0</div>
-          <div class="ml-stat-lbl">Solved</div>
-        </div>
-        <div class="ml-stat">
-          <i class="fas fa-book ml-stat-icon"></i>
-          <div class="ml-stat-val" id="stat-total">0</div>
-          <div class="ml-stat-lbl">Total</div>
-        </div>
-      </div>
-
-      <div class="ml-section-title"><i class="fas fa-bolt" style="margin-right:5px;opacity:.7"></i>Quick Access</div>
-      <div class="ml-quick-grid">
-        <a class="ml-quick" data-nav="/problems" data-filter="unsolved">
-          <i class="fas fa-fire"></i>
-          <div class="ml-quick-t">Continue</div>
-          <div class="ml-quick-d">Unsolved problems</div>
-        </a>
-        <a class="ml-quick" data-nav="/problems" data-filter="fav">
-          <i class="fas fa-star"></i>
-          <div class="ml-quick-t">Bookmarks</div>
-          <div class="ml-quick-d">Saved for later</div>
-        </a>
-        <a class="ml-quick" data-nav="/submissions">
-          <i class="fas fa-paper-plane"></i>
-          <div class="ml-quick-t">My Submissions</div>
-          <div class="ml-quick-d">Latest attempts</div>
-        </a>
-        <a class="ml-quick" data-nav="/contests">
-          <i class="fas fa-trophy"></i>
-          <div class="ml-quick-t">Contests</div>
-          <div class="ml-quick-d">Join events</div>
-        </a>
-        <a class="ml-quick" data-nav="/resources">
-          <i class="fas fa-folder-open"></i>
-          <div class="ml-quick-t">Resources</div>
-          <div class="ml-quick-d">Notes & PDFs</div>
-        </a>
-        <a class="ml-quick" data-nav="/drafts">
-          <i class="fas fa-inbox"></i>
-          <div class="ml-quick-t">Drafts</div>
-          <div class="ml-quick-d">Offline queue</div>
-        </a>
-      </div>
-
-      <div class="ml-section-title"><i class="fas fa-bullhorn" style="margin-right:5px;opacity:.7"></i>Recent Updates</div>
-      <div id="ml-updates">${renderUpdatesSkeleton()}</div>
-    </div>`;
-
-  animateNumber($('#stat-solved'), solvedCount);
-  animateNumber($('#stat-total'), totalProblems);
-
-  const welcomeClose = $('#ml-welcome-close');
-  if (welcomeClose) {
-    welcomeClose.onclick = () => {
-      haptic(6);
-      localStorage.setItem(LS.welcome, '1');
-      const el = $('#ml-welcome');
-      if (el) {
-        if (state.settings.animations && typeof el.animate === 'function') {
-          el.animate(
-            [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-10px)' }],
-            { duration: 200, easing: 'ease' }
-          ).finished.then(() => el.remove()).catch(() => el.remove());
-        } else el.remove();
-      }
-    };
-  }
-
-  $$('.ml-quick[data-nav]', content).forEach(el => {
-    el.onclick = () => {
-      if (el.dataset.filter) sessionStorage.setItem('ml_prob_filter', el.dataset.filter);
-      navigate(el.dataset.nav);
-    };
-  });
-  loadUpdates();
-}
-
-function renderUpdatesSkeleton() {
-  let h = '';
-  for (let i = 0; i < 3; i++) {
-    h += `<div class="ml-skel-card">
-      <div class="ml-skel ml-skel-line" style="width:30%"></div>
-      <div class="ml-skel ml-skel-line" style="width:85%"></div>
-      <div class="ml-skel ml-skel-line" style="width:60%"></div>
-    </div>`;
-  }
-  return h;
-}
-
-async function loadUpdates() {
-  const wrap = $('#ml-updates');
-  if (!wrap) return;
-  try {
-    let updates = state._updates;
-    if (!updates) {
-      const d = await fetch('/api/updates').then(r => r.json());
-      updates = d.success ? d.updates : [];
-      state._updates = updates;
-    }
-    if (!updates.length) {
-      wrap.innerHTML = `<div class="ml-empty"><i class="fas fa-inbox"></i>No updates yet</div>`;
-      return;
-    }
-    wrap.innerHTML = updates.map((u, i) => `
-      <div class="ml-update" data-i="${i}">
-        <div class="ml-update-head">
-          <span class="ml-badge ${esc(u.badge)}">${esc(u.badgeText || u.badge)}</span>
-          <span class="ml-update-time">${esc(u.time || '')}</span>
-        </div>
-        ${u.title ? `<div class="ml-update-title">${esc(u.title)}</div>` : ''}
-        <div class="ml-update-excerpt" data-excerpt>${esc(stripHtml(u.content || '').slice(0, 120))}</div>
-        <div class="ml-update-body">${u.content || ''}</div>
-      </div>`).join('');
-    $$('.ml-update', wrap).forEach(el => {
-      el.onclick = () => {
-        haptic(6);
-        const open = el.classList.toggle('open');
-        const ex = el.querySelector('[data-excerpt]');
-        if (ex) ex.style.display = open ? 'none' : '';
-      };
-    });
-  } catch (e) {
-    wrap.innerHTML = `<div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Failed to load updates</div>`;
-  }
-}
-function stripHtml(html) {
-  const d = document.createElement('div');
-  d.innerHTML = html;
-  return (d.textContent || '').trim();
-}
-
-// ═══════════════════════════════════════════════════════════
-// 14. Problems 列表
-// ═══════════════════════════════════════════════════════════
-const probState = { filter: 'all', sort: 'default', page: 1, idPattern: '' };
-
-async function renderProblems() {
-  const content = $('#ml-content');
-  const savedFilter = sessionStorage.getItem('ml_prob_filter') || 'all';
-  sessionStorage.removeItem('ml_prob_filter');
-  probState.filter = savedFilter;
-  probState.page = 1;
-
-  content.innerHTML = `
-    <div class="ml-page">
-      <div class="ml-prob-filters" id="ml-prob-filters">
-        <button class="ml-chip" data-f="all"><i class="fas fa-layer-group"></i> All</button>
-        <button class="ml-chip" data-f="unsolved"><i class="fas fa-fire"></i> Unsolved</button>
-        <button class="ml-chip" data-f="solved"><i class="fas fa-circle-check"></i> Solved</button>
-        <button class="ml-chip" data-f="fav"><i class="fas fa-star"></i> Bookmarks</button>
-      </div>
-      <div class="ml-sort-label"><i class="fas fa-arrow-down-wide-short" style="margin-right:5px;opacity:.7"></i>Sort by</div>
-      <div class="ml-prob-filters" id="ml-prob-sorts">
-        <button class="ml-chip small" data-s="default"><i class="fas fa-list-ol"></i> Default</button>
-        <button class="ml-chip small" data-s="difficulty"><i class="fas fa-gauge-high"></i> Difficulty</button>
-        <button class="ml-chip small" data-s="solves"><i class="fas fa-user-check"></i> Solves</button>
-      </div>
-      <div class="ml-id-filter">
-        <i class="fas fa-filter"></i>
-        <input type="text" id="ml-id-input" class="ml-input"
-               placeholder="Filter ID · regex (e.g. ^HA25, \\d{4}$)"
-               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-        <button class="ml-id-clear" id="ml-id-clear" aria-label="Clear" style="display:none">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-      <div class="ml-id-hint" id="ml-id-hint"></div>
-      <div id="ml-prob-list">${renderProblemsSkeleton()}</div>
-    </div>`;
-
-  const apply = () => {
-    $$('#ml-prob-filters .ml-chip').forEach(b => b.classList.toggle('active', b.dataset.f === probState.filter));
-    $$('#ml-prob-sorts .ml-chip').forEach(b => b.classList.toggle('active', b.dataset.s === probState.sort));
-    renderProbList();
-  };
-
-  $$('#ml-prob-filters .ml-chip').forEach(b => b.onclick = () => {
-    haptic(6);
-    probState.filter = b.dataset.f;
-    probState.page = 1;
-    apply();
-  });
-  $$('#ml-prob-sorts .ml-chip').forEach(b => b.onclick = () => {
-    haptic(6);
-    probState.sort = b.dataset.s;
-    probState.page = 1;
-    apply();
-  });
-  // ── ID Regex 篩選 ──
-  const idInput = $('#ml-id-input');
-  const idClear = $('#ml-id-clear');
-  const idHint  = $('#ml-id-hint');
-
-  if (idInput) {
-    // 還原先前輸入
-    idInput.value = probState.idPattern || '';
-    idClear.style.display = idInput.value ? '' : 'none';
-
-    let _idDebounce = null;
-    const applyIdFilter = () => {
-      probState.idPattern = idInput.value.trim();
-      probState.page = 1;
-
-      // 語法檢查
-      if (probState.idPattern) {
-        try {
-          new RegExp(probState.idPattern);
-          idHint.textContent = '';
-          idHint.className = 'ml-id-hint';
-          idInput.classList.remove('error');
-        } catch (err) {
-          idHint.textContent = 'Invalid regex: ' + (err.message || 'syntax error');
-          idHint.className = 'ml-id-hint error';
-          idInput.classList.add('error');
-          // 語法錯誤時不過濾（保留上一狀態），直接返回
-          return;
-        }
-      } else {
-        idHint.textContent = '';
-        idHint.className = 'ml-id-hint';
-        idInput.classList.remove('error');
-      }
-
-      idClear.style.display = probState.idPattern ? '' : 'none';
-      renderProbList();
-    };
-
-    idInput.addEventListener('input', () => {
-      clearTimeout(_idDebounce);
-      _idDebounce = setTimeout(applyIdFilter, 250);
-    });
-    idInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        clearTimeout(_idDebounce);
-        applyIdFilter();
-        idInput.blur();
-      }
-    });
-
-    idClear.onclick = () => {
-      idInput.value = '';
-      idClear.style.display = 'none';
-      haptic(6);
-      applyIdFilter();
-      idInput.focus();
-    };
-
-    // 進入頁面先顯示提示
-    if (probState.idPattern) applyIdFilter();
-  }
-
-    if (!state.problemsLoaded) {
-    const wait = setInterval(() => {
-      if (state.problemsLoaded) { clearInterval(wait); apply(); }
-    }, 100);
-    // ⭐ 4 秒內沒被 prefetch 填上 → 自己拉一次
-    setTimeout(async () => {
-      clearInterval(wait);
-      if (!state.problemsLoaded) {
-        try {
-          const d = await apiCall('/api/problem?all=1');
-          if (d && d.success && Array.isArray(d.problems)) {
-            state.problems = d.problems;
-            state.problemsLoaded = true;
-            saveProblemsCache(d.problems);
-          }
-        } catch (e) { console.warn('problems fallback failed', e); }
-      }
-      apply();
-    }, 4000);
-  } else {
-    apply();
-  }
-}
-
-function renderProblemsSkeleton() {
-  let h = '';
-  for (let i = 0; i < 6; i++) {
-    h += `<div class="ml-skel-card">
-      <div class="ml-skel ml-skel-line" style="width:20%"></div>
-      <div class="ml-skel ml-skel-line" style="width:70%"></div>
-      <div class="ml-skel ml-skel-line" style="width:40%"></div>
-    </div>`;
-  }
-  return h;
-}
-
-function renderProbList() {
-  const wrap = $('#ml-prob-list');
-  if (!wrap) return;
-  const all = state.problems || [];
-  const s = state.settings;
-  const states = state.states || {};
-  const favs = state.favorites || new Set();
-  const filter = probState.filter;
-  const sort = probState.sort;
-
-  let items = all.slice();
-
-  // ── Regex 篩選 ID ──
-  if (probState.idPattern) {
-    let re = null;
-    try { re = new RegExp(probState.idPattern); } catch { re = null; }
-    if (re) items = items.filter(p => re.test(String(p.id)));
-  }
-
-  // ── 狀態篩選 ──
-  if (filter === 'unsolved') items = items.filter(p => states[p.id] !== 'passed');
-  else if (filter === 'solved') items = items.filter(p => states[p.id] === 'passed');
-  else if (filter === 'fav') items = items.filter(p => favs.has(p.id));
-
-  if (sort === 'difficulty') items.sort((a, b) => (a.difficulty || 0) - (b.difficulty || 0));
-  else if (sort === 'solves') items.sort((a, b) => (b.solves || 0) - (a.solves || 0));
-
-  if (!items.length) {
-    wrap.innerHTML = `<div class="ml-empty"><i class="fas fa-inbox"></i>No problems</div>`;
-    return;
-  }
-
-  const limit = s.pageSize || 30;
-  const total = Math.ceil(items.length / limit);
-  if (probState.page > total) probState.page = total;
-  if (probState.page < 1) probState.page = 1;
-  const start = (probState.page - 1) * limit;
-  const shown = items.slice(start, start + limit);
-
-  wrap.innerHTML = shown.map(p => probCardHtml(p, s, states, favs)).join('')
-    + renderPagination(probState.page, total);
-
-  bindProbCards(wrap);
-  bindPagination(wrap, (p) => {
-    probState.page = p;
-    renderProbList();
-    const c = $('#ml-content');
-    if (c) c.scrollTop = 0;
-  });
-  staggerIn(wrap);
-}
-
-function probCardHtml(p, s, states, favs) {
-  const st = states[p.id] || 'not_started';
-  const cls = st === 'passed' ? 'passed' : st === 'failed' ? 'failed' : '';
-  const isFav = favs.has(p.id);
-  const diff = p.difficulty;
-  const diffText = !diff ? '∞' : diff.toFixed(2);
-
-  // ⭐ AC 時在名稱後面加綠色 tick
-  const tick = st === 'passed'
-    ? `<i class="fas fa-circle-check ml-prob-tick" aria-label="Solved"></i>`
-    : '';
-
-  let statusHtml = '';
-  if (st === 'failed') statusHtml = `<span class="ml-prob-status failed"><i class="fas fa-times"></i> WA</span>`;
-
-  return `
-    <div class="ml-prob ${cls}" data-id="${escAttr(p.id)}">
-      <div class="ml-prob-main">
-        <div class="ml-prob-top">
-          <span class="ml-prob-id">${esc(p.id)}</span>
-          <span class="ml-prob-name">
-            <span class="ml-prob-name-text">${esc(p.name || '')}</span>
-            ${tick}
-          </span>
-          ${statusHtml}
-        </div>
-        <div class="ml-prob-meta">
-          ${s.showDifficulty ? `<span class="ml-prob-diff"><i class="fas fa-gauge-high" style="margin-right:3px;opacity:.7"></i>Lv.${diffText}</span>` : ''}
-          ${s.showSolves ? `<span><i class="fas fa-user-check"></i> ${p.solves || 0}</span>` : ''}
-          ${s.showTags && p.tags && p.tags.length
-            ? `<div class="ml-prob-tags">${p.tags.slice(0, 3).map(t => `<span class="ml-tag">${esc(t)}</span>`).join('')}${p.tags.length > 3 ? `<span class="ml-tag">+${p.tags.length - 3}</span>` : ''}</div>`
-            : ''}
-        </div>
-      </div>
-      ${s.showFavorite ? `<button class="ml-prob-fav${isFav ? ' on' : ''}" data-fav="${escAttr(p.id)}" aria-label="Favorite"><i class="fas fa-star"></i></button>` : ''}
-    </div>`;
-}
-
-function bindProbCards(root) {
-  $$('.ml-prob', root).forEach(el => {
-    el.onclick = (e) => {
-      if (e.target.closest('[data-fav]')) return;
-      navigate('/problems/' + encodeURIComponent(el.dataset.id));
-    };
-  });
-  $$('[data-fav]', root).forEach(btn => {
-    btn.onclick = async (e) => {
-      e.stopPropagation();
-      haptic(6);
-      const id = btn.dataset.fav;
-      const isOn = btn.classList.contains('on');
-      btn.classList.toggle('on');
-      if (isOn) state.favorites.delete(id); else state.favorites.add(id);
-      saveFavCache();
-      try {
-        const d = await apiCall('/api/users?action=favorite', 'POST', { problemId: id });
-        if (d && d.success && Array.isArray(d.favorites)) {
-          state.favorites = new Set(d.favorites);
-          saveFavCache();
-        }
-      } catch {
-        btn.classList.toggle('on');
-        if (isOn) state.favorites.add(id); else state.favorites.delete(id);
-        saveFavCache();
-      }
-    };
-  });
-}
-
-// ═══════════════════════════════════════════════════════════
-// 15. Problem Detail
-// ═══════════════════════════════════════════════════════════
-async function renderProblemDetail(id) {
-  const content = $('#ml-content');
-
-  const all = state.problems || [];
-  const idx = all.findIndex(p => p.id === id);
-  const prevId = idx > 0 ? all[idx - 1].id : null;
-  const nextId = idx >= 0 && idx < all.length - 1 ? all[idx + 1].id : null;
-
-  renderAppBar({
-    leftDisabled: !prevId,
-    rightDisabled: !nextId,
-    onLeft: prevId ? () => navigate('/problems/' + encodeURIComponent(prevId)) : null,
-    onRight: nextId ? () => navigate('/problems/' + encodeURIComponent(nextId)) : null,
-  });
-
-  try {
-    let p = null;
-    let offlineFallback = false;
-
-    // 1) 在線 → 打 API
-    if (navigator.onLine) {
-      try {
-        const d = await apiCall('/api/problem?action=page&id=' + encodeURIComponent(id));
-        if (d && d.success && d.problem) {
-          p = d.problem;
-          if (p.statement) {
-            dbPut('problems', { ...p, cachedAt: Date.now() }).catch(() => {});
-          }
-        }
-      } catch (e) {
-        // 網路失敗 → 走 fallback
-      }
-    }
-
-    // 2) 離線或 API 失敗 → IndexedDB fallback
-    if (!p) {
-      const cached = await getCachedProblem(id);
-      if (cached) {
-        p = cached;
-        offlineFallback = true;
-      }
-    }
-
-    if (!p) throw new Error('Not found');
-
-    const s = state.settings;
-    const diffText = !p.difficulty ? '∞' : Number(p.difficulty).toFixed(2);
-
-    content.innerHTML = `
-      <div class="ml-page">
-        ${offlineFallback ? `
-          <div class="ml-feedback show pending" style="margin-bottom:14px">
-            <i class="fas fa-plane"></i> Offline — showing cached version
-          </div>
-        ` : ''}
-        <div class="ml-pd-title">${esc(p.name || p.id)}</div>
-        <div class="ml-pd-meta">
-          <span class="ml-prob-id">${esc(p.id)}</span>
-          ${s.showDifficulty ? `<span><i class="fas fa-gauge-high" style="margin-right:3px;opacity:.7"></i>Lv.${diffText}</span>` : ''}
-          ${s.showTags && p.tags && p.tags.length
-            ? `<div class="ml-prob-tags">${p.tags.map(t => `<span class="ml-tag">${esc(t)}</span>`).join('')}</div>` : ''}
-        </div>
-        <div class="ml-pd-statement" id="ml-pd-statement"></div>
-
-        <div id="ml-pd-answer-zone">
-          <div class="ml-expr-row">
-            <input type="text" class="ml-input ml-expr-input" id="ml-pd-expr"
-                   placeholder="Expression · e.g. sqrt(3)+2/5 (Enter to compute)"
-                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-            <div class="ml-expr-hint" id="ml-pd-expr-hint"></div>
-          </div>
-          <div class="ml-answer-row">
-            <input type="text" class="ml-input" id="ml-pd-answer" placeholder="Your answer"
-                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-            <button class="ml-btn" id="ml-pd-submit">
-              <i class="fas fa-paper-plane"></i> Submit
-            </button>
-          </div>
-          <div class="ml-feedback" id="ml-pd-feedback"></div>
-        </div>
-
-        <div class="ml-pd-subs" id="ml-pd-subs">
-          <div class="ml-section-title"><i class="fas fa-history" style="margin-right:5px;opacity:.7"></i>My Submissions</div>
-          <div id="ml-pd-subs-list"><div class="ml-loading-center" style="padding:20px 0"><span class="ml-spinner"></span></div></div>
-        </div>
-      </div>`;
-
-    const stmt = $('#ml-pd-statement');
-    if (stmt) {
-      let html = p.statement || '';
-      if (window.DOMPurify) {
-        html = DOMPurify.sanitize(html, {
-          ADD_TAGS: ['svg','path','g','defs','clipPath','rect','circle','line','polyline','polygon','text','tspan','linearGradient','radialGradient','stop','use','foreignObject'],
-          ADD_ATTR: ['viewBox','d','cx','cy','r','x','y','x1','x2','y1','y2','points','fill','stroke','stroke-width','transform','xmlns'],
-        });
-      }
-      stmt.innerHTML = html;
-      ensureKatex().then(ready => {
-        if (ready && typeof window.renderMathInElement === 'function') {
-          try {
-            window.renderMathInElement(stmt, {
-              delimiters: [
-                { left: '$$', right: '$$', display: true },
-                { left: '\\[', right: '\\]', display: true },
-                { left: '$', right: '$', display: false },
-                { left: '\\(', right: '\\)', display: false },
-              ],
-              throwOnError: false,
-            });
-          } catch (e) {}
-        }
-      });
-    }
-
-    const exprInp = $('#ml-pd-expr');
-    const exprHint = $('#ml-pd-expr-hint');
-    const answerInp = $('#ml-pd-answer');
-    const submitBtn = $('#ml-pd-submit');
-    const fb = $('#ml-pd-feedback');
-
-    // ── 初始答案填入（優先：AC 答案 → 上次輸入） ──
-    let initialAnswer = '';
-    const acAns = getAcAnswer(id);
-    if (acAns) {
-      initialAnswer = acAns;
-    } else {
-      try {
-        const saved = JSON.parse(localStorage.getItem('pd_user_answers') || '{}');
-        if (saved[id]) initialAnswer = saved[id];
-      } catch {}
-    }
-    if (initialAnswer && answerInp) answerInp.value = initialAnswer;
-
-    // ── 表達式 Enter 計算 ──
-    if (exprInp) {
-      exprInp.addEventListener('keydown', async (e) => {
-        if (e.key !== 'Enter') return;
-        if (e.isComposing) return;
-        e.preventDefault();
-        const raw = (exprInp.value || '').trim();
-        if (!raw) return;
-
-        // 顯示「計算中」
-        if (exprHint) {
-          exprHint.className = 'ml-expr-hint show';
-          exprHint.textContent = 'Computing…';
-        }
-
-        const r = await evaluateExpression(raw);
-        if (r.ok) {
-          if (answerInp) answerInp.value = r.value;
-          if (exprHint) {
-            exprHint.className = 'ml-expr-hint show ok';
-            exprHint.textContent = '= ' + r.value;
-          }
-          haptic(8);
-          // 聚焦 answer input，方便用戶確認/提交
-          if (answerInp) answerInp.focus();
-        } else {
-          let msg = 'Invalid expression';
-          if (r.reason === 'unavailable') msg = 'Calculator not available offline';
-          else if (r.reason === 'syntax') msg = 'Syntax error';
-          else if (r.reason === 'not-number') msg = 'Result is not a number';
-          if (exprHint) {
-            exprHint.className = 'ml-expr-hint show error';
-            exprHint.textContent = msg;
-          }
-          if (state.settings.animations && exprInp && typeof exprInp.animate === 'function') {
-            try {
-              exprInp.animate(
-                [{ transform: 'translateX(0)' }, { transform: 'translateX(-5px)' },
-                 { transform: 'translateX(5px)' }, { transform: 'translateX(-3px)' },
-                 { transform: 'translateX(3px)' }, { transform: 'translateX(0)' }],
-                { duration: 320, easing: 'ease' }
-              );
-            } catch {}
-          }
-          haptic(20);
-        }
-      });
-
-      // 輸入變化時清除舊提示
-      exprInp.addEventListener('input', () => {
-        if (exprHint && exprHint.classList.contains('error')) {
-          exprHint.className = 'ml-expr-hint';
-          exprHint.textContent = '';
-        }
-      });
-    }
-
-    const doSubmit = async () => {
-      const ans = (answerInp.value || '').trim();
-      if (!ans) { toast('Enter an answer', 'fa-circle-exclamation'); return; }
-      haptic(10);
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span class="ml-spinner" style="width:14px;height:14px;border-width:2px"></span>';
-      try {
-        const r = await submitAnswer(id, ans, 'text', '');
-
-        if (r && r.drafted) {
-          fb.className = 'ml-feedback show partial';
-          fb.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Saved as draft — will auto-submit when online';
-          submitBtn.disabled = false;
-          submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit';
-
-          // ⭐ 離線草稿也顯示在列表頂部（灰色 pending）
-          prependLocalSubmission({
-            subid: '',   // 沒有 subid → 不可點
-            problemId: id,
-            type: 'text',
-            timestamp: Date.now(),
-            answer: ans,
-            answerHidden: false,
-            username: state.user?.username || '',
-            displayName: state.user?.displayName || '',
-            status: 'Pending',
-          });
-          return;
-        }
-
-        if (r && r.success) {
-          const correct = r.correct || r.score === 100;
-          const score = typeof r.score === 'number' ? r.score : (correct ? 100 : 0);
-          if (correct) {
-            fb.className = 'ml-feedback show ac';
-            fb.innerHTML = '<i class="fas fa-circle-check"></i> Accepted';
-            state.states = state.states || {};
-            state.states[id] = 'passed';
-            saveStatesCache(state.states);
-
-            // ⭐ 保存 AC 答案，以便下次自動填入
-            saveAcAnswer(id, ans);
-
-            // ⭐ 首次 AC → 掛載討論區（若還沒掛載）
-            if (!document.getElementById('ml-pd-discussions')) {
-              setTimeout(() => { mountDiscussion(id); }, 120);
-            }
-
-            // 短暫顯示 Solved（2 秒）後恢復可提交
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-circle-check"></i> Solved';
-            submitBtn.style.background = 'var(--ok)';
-            setTimeout(() => {
-              if (document.body.contains(submitBtn)) {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit';
-                submitBtn.style.background = '';
-              }
-            }, 2000);
-          } else if (score > 0) {
-            fb.className = 'ml-feedback show partial';
-            fb.innerHTML = `<i class="fas fa-circle-half-stroke"></i> Partial ${score}%`;
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit';
-            submitBtn.style.background = '';
-          } else {
-            fb.className = 'ml-feedback show wa';
-            fb.innerHTML = '<i class="fas fa-circle-xmark"></i> Wrong Answer';
-            state.states = state.states || {};
-            if (state.states[id] !== 'passed') state.states[id] = 'failed';
-            saveStatesCache(state.states);
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit';
-            submitBtn.style.background = '';
-            if (state.settings.animations && typeof fb.animate === 'function') {
-              try {
-                fb.animate(
-                  [{ transform: 'translateX(0)' }, { transform: 'translateX(-5px)' },
-                   { transform: 'translateX(5px)' }, { transform: 'translateX(-3px)' },
-                   { transform: 'translateX(3px)' }, { transform: 'translateX(0)' }],
-                  { duration: 320, easing: 'ease' }
-                );
-              } catch {}
-            }
-          }
-          // ⭐ 樂觀更新：不重新拉 API
-          if (r.subid) {
-            prependLocalSubmission({
-              subid: r.subid,
-              problemId: id,
-              type: 'text',
-              timestamp: Date.now(),
-              answer: ans,
-              answerHidden: false,
-              username: state.user?.username || '',
-              displayName: state.user?.displayName || '',
-              status: correct
-                ? 'Accepted'
-                : (score > 0 ? `Partial Score (${score})` : 'Wrong Answer'),
-            });
-          } else {
-            // 後端沒回 subid（極少數）→ 保守重拉
-            loadProblemSubmissions(id);
-          }
-        } else {
-          fb.className = 'ml-feedback show wa';
-          fb.innerHTML = `<i class="fas fa-circle-exclamation"></i> ${esc(r && r.message || 'Error')}`;
-          submitBtn.disabled = false;
-          submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit';
-        }
-      } catch (e) {
-        try {
-          await saveDraft(id, ans, 'text', '');
-          fb.className = 'ml-feedback show partial';
-          fb.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Saved as draft';
-        } catch {
-          fb.className = 'ml-feedback show wa';
-          fb.innerHTML = '<i class="fas fa-wifi"></i> Network error';
-        }
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit';
-      }
-    };
-
-    submitBtn.onclick = doSubmit;
-    answerInp.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { e.preventDefault(); doSubmit(); }
-    });
-
-    loadProblemSubmissions(id);
-
-    // ⭐ 若已 AC → 掛載討論區
-    if (state.states && state.states[id] === 'passed') {
-      mountDiscussion(id);
-    }
-
-  } catch (e) {
-    content.innerHTML = `<div class="ml-page"><div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Problem not found</div></div>`;
-  }
-}
-// ── 題目詳情提交項：HTML 生成 ──
-function pdSubItemHtml(sub) {
-  const dt = fmtDateTime(sub.timestamp);
-  const cls = statusCls(sub.status);
-  const ansText = sub.type === 'image'
-    ? '[Image]'
-    : (sub.answerHidden ? 'Hidden' : (sub.answer || ''));
-  return `<div class="ml-pd-sub" data-subid="${escAttr(sub.subid || '')}">
-    <span class="ml-pd-sub-time">${esc(dt.short)}</span>
-    <span class="ml-pd-sub-ans">${esc(ansText)}</span>
-    <span class="ml-pd-sub-status ${cls}">${esc(sub.status || 'Pending')}</span>
-  </div>`;
-}
-
-function bindPdSubItems(root) {
-  $$('.ml-pd-sub[data-subid]', root).forEach(el => {
-    el.onclick = () => {
-      if (el.dataset.subid) navigate('/submissions/' + encodeURIComponent(el.dataset.subid));
-    };
-  });
-}
-
-// ── 樂觀更新：把剛提交的項目插入列表頂部（不重新拉 API） ──
-function prependLocalSubmission(sub) {
-  const wrap = $('#ml-pd-subs-list');
-  if (!wrap) return false;
-
-  // 若當前是空狀態 / spinner → 先清掉
-  if (wrap.querySelector('.ml-empty') || wrap.querySelector('.ml-loading-center')) {
-    wrap.innerHTML = '';
-  }
-
-  wrap.insertAdjacentHTML('afterbegin', pdSubItemHtml(sub));
-
-  const first = wrap.querySelector('.ml-pd-sub');
-  if (first) {
-    first.onclick = () => {
-      if (first.dataset.subid) navigate('/submissions/' + encodeURIComponent(first.dataset.subid));
-    };
-    // 入場動畫（可選）
-    if (state.settings.animations && typeof first.animate === 'function') {
-      try {
-        first.animate(
-          [{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }],
-          { duration: 260, easing: 'cubic-bezier(.32,.72,0,1)' }
-        );
-      } catch {}
-    }
-  }
-  return true;
-}
-// ═══════════════════════════════════════════════════════════
-// 討論區
-// ═══════════════════════════════════════════════════════════
-const discState = { page: 1, total: 0, totalPages: 1, loading: false };
-
-function renderDiscussionsSection(problemId) {
-  return `
-    <div class="ml-pd-discussions" id="ml-pd-discussions">
-      <div class="ml-section-title">
-        <i class="fas fa-comments" style="margin-right:5px;opacity:.7"></i>Discussion
-        <span class="ml-disc-count" id="ml-disc-count"></span>
-      </div>
-
-      <div class="ml-disc-compose">
-        <textarea class="ml-input ml-disc-input" id="ml-disc-input"
-                  placeholder="Share your thoughts… (LaTeX supported)"
-                  rows="2" maxlength="5000" autocorrect="off" autocapitalize="sentences" spellcheck="true"></textarea>
-        <button class="ml-btn ml-disc-post" id="ml-disc-post" disabled aria-label="Post">
-          <i class="fas fa-paper-plane"></i>
-        </button>
-      </div>
-
-      <div id="ml-disc-list">
-        <div class="ml-loading-center" style="padding:20px 0"><span class="ml-spinner"></span></div>
-      </div>
-
-      <button class="ml-btn ghost full" id="ml-disc-more" style="display:none;margin-top:8px">
-        <i class="fas fa-arrow-down"></i> Load more
-      </button>
-    </div>`;
-}
-
-function discItemHtml(d) {
-  const dt = fmtDateTime(d.createdAt);
-  const liked = d.liked === true
-    || (Array.isArray(d.likedBy) && state.user && d.likedBy.includes(state.user.username));
-  return `<div class="ml-disc-item" data-id="${escAttr(d._id || '')}">
-    <div class="ml-disc-header">
-      <div class="ml-disc-user">
-        <i class="fas fa-user-circle"></i>
-        <span>${esc(d.username || '')}</span>
-      </div>
-      <div class="ml-disc-time">${esc(dt.short)}</div>
-    </div>
-    <div class="ml-disc-body">${window.DOMPurify ? DOMPurify.sanitize(d.content || '') : esc(d.content || '')}</div>
-    <div class="ml-disc-actions">
-      <button class="ml-disc-like${liked ? ' liked' : ''}" data-id="${escAttr(d._id || '')}">
-        <i class="fas fa-heart"></i>
-        <span>${d.likes || 0}</span>
-      </button>
-    </div>
-  </div>`;
-}
-
-function mountDiscussion(problemId) {
-  if (document.getElementById('ml-pd-discussions')) return;
-  const subs = document.getElementById('ml-pd-subs');
-  if (!subs) return;
-  subs.insertAdjacentHTML('afterend', renderDiscussionsSection(problemId));
-  bindDiscussionEvents(problemId);
-  loadDiscussions(problemId, 1);
-}
-
-async function loadDiscussions(problemId, page = 1, append = false) {
-  const wrap = $('#ml-disc-list');
-  if (!wrap) return;
-  if (discState.loading) return;
-  discState.loading = true;
-
-  if (!append) {
-    wrap.innerHTML = `<div class="ml-loading-center" style="padding:20px 0"><span class="ml-spinner"></span></div>`;
-  }
-
-  try {
-    const d = await apiCall(
-      '/api/problem?action=discussions&problemId=' + encodeURIComponent(problemId)
-      + '&page=' + page + '&limit=20'
-    );
-    if (!d || !d.success) throw new Error(d && d.message || 'Failed');
-
-    const list = d.discussions || [];
-    const pg = d.pagination || {};
-    discState.page = page;
-    discState.total = pg.total || list.length;
-    discState.totalPages = pg.totalPages || 1;
-
-    const countEl = $('#ml-disc-count');
-    if (countEl) countEl.textContent = discState.total ? `(${discState.total})` : '';
-
-    if (page === 1) {
-      if (!list.length) {
-        wrap.innerHTML = `<div class="ml-empty" style="padding:24px 16px"><i class="fas fa-comments"></i>No discussions yet. Be the first!</div>`;
-        const moreBtn = $('#ml-disc-more');
-        if (moreBtn) moreBtn.style.display = 'none';
-        return;
-      }
-      wrap.innerHTML = list.map(discItemHtml).join('');
-    } else {
-      wrap.insertAdjacentHTML('beforeend', list.map(discItemHtml).join(''));
-    }
-
-    // KaTeX 渲染（非阻塞）
-    ensureKatex().then(ready => {
-      if (ready && typeof window.renderMathInElement === 'function' && document.body.contains(wrap)) {
-        try {
-          window.renderMathInElement(wrap, {
-            delimiters: [
-              { left: '$$', right: '$$', display: true },
-              { left: '\\[', right: '\\]', display: true },
-              { left: '$', right: '$', display: false },
-              { left: '\\(', right: '\\)', display: false },
-            ],
-            throwOnError: false,
-          });
-        } catch {}
-      }
-    });
-
-    const moreBtn = $('#ml-disc-more');
-    if (moreBtn) {
-      moreBtn.style.display = discState.page < discState.totalPages ? '' : 'none';
-    }
-  } catch (e) {
-    if (page === 1) {
-      wrap.innerHTML = `<div class="ml-empty" style="padding:20px 16px"><i class="fas fa-triangle-exclamation"></i>Failed to load discussions</div>`;
-    }
-  } finally {
-    discState.loading = false;
-  }
-}
-
-function bindDiscussionEvents(problemId) {
-  const input = $('#ml-disc-input');
-  const postBtn = $('#ml-disc-post');
-  const moreBtn = $('#ml-disc-more');
-  const listEl = $('#ml-disc-list');
-
-  // 輸入 → 啟用/禁用發送按鈕
-  if (input) {
-    input.addEventListener('input', () => {
-      postBtn.disabled = !input.value.trim();
-    });
-    // 自動增高
-    input.addEventListener('input', () => {
-      input.style.height = 'auto';
-      input.style.height = Math.min(input.scrollHeight, 180) + 'px';
-    });
-  }
-
-  // 發送
-  if (postBtn) {
-    postBtn.onclick = async () => {
-      const content = (input.value || '').trim();
-      if (!content) return;
-      haptic(10);
-      postBtn.disabled = true;
-      postBtn.innerHTML = '<span class="ml-spinner" style="width:14px;height:14px;border-width:2px"></span>';
-      try {
-        const r = await apiCall('/api/problem?action=discussions', 'POST', { problemId, content });
-        if (r && r.success) {
-          input.value = '';
-          input.style.height = '';
-          postBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
-          postBtn.disabled = true;
-          toast('Posted', 'fa-circle-check');
-          loadDiscussions(problemId, 1);
-        } else {
-          toast((r && r.message) || 'Failed', 'fa-circle-exclamation');
-          postBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
-          postBtn.disabled = false;
-        }
-      } catch (e) {
-        toast('Network error', 'fa-wifi');
-        postBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
-        postBtn.disabled = false;
-      }
-    };
-  }
-
-  // Load more
-  if (moreBtn) {
-    moreBtn.onclick = () => {
-      if (discState.page < discState.totalPages) {
-        loadDiscussions(problemId, discState.page + 1, true);
-      }
-    };
-  }
-
-  // 點讚（事件委託）
-  if (listEl) {
-    listEl.addEventListener('click', async (e) => {
-      const btn = e.target.closest('.ml-disc-like');
-      if (!btn) return;
-      e.stopPropagation();
-      const did = btn.dataset.id;
-      if (!did) return;
-      haptic(6);
-
-      const wasLiked = btn.classList.contains('liked');
-      const countEl = btn.querySelector('span');
-      const curCount = parseInt(countEl.textContent, 10) || 0;
-
-      // 樂觀更新
-      btn.classList.toggle('liked', !wasLiked);
-      countEl.textContent = wasLiked ? Math.max(0, curCount - 1) : curCount + 1;
-
-      try {
-        const r = await apiCall('/api/problem?action=discussions', 'PUT', { discussionId: did });
-        if (r && r.success && r.discussion) {
-          const d = r.discussion;
-          const serverLiked = Array.isArray(d.likedBy) && state.user && d.likedBy.includes(state.user.username);
-          btn.classList.toggle('liked', serverLiked);
-          countEl.textContent = d.likes || 0;
-        } else {
-          btn.classList.toggle('liked', wasLiked);
-          countEl.textContent = curCount;
-        }
-      } catch {
-        btn.classList.toggle('liked', wasLiked);
-        countEl.textContent = curCount;
-      }
-    });
-  }
-}
-async function loadProblemSubmissions(id) {
-  const wrap = $('#ml-pd-subs-list');
-  if (!wrap) return;
-  if (!navigator.onLine) {
-    wrap.innerHTML = `<div class="ml-empty" style="padding:20px"><i class="fas fa-plane"></i>Offline</div>`;
-    return;
-  }
-  try {
-    const d = await apiCall('/api/submissions?problem_id=' + encodeURIComponent(id) + '&limit=20');
-    if (!d || !d.success) throw new Error();
-    const subs = d.submissions || [];
-    if (!subs.length) {
-      wrap.innerHTML = `<div class="ml-empty" style="padding:20px"><i class="fas fa-inbox"></i>No submissions yet</div>`;
-      return;
-    }
-    wrap.innerHTML = subs.map(pdSubItemHtml).join('');
-    bindPdSubItems(wrap);
-  } catch {
-    wrap.innerHTML = `<div class="ml-empty" style="padding:20px"><i class="fas fa-triangle-exclamation"></i>Failed to load</div>`;
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-// 16. Submissions
-// ═══════════════════════════════════════════════════════════
-const subsState = { filter: 'all', user: '', problem: '', page: 1 };
-
-async function renderSubmissions() {
-  const content = $('#ml-content');
-  content.innerHTML = `
-    <div class="ml-page">
-      <div class="ml-sub-filters">
-        <div class="ml-filter-chips" id="ml-subs-chips">
-          <button class="ml-chip" data-f="all"><i class="fas fa-layer-group"></i> All</button>
-          <button class="ml-chip" data-f="accepted"><i class="fas fa-circle-check"></i> Accepted</button>
-          <button class="ml-chip" data-f="wrong"><i class="fas fa-circle-xmark"></i> Wrong</button>
-          <button class="ml-chip" data-f="partial"><i class="fas fa-circle-half-stroke"></i> Partial</button>
-          <button class="ml-chip" data-f="pending"><i class="fas fa-clock"></i> Pending</button>
-          <button class="ml-chip" data-f="system"><i class="fas fa-triangle-exclamation"></i> System</button>
-        </div>
-        <div class="ml-filter-inputs">
-          <input type="text" class="ml-input" id="ml-subs-user" placeholder="Username" autocomplete="off" autocapitalize="none" spellcheck="false">
-          <input type="text" class="ml-input" id="ml-subs-prob" placeholder="Problem ID" autocomplete="off" spellcheck="false">
-        </div>
-      </div>
-      <div id="ml-subs-list"><div class="ml-loading-center"><span class="ml-spinner"></span></div></div>
-    </div>`;
-
-  $$('#ml-subs-chips .ml-chip').forEach(b => {
-    b.classList.toggle('active', b.dataset.f === subsState.filter);
-    b.onclick = () => {
-      haptic(6);
-      subsState.filter = b.dataset.f;
-      subsState.page = 1;
-      $$('#ml-subs-chips .ml-chip').forEach(x => x.classList.toggle('active', x === b));
-      loadSubmissions();
-    };
-  });
-
-  const userInp = $('#ml-subs-user');
-  const probInp = $('#ml-subs-prob');
-  userInp.value = subsState.user || '';
-  probInp.value = subsState.problem || '';
-
-  const applyInputs = () => {
-    subsState.user = userInp.value.trim();
-    subsState.problem = probInp.value.trim();
-    subsState.page = 1;
-    loadSubmissions();
-  };
-  userInp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); applyInputs(); userInp.blur(); } });
-  probInp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); applyInputs(); probInp.blur(); } });
-
-  loadSubmissions();
-}
-
-async function loadSubmissions() {
-  const wrap = $('#ml-subs-list');
-  if (!wrap) return;
-  wrap.innerHTML = `<div class="ml-loading-center"><span class="ml-spinner"></span></div>`;
-
-  await withMinSkeleton(async () => {
-    const limit = state.settings.pageSize || 30;
-    const params = new URLSearchParams({ all: '1', page: subsState.page, limit });
-    if (subsState.user) params.set('user', subsState.user);
-    if (subsState.problem) params.set('problem', subsState.problem);
-    if (subsState.filter && subsState.filter !== 'all') params.set('result', subsState.filter);
-
+    let res;
     try {
-      const d = await apiCall('/api/submissions?' + params.toString());
-      if (!d || !d.success) throw new Error();
-      const subs = d.submissions || [];
-      if (!subs.length) {
-        wrap.innerHTML = `<div class="ml-empty"><i class="fas fa-inbox"></i>No submissions</div>`;
-        return;
+      res = await fetch(url, {
+        method: method || 'GET',
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    } catch (e) {
+      const err = new Error('offline');
+      err.offline = true;
+      throw err;
+    }
+
+    if (res.status === 401) {
+      const data = await res.json().catch(() => ({}));
+      if (data.message && /unauthorized|expired|invalid token/i.test(data.message)) {
+        localStorage.removeItem(TOKEN_KEY);
+        location.hash = '#/login';
+        render();
+        const err = new Error(data.message || 'Unauthorized');
+        err.auth = true;
+        throw err;
       }
-      const total = d.totalPages || 1;
-      wrap.innerHTML = subs.map(subCardHtml).join('')
-        + renderPagination(subsState.page, total);
-      $$('.ml-sub[data-subid]', wrap).forEach(el => {
-        el.onclick = () => {
-          if (el.dataset.subid) navigate('/submissions/' + encodeURIComponent(el.dataset.subid));
+    }
+    if (res.status === 403) {
+      const data = await res.json().catch(() => ({ message: 'Forbidden' }));
+      throw new Error(data.message || 'Forbidden');
+    }
+    if (res.status === 429) {
+      const data = await res.json().catch(() => ({ message: 'Too many requests' }));
+      throw new Error(data.message || 'Too many requests');
+    }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({ message: 'HTTP ' + res.status }));
+      throw new Error(data.message || 'HTTP ' + res.status);
+    }
+    return res.json();
+  }
+
+  /* ────────────────────────────────────────────────
+   * 3. IndexedDB (statements / images / drafts / meta)
+   * ──────────────────────────────────────────────── */
+  const DB = (() => {
+    const NAME = 'moj-mobile';
+    const VER = 1;
+    let dbPromise = null;
+
+    function open() {
+      if (dbPromise) return dbPromise;
+      dbPromise = new Promise((resolve, reject) => {
+        const req = indexedDB.open(NAME, VER);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('statements')) db.createObjectStore('statements', { keyPath: 'id' });
+          if (!db.objectStoreNames.contains('images')) db.createObjectStore('images', { keyPath: 'url' });
+          if (!db.objectStoreNames.contains('drafts')) db.createObjectStore('drafts', { keyPath: 'id', autoIncrement: true });
+          if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'key' });
         };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
       });
-      bindPagination(wrap, (p) => {
-        subsState.page = p;
-        loadSubmissions();
-        const c = $('#ml-content');
-        if (c) c.scrollTop = 0;
-      });
-      staggerIn(wrap);
-    } catch (e) {
-      if (!navigator.onLine) {
-        wrap.innerHTML = `<div class="ml-empty"><i class="fas fa-plane"></i>Offline — submissions unavailable</div>`;
-      } else {
-        wrap.innerHTML = `<div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Failed to load</div>`;
-      }
+      return dbPromise;
     }
-  }, 250);
-}
 
-function subCardHtml(s) {
-  const dt = fmtDateTime(s.timestamp);
-  const cls = statusCls(s.status);
-  return `
-    <div class="ml-sub" data-subid="${escAttr(s.subid || '')}">
-      <div class="ml-sub-date">
-        <span class="d">${esc(dt.date)}</span>
-        <span class="t">${esc(dt.time)}</span>
-      </div>
-      <div class="ml-sub-main">
-        <div class="ml-sub-prob">${esc(s.problemName || s.problemId || '—')}</div>
-        <div class="ml-sub-user"><i class="fas fa-user" style="margin-right:3px;opacity:.6"></i>${esc(s.displayName || s.username || '')}</div>
-      </div>
-      <span class="ml-sub-status ${cls}">${esc(s.status || 'Pending')}</span>
-    </div>`;
-}
+    async function tx(store, mode, fn) {
+      const db = await open();
+      return new Promise((resolve, reject) => {
+        const t = db.transaction(store, mode);
+        const s = t.objectStore(store);
+        const req = fn(s);
+        t.oncomplete = () => resolve(req && req.result);
+        t.onerror = () => reject(t.error);
+        t.onabort = () => reject(t.error);
+      });
+    }
 
-function statusCls(st) {
-  if (!st) return 'pending';
-  if (st === 'Accepted') return 'ac';
-  if (st === 'Wrong Answer') return 'wa';
-  if (st.startsWith('Partial')) return 'partial';
-  if (st === 'System Error') return 'system';
-  return 'pending';
-}
+    return {
+      // statements
+      async getStatement(id) { try { return await tx('statements', 'readonly', s => s.get(String(id))); } catch { return null; } },
+      async putStatement(obj) { return tx('statements', 'readwrite', s => s.put(obj)); },
+      async getAllStatements() { try { return await tx('statements', 'readonly', s => s.getAll()); } catch { return []; } },
+      async clearStatements() { return tx('statements', 'readwrite', s => s.clear()); },
+      // images
+      async getImage(url) { try { const r = await tx('images', 'readonly', s => s.get(url)); return r ? r.blob : null; } catch { return null; } },
+      async putImage(url, blob) { return tx('images', 'readwrite', s => s.put({ url, blob, updatedAt: Date.now() })); },
+      async countImages() { try { return await tx('images', 'readonly', s => s.count()); } catch { return 0; } },
+      async clearImages() { return tx('images', 'readwrite', s => s.clear()); },
+      // drafts
+      async getDrafts() { try { return await tx('drafts', 'readonly', s => s.getAll()); } catch { return []; } },
+      async addDraft(d) { return tx('drafts', 'readwrite', s => s.add(d)); },
+      async deleteDraft(id) { return tx('drafts', 'readwrite', s => s.delete(id)); },
+      async clearDrafts() { return tx('drafts', 'readwrite', s => s.clear()); },
+      // meta
+      async getMeta(key) { try { const r = await tx('meta', 'readonly', s => s.get(key)); return r ? r.value : null; } catch { return null; } },
+      async setMeta(key, value) { return tx('meta', 'readwrite', s => s.put({ key, value })); },
+    };
+  })();
 
-async function renderSubmissionDetail(subid) {
-  const content = $('#ml-content');
-  renderAppBar();
-  try {
-    const d = await apiCall('/api/submissions?action=detail&subid=' + encodeURIComponent(subid));
-    if (!d || !d.success) throw new Error();
-    const s = d.submission;
-    const dt = fmtDateTime(s.timestamp);
-    const cls = statusCls(d.status || (s.correct ? 'Accepted' : 'Wrong Answer'));
+  /* ────────────────────────────────────────────────
+   * 4. localStorage data caches (lightweight list / states / favorites)
+   * ──────────────────────────────────────────────── */
+  const LCache = {
+    getProblems() { try { return JSON.parse(localStorage.getItem('moj_problemList')); } catch { return null; } },
+    setProblems(d) { localStorage.setItem('moj_problemList', JSON.stringify(d)); },
+    getStates() { try { return JSON.parse(localStorage.getItem('moj_states')); } catch { return null; } },
+    setStates(d) { localStorage.setItem('moj_states', JSON.stringify(d)); },
+    getFavorites() { try { return JSON.parse(localStorage.getItem('moj_favorites')); } catch { return null; } },
+    setFavorites(d) { localStorage.setItem('moj_favorites', JSON.stringify(d)); },
+  };
 
-    content.innerHTML = `
-      <div class="ml-page">
-        <div class="ml-card">
-          <div style="font-size:16px;font-weight:700;margin-bottom:6px">${esc(d.problemName || s.problemId)}</div>
-          <div style="font-size:12px;color:var(--fg-muted);margin-bottom:12px">
-            <i class="fas fa-clock" style="margin-right:4px;opacity:.6"></i>${esc(dt.date)} ${esc(dt.time)}
-            <i class="fas fa-user" style="margin:0 4px 0 8px;opacity:.6"></i>${esc(s.username)}
-          </div>
-          <div class="ml-sub-status ${cls}" style="display:inline-block">${esc(d.status || 'Pending')}</div>
-        </div>
-        ${s.answer !== undefined ? `
-          <div class="ml-section-title" style="margin-top:18px"><i class="fas fa-pen" style="margin-right:5px;opacity:.7"></i>Answer</div>
-          <div class="ml-card" style="font-family:Consolas,monospace;font-size:14px;word-break:break-all">${esc(s.answer || '(empty)')}</div>
-        ` : s.answerHidden ? `
-          <div class="ml-section-title" style="margin-top:18px"><i class="fas fa-pen" style="margin-right:5px;opacity:.7"></i>Answer</div>
-          <div class="ml-card" style="color:var(--fg-muted);font-style:italic"><i class="fas fa-eye-slash" style="margin-right:6px"></i>Hidden</div>
-        ` : ''}
-        ${s.comment ? `
-          <div class="ml-section-title" style="margin-top:18px"><i class="fas fa-comment" style="margin-right:5px;opacity:.7"></i>Comment</div>
-          <div class="ml-card">${esc(s.comment)}</div>
-        ` : ''}
-      </div>`;
-  } catch (e) {
-    content.innerHTML = `<div class="ml-page"><div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Not found</div></div>`;
+  // in-memory working set
+  const Store = {
+    problems: [],      // light list
+    allTags: [],
+    states: {},
+    favorites: new Set(),
+    version: null,
+  };
+
+  function loadFromLocal() {
+    const p = LCache.getProblems();
+    if (p && Array.isArray(p.problems)) {
+      Store.problems = p.problems;
+      Store.allTags = p.allTags || [];
+      Store.version = p.version;
+    }
+    const s = LCache.getStates();
+    if (s && s.states) Store.states = s.states;
+    const f = LCache.getFavorites();
+    if (f && Array.isArray(f.favorites)) Store.favorites = new Set(f.favorites);
   }
-}
 
-// ═══════════════════════════════════════════════════════════
-// 17. Contests
-// ═══════════════════════════════════════════════════════════
-async function renderContests() {
-  const content = $('#ml-content');
-  await withMinSkeleton(async () => {
+  /* ────────────────────────────────────────────────
+   * 5. Online / offline
+   * ──────────────────────────────────────────────── */
+  function isOnline() { return navigator.onLine !== false; }
+
+  function refreshTopbar() {
+    $('#offlineBadge').hidden = isOnline();
+    updateDraftBadge();
+  }
+
+  /* ────────────────────────────────────────────────
+   * 6. Data fetch (network-first, cache fallback)
+   * ──────────────────────────────────────────────── */
+  async function fetchProblemsAll(withStatement) {
+    const url = withStatement ? '/api/problem?all=1&withStatement=1' : '/api/problem?all=1';
+    return apiCall(url);
+  }
+
+  async function fetchPreload() {
+    return apiCall('/api/users?action=preload');
+  }
+
+  // Refresh problem list + states + favorites
+  async function refreshProblemData() {
+    const [probs, preload] = await Promise.allSettled([
+      fetchProblemsAll(false),
+      fetchPreload(),
+    ]);
+    if (probs.status === 'fulfilled' && probs.value && probs.value.success) {
+      const d = probs.value;
+      Store.problems = d.problems || [];
+      Store.allTags = d.allTags || [];
+      Store.version = d.version;
+      LCache.setProblems({ problems: Store.problems, allTags: Store.allTags, version: Store.version, updatedAt: Date.now() });
+    }
+    if (preload.status === 'fulfilled' && preload.value && preload.value.success) {
+      Store.states = preload.value.states || {};
+      Store.favorites = new Set(preload.value.favorites || []);
+      LCache.setStates({ states: Store.states, updatedAt: Date.now() });
+      LCache.setFavorites({ favorites: Array.from(Store.favorites), updatedAt: Date.now() });
+    }
+  }
+
+  // guarantee data is present (fetch if missing), returns bool success
+  async function ensureProblemData() {
+    if (Store.problems.length === 0) await refreshProblemData();
+    return Store.problems.length > 0;
+  }
+
+  /* ────────────────────────────────────────────────
+   * 7. Bulk cache (statements + images) — Settings feature
+   * ──────────────────────────────────────────────── */
+  function extractImageUrls(html) {
+    if (!html) return [];
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    const urls = [];
+    $$('img', div).forEach(img => {
+      const src = img.getAttribute('src');
+      if (src && !src.startsWith('data:') && !src.startsWith('blob:')) urls.push(src);
+    });
+    return Array.from(new Set(urls));
+  }
+
+  async function cacheAllProblems(onProgress) {
+    if (!isOnline()) { toast('Offline — cannot cache', 'err'); return { ok: false }; }
+    const report = p => { if (onProgress) onProgress(p); };
+
+    const data = await fetchProblemsAll(true);
+    if (!data || !data.success || !Array.isArray(data.problems)) {
+      toast('Failed to fetch problems', 'err');
+      return { ok: false };
+    }
+    const problems = data.problems;
+    report({ phase: 'statement', done: 0, total: problems.length });
+
+    let images = new Set();
+    for (let i = 0; i < problems.length; i++) {
+      const p = problems[i];
+      if (p.statement) {
+        await DB.putStatement({ id: String(p.id), name: p.name, statement: p.statement, updatedAt: Date.now() });
+        extractImageUrls(p.statement).forEach(u => images.add(u));
+      }
+      report({ phase: 'statement', done: i + 1, total: problems.length });
+      if (i % 20 === 0) await new Promise(r => setTimeout(r, 0));
+    }
+
+    const urls = Array.from(images);
+    report({ phase: 'image', done: 0, total: urls.length });
+    let okCount = 0;
+    for (let i = 0; i < urls.length; i++) {
+      const url = urls[i];
+      try {
+        const res = await fetch(url, { mode: 'cors' });
+        if (res.ok) {
+          const blob = await res.blob();
+          await DB.putImage(url, blob);
+          okCount++;
+        }
+      } catch (e) { /* skip */ }
+      report({ phase: 'image', done: i + 1, total: urls.length, ok: okCount });
+      if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+    }
+
+    await DB.setMeta('lastCacheAt', Date.now());
+    return { ok: true, problems: problems.length, images: urls.length, imageOk: okCount };
+  }
+
+  /* ────────────────────────────────────────────────
+   * 8. Statement rendering (+ cached image rewrite + KaTeX)
+   * ──────────────────────────────────────────────── */
+  async function renderMath(el) {
+    if (!el) return;
+    if (typeof renderMathInElement === 'function') {
+      try {
+        renderMathInElement(el, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '\\[', right: '\\]', display: true },
+            { left: '\\(', right: '\\)', display: false },
+            { left: '$', right: '$', display: false },
+          ],
+          throwOnError: false,
+          errorColor: '#cc0000',
+          ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code', 'option'],
+        });
+      } catch (e) {}
+    }
+  }
+
+  async function rewriteImages(container) {
+    const imgs = $$('img', container);
+    for (const img of imgs) {
+      const src = img.getAttribute('src');
+      if (!src || src.startsWith('data:') || src.startsWith('blob:')) continue;
+      const blob = await DB.getImage(src);
+      if (blob) img.src = URL.createObjectURL(blob);
+    }
+  }
+
+  async function renderStatementInto(el, statement) {
+    el.innerHTML = statement || '';
+    await rewriteImages(el);
+    await renderMath(el);
+  }
+
+  /* ────────────────────────────────────────────────
+   * 9. Router + navigation lock
+   * ──────────────────────────────────────────────── */
+  const TAB_ROUTES = ['home', 'problems', 'submissions', 'leaderboard', 'contests', 'me'];
+  const TAB_LABELS = { home: 'Home', problems: 'Problems', submissions: 'Submissions', leaderboard: 'Leaderboard', contests: 'Contests', me: 'Me' };
+  const historyStack = [];
+
+  // ⭐ Navigation lock: block page/tab switching while a view is loading.
+  let isLoading = false;
+
+  function parseHash() {
+    const h = (location.hash || '#/home').replace(/^#\/?/, '').replace(/\/+$/, '');
+    const parts = h.split('/').filter(Boolean);
+    if (parts.length === 0) return { name: 'home', params: [] };
+    return { name: parts[0], params: parts.slice(1).map(decodeURIComponent) };
+  }
+
+  function currentRoute() { return parseHash(); }
+
+  function navigate(hash) {
+    if (isLoading) { toast('Loading…'); return; }
+    if (!hash.startsWith('#')) hash = '#' + hash;
+    if (location.hash === hash) { render(); return; }
+    historyStack.length = 0;   // tab switch resets the detail stack
+    location.hash = hash;
+  }
+
+  function goSubView(hash) {
+    if (isLoading) { toast('Loading…'); return; }
+    const cur = parseHash();
+    const curStr = cur.name + (cur.params.length ? '/' + cur.params.join('/') : '');
+    historyStack.push(curStr);
+    location.hash = '#' + hash.replace(/^#/, '');
+  }
+
+  function parentTabOf(route) {
+    switch (route.name) {
+      case 'problem': case 'submission': return route.name === 'problem' ? 'problems' : 'submissions';
+      case 'user': return 'leaderboard';
+      case 'contest': return 'contests';
+      case 'settings': return 'me';
+      default: return route.name;
+    }
+  }
+
+  function highlightNav(route) {
+    const tab = parentTabOf(route);
+    $$('#bottomNav .nav-item').forEach(b => b.classList.toggle('active', b.dataset.route === tab));
+    $('#topbarTitle').textContent = routeLabel(route);
+  }
+
+  function routeLabel(route) {
+    switch (route.name) {
+      case 'home': return 'WYK Maths';
+      case 'problems': return 'Problems';
+      case 'problem': return 'Problem #' + (route.params[0] || '');
+      case 'submissions': return 'Submissions';
+      case 'submission': return 'Submission';
+      case 'leaderboard': return 'Leaderboard';
+      case 'user': return (route.params[0] || 'User');
+      case 'contests': return 'Contests';
+      case 'contest': return 'Contest';
+      case 'me': return 'Me';
+      case 'settings': return 'Settings';
+      case 'login': return 'Sign in';
+      default: return 'WYK Maths';
+    }
+  }
+
+  function isSubView(route) {
+    return ['problem', 'submission', 'user', 'contest', 'settings'].includes(route.name);
+  }
+
+  function updateBackButton(route) {
+    const btn = $('#backBtn');
+    btn.hidden = !isSubView(route);
+    btn.onclick = () => {
+      if (isLoading) { toast('Loading…'); return; }
+      if (historyStack.length > 0) {
+        const prev = historyStack.pop();
+        location.hash = '#' + prev;
+      } else {
+        location.hash = '#' + parentTabOf(route);
+      }
+    };
+  }
+
+  async function render() {
+    const view = $('#view');
+    const route = currentRoute();
+
+    // auth gate
+    if (!isLoggedIn() && route.name !== 'login') {
+      location.hash = '#/login';
+      return renderLogin(view);
+    }
+
+    highlightNav(route);
+    updateBackButton(route);
+    refreshTopbar();
+
+    view.innerHTML = '<div class="loading-wrap"><span class="spinner"></span><span>Loading…</span></div>';
+    view.scrollTop = 0;
+
+    // ⭐ begin navigation lock — cleared in finally below
+    isLoading = true;
     try {
-      const d = await apiCall('/api/contests?action=list&page=1&limit=30');
-      if (!d || !d.success) throw new Error();
-      const cs = d.contests || [];
+      switch (route.name) {
+        case 'home':        await renderHome(view); break;
+        case 'problems':    await renderProblems(view); break;
+        case 'problem':     await renderProblemDetail(view, route.params[0]); break;
+        case 'submissions': await renderSubmissions(view); break;
+        case 'submission':  await renderSubmissionDetail(view, route.params[0]); break;
+        case 'leaderboard': await renderLeaderboard(view); break;
+        case 'user':        await renderUser(view, route.params[0]); break;
+        case 'contests':    await renderContests(view); break;
+        case 'contest':     await renderContestDetail(view, route.params[0]); break;
+        case 'me':          await renderMe(view); break;
+        case 'settings':    await renderSettings(view); break;
+        case 'login':       await renderLogin(view); break;
+        default:            view.innerHTML = '<div class="empty"><i class="fas fa-ghost"></i>Page not found</div>';
+      }
+    } catch (e) {
+      if (e && e.auth) return;
+      view.innerHTML = '<div class="empty"><i class="fas fa-triangle-exclamation"></i>' + esc(e.message || 'Failed to load') + '</div>';
+    } finally {
+      isLoading = false;
+    }
+  }
 
-      content.innerHTML = `<div class="ml-page"><div id="ml-contests-list"></div></div>`;
+  /* ────────────────────────────────────────────────
+   * 10. Views
+   * ──────────────────────────────────────────────── */
 
-      if (!cs.length) {
-        $('#ml-contests-list').innerHTML = `<div class="ml-empty"><i class="fas fa-inbox"></i>No contests</div>`;
+  // ── Login ──
+  function renderLogin(view) {
+    $('#backBtn').hidden = true;
+    $('#topbarTitle').textContent = 'Sign in';
+    $$('#bottomNav .nav-item').forEach(b => b.classList.remove('active'));
+    view.innerHTML = `
+      <div class="login-wrap">
+        <div class="login-logo"><i class="fas fa-calculator"></i></div>
+        <div class="login-title">WYK Maths Team</div>
+        <div class="card">
+          <div class="field">
+            <label>Username</label>
+            <input class="input" id="loginUser" autocomplete="username" placeholder="Username">
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <input class="input" id="loginPass" type="password" autocomplete="current-password" placeholder="Password">
+          </div>
+          <div id="loginErr" class="small" style="color:var(--danger);margin-bottom:10px;display:none"></div>
+          <button class="btn btn-block" id="loginBtn">Sign in</button>
+        </div>
+      </div>`;
+    $('#loginBtn').onclick = async () => {
+      const u = $('#loginUser').value.trim();
+      const p = $('#loginPass').value;
+      if (!u || !p) { $('#loginErr').textContent = 'Please enter username and password'; $('#loginErr').style.display = 'block'; return; }
+      $('#loginBtn').disabled = true; $('#loginBtn').textContent = 'Signing in…';
+      const r = await login(u, p);
+      if (r.success) {
+        location.hash = '#/home';
+        render();
+        toast('Welcome back!', 'ok');
+      } else {
+        $('#loginErr').textContent = r.message || 'Sign in failed';
+        $('#loginErr').style.display = 'block';
+        $('#loginBtn').disabled = false; $('#loginBtn').textContent = 'Sign in';
+      }
+    };
+  }
+
+  // ── Home ──
+  async function renderHome(view) {
+    view.innerHTML = '<div class="loading-wrap"><span class="spinner"></span></div>';
+    const user = getCurrentUser();
+
+    // welcome (once)
+    let welcome = '';
+    if (!localStorage.getItem('moj_welcomed')) {
+      localStorage.setItem('moj_welcomed', '1');
+      welcome = `<div class="welcome card">
+        <div class="hello">Hi, ${esc(user.displayName || user.username)} 👋</div>
+        <div class="sub">Welcome to WYK Maths Team Mobile</div>
+      </div>`;
+    } else {
+      welcome = `<div class="welcome card">
+        <div class="hello">${esc(user.displayName || user.username)}</div>
+        <div class="sub">${esc(user.username)}</div>
+      </div>`;
+    }
+
+    view.innerHTML = welcome + `<div class="stat-grid">
+      <div class="stat-card"><div class="num" id="stSolved">…</div><div class="lbl">Solved</div></div>
+      <div class="stat-card"><div class="num" id="stRank">…</div><div class="lbl">Rank</div></div>
+      <div class="stat-card"><div class="num" id="stRating">…</div><div class="lbl">Rating</div></div>
+      <div class="stat-card"><div class="num" id="stTotal">…</div><div class="lbl">Problems</div></div>
+    </div>
+    <div class="card mt8">
+      <div class="card-title">Progress</div>
+      <div class="progress"><div id="stProgress" style="width:0%"></div></div>
+      <div class="small muted mt8" id="stProgressText">Loading…</div>
+    </div>
+    <div class="card mt8" id="draftSummaryCard" style="display:none">
+      <div class="card-title"><i class="fas fa-inbox"></i> Drafts</div>
+      <div class="small muted" id="draftSummaryText"></div>
+      <button class="btn btn-secondary btn-sm mt8" id="syncNowBtn"><i class="fas fa-cloud-arrow-up"></i> Sync now</button>
+    </div>`;
+
+    const me = user.username;
+    try {
+      const [prof, lb] = await Promise.allSettled([
+        apiCall('/api/users?action=profile&username=' + encodeURIComponent(me)),
+        apiCall('/api/users?action=leaderboard'),
+      ]);
+      if (prof.status === 'fulfilled' && prof.value && prof.value.success) {
+        const d = prof.value;
+        $('#stSolved').textContent = d.totalPassed;
+        $('#stTotal').textContent = d.totalProblems;
+        $('#stRating').textContent = (d.rating ?? '—');
+        const pct = d.totalProblems ? Math.round(d.totalPassed / d.totalProblems * 100) : 0;
+        $('#stProgress').style.width = pct + '%';
+        $('#stProgressText').textContent = `${d.totalPassed} / ${d.totalProblems} (${pct}%)`;
+      }
+      if (lb.status === 'fulfilled' && lb.value && lb.value.success) {
+        const entry = (lb.value.leaderboard || []).find(e => e.username === me);
+        if (entry) $('#stRank').textContent = '#' + entry.rank;
+        else $('#stRank').textContent = '—';
+      }
+    } catch (e) { /* offline: leave placeholders */ }
+
+    updateDraftSummary();
+  }
+
+  async function updateDraftSummary() {
+    const drafts = await DB.getDrafts();
+    const card = $('#draftSummaryCard');
+    const text = $('#draftSummaryText');
+    if (card) {
+      card.style.display = drafts.length ? 'block' : 'none';
+      if (text && drafts.length) text.textContent = `${drafts.length} submission(s) pending (auto-submit when online)`;
+    }
+    const btn = $('#syncNowBtn');
+    if (btn) btn.onclick = () => syncDrafts(true);
+  }
+
+  // ── Problems list ──
+  async function renderProblems(view) {
+    await ensureProblemData();
+    const problems = Store.problems;
+
+    // client filter state (persisted)
+    let activeTags = new Set();
+    try { activeTags = new Set(JSON.parse(localStorage.getItem('moj_activeTags') || '[]')); } catch {}
+
+    const tagCounts = {};
+    problems.forEach(p => (p.tags || []).forEach(t => tagCounts[t] = (tagCounts[t] || 0) + 1));
+    const sortedTags = Object.keys(tagCounts).sort();
+
+    let page = 1;
+    const pageSize = 30;
+
+    function filtered() {
+      let list = problems.slice();
+      if (activeTags.size) {
+        const arr = Array.from(activeTags);
+        list = list.filter(p => arr.every(t => (p.tags || []).includes(t)));
+      }
+      return list;
+    }
+
+    view.innerHTML = `
+      <div class="row" style="margin-bottom:10px">
+        <button class="btn btn-secondary btn-sm" id="tagsBtn"><i class="fas fa-tag"></i> Tags${activeTags.size ? ' (' + activeTags.size + ')' : ''}</button>
+        <div class="grow"></div>
+        <button class="btn btn-sm" id="refreshBtn"><i class="fas fa-sync-alt"></i></button>
+      </div>
+      <div id="activeTagsRow" style="margin-bottom:10px">${renderActiveTags(activeTags)}</div>
+      <div id="problemList"></div>
+      <div id="problemPager" class="row" style="justify-content:center;gap:8px;margin-top:10px"></div>`;
+
+    function renderActiveTags(tags) {
+      if (!tags.size) return '';
+      return Array.from(tags).map(t => `<span class="tag active">${esc(t)} <i class="fas fa-xmark" data-rm="${esc(t)}" style="cursor:pointer"></i></span>`).join(' ');
+    }
+
+    function renderList() {
+      const list = filtered();
+      const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+      if (page > totalPages) page = totalPages;
+      const pageList = list.slice((page - 1) * pageSize, page * pageSize);
+
+      const el = $('#problemList');
+      if (!pageList.length) {
+        el.innerHTML = '<div class="empty"><i class="fas fa-inbox"></i>No problems</div>';
+        $('#problemPager').innerHTML = '';
         return;
       }
-      const now = Date.now();
-      $('#ml-contests-list').innerHTML = cs.map(c => {
-        const start = new Date(c.startTime).getTime();
-        const end = start + (Number(c.duration) || 0) * 60000;
-        let status = 'upcoming';
-        if (now > end) status = 'ended';
-        else if (now >= start) status = 'ongoing';
-        return contestCardHtml(c, status);
-      }).join('');
-      $$('.ml-sub', content).forEach(el => {
-        el.onclick = () => navigate('/contests/' + encodeURIComponent(el.dataset.cid));
-      });
-    } catch (e) {
-      content.innerHTML = `<div class="ml-page"><div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Failed to load</div></div>`;
-    }
-  }, 250);
-}
-
-function contestCardHtml(c, status) {
-  const start = new Date(c.startTime);
-  const pad = n => String(n).padStart(2, '0');
-  const local = new Date(start.getTime() + 8 * 3600000);
-  const date = `${local.getUTCFullYear()}-${pad(local.getUTCMonth() + 1)}-${pad(local.getUTCDate())}`;
-  const time = `${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}`;
-  const statusMap = { upcoming: 'Pending', ongoing: 'Ongoing', ended: 'Ended' };
-  const cls = { upcoming: 'partial', ongoing: 'ac', ended: 'pending' };
-  return `
-    <div class="ml-sub" data-cid="${escAttr(c.id)}">
-      <div class="ml-sub-date">
-        <span class="d">${esc(date)}</span>
-        <span class="t">${esc(time)}</span>
-      </div>
-      <div class="ml-sub-main">
-        <div class="ml-sub-prob">${esc(c.name || ('Contest #' + c.id))}</div>
-        <div class="ml-sub-user"><i class="fas fa-users" style="margin-right:4px;opacity:.6"></i>${c.contestantCount || 0} · <i class="fas fa-clock" style="margin-right:3px;opacity:.6"></i>${Number(c.duration) || 0}m</div>
-      </div>
-      <span class="ml-sub-status ${cls[status]}">${statusMap[status]}</span>
-    </div>`;
-}
-
-async function renderContestDetail(id) {
-  const content = $('#ml-content');
-  renderAppBar();
-  try {
-    const d = await apiCall('/api/contests?action=page&id=' + encodeURIComponent(id));
-    if (!d || !d.success) throw new Error();
-    const c = d.contest;
-    const start = new Date(c.startTime);
-    const pad = n => String(n).padStart(2, '0');
-    const local = new Date(start.getTime() + 8 * 3600000);
-    const dateStr = `${local.getUTCFullYear()}-${pad(local.getUTCMonth() + 1)}-${pad(local.getUTCDate())} ${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}`;
-    const canSee = c.problems && c.problems.length && (c.status === 'ongoing' || c.status === 'ended') && c.isParticipant;
-
-    content.innerHTML = `
-      <div class="ml-page">
-        <h2 style="font-size:20px;font-weight:800;margin-bottom:6px">${esc(c.name)}</h2>
-        <div style="font-size:12px;color:var(--fg-muted);margin-bottom:16px">
-          <i class="fas fa-clock" style="margin-right:4px;opacity:.6"></i>${esc(dateStr)}
-          <i class="fas fa-users" style="margin:0 4px 0 10px;opacity:.6"></i>${c.participantCount}
-        </div>
-
-        ${canSee ? `
-          <div class="ml-section-title"><i class="fas fa-list-check" style="margin-right:5px;opacity:.7"></i>Problems</div>
-          ${c.problems.map(p => {
-            const st = (c.userContestStates || {})[p.id] || 'not_started';
-            const cls = st === 'passed' ? 'passed' : st === 'failed' ? 'failed' : '';
-            return `<div class="ml-prob ${cls}" data-pid="${escAttr(p.id)}" style="cursor:pointer">
-              <div class="ml-prob-main">
-                <div class="ml-prob-top">
-                  <span class="ml-prob-id">${esc(p.id)}</span>
-                  <span class="ml-prob-name">${esc(p.name || '')}</span>
-                </div>
-              </div>
-            </div>`;
-          }).join('')}
-        ` : c.status === 'ended' ? '' : `
-          <div class="ml-empty"><i class="fas fa-lock"></i>${c.status === 'upcoming' ? 'Contest not started' : 'Problems not available'}</div>
-        `}
-
-        <div class="ml-results" id="ml-results">
-          <div class="ml-section-title"><i class="fas fa-ranking-star" style="margin-right:5px;opacity:.7"></i>Results</div>
-          <div id="ml-results-list"><div class="ml-loading-center" style="padding:20px 0"><span class="ml-spinner"></span></div></div>
-        </div>
-      </div>`;
-
-    $$('.ml-prob[data-pid]', content).forEach(el => {
-      el.onclick = () => navigate('/problems/' + encodeURIComponent(el.dataset.pid));
-    });
-
-    if (c.status === 'ended' || c.status === 'ongoing') {
-      loadContestResults(id, c.status);
-    } else {
-      const r = $('#ml-results');
-      if (r) r.style.display = 'none';
-    }
-
-  } catch (e) {
-    content.innerHTML = `<div class="ml-page"><div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Not found</div></div>`;
-  }
-}
-
-async function loadContestResults(id, status) {
-  const wrap = $('#ml-results-list');
-  if (!wrap) return;
-  try {
-    const d = await apiCall('/api/contests?action=results&id=' + encodeURIComponent(id));
-    if (!d || !d.success) throw new Error();
-    const parts = (d.stats && d.stats.participants) || [];
-
-    if (!parts.length) {
-      wrap.innerHTML = `<div class="ml-empty" style="padding:20px"><i class="fas fa-inbox"></i>No results yet</div>`;
-      return;
-    }
-    const isEnded = status === 'ended';
-    wrap.innerHTML = parts.map((p, i) => {
-      const rank = i + 1;
-      let rankCls = '';
-      if (isEnded) {
-        if (rank === 1) rankCls = 'gold';
-        else if (rank === 2) rankCls = 'silver';
-        else if (rank === 3) rankCls = 'bronze';
-      }
-      const name = p.displayName || (p.isTeam ? `Team #${p.username}` : p.username);
-      const score = isEnded ? (p.total || 0).toFixed(2) : '—';
-      return `<div class="ml-result-row">
-        <span class="ml-result-rank ${rankCls}">${rank}</span>
-        <span class="ml-result-name">${esc(name)}</span>
-        <span class="ml-result-score">${score}</span>
-      </div>`;
-    }).join('');
-    staggerIn(wrap);
-  } catch (e) {
-    wrap.innerHTML = `<div class="ml-empty" style="padding:20px"><i class="fas fa-triangle-exclamation"></i>Failed to load</div>`;
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-// 18. Rank
-// ═══════════════════════════════════════════════════════════
-async function renderRank() {
-  const content = $('#ml-content');
-  await withMinSkeleton(async () => {
-    try {
-      const d = await apiCall('/api/users?action=leaderboard');
-      if (!d || !d.success) throw new Error();
-      const list = d.leaderboard || [];
-      let html = `<div class="ml-page">`;
-
-      if (list.length >= 3) {
-        html += `<div class="ml-rank-top">
-          ${rankPodiumHtml(list[1], 2)}
-          ${rankPodiumHtml(list[0], 1)}
-          ${rankPodiumHtml(list[2], 3)}
+      el.innerHTML = pageList.map(p => {
+        const state = Store.states[p.id] || 'not_started';
+        const isFav = Store.favorites.has(p.id);
+        const d = diffColor(p.difficulty);
+        const stateIcon = state === 'passed' ? '<i class="fas fa-check-circle" style="color:var(--success)"></i>'
+          : state === 'failed' ? '<i class="fas fa-times-circle" style="color:var(--danger)"></i>' : '';
+        return `<div class="problem-card" data-id="${esc(p.id)}">
+          <span class="problem-id">${esc(p.id)}</span>
+          <div class="grow" style="min-width:0">
+            <div class="problem-name">${esc(p.name)} ${stateIcon}</div>
+            <div>${(p.tags || []).slice(0, 3).map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
+          </div>
+          <div class="problem-meta">
+            <span class="${d.cls}" style="${d.style}">${d.label}</span>
+            <span class="small muted">${p.solves || 0} solves</span>
+            <span class="fav ${isFav ? 'on' : ''}" data-fav="${esc(p.id)}"><i class="${isFav ? 'fas' : 'far'} fa-star"></i></span>
+          </div>
         </div>`;
-      }
-      const rest = list.slice(3);
-      if (rest.length) html += `<div>${rest.map(u => rankItemHtml(u)).join('')}</div>`;
+      }).join('');
 
-      const me = state.user && state.user.username;
-      if (me) {
-        const meIdx = list.findIndex(x => x.username === me);
-        if (meIdx >= 0) html += `<div class="ml-rank-self">${rankItemHtml(list[meIdx], true)}</div>`;
-      }
-      html += `</div>`;
-      content.innerHTML = html;
-    } catch (e) {
-      content.innerHTML = `<div class="ml-page"><div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Failed to load</div></div>`;
-    }
-  }, 250);
-}
-
-function rankPodiumHtml(u, r) {
-  const name = u.displayName || u.username;
-  const avatar = u.pfp ? `<img src="${escAttr(u.pfp)}" alt="">` : faviconOf(name);
-  const medal = r === 1 ? 'fa-crown' : r === 2 ? 'fa-medal' : 'fa-award';
-  return `<div class="ml-rank-podium r${r}">
-    <div class="ml-rank-avatar">${avatar}</div>
-    <div class="ml-rank-name">${esc(name)}</div>
-    <div class="ml-rank-solves"><i class="fas ${medal}" style="opacity:.6;margin-right:3px"></i>${u.solves || 0}</div>
-  </div>`;
-}
-function rankItemHtml(u, isSelf) {
-  const name = u.displayName || u.username;
-  const avatar = u.pfp ? `<img src="${escAttr(u.pfp)}" alt="">` : faviconOf(name);
-  return `<div class="ml-rank-item${isSelf ? ' me' : ''}">
-    <div class="rk">#${u.rank}</div>
-    <div class="av">${avatar}</div>
-    <div class="nm">${esc(name)}</div>
-    <div class="sc">${u.solves || 0}</div>
-  </div>`;
-}
-
-// ═══════════════════════════════════════════════════════════
-// 19. Me
-// ═══════════════════════════════════════════════════════════
-async function renderMe() {
-  const content = $('#ml-content');
-  const u = state.user || {};
-  const states = state.states || {};
-  const solved = Object.values(states).filter(v => v === 'passed').length;
-  const total = state.problems ? state.problems.length : 0;
-  const pct = total ? Math.round(solved / total * 100) : 0;
-  const avatar = u.pfp ? `<img src="${escAttr(u.pfp)}" alt="">` : '<i class="fas fa-user"></i>';
-
-  const R = 32;
-  const C = 2 * Math.PI * R;
-  const offset = C * (1 - pct / 100);
-
-  content.innerHTML = `
-    <div class="ml-page">
-      <div class="ml-me-head">
-        <div class="ml-me-avatar">${avatar}</div>
-        <div class="ml-me-name">${esc(u.displayName || u.username || 'Guest')}</div>
-        <div class="ml-me-sub">@${esc(u.username || '')}</div>
-      </div>
-
-      <div class="ml-me-progress">
-        <svg width="96" height="96" viewBox="0 0 96 96" class="ml-me-ring">
-          <circle cx="48" cy="48" r="${R}" stroke="var(--surface-2)" stroke-width="6" fill="none"/>
-          <circle id="ml-me-ring-fill" cx="48" cy="48" r="${R}"
-                  stroke="var(--accent)" stroke-width="6" fill="none"
-                  stroke-linecap="round"
-                  stroke-dasharray="${C.toFixed(2)} ${C.toFixed(2)}"
-                  stroke-dashoffset="${C.toFixed(2)}"
-                  transform="rotate(-90 48 48)"
-                  style="transition: stroke-dashoffset .9s cubic-bezier(.32,.72,0,1)"/>
-          <text x="48" y="53" text-anchor="middle"
-                font-family="'SF Mono',Consolas,monospace" font-size="20" font-weight="800"
-                fill="var(--fg)">${pct}%</text>
-        </svg>
-        <div class="ml-me-progress-text">
-          <div><b>${solved}</b> solved</div>
-          <div style="color:var(--fg-muted);font-size:12px">${total - solved} to go</div>
-        </div>
-      </div>
-
-      <div class="ml-me-stats">
-        <div class="ml-me-stat"><div class="ml-me-stat-v">${solved}</div><div class="ml-me-stat-l">Solved</div></div>
-        <div class="ml-me-stat"><div class="ml-me-stat-v">${pct}%</div><div class="ml-me-stat-l">Progress</div></div>
-        <div class="ml-me-stat"><div class="ml-me-stat-v">${total}</div><div class="ml-me-stat-l">Total</div></div>
-      </div>
-
-      <div class="ml-list">
-        <div class="ml-list-item" data-nav="/submissions">
-          <i class="fas fa-paper-plane ico"></i>
-          <span class="lbl">My Submissions</span>
-          <i class="fas fa-chevron-right chev"></i>
-        </div>
-        <div class="ml-list-item" data-filter="fav">
-          <i class="fas fa-star ico"></i>
-          <span class="lbl">Bookmarks</span>
-          <i class="fas fa-chevron-right chev"></i>
-        </div>
-        <div class="ml-list-item" data-nav="/contests">
-          <i class="fas fa-trophy ico"></i>
-          <span class="lbl">Contests</span>
-          <i class="fas fa-chevron-right chev"></i>
-        </div>
-      </div>
-
-      <div class="ml-list">
-        <div class="ml-list-item" data-nav="/settings">
-          <i class="fas fa-gear ico"></i>
-          <span class="lbl">Settings</span>
-          <i class="fas fa-chevron-right chev"></i>
-        </div>
-        <div class="ml-list-item danger" id="ml-me-logout">
-          <i class="fas fa-right-from-bracket ico"></i>
-          <span class="lbl">Sign Out</span>
-        </div>
-      </div>
-    </div>`;
-
-  requestAnimationFrame(() => {
-    const ring = $('#ml-me-ring-fill');
-    if (ring) ring.setAttribute('stroke-dashoffset', offset.toFixed(2));
-  });
-
-  $$('[data-nav]', content).forEach(el => el.onclick = () => navigate(el.dataset.nav));
-  const favNav = $('[data-filter="fav"]', content);
-  if (favNav) favNav.onclick = () => {
-    sessionStorage.setItem('ml_prob_filter', 'fav');
-    navigate('/problems');
-  };
-  $('#ml-me-logout').onclick = () => {
-    haptic(10);
-    if (!confirm('Sign out?')) return;
-    setToken(null);
-    setTimeout(() => location.reload(), 60);
-  };
-}
-
-// ═══════════════════════════════════════════════════════════
-// 20. Settings
-// ═══════════════════════════════════════════════════════════
-async function updateCacheButtonUI() {
-  const btn = $('#ml-cache-btn');
-  const hint = $('#ml-cache-status');
-  if (!btn || !hint) return;
-  if (state._cacheInProgress) return;
-
-  const { remaining, count, lastAt } = await getCacheStatus();
-
-  if (remaining > 0) {
-    const hours = Math.ceil(remaining / 3600000);
-    btn.disabled = true;
-    btn.classList.remove('caching');
-    btn.innerHTML = `<i class="fas fa-lock"></i> ${hours}h`;
-    hint.textContent = `Cached ${count} problems · last ${fmtDateTime(lastAt).short}`;
-  } else if (count > 0) {
-    btn.disabled = false;
-    btn.classList.remove('caching');
-    btn.innerHTML = '<i class="fas fa-rotate"></i> Update';
-    hint.textContent = `Cached ${count} problems`;
-  } else {
-    btn.disabled = false;
-    btn.classList.remove('caching');
-    btn.innerHTML = '<i class="fas fa-download"></i> Cache';
-    hint.textContent = 'Download all statements for offline';
-  }
-}
-
-async function updateDraftsUI() {
-  const btn = $('#ml-drafts-btn');
-  const hint = $('#ml-drafts-status');
-  if (!btn || !hint) return;
-  try {
-    const drafts = await getAllDrafts();
-    if (!drafts.length) {
-      btn.disabled = true;
-      btn.classList.add('ghost');
-      btn.textContent = 'Empty';
-      hint.textContent = 'No pending drafts';
-    } else {
-      btn.disabled = !navigator.onLine;
-      btn.classList.remove('ghost');
-      btn.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Sync';
-      hint.textContent = `${drafts.length} pending`;
-    }
-  } catch {
-    btn.disabled = true;
-    btn.textContent = 'N/A';
-    hint.textContent = 'Not supported';
-  }
-}
-
-async function renderSettings() {
-  const content = $('#ml-content');
-  const s = state.settings;
-  const u = state.user || {};
-  const avatar = u.pfp ? `<img src="${escAttr(u.pfp)}" alt="">` : '<i class="fas fa-user"></i>';
-
-  content.innerHTML = `
-    <div class="ml-page">
-      <div class="ml-section-title"><i class="fas fa-user-circle" style="margin-right:5px;opacity:.7"></i>Profile</div>
-      <div class="ml-set-group">
-        <div class="ml-pfp-row">
-          <div class="ml-pfp-avatar" id="ml-pfp-avatar">${avatar}</div>
-          <div class="ml-pfp-info">
-            <div class="ml-pfp-name">${esc(u.displayName || u.username || '')}</div>
-            <button class="ml-pfp-btn" id="ml-pfp-pick"><i class="fas fa-camera"></i> Change</button>
-            <input type="file" id="ml-pfp-input" accept="image/*" style="display:none">
-          </div>
-        </div>
-      </div>
-
-      <div class="ml-section-title"><i class="fas fa-palette" style="margin-right:5px;opacity:.7"></i>Appearance</div>
-      <div class="ml-set-group">
-        <div class="ml-set-item">
-          <span class="lbl"><i class="fas fa-circle-half-stroke" style="margin-right:8px;opacity:.6;width:16px"></i>Theme</span>
-          <div class="ml-seg" data-seg="theme">
-            <button class="ml-seg-btn${s.theme === 'dark' ? ' active' : ''}" data-v="dark">Dark</button>
-            <button class="ml-seg-btn${s.theme === 'light' ? ' active' : ''}" data-v="light">Light</button>
-            <button class="ml-seg-btn${s.theme === 'auto' ? ' active' : ''}" data-v="auto">Auto</button>
-          </div>
-        </div>
-        <div class="ml-set-item">
-          <span class="lbl"><i class="fas fa-compress" style="margin-right:8px;opacity:.6;width:16px"></i>Compact Mode</span>
-          <div class="ml-switch${s.compact ? ' on' : ''}" data-sw="compact"></div>
-        </div>
-        <div class="ml-set-item">
-          <span class="lbl"><i class="fas fa-wand-magic-sparkles" style="margin-right:8px;opacity:.6;width:16px"></i>Animations</span>
-          <div class="ml-switch${s.animations ? ' on' : ''}" data-sw="animations"></div>
-        </div>
-        <div class="ml-set-item">
-          <span class="lbl"><i class="fas fa-table-cells" style="margin-right:8px;opacity:.6;width:16px"></i>Cards per Page</span>
-          <div class="ml-seg" data-seg="pageSize">
-            <button class="ml-seg-btn${s.pageSize === 20 ? ' active' : ''}" data-v="20">20</button>
-            <button class="ml-seg-btn${s.pageSize === 30 ? ' active' : ''}" data-v="30">30</button>
-            <button class="ml-seg-btn${s.pageSize === 50 ? ' active' : ''}" data-v="50">50</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="ml-section-title"><i class="fas fa-list-check" style="margin-right:5px;opacity:.7"></i>Problem List</div>
-      <div class="ml-set-group">
-        <div class="ml-set-item">
-          <span class="lbl"><i class="fas fa-gauge-high" style="margin-right:8px;opacity:.6;width:16px"></i>Show Difficulty</span>
-          <div class="ml-switch${s.showDifficulty ? ' on' : ''}" data-sw="showDifficulty"></div>
-        </div>
-        <div class="ml-set-item">
-          <span class="lbl"><i class="fas fa-tags" style="margin-right:8px;opacity:.6;width:16px"></i>Show Tags</span>
-          <div class="ml-switch${s.showTags ? ' on' : ''}" data-sw="showTags"></div>
-        </div>
-        <div class="ml-set-item">
-          <span class="lbl"><i class="fas fa-user-check" style="margin-right:8px;opacity:.6;width:16px"></i>Show Solve Count</span>
-          <div class="ml-switch${s.showSolves ? ' on' : ''}" data-sw="showSolves"></div>
-        </div>
-        <div class="ml-set-item">
-          <span class="lbl"><i class="fas fa-star" style="margin-right:8px;opacity:.6;width:16px"></i>Show Favorite Star</span>
-          <div class="ml-switch${s.showFavorite ? ' on' : ''}" data-sw="showFavorite"></div>
-        </div>
-      </div>
-
-      <div class="ml-section-title"><i class="fas fa-cloud-arrow-down" style="margin-right:5px;opacity:.7"></i>Offline</div>
-      <div class="ml-set-group">
-        <div class="ml-set-item">
-          <span class="lbl">
-            <i class="fas fa-download" style="margin-right:8px;opacity:.6;width:16px"></i>Cache All Problems
-            <span class="hint" id="ml-cache-status">Loading…</span>
-          </span>
-          <button class="ml-pfp-btn" id="ml-cache-btn" disabled>
-            <i class="fas fa-download"></i> Cache
-          </button>
-        </div>
-        <div class="ml-set-item">
-          <span class="lbl">
-            <i class="fas fa-inbox" style="margin-right:8px;opacity:.6;width:16px"></i>Draft Queue
-            <span class="hint" id="ml-drafts-status">Loading…</span>
-          </span>
-          <button class="ml-pfp-btn ghost" id="ml-drafts-btn" disabled>...</button>
-        </div>
-      </div>
-      <div class="ml-section-title"><i class="fas fa-triangle-exclamation" style="margin-right:5px;opacity:.7"></i>Danger Zone</div>
-      <div class="ml-set-group">
-        <div class="ml-set-item">
-          <span class="lbl">
-            <i class="fas fa-bomb" style="margin-right:8px;opacity:.6;width:16px"></i>Force Reset
-            <span class="hint">Clear all caches and stop the app</span>
-          </span>
-          <button class="ml-pfp-btn" id="ml-reset-btn">
-            <i class="fas fa-bomb"></i> Reset
-          </button>
-        </div>
-      </div>
-
-      <div class="ml-section-title"><i class="fas fa-user-shield" style="margin-right:5px;opacity:.7"></i>Account</div>
-      <div class="ml-list">
-        <div class="ml-list-item" data-act="password">
-          <i class="fas fa-key ico"></i>
-          <span class="lbl">Change Password</span>
-          <i class="fas fa-chevron-right chev"></i>
-        </div>
-        <div class="ml-list-item" data-act="name">
-          <i class="fas fa-signature ico"></i>
-          <span class="lbl">Change Display Name</span>
-          <i class="fas fa-chevron-right chev"></i>
-        </div>
-        <div class="ml-list-item danger" data-act="logout">
-          <i class="fas fa-right-from-bracket ico"></i>
-          <span class="lbl">Sign Out</span>
-        </div>
-      </div>
-    </div>`;
-
-  // 開關
-  $$('[data-sw]', content).forEach(el => {
-    el.onclick = () => {
-      haptic(6);
-      const k = el.dataset.sw;
-      const next = !state.settings[k];
-      state.settings[k] = next;
-      el.classList.toggle('on', next);
-      saveSettings();
-    };
-  });
-  // 分段
-  $$('[data-seg]', content).forEach(seg => {
-    const k = seg.dataset.seg;
-    $$('.ml-seg-btn', seg).forEach(btn => {
-      btn.onclick = () => {
-        haptic(6);
-        let v = btn.dataset.v;
-        if (k === 'pageSize') v = parseInt(v, 10);
-        state.settings[k] = v;
-        $$('.ml-seg-btn', seg).forEach(b => b.classList.toggle('active', b === btn));
-        saveSettings();
-      };
-    });
-  });
-
-  // PFP 上傳
-  const pfpBtn = $('#ml-pfp-pick');
-  const pfpInput = $('#ml-pfp-input');
-  pfpBtn.onclick = () => pfpInput.click();
-  pfpInput.addEventListener('change', async () => {
-    const file = pfpInput.files && pfpInput.files[0];
-    pfpInput.value = '';
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { toast('Not an image', 'fa-circle-exclamation'); return; }
-    if (file.size > 2 * 1024 * 1024) { toast('Max 2MB', 'fa-circle-exclamation'); return; }
-
-    pfpBtn.disabled = true;
-    pfpBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading…';
-    try {
-      const dataUrl = await compressImage(file, 512, 0.85);
-      const r = await apiCall('/api/users?action=pfp', 'POST', { image: dataUrl });
-      if (r && r.success && r.pfp) {
-        state.user.pfp = r.pfp;
-        const el = $('#ml-pfp-avatar');
-        if (el) el.innerHTML = `<img src="${escAttr(r.pfp)}" alt="">`;
-        toast('Updated', 'fa-circle-check');
-        haptic(10);
-      } else {
-        toast(r && r.message || 'Upload failed', 'fa-circle-exclamation');
-      }
-    } catch (e) {
-      toast('Network error', 'fa-wifi');
-    } finally {
-      pfpBtn.disabled = false;
-      pfpBtn.innerHTML = '<i class="fas fa-camera"></i> Change';
-    }
-  });
-
-  // Cache All Problems
-  const cacheBtn = $('#ml-cache-btn');
-  cacheBtn.onclick = async () => {
-    if (cacheBtn.disabled || state._cacheInProgress) return;
-    haptic(10);
-
-    if (!navigator.onLine) {
-      toast('Offline — cannot cache', 'fa-plane');
-      return;
-    }
-
-    state._cacheInProgress = true;
-    cacheBtn.disabled = true;
-    cacheBtn.classList.add('caching');
-
-    const hint = $('#ml-cache-status');
-    const origHint = hint ? hint.textContent : '';
-
-    try {
-      let countdown=4;
-      let ctime=Date.now();
-      const count = await cacheAllProblems((done, total) => {
-        let cctime=Date.now();
-        let dif=(cctime-ctime)/1000;
-        const pct = Math.floor(dif / countdown * 100);
-        cacheBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${pct}%`;
-        if (hint) hint.textContent = `Downloading… ${done}/${total}`;
+      $$('#problemList .problem-card').forEach(card => {
+        card.addEventListener('click', e => {
+          if (e.target.closest('[data-fav]')) return;
+          goSubView('problem/' + encodeURIComponent(card.dataset.id));
+        });
       });
-      toast(`Cached ${count} problems`, 'fa-circle-check');
-      haptic(15);
+      $$('#problemList [data-fav]').forEach(f => {
+        f.addEventListener('click', async e => {
+          e.stopPropagation();
+          await toggleFavorite(f.dataset.fav, f);
+        });
+      });
+
+      // pagination
+      const pager = $('#problemPager');
+      if (totalPages > 1) {
+        pager.innerHTML = `
+          <button class="btn btn-secondary btn-sm" id="pgPrev" ${page <= 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>
+          <span class="small muted">${page} / ${totalPages}</span>
+          <button class="btn btn-secondary btn-sm" id="pgNext" ${page >= totalPages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>`;
+        $('#pgPrev').onclick = () => { if (page > 1) { page--; renderList(); view.scrollTop = 0; } };
+        $('#pgNext').onclick = () => { if (page < totalPages) { page++; renderList(); view.scrollTop = 0; } };
+      } else {
+        pager.innerHTML = '';
+      }
+    }
+
+    function bindTagRemoval() {
+      $$('#activeTagsRow [data-rm]').forEach(rm => {
+        rm.addEventListener('click', () => {
+          activeTags.delete(rm.dataset.rm);
+          localStorage.setItem('moj_activeTags', JSON.stringify(Array.from(activeTags)));
+          page = 1;
+          renderProblems(view);
+        });
+      });
+    }
+
+    renderList();
+    bindTagRemoval();
+
+    $('#refreshBtn').onclick = async () => {
+      $('#refreshBtn').disabled = true;
+      await refreshProblemData();
+      renderProblems(view);
+    };
+    $('#tagsBtn').onclick = () => openTagModal(activeTags, sortedTags, tagCounts, () => renderProblems(view));
+  }
+
+  function openTagModal(activeTags, sortedTags, tagCounts, onDone) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `<div class="modal">
+      <h3><i class="fas fa-tag"></i> Select tags</h3>
+      <div id="tagList" style="max-height:50vh;overflow-y:auto"></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary btn-sm" id="tagClear">Clear</button>
+        <button class="btn btn-sm" id="tagDone">Done</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+    const list = $('#tagList', overlay);
+    list.innerHTML = sortedTags.map(t => {
+      const on = activeTags.has(t);
+      return `<div class="setting-row" data-tag="${esc(t)}">
+        <div class="tt"><span class="lbl">${esc(t)}</span><span class="dsc">${tagCounts[t] || 0} problems</span></div>
+        <i class="fas ${on ? 'fa-check-circle' : 'fa-circle'}" style="color:${on ? 'var(--accent)' : 'var(--text-3)'}"></i>
+      </div>`;
+    }).join('') || '<div class="empty">No tags</div>';
+    $$('#tagList [data-tag]', overlay).forEach(row => {
+      row.addEventListener('click', () => {
+        const t = row.dataset.tag;
+        if (activeTags.has(t)) activeTags.delete(t); else activeTags.add(t);
+        localStorage.setItem('moj_activeTags', JSON.stringify(Array.from(activeTags)));
+        overlay.remove();
+        onDone();
+      });
+    });
+    $('#tagClear', overlay).onclick = () => { activeTags.clear(); localStorage.setItem('moj_activeTags', '[]'); overlay.remove(); onDone(); };
+    $('#tagDone', overlay).onclick = () => { overlay.remove(); onDone(); };
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  }
+
+  async function toggleFavorite(pid, el) {
+    const wasFav = Store.favorites.has(pid);
+    if (wasFav) Store.favorites.delete(pid); else Store.favorites.add(pid);
+    LCache.setFavorites({ favorites: Array.from(Store.favorites), updatedAt: Date.now() });
+    if (el) {
+      el.classList.toggle('on', !wasFav);
+      el.innerHTML = `<i class="${!wasFav ? 'fas' : 'far'} fa-star"></i>`;
+    }
+    if (!isOnline()) { toast('Offline: favorite will sync when online', 'warn'); return; }
+    try {
+      const res = await apiCall('/api/users?action=favorite', 'POST', { problemId: pid });
+      if (res.success) {
+        Store.favorites = new Set(res.favorites);
+        LCache.setFavorites({ favorites: Array.from(Store.favorites), updatedAt: Date.now() });
+      }
+    } catch (e) { /* keep optimistic state */ }
+  }
+
+  // ── Problem detail ──
+  async function renderProblemDetail(view, pid) {
+    if (!pid) { view.innerHTML = '<div class="empty">Invalid problem</div>'; return; }
+
+    let problem = null, state = 'not_started', favorited = false;
+    const cached = await DB.getStatement(pid);
+    if (cached) {
+      problem = { id: pid, name: cached.name, statement: cached.statement, difficulty: 0, tags: [], FS: false };
+    }
+
+    view.innerHTML = `
+      <div class="detail-header">
+        <div class="nm" id="pdName">${esc(pid)}</div>
+        <span id="pdStateIcon"></span>
+        <span id="pdDiff" class="small muted"></span>
+        <span id="pdFav" style="font-size:1.2rem;color:#aaa;padding:4px"><i class="far fa-star"></i></span>
+      </div>
+      <div class="wb" id="pdWorkbench"></div>
+      <div class="card statement-content" id="pdStatement"><div class="loading-wrap"><span class="spinner"></span></div></div>
+      <div class="card" id="pdActions"></div>`;
+
+    const stmtEl = $('#pdStatement');
+    if (problem && cached) {
+      $('#pdName').textContent = pid + ' - ' + (cached.name || '');
+      await renderStatementInto(stmtEl, cached.statement);
+    }
+
+    // fetch authoritative data
+    try {
+      const data = await apiCall('/api/problem?action=page&id=' + encodeURIComponent(pid));
+      if (!data || !data.success || !data.problem) {
+        if (!problem) { view.innerHTML = '<div class="empty"><i class="fas fa-lock"></i>Problem not found or access denied</div>'; return; }
+      } else {
+        problem = data.problem;
+        state = data.state || 'not_started';
+        favorited = !!data.favorited;
+        $('#pdName').textContent = pid + ' - ' + (problem.name || '');
+        $('#pdDiff').textContent = 'Lv.' + (problem.difficulty === 0 ? '∞' : (problem.difficulty || 0).toFixed(2));
+        if ((problem.tags || []).length) {
+          const tagsEl = document.createElement('span');
+          tagsEl.className = 'small muted';
+          tagsEl.textContent = (problem.tags || []).join(', ');
+          $('#pdDiff').after(tagsEl);
+        }
+        await renderStatementInto(stmtEl, problem.statement);
+        await DB.putStatement({ id: String(pid), name: problem.name, statement: problem.statement, updatedAt: Date.now() });
+      }
     } catch (e) {
-      toast('Cache failed: ' + (e.message || 'unknown'), 'fa-circle-exclamation');
-      if (hint) hint.textContent = origHint;
-    } finally {
-      state._cacheInProgress = false;
-      cacheBtn.classList.remove('caching');
-      await updateCacheButtonUI();
+      if (problem) { /* offline: use cache */ }
+      else { view.innerHTML = '<div class="empty"><i class="fas fa-cloud-slash"></i>Offline and not cached</div>'; return; }
     }
-  };
 
-  // Drafts sync
-  const draftsBtn = $('#ml-drafts-btn');
-  draftsBtn.onclick = async () => {
-    if (draftsBtn.disabled) return;
-    haptic(10);
-    draftsBtn.disabled = true;
-    draftsBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-    await syncDrafts();
-    await updateDraftsUI();
-  };
-    // Force Reset
-  const resetBtn = $('#ml-reset-btn');
-  if (resetBtn) {
-    resetBtn.onclick = async () => {
-      if (resetBtn.disabled) return;
-      const ok = confirm(
-        'Force Reset\n\n' +
-        '• Clear all caches (Cache Storage)\n' +
-        '• Unregister Service Worker\n' +
-        '• Stop the app\n\n' +
-        'You will need to close and reopen the app.'
-      );
-      if (!ok) return;
-
-      haptic(30);
-      resetBtn.disabled = true;
-      resetBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting…';
-
-      // 1) 清 Cache Storage
-      try {
-        if ('caches' in window) {
-          const keys = await caches.keys();
-          await Promise.all(keys.map(k => caches.delete(k)));
-        }
-      } catch (e) { console.warn('clear caches failed', e); }
-
-      // 2) 註銷所有 Service Worker
-      try {
-        if ('serviceWorker' in navigator) {
-          const regs = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(regs.map(r => r.unregister()));
-        }
-      } catch (e) { console.warn('unregister SW failed', e); }
-
-      // 3) 清 sessionStorage（保留 auth_token）
-      try { sessionStorage.clear(); } catch {}
-
-      // 4) 崩潰
-      crashOut();
+    // state / fav icons
+    $('#pdStateIcon').innerHTML = state === 'passed' ? '<i class="fas fa-check-circle" style="color:var(--success)"></i>'
+      : state === 'failed' ? '<i class="fas fa-times-circle" style="color:var(--danger)"></i>' : '';
+    const favEl = $('#pdFav');
+    favEl.innerHTML = `<i class="${favorited ? 'fas' : 'far'} fa-star"></i>`;
+    favEl.style.color = favorited ? '#f1c40f' : '#aaa';
+    favEl.onclick = async () => {
+      favorited = !favorited;
+      favEl.innerHTML = `<i class="${favorited ? 'fas' : 'far'} fa-star"></i>`;
+      favEl.style.color = favorited ? '#f1c40f' : '#aaa';
+      await toggleFavorite(pid, null);
     };
+
+    renderWorkbench(problem);
+    renderProblemActions(problem);
   }
 
-  // 帳號操作
-  $$('[data-act]', content).forEach(el => {
-    el.onclick = async () => {
-      const a = el.dataset.act;
-      if (a === 'password') {
-        const oldP = prompt('Current password');
-        if (!oldP) return;
-        const newP = prompt('New password (min 4 chars)');
-        if (!newP) return;
-        try {
-          const r = await apiCall('/api/users?action=changepassword', 'POST', { oldPassword: oldP, newPassword: newP });
-          toast(r.success ? 'Password updated' : (r.message || 'Failed'), r.success ? 'fa-circle-check' : 'fa-circle-exclamation');
-        } catch { toast('Network error', 'fa-wifi'); }
-      } else if (a === 'name') {
-        const cur = state.user ? (state.user.displayName || state.user.username) : '';
-        const nn = prompt('New display name', cur);
-        if (!nn || !nn.trim()) return;
-        try {
-          const r = await apiCall('/api/users?action=changename', 'POST', { newname: nn.trim() });
-          if (r.success) { state.user.displayName = nn.trim(); toast('Updated', 'fa-circle-check'); }
-          else toast(r.message || 'Failed', 'fa-circle-exclamation');
-        } catch { toast('Network error', 'fa-wifi'); }
-      } else if (a === 'logout') {
-        haptic(10);
-        if (!confirm('Sign out?')) return;
-        setToken(null);
-        setTimeout(() => location.reload(), 60);
-      }
-    };
-  });
-
-  await updateCacheButtonUI();
-  await updateDraftsUI();
-}
-
-// ═══════════════════════════════════════════════════════════
-// 20b. 草稿箱管理頁
-// ═══════════════════════════════════════════════════════════
-async function renderDrafts() {
-  const content = $('#ml-content');
-  content.innerHTML = `
-    <div class="ml-page">
-      <div class="ml-set-group">
-        <div class="ml-set-item">
-          <span class="lbl">
-            <i class="fas fa-inbox" style="margin-right:8px;opacity:.6;width:16px"></i>Draft Queue
-            <span class="hint" id="ml-drafts-count">Loading…</span>
-          </span>
-          <button class="ml-pfp-btn" id="ml-drafts-sync-all" disabled><i class="fas fa-cloud-arrow-up"></i> Sync all</button>
-        </div>
+  function renderWorkbench(problem) {
+    const el = $('#pdWorkbench');
+    const fsForced = problem.FS === true;
+    el.innerHTML = `
+      <div class="wb-tabs">
+        <button class="wb-tab" data-mode="text" ${fsForced ? 'disabled' : ''}><i class="fas fa-keyboard"></i>Text</button>
+        <button class="wb-tab" data-mode="photo"><i class="fas fa-camera"></i>Image</button>
+        <button class="wb-tab" data-mode="steps"><i class="fas fa-wand-magic-sparkles"></i>AI Steps</button>
       </div>
-      <div id="ml-draft-list"></div>
-      <p class="ml-draft-foot">Offline submissions are stored on this device and auto-synced when you're back online.</p>
-    </div>`;
-
-  const syncAll = $('#ml-drafts-sync-all');
-  syncAll.onclick = async () => {
-    if (syncAll.disabled) return;
-    haptic(10);
-    syncAll.disabled = true;
-    syncAll.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing…';
-    await syncDrafts();
-    await renderDraftList();
-  };
-
-  await renderDraftList();
-}
-
-async function renderDraftList() {
-  const wrap = $('#ml-draft-list');
-  const count = $('#ml-drafts-count');
-  const syncAll = $('#ml-drafts-sync-all');
-  if (!wrap) return;
-
-  const drafts = await getAllDrafts();
-  if (count) count.textContent = `${drafts.length} pending`;
-  if (syncAll) {
-    syncAll.disabled = !drafts.length || !navigator.onLine;
-    syncAll.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Sync all';
-  }
-
-  if (!drafts.length) {
-    wrap.innerHTML = `<div class="ml-empty"><i class="fas fa-circle-check"></i>No pending drafts — all synced</div>`;
-    return;
-  }
-
-  wrap.innerHTML = drafts.map(d => {
-    const dt = fmtDateTime(d.createdAt);
-    const preview = String(d.answer || '').slice(0, 80);
-    const tries = d.tries || 0;
-    return `
-      <div class="ml-draft-card" data-id="${d.id}">
-        <div class="ml-draft-main">
-          <div class="ml-draft-problem">${esc(d.problemId)}${d.type === 'image' ? ' <i class="fas fa-image"></i>' : ''}</div>
-          <div class="ml-draft-answer">${esc(preview) || '<em>(empty)</em>'}</div>
-          <div class="ml-draft-meta"><i class="far fa-clock"></i> ${dt.short}${tries ? ` · ${tries} retr${tries === 1 ? 'y' : 'ies'}` : ''}</div>
-        </div>
-        <div class="ml-draft-actions">
-          <button class="ml-draft-btn retry" data-id="${d.id}" ${navigator.onLine ? '' : 'disabled'} title="Submit now"><i class="fas fa-rotate"></i></button>
-          <button class="ml-draft-btn del" data-id="${d.id}" title="Delete"><i class="fas fa-trash"></i></button>
-        </div>
+      <div id="wbPane" style="margin-bottom:8px"></div>
+      <div class="wb-status" id="wbStatus"></div>
+      <div class="wb-footer">
+        <button class="btn" id="wbSubmit"><i class="fas fa-paper-plane"></i> Submit</button>
       </div>`;
-  }).join('');
 
-  // 单个重试：不预先删除，提交成功或转存草稿后才删原稿（避免 4xx 丢答案）
-  $$('.ml-draft-btn.retry', wrap).forEach(btn => {
-    btn.onclick = async () => {
-      const id = Number(btn.dataset.id);
-      const drafts = await getAllDrafts();
-      const d = drafts.find(x => x.id === id);
-      if (!d) { await renderDraftList(); return; }
-      haptic(6);
+    let mode = fsForced ? 'steps' : 'text';
+    let imageData = '';
+
+    const savedAnswer = (() => { try { return JSON.parse(localStorage.getItem('pd_user_answers') || '{}')[problem.id] || ''; } catch { return ''; } })();
+
+    function setMode(m) {
+      mode = m;
+      $$('#pdWorkbench .wb-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === m));
+      const pane = $('#wbPane');
+      if (m === 'text') {
+        pane.innerHTML = `<input class="input" id="answerInput" inputmode="decimal" autocomplete="off" placeholder="Enter answer" value="${esc(savedAnswer)}">`;
+        const inp = $('#answerInput');
+        inp.addEventListener('input', () => {
+          const o = (() => { try { return JSON.parse(localStorage.getItem('pd_user_answers') || '{}'); } catch { return {}; } })();
+          o[problem.id] = inp.value; localStorage.setItem('pd_user_answers', JSON.stringify(o));
+        });
+      } else if (m === 'photo') {
+        pane.innerHTML = `<div class="dropzone" id="wbDropzone"><input type="file" id="imageFileInput" accept="image/*" hidden><i class="fas fa-cloud-arrow-up"></i><div class="small">Tap to upload image</div></div>
+          <div class="photo-preview" id="wbPhotoPreview" hidden><img id="imagePreview"><div class="row mt8">
+            <button class="btn btn-secondary btn-sm" id="wbRetake"><i class="fas fa-rotate"></i> Replace</button>
+            <button class="btn btn-secondary btn-sm" id="wbRemoveImage"><i class="fas fa-trash"></i> Remove</button>
+          </div></div>`;
+        bindImageInput();
+      } else {
+        pane.innerHTML = `<textarea class="input" id="stepsInput" rows="8" maxlength="10000" placeholder="Write your solution steps (AI-graded)"></textarea>
+          <div class="counter"><span id="stepsCount">0</span> / 10000</div>`;
+        $('#stepsInput').addEventListener('input', () => $('#stepsCount').textContent = $('#stepsInput').value.length);
+      }
+    }
+
+    function bindImageInput() {
+      const dz = $('#wbDropzone'); const fi = $('#imageFileInput');
+      const preview = $('#wbPhotoPreview'); const img = $('#imagePreview');
+      function accept(file) {
+        if (!file) return;
+        if (!file.type.startsWith('image/')) { toast('Please select an image', 'err'); return; }
+        if (file.size > 5 * 1024 * 1024) { toast('Image too large (max 5MB)', 'err'); return; }
+        const reader = new FileReader();
+        reader.onload = e => {
+          const im = new Image();
+          im.onload = () => {
+            const maxW = 1600; let w = im.width, h = im.height;
+            if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+            const c = document.createElement('canvas'); c.width = w; c.height = h;
+            c.getContext('2d').drawImage(im, 0, 0, w, h);
+            imageData = c.toDataURL('image/jpeg', 0.88);
+            img.src = imageData; dz.hidden = true; preview.hidden = false;
+          };
+          im.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+      dz.onclick = () => fi.click();
+      fi.onchange = () => { accept(fi.files[0]); fi.value = ''; };
+      $('#wbRetake').onclick = () => fi.click();
+      $('#wbRemoveImage').onclick = () => { imageData = ''; img.src = ''; preview.hidden = true; dz.hidden = false; };
+    }
+
+    setMode(mode);
+    $$('#pdWorkbench .wb-tab').forEach(t => t.addEventListener('click', () => { if (!t.disabled) setMode(t.dataset.mode); }));
+
+    const statusEl = $('#wbStatus');
+    function setStatus(text, cls) { statusEl.textContent = text; statusEl.className = 'wb-status' + (cls ? ' ' + cls : ''); }
+
+    $('#wbSubmit').onclick = async () => {
+      const btn = $('#wbSubmit');
       btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-      try {
-        const r = await submitAnswer(d.problemId, d.answer, d.type || 'text', d.image || '');
-        if (r && r.drafted) {
-          // 已存成新草稿，删掉旧稿避免重复
-          await deleteDraft(id);
-          toast('Still offline — kept in queue', 'fa-plane');
-        } else {
-          await deleteDraft(id);
-          if (r && (r.correct || r.score === 100)) {
-            state.states = state.states || {};
-            state.states[d.problemId] = 'passed';
-            saveAcAnswer(d.problemId, d.answer);
-          } else if (state.states && state.states[d.problemId] !== 'passed') {
-            state.states[d.problemId] = 'failed';
-          }
-          saveStatesCache(state.states || {});
-          toast('Submitted', 'fa-circle-check');
-          haptic(10);
-        }
-      } catch (e) {
-        // 明确的业务错误（4xx）→ 保留草稿，提示用户
-        toast('Failed: ' + (e.message || 'unknown'), 'fa-circle-exclamation');
+      if (mode === 'text') {
+        const answer = $('#answerInput').value.trim();
+        if (!answer) { setStatus('Please enter an answer', 'err'); btn.disabled = false; return; }
+        setStatus(isOnline() ? 'Submitting…' : 'Offline — saving to drafts…', 'busy');
+        const r = await submitOne({ problemId: problem.id, answer, type: 'text', image: '' });
+        handleSubmitResult(r, setStatus);
+      } else if (mode === 'photo') {
+        if (!imageData) { setStatus('Please upload an image first', 'err'); btn.disabled = false; return; }
+        setStatus(isOnline() ? 'Uploading…' : 'Offline — saving to drafts…', 'busy');
+        const r = await submitOne({ problemId: problem.id, answer: '', type: 'image', image: imageData });
+        handleSubmitResult(r, setStatus);
+      } else {
+        const steps = $('#stepsInput').value.trim();
+        if (!steps) { setStatus('Please enter steps', 'err'); btn.disabled = false; return; }
+        setStatus(isOnline() ? 'Submitting to AI…' : 'Offline — saving to drafts…', 'busy');
+        const r = await submitSteps(problem.id, steps);
+        handleSubmitResult(r, setStatus);
       }
-      await renderDraftList();
+      btn.disabled = false;
     };
-  });
-
-  // 删除
-  $$('.ml-draft-btn.del', wrap).forEach(btn => {
-    btn.onclick = async () => {
-      const id = Number(btn.dataset.id);
-      haptic(6);
-      await deleteDraft(id);
-      await renderDraftList();
-    };
-  });
-}
-
-// ═══════════════════════════════════════════════════════════
-// 20c. Resources 學習資源頁（瀏覽 GitHub 資源庫，離線緩存目錄）
-// ═══════════════════════════════════════════════════════════
-const RES_OWNER = 'wyk-math-team';
-const RES_REPO  = 'resources';
-const RES_HIDDEN = ['script', 'static', 'tools', 'web_css', '.github'];
-
-function resCacheKey(path) { return 'mobile_res_' + (path || '_root_'); }
-
-async function loadResDir(path) {
-  const key = resCacheKey(path);
-  // 先看本地快取（離線也能瀏覽之前開過的目錄）
-  try {
-    const cached = localStorage.getItem(key);
-    if (cached) return JSON.parse(cached);
-  } catch {}
-  if (!navigator.onLine) return null;
-  const url = `https://api.github.com/repos/${RES_OWNER}/${RES_REPO}/contents/${path || ''}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  const data = await res.json();
-  try { localStorage.setItem(key, JSON.stringify(data)); } catch {}
-  return data;
-}
-
-function resFileIcon(name) {
-  const n = String(name || '').toLowerCase();
-  if (n.endsWith('.pdf')) return 'fa-file-pdf';
-  if (/\.(png|jpe?g|gif|webp|svg|bmp)$/.test(n)) return 'fa-file-image';
-  if (/\.(zip|rar|7z|tar|gz)$/.test(n)) return 'fa-file-archive';
-  if (/\.(docx?|odt)$/.test(n)) return 'fa-file-word';
-  if (/\.(xlsx?|ods|csv)$/.test(n)) return 'fa-file-excel';
-  if (/\.(pptx?|odp)$/.test(n)) return 'fa-file-powerpoint';
-  if (/\.(tex|md|txt|log)$/.test(n)) return 'fa-file-alt';
-  return 'fa-file';
-}
-
-async function renderResources(path) {
-  const content = $('#ml-content');
-  content.innerHTML = `
-    <div class="ml-page">
-      <div class="ml-res-breadcrumb" id="ml-res-breadcrumb"></div>
-      <div id="ml-res-list"></div>
-    </div>`;
-  await renderResDir(path);
-}
-
-async function renderResDir(path) {
-  const list = $('#ml-res-list');
-  const bread = $('#ml-res-breadcrumb');
-  if (!list) return;
-
-  // 面包屑
-  let bc = `<a data-nav="/resources"><i class="fas fa-folder-open"></i> Root</a>`;
-  if (path) {
-    const parts = String(path).split('/').filter(Boolean);
-    let cur = '';
-    parts.forEach((p, i) => {
-      cur += (i ? '/' : '') + p;
-      bc += `<span class="ml-res-sep">/</span><a data-nav="/resources/${encodeURIComponent(cur)}">${esc(p)}</a>`;
-    });
-  }
-  bread.innerHTML = bc;
-  $$('a[data-nav]', bread).forEach(a => {
-    a.onclick = () => { haptic(6); navigate(a.dataset.nav); };
-  });
-
-  list.innerHTML = `<div class="ml-empty"><i class="fas fa-spinner fa-spin"></i> Loading…</div>`;
-
-  let data;
-  try {
-    data = await loadResDir(path);
-  } catch (e) {
-    list.innerHTML = `<div class="ml-empty"><i class="fas fa-triangle-exclamation"></i>Failed to load</div>`;
-    return;
   }
 
-  if (data === null) {
-    list.innerHTML = `<div class="ml-empty"><i class="fas fa-plane"></i>Offline — this folder isn't cached yet</div>`;
-    return;
-  }
-
-  // 直接命中单个文件（一般不会发生）
-  if (!Array.isArray(data)) {
-    window.open(`https://cdn.jsdelivr.net/gh/${RES_OWNER}/${RES_REPO}/${data.path}`, '_blank');
-    return;
-  }
-
-  const items = data
-    .filter(it => !RES_HIDDEN.includes(it.name))
-    .sort((a, b) => {
-      if (a.type === 'dir' && b.type !== 'dir') return -1;
-      if (a.type !== 'dir' && b.type === 'dir') return 1;
-      return a.name.localeCompare(b.name);
-    });
-
-  if (!items.length) {
-    list.innerHTML = `<div class="ml-empty"><i class="fas fa-folder-open"></i>Empty folder</div>`;
-    return;
-  }
-
-  list.innerHTML = items.map(it => {
-    const isDir = it.type === 'dir';
-    const icon = isDir ? 'fa-folder' : resFileIcon(it.name);
-    const size = it.size ? (it.size / 1024).toFixed(1) + ' KB' : '';
-    const target = isDir
-      ? '/resources/' + encodeURIComponent(it.path)
-      : `https://cdn.jsdelivr.net/gh/${RES_OWNER}/${RES_REPO}/${it.path}`;
-    return `
-      <div class="ml-res-item" data-dir="${isDir ? '1' : '0'}" data-target="${escAttr(target)}">
-        <i class="fas ${icon} ico"></i>
-        <span class="lbl">${esc(it.name)}</span>
-        <span class="size">${esc(size)}</span>
-        <i class="fas fa-chevron-right chev"></i>
-      </div>`;
-  }).join('');
-
-  $$('.ml-res-item', list).forEach(el => {
-    el.onclick = () => {
-      haptic(6);
-      if (el.dataset.dir === '1') navigate(el.dataset.target);
-      else window.open(el.dataset.target, '_blank');
-    };
-  });
-}
-
-// 圖片壓縮
-function compressImage(file, maxDim, quality) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        let w = img.width, h = img.height;
-        if (w > maxDim || h > maxDim) {
-          if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
-          else { w = Math.round(w * maxDim / h); h = maxDim; }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      };
-      img.onerror = () => reject(new Error('Load failed'));
-      img.src = e.target.result;
-    };
-    reader.onerror = () => reject(new Error('Read failed'));
-    reader.readAsDataURL(file);
-  });
-}
-
-// ═══════════════════════════════════════════════════════════
-// 21. 路由分派
-// ═══════════════════════════════════════════════════════════
-const SCROLL_KEEP_PATHS = /^\/(problems|submissions|contests|rank|me|settings)?$/;
-
-async function renderRoute() {
-  const prevPath = state.route.path;
-  state.route = parseRoute();
-  const p = state.route.parts;
-  const nextPath = state.route.path;
-  const isFirst = state._firstRender;
-  const direction = isFirst ? 'fade' : detectDirection(prevPath, nextPath);
-
-  renderTabBar();
-
-  const content = $('#ml-content');
-  const keep = SCROLL_KEEP_PATHS.test(nextPath);
-  if (content) {
-    if (keep) {
-      const saved = state._scrollMemory[nextPath];
-      content.scrollTop = typeof saved === 'number' ? saved : 0;
-    } else {
-      content.scrollTop = 0;
-    }
-  }
-
-  renderAppBar({ leftDisabled: p.length <= 1, rightDisabled: true });
-
-  const doTransition = !isFirst && content && state.settings.animations;
-  if (doTransition) {
-    content.innerHTML = `<div class="ml-page"><div class="ml-loading-center"><span class="ml-spinner"></span></div></div>`;
-    animatePageEnter(content, direction);
-  }
-
-  if (p.length === 0) await renderHome();
-  else if (p[0] === 'problems') {
-    if (p[1]) await renderProblemDetail(decodeURIComponent(p[1]));
-    else await renderProblems();
-  } else if (p[0] === 'submissions') {
-    if (p[1]) await renderSubmissionDetail(decodeURIComponent(p[1]));
-    else await renderSubmissions();
-  } else if (p[0] === 'contests') {
-    if (p[1]) await renderContestDetail(decodeURIComponent(p[1]));
-    else await renderContests();
-  } else if (p[0] === 'rank') await renderRank();
-  else if (p[0] === 'me') await renderMe();
-  else if (p[0] === 'settings') await renderSettings();
-  else if (p[0] === 'drafts') await renderDrafts();
-  else if (p[0] === 'resources') await renderResources(p.slice(1).join('/'));
-  else await renderHome();
-
-  if (doTransition) {
-    setTimeout(() => { staggerIn(content); }, 30);
-  }
-
-  state._firstRender = false;
-}
-
-// ═══════════════════════════════════════════════════════════
-// 22. 滾動隱藏 AppBar
-// ═══════════════════════════════════════════════════════════
-function bindScrollBehavior() {
-  const content = $('#ml-content');
-  if (!content) return;
-  content.addEventListener('scroll', () => {
-    const st = content.scrollTop;
-    const diff = st - state.lastScrollTop;
-    if (st > 60 && diff > 6) document.body.classList.add('ml-scrolling');
-    else if (diff < -6 || st < 60) document.body.classList.remove('ml-scrolling');
-    state.lastScrollTop = st;
-  }, { passive: true });
-}
-
-// ═══════════════════════════════════════════════════════════
-// 23. Login
-// ═══════════════════════════════════════════════════════════
-function renderLogin() {
-  const root = $('#ml-root');
-  document.getElementById('ml-loading')?.remove();
-  document.body.style.overflow = 'auto';
-
-  root.innerHTML = `
-    <div id="ml-login">
-      <div class="ml-login-card">
-        <div class="ml-login-logo">
-          <i class="fas fa-cube"></i>
-          <h1>WYK Maths Team</h1>
-          <p>Sign in to continue</p>
-        </div>
-        <form class="ml-login-form" id="ml-login-form" autocomplete="on">
-          <div class="ml-input-wrap">
-            <i class="fas fa-user"></i>
-            <input type="text" class="ml-input" id="ml-login-u" placeholder="Username" autocomplete="username" autocapitalize="none" spellcheck="false">
-          </div>
-          <div class="ml-input-wrap">
-            <i class="fas fa-lock"></i>
-            <input type="password" class="ml-input" id="ml-login-p" placeholder="Password" autocomplete="current-password">
-          </div>
-          <div class="ml-login-err" id="ml-login-err"></div>
-          <button type="submit" class="ml-btn full" id="ml-login-btn">
-            <i class="fas fa-right-to-bracket"></i> Sign In
-          </button>
-        </form>
-        <div class="ml-login-divider">OR</div>
-        <button class="ml-ms-btn" id="ml-login-ms">
-          <svg width="18" height="18" viewBox="0 0 23 23" aria-hidden="true">
-            <rect x="0" y="0" width="10.5" height="10.5" fill="#F25022"/>
-            <rect x="12.5" y="0" width="10.5" height="10.5" fill="#7FBA00"/>
-            <rect x="0" y="12.5" width="10.5" height="10.5" fill="#00A4EF"/>
-            <rect x="12.5" y="12.5" width="10.5" height="10.5" fill="#FFB900"/>
-          </svg>
-          Continue with Microsoft
-        </button>
-      </div>
-    </div>`;
-
-  const form = $('#ml-login-form');
-  const uInp = $('#ml-login-u');
-  const pInp = $('#ml-login-p');
-  const btn  = $('#ml-login-btn');
-  const err  = $('#ml-login-err');
-
-  const shake = () => {
-    if (!state.settings.animations) return;
-    [uInp, pInp].forEach(el => {
-      if (!el || typeof el.animate !== 'function') return;
-      try {
-        el.animate(
-          [{ transform: 'translateX(0)' }, { transform: 'translateX(-6px)' },
-           { transform: 'translateX(6px)' }, { transform: 'translateX(-4px)' },
-           { transform: 'translateX(4px)' }, { transform: 'translateX(0)' }],
-          { duration: 360, easing: 'ease' }
-        );
-      } catch {}
-    });
-    haptic(20);
-  };
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const u = uInp.value.trim();
-    const p = pInp.value;
-    if (!u || !p) {
-      err.textContent = 'Enter username and password';
-      shake();
+  function handleSubmitResult(r, setStatus) {
+    if (r.drafted) {
+      setStatus('Saved to drafts — will submit when online', 'ok');
+      toast('Saved to drafts', 'ok');
+      updateDraftBadge();
       return;
     }
-    err.textContent = '';
-    btn.disabled = true;
-    btn.innerHTML = '<span class="ml-spinner" style="width:14px;height:14px;border-width:2px"></span>';
+    if (!r.success) { setStatus(r.message || 'Submission failed', 'err'); return; }
+    if (r.correct || r.score === 100) {
+      setStatus('Accepted ✅', 'ok');
+    } else if (r.score === 0 || r.correct === false) {
+      setStatus('Wrong Answer ❌', 'err');
+    } else if (r.score !== undefined) {
+      setStatus('Partial (' + r.score + ')', 'ok');
+    } else if (r.systemError) {
+      setStatus('System Error', 'err');
+    } else {
+      setStatus('Submitted', 'ok');
+    }
+    toast('Submitted', 'ok');
+  }
 
-    const loginStart = Date.now();
+  async function submitOne(payload) {
+    // offline → draft
+    if (!isOnline()) {
+      await DB.addDraft({ problemId: payload.problemId, answer: payload.answer, type: payload.type, image: payload.image, createdAt: Date.now() });
+      updateDraftBadge();
+      return { drafted: true };
+    }
     try {
-      const result = await doLogin(u, p);
-      const elapsed = Date.now() - loginStart;
-      if (elapsed < 500) await new Promise(r => setTimeout(r, 500 - elapsed));
-      if (result && result.success) {
-        haptic(15);
-        location.reload();
-        return;
+      const res = await apiCall('/api/submit', 'POST', { ...payload, pageDwellMs: 0 });
+      return res;
+    } catch (e) {
+      if (e.offline) {
+        await DB.addDraft({ problemId: payload.problemId, answer: payload.answer, type: payload.type, image: payload.image, createdAt: Date.now() });
+        updateDraftBadge();
+        return { drafted: true };
       }
-      err.textContent = (result && result.message) || 'Invalid credentials';
-      shake();
-    } catch (e2) {
-      const elapsed = Date.now() - loginStart;
-      if (elapsed < 500) await new Promise(r => setTimeout(r, 500 - elapsed));
-      err.textContent = 'Network error';
-      shake();
+      return { success: false, message: e.message };
     }
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> Sign In';
-  });
+  }
 
-  $('#ml-login-ms').onclick = () => { location.href = '/api/auth/microsoft'; };
-}
-
-// ═══════════════════════════════════════════════════════════
-// 24. Service Worker / 離線
-// ═══════════════════════════════════════════════════════════
-function registerServiceWorker() {
-  if (!('serviceWorker' in navigator)) return;
-  if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
-
-  let isFirstLoad = !navigator.serviceWorker.controller;
-
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (isFirstLoad) { isFirstLoad = false; return; }
-    if (!sessionStorage.getItem('sw_reloaded')) {
-      sessionStorage.setItem('sw_reloaded', '1');
-      location.reload();
+  async function submitSteps(pid, steps) {
+    if (!isOnline()) {
+      await DB.addDraft({ problemId: pid, answer: steps, type: 'steps', image: '', createdAt: Date.now() });
+      updateDraftBadge();
+      return { drafted: true };
     }
-  });
-
-  navigator.serviceWorker
-    .register('/mobile/sw.js', { scope: '/mobile/' })
-    .then(reg => reg.update().catch(() => {}))
-    .catch(err => console.warn('[sw] register failed:', err));
-}
-
-function setupOfflineIndicator() {
-  const update = () => {
-    document.body.classList.toggle('ml-offline', navigator.onLine === false);
-  };
-  update();
-
-  window.addEventListener('online', () => {
-    update();
-    toast('Back online', 'fa-wifi');
-    setTimeout(() => { syncDrafts(); }, 800);
-  });
-  window.addEventListener('offline', () => {
-    update();
-    toast('Offline mode', 'fa-plane');
-  });
-
-  // 應用恢復前台（從後台切回）→ 有網就自動同步草稿
-  document.addEventListener('visibilitychange', () => {
-    update();
-    if (document.visibilityState === 'visible' && navigator.onLine) {
-      syncDrafts();
+    try {
+      const res = await apiCall('/api/steps-grade', 'POST', { problemId: pid, steps });
+      if (res && res.taskId) return { success: true, message: 'AI grading…', pending: true };
+      return { success: false, message: res.message || 'Submission failed' };
+    } catch (e) {
+      if (e.offline) {
+        await DB.addDraft({ problemId: pid, answer: steps, type: 'steps', image: '', createdAt: Date.now() });
+        updateDraftBadge();
+        return { drafted: true };
+      }
+      return { success: false, message: e.message };
     }
-  });
-}
+  }
 
-// ═══════════════════════════════════════════════════════════
-// 25. 啟動
-// ═══════════════════════════════════════════════════════════
-function mountApp() {
-  const root = $('#ml-root');
-  root.innerHTML = `
-    <div id="ml-app">
-      <header id="ml-appbar"></header>
-      <main id="ml-content"></main>
-      <nav id="ml-tabbar"></nav>
+  function renderProblemActions(problem) {
+    const el = $('#pdActions');
+    el.innerHTML = `
+      <div class="row" style="flex-wrap:wrap;gap:8px">
+        <button class="btn btn-secondary btn-sm" id="similarBtn"><i class="fas fa-layer-group"></i> Similar</button>
+        <button class="btn btn-secondary btn-sm" id="discussBtn"><i class="fas fa-comments"></i> Discussion</button>
+        <button class="btn btn-secondary btn-sm" id="reportBtn" style="color:var(--danger)"><i class="fas fa-flag"></i> Report</button>
+      </div>
+      <div id="similarWrap" style="display:none;margin-top:10px"></div>
+      <div id="discussWrap" style="display:none;margin-top:10px"></div>`;
+
+    $('#similarBtn').onclick = async () => {
+      const wrap = $('#similarWrap');
+      if (wrap.style.display !== 'none') { wrap.style.display = 'none'; return; }
+      wrap.style.display = 'block';
+      wrap.innerHTML = '<div class="loading-wrap"><span class="spinner"></span></div>';
+      try {
+        const d = await apiCall('/api/problem?action=similar&id=' + encodeURIComponent(problem.id));
+        const sim = (d.similar || []);
+        wrap.innerHTML = sim.length
+          ? sim.map(s => `<div class="problem-card" data-id="${esc(s.id)}"><span class="problem-id">${esc(s.id)}</span><div class="grow"><div class="problem-name">${esc(s.name)}</div></div><span class="diff" style="${diffColor(s.difficulty).style}">${diffColor(s.difficulty).label}</span></div>`).join('')
+          : '<div class="empty">No similar problems</div>';
+        $$('#similarWrap .problem-card').forEach(c => c.onclick = () => goSubView('problem/' + encodeURIComponent(c.dataset.id)));
+      } catch (e) { wrap.innerHTML = '<div class="empty">Failed to load</div>'; }
+    };
+
+    $('#discussBtn').onclick = async () => {
+      const wrap = $('#discussWrap');
+      if (wrap.style.display !== 'none') { wrap.style.display = 'none'; return; }
+      wrap.style.display = 'block';
+      wrap.innerHTML = '<div class="loading-wrap"><span class="spinner"></span></div>';
+      await loadDiscussions(wrap, problem.id);
+    };
+
+    $('#reportBtn').onclick = () => openReportModal(problem.id);
+  }
+
+  async function loadDiscussions(wrap, pid) {
+    try {
+      const d = await apiCall('/api/problem?action=discussions&problemId=' + encodeURIComponent(pid));
+      const discs = d.discussions || [];
+      wrap.innerHTML = `
+        <div class="card-title">Discussion</div>
+        <div id="discList"></div>
+        <div class="field mt8">
+          <textarea class="input" id="discContent" rows="3" placeholder="Write a comment… (LaTeX supported)"></textarea>
+        </div>
+        <button class="btn btn-sm" id="discPost">Post</button>`;
+      const list = $('#discList');
+      list.innerHTML = discs.length ? discs.map(x => `
+        <div class="disc">
+          <div class="head">${esc(x.username)} · ${timeAgo(x.createdAt)}</div>
+          <div class="body" data-latex>${esc(x.content)}</div>
+          <div class="like ${x.liked ? 'on' : ''}" data-id="${esc(x._id)}"><i class="${x.liked ? 'fas' : 'far'} fa-heart"></i> ${x.likes || 0}</div>
+        </div>`).join('') : '<div class="empty">No discussion yet</div>';
+      $$('#discList .body').forEach(b => renderMath(b));
+      $$('#discList .like').forEach(l => l.onclick = async () => {
+        try {
+          await apiCall('/api/problem?action=discussions', 'PUT', { discussionId: l.dataset.id });
+          loadDiscussions(wrap, pid);
+        } catch (e) { toast('Action failed', 'err'); }
+      });
+      $('#discPost').onclick = async () => {
+        const c = $('#discContent').value.trim();
+        if (!c) return;
+        try {
+          await apiCall('/api/problem?action=discussions', 'POST', { problemId: pid, content: c });
+          $('#discContent').value = '';
+          loadDiscussions(wrap, pid);
+          toast('Posted', 'ok');
+        } catch (e) { toast(e.message || 'Failed to post', 'err'); }
+      };
+    } catch (e) {
+      wrap.innerHTML = '<div class="empty">Failed to load discussion (you may need to solve this first)</div>';
+    }
+  }
+
+  function openReportModal(pid) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `<div class="modal">
+      <h3>Report problem</h3>
+      <p class="small muted">Describe the issue. Your username will be recorded.</p>
+      <textarea class="input" id="reportReason" rows="4" maxlength="1000" placeholder="e.g. wrong statement, wrong answer, broken image…"></textarea>
+      <div class="modal-actions">
+        <button class="btn btn-secondary btn-sm" id="reportCancel">Cancel</button>
+        <button class="btn btn-sm" id="reportSubmit">Submit</button>
+      </div>
     </div>`;
-  document.body.style.overflow = 'hidden';
-  bindScrollBehavior();
-  window.addEventListener('hashchange', renderRoute);
-  renderRoute();
-}
-// ═══════════════════════════════════════════════════════════
-// 崩潰退出
-// ═══════════════════════════════════════════════════════════
-function crashOut() {
-  // 1) 停止網路活動
-  try { window.stop && window.stop(); } catch {}
+    document.body.appendChild(overlay);
+    overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+    $('#reportCancel', overlay).onclick = () => overlay.remove();
+    $('#reportSubmit', overlay).onclick = async () => {
+      const reason = $('#reportReason', overlay).value.trim();
+      if (!reason) { toast('Please enter a reason', 'err'); return; }
+      try {
+        await apiCall('/api/problem?action=report', 'POST', { problemId: pid, reason });
+        overlay.remove(); toast('Report submitted', 'ok');
+      } catch (e) { toast(e.message || 'Failed to report', 'err'); }
+    };
+  }
 
-  // 2) 停止所有定時器（瀏覽器 timer ID 是遞增整數）
-  try {
-    for (let i = 1; i < 100000; i++) {
-      clearTimeout(i);
-      clearInterval(i);
+  // ── Submissions list ──
+  async function renderSubmissions(view) {
+    const state = {
+      user: '', problem: '', result: '', page: 1, limit: 30,
+    };
+    const me = getCurrentUser().username;
+
+    view.innerHTML = `
+      <div class="card">
+        <div class="field"><label>By user</label>
+          <div class="row"><input class="input grow" id="fUser" placeholder="Username"><button class="btn btn-secondary btn-sm" id="fUserSelf">Me</button></div>
+        </div>
+        <div class="field"><label>By problem</label><input class="input" id="fProblem" placeholder="Problem ID"></div>
+        <div class="field"><label>Result</label>
+          <select class="input" id="fResult">
+            <option value="">All</option>
+            <option value="accepted">Accepted</option>
+            <option value="wrong">Wrong Answer</option>
+            <option value="partial">Partial</option>
+            <option value="pending">Pending</option>
+            <option value="system">System Error</option>
+          </select>
+        </div>
+        <button class="btn btn-block" id="fApply">Apply filters</button>
+      </div>
+      <div id="subList"></div>
+      <div id="subMore" class="center mt8"></div>`;
+
+    async function load(reset) {
+      if (reset) { state.page = 1; $('#subList').innerHTML = ''; }
+      const params = new URLSearchParams({ all: '1', page: state.page, limit: state.limit, includeHeader: '1' });
+      if (state.user) params.set('user', state.user);
+      if (state.problem) params.set('problem', state.problem);
+      if (state.result) params.set('result', state.result);
+      try {
+        const d = await apiCall('/api/submissions?' + params.toString());
+        const subs = d.submissions || [];
+        if (reset) $('#subList').innerHTML = '';
+        if (!subs.length && state.page === 1) { $('#subList').innerHTML = '<div class="empty"><i class="fas fa-inbox"></i>No submissions</div>'; $('#subMore').innerHTML = ''; return; }
+        $('#subList').insertAdjacentHTML('beforeend', subs.map(s => {
+          const st = statusOf(s);
+          return `<div class="sub-card" data-subid="${esc(s.subid)}">
+            <div class="sub-main">
+              <div class="sub-id">#${esc(s.subid)} <span class="badge ${st.cls}">${esc(st.text)}</span></div>
+              <div class="sub-info"><span data-user="${esc(s.username)}">${esc(s.displayName || s.username)}</span> · <span data-prob="${esc(s.problemId)}">${esc(s.problemId)} ${esc(s.problemName || '')}</span></div>
+              <div class="sub-info">${formatTime(s.timestamp, true)}</div>
+            </div>
+            <i class="fas fa-chevron-right" style="color:var(--text-3)"></i>
+          </div>`;
+        }).join(''));
+        $('#subMore').innerHTML = d.hasMore ? '<button class="btn btn-secondary btn-sm" id="loadMoreBtn">Load more</button>' : (subs.length ? '<span class="small muted">End of list</span>' : '');
+        if ($('#loadMoreBtn')) $('#loadMoreBtn').onclick = () => { state.page++; load(false); };
+
+        $$('#subList [data-user]').forEach(e => e.addEventListener('click', ev => { ev.stopPropagation(); goSubView('user/' + encodeURIComponent(e.dataset.user)); }));
+        $$('#subList [data-prob]').forEach(e => e.addEventListener('click', ev => { ev.stopPropagation(); goSubView('problem/' + encodeURIComponent(e.dataset.prob)); }));
+        $$('#subList .sub-card').forEach(c => c.addEventListener('click', () => goSubView('submission/' + encodeURIComponent(c.dataset.subid))));
+      } catch (e) {
+        $('#subList').innerHTML = '<div class="empty"><i class="fas fa-cloud-slash"></i>' + (e.offline ? 'Offline — cannot load submissions' : esc(e.message)) + '</div>';
+      }
     }
-  } catch {}
 
-  // 3) 清空 DOM 並換上崩潰畫面
-  try {
-    document.documentElement.innerHTML = `
-      <head>
+    $('#fApply').onclick = () => {
+      state.user = $('#fUser').value.trim();
+      state.problem = $('#fProblem').value.trim();
+      state.result = $('#fResult').value;
+      load(true);
+    };
+    $('#fUserSelf').onclick = () => { $('#fUser').value = me; };
+    await load(true);
+  }
 
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/arch-render.js"></script>
-        
-<meta charset="UTF-8">
-<script>(function(){try{
-  var t = localStorage.getItem('theme') || 'light';
-  if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
-  if (localStorage.getItem('pageTransition') === 'off') return;
-  if (sessionStorage.getItem('__pt') !== 'in') return;
-  // ⭐ 铺的是"遮罩色"，不是页面底色
-  document.documentElement.style.background = (t === 'dark' ? '#0d1117' : '#0f3460');
-}catch(e){}})();</script>
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pageload.js" defer></script>
-        <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-        <title>App Stopped</title>
-        <style>
-          html,body{margin:0;padding:0;height:100%;width:100%;
-            background:#0a0a0a;color:#f85149;
-            font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
-            display:flex;align-items:center;justify-content:center;text-align:center;
-            overscroll-behavior:none;user-select:none;-webkit-user-select:none;
-            -webkit-tap-highlight-color:transparent}
-          .crash-inner{padding:32px 24px;max-width:360px}
-          .crash-icon{font-size:56px;margin-bottom:18px;opacity:.85;color:#f85149}
-          .crash-title{font-size:18px;font-weight:800;color:#e6edf3;margin-bottom:8px;letter-spacing:-.2px}
-          .crash-text{font-size:13px;color:#8b949e;line-height:1.6;margin-bottom:24px}
-          .crash-hint{font-size:11px;color:#484f58;line-height:1.6}
-        </style>
-      </head>
-      <body>
-        <div class="crash-inner">
-          <div class="crash-icon">⚠</div>
-          <div class="crash-title">App Stopped</div>
-          <div class="crash-text">
-            All caches have been cleared.<br>
-            The app has been halted intentionally.
+  // ── Submission detail ──
+  async function renderSubmissionDetail(view, subid) {
+    if (!subid) { view.innerHTML = '<div class="empty">Invalid submission</div>'; return; }
+    view.innerHTML = '<div class="loading-wrap"><span class="spinner"></span></div>';
+    try {
+      const d = await apiCall('/api/submissions?action=detail&subid=' + encodeURIComponent(subid));
+      const s = d.submission;
+      const st = statusOf(s);
+      let answerHtml = '';
+      if (s.type === 'image' && s.image) answerHtml = `<img src="${esc(s.image)}" style="max-width:100%;border-radius:8px">`;
+      else if (s.answerHidden) answerHtml = '<div class="answer-text muted"><i class="fas fa-lock"></i> Answer hidden</div>';
+      else answerHtml = `<div class="answer-text"><b>Answer:</b> ${esc(String(s.answer ?? 'none'))}</div>`;
+
+      let commentHtml = s.commentHidden ? '<span class="muted"><i class="fas fa-lock"></i> Comment hidden</span>'
+        : (s.comment ? esc(s.comment).replace(/\n/g, '<br>') : '<span class="muted">No comment yet</span>');
+
+      view.innerHTML = `
+        <div class="card">
+          <div class="row" style="margin-bottom:8px">
+            <div class="grow sub-id">Submission #${esc(s.subid)}</div>
+            <span class="badge ${st.cls}">${esc(st.text)}</span>
           </div>
-          <div class="crash-hint">
-            Close this window and reopen the app to continue.
+          <div class="meta-item"><span class="k">User</span><span class="v" data-user="${esc(s.username)}">${esc(s.username)}</span></div>
+          <div class="meta-item"><span class="k">Problem</span><span class="v" data-prob="${esc(s.problemId)}">${esc(s.problemId)} - ${esc(d.problemName)}</span></div>
+          <div class="meta-item"><span class="k">Submitted</span><span class="v">${formatDate(s.timestamp)}</span></div>
+          <div class="meta-item"><span class="k">Total attempts</span><span class="v">${d.attempts}</span></div>
+        </div>
+        <div class="card" id="subAnswer">${answerHtml}</div>
+        <div class="card"><div class="card-title">Teacher's comment</div><div id="subComment">${commentHtml}</div></div>`;
+
+      renderMath($('#subComment'));
+      const uEl = $('#view [data-user]'); const pEl = $('#view [data-prob]');
+      if (uEl) uEl.onclick = () => goSubView('user/' + encodeURIComponent(s.username));
+      if (pEl) pEl.onclick = () => goSubView('problem/' + encodeURIComponent(s.problemId));
+    } catch (e) {
+      view.innerHTML = '<div class="empty"><i class="fas fa-triangle-exclamation"></i>' + (e.offline ? 'Offline — cannot load details' : 'Submission not found or access denied') + '</div>';
+    }
+  }
+
+  // ── Leaderboard ──
+  async function renderLeaderboard(view) {
+    view.innerHTML = `
+      <div class="seg" style="margin-bottom:10px">
+        <button data-period="overall" class="active">Overall</button>
+        <button data-period="monthly">Monthly</button>
+        <button data-period="weekly">Weekly</button>
+        <button data-period="daily">Daily</button>
+      </div>
+      <div id="lbList"></div>`;
+
+    let period = 'overall';
+    async function load() {
+      $('#lbList').innerHTML = '<div class="loading-wrap"><span class="spinner"></span></div>';
+      const url = '/api/users?action=leaderboard' + (period !== 'overall' ? '&period=' + period : '');
+      try {
+        const d = await apiCall(url);
+        const list = (d.leaderboard || []).filter(e => e.solves > 0);
+        const me = getCurrentUser().username;
+        $('#lbList').innerHTML = list.length ? list.map(e => {
+          const isMe = e.username === me;
+          const hasRating = typeof e.rating === 'number';
+          return `<div class="lb-row ${isMe ? 'mine' : ''}" data-user="${esc(e.username)}">
+            <span class="lb-rank ${e.rank <= 3 ? 'top' + e.rank : ''}">${e.rank}</span>
+            ${avatarHtml(e, 34)}
+            <div class="lb-main">
+              <div class="lb-name">${esc(e.username)} - ${esc(e.displayName || e.username)}</div>
+              <div class="lb-sub">${period === 'overall' && hasRating ? ratingBadge(e.rating, e.tierColor) + ' · ' : ''}${e.online ? '<span style="color:var(--success)">Online</span>' : ''}</div>
+            </div>
+            <span class="lb-metric">${e.solves}</span>
+          </div>`;
+        }).join('') : '<div class="empty"><i class="fas fa-ranking-star"></i>No data</div>';
+        $$('#lbList .lb-row').forEach(r => r.onclick = () => goSubView('user/' + encodeURIComponent(r.dataset.user)));
+      } catch (e) {
+        $('#lbList').innerHTML = '<div class="empty"><i class="fas fa-cloud-slash"></i>' + (e.offline ? 'Offline — cannot load' : esc(e.message)) + '</div>';
+      }
+    }
+    $$('#view .seg button').forEach(b => b.onclick = () => {
+      if (b.dataset.period === period) return;
+      period = b.dataset.period;
+      $$('#view .seg button').forEach(x => x.classList.toggle('active', x === b));
+      load();
+    });
+    await load();
+  }
+
+  function avatarHtml(entry, size) {
+    const url = entry.pfp || '';
+    if (url) return `<span class="avatar" style="width:${size}px;height:${size}px"><img src="${esc(url)}" loading="lazy"></span>`;
+    const initial = (entry.displayName || entry.username || '?').charAt(0).toUpperCase();
+    return `<span class="avatar" style="width:${size}px;height:${size}px">${esc(initial)}</span>`;
+  }
+  function ratingBadge(rating, color) {
+    const c = color || '#337ab7';
+    return `<span class="badge" style="background:${esc(c)};color:#fff;border-color:transparent">${Math.round(rating)}</span>`;
+  }
+
+  // ── User profile ──
+  async function renderUser(view, username) {
+    if (!username) { view.innerHTML = '<div class="empty">Invalid user</div>'; return; }
+    view.innerHTML = '<div class="loading-wrap"><span class="spinner"></span></div>';
+    try {
+      const d = await apiCall('/api/users?action=profile&username=' + encodeURIComponent(username));
+      const pct = d.totalProblems ? Math.round(d.totalPassed / d.totalProblems * 100) : 0;
+      const attempted = d.attempted || [];
+      const passed = attempted.filter(a => a.state === 'passed').map(a => a.id);
+      const failed = attempted.filter(a => a.state === 'failed').map(a => a.id);
+
+      view.innerHTML = `
+        <div class="card center">
+          ${avatarHtml(d, 72)}
+          <div class="hello" style="font-size:1.2rem;margin-top:8px">${esc(d.displayName || username)}</div>
+          <div class="sub muted">@${esc(username)}${d.realName ? ' · ' + esc(d.realName) : ''}</div>
+          <div class="row" style="justify-content:center;gap:6px;margin-top:8px">
+            ${ratingBadge(d.rating, d.tierColor)}
+            ${d.online ? '<span class="badge status-accepted">Online</span>' : '<span class="badge status-pending">Offline</span>'}
           </div>
         </div>
-      </body>
-    `;
-  } catch (e) {
-    try { document.body.innerHTML = '<div style="padding:40px;color:#f85149;background:#0a0a0a;height:100vh">App stopped.</div>'; } catch {}
+        <div class="stat-grid">
+          <div class="stat-card"><div class="num">${d.totalPassed}</div><div class="lbl">Solved</div></div>
+          <div class="stat-card"><div class="num">${d.totalProblems}</div><div class="lbl">Total</div></div>
+          <div class="stat-card"><div class="num">${Math.round(d.rating || 0)}</div><div class="lbl">Rating</div></div>
+          <div class="stat-card"><div class="num">${d.maxDifficulty || 0}</div><div class="lbl">Max difficulty</div></div>
+        </div>
+        <div class="card mt8">
+          <div class="card-title">Progress</div>
+          <div class="progress"><div style="width:${pct}%;background:var(--accent)"></div></div>
+          <div class="small muted mt8">${d.totalPassed} / ${d.totalProblems} (${pct}%)</div>
+        </div>
+        <div class="card mt8">
+          <div class="card-title">Solved (${passed.length})</div>
+          <div>${passed.length ? passed.slice(0, 200).map(id => `<span class="tag" style="cursor:pointer" data-prob="${esc(id)}">${esc(id)}</span>`).join('') : '<span class="muted small">None</span>'}</div>
+        </div>
+        <div class="card mt8">
+          <div class="card-title">Attempted / unsolved (${failed.length})</div>
+          <div>${failed.length ? failed.slice(0, 200).map(id => `<span class="tag" style="cursor:pointer" data-prob="${esc(id)}">${esc(id)}</span>`).join('') : '<span class="muted small">None</span>'}</div>
+        </div>`;
+      $$('#view [data-prob]').forEach(e => e.onclick = () => goSubView('problem/' + encodeURIComponent(e.dataset.prob)));
+    } catch (e) {
+      view.innerHTML = '<div class="empty"><i class="fas fa-user-slash"></i>' + (e.offline ? 'Offline — cannot load' : 'User not found') + '</div>';
+    }
   }
 
-  // 4) 阻止所有指標交互
-  try {
-    document.body.style.pointerEvents = 'none';
-    document.body.style.userSelect = 'none';
-    document.documentElement.style.pointerEvents = 'none';
-  } catch {}
-
-  // 5) 移除所有事件監聽：把 window / document 上的 handler 換掉（部分能生效）
-  try {
-    // 阻止所有鍵盤輸入
-    window.addEventListener('keydown', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-    }, true);
-    // 阻止所有滾動
-    window.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
-    window.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
-  } catch {}
-
-  // 6) 嘗試關閉視窗（PWA 通常無效，普通 tab 有時有效）
-  try { window.close(); } catch {}
-  try {
-    window.open('', '_self', '');
-    window.close();
-  } catch {}
-
-  // 7) 讓 JS 引擎進入死循環狀態（在微任務隊列的最後丟出一個 uncaught error）
-  setTimeout(() => {
-    throw new Error('__APP_FORCE_RESET__');
-  }, 60);
-}
-
-async function boot() {
-  requestAnimationFrame(tickProgress);
-  loadSettings();
-  setupOfflineIndicator();
-  registerServiceWorker();
-
-  if (!isLoggedIn()) {
-    renderLogin();
-    state.appReady = true;
-    return;
+  // ── Contests list ──
+  async function renderContests(view) {
+    view.innerHTML = '<div class="loading-wrap"><span class="spinner"></span></div>';
+    try {
+      const d = await apiCall('/api/contests?action=list&page=1&limit=50');
+      const list = d.contests || [];
+      const now = Date.now();
+      function cstatus(c) {
+        const start = new Date(c.startTime).getTime();
+        const end = start + (c.duration || 0) * 60000;
+        if (now < start) return { text: 'Upcoming', cls: 'status-pending' };
+        if (now > end) return { text: 'Ended', cls: 'status-system' };
+        return { text: 'Ongoing', cls: 'status-accepted' };
+      }
+      view.innerHTML = list.length ? list.map(c => {
+        const st = cstatus(c);
+        return `<div class="contest-card" data-id="${esc(c.id)}">
+          <div class="nm">${esc(c.name || ('Contest #' + c.id))}</div>
+          <div class="meta"><span class="badge ${st.cls}">${st.text}</span> · ${c.contestantCount} participants · ${formatDate(c.startTime)}</div>
+        </div>`;
+      }).join('') : '<div class="empty"><i class="fas fa-trophy"></i>No contests</div>';
+      $$('#view .contest-card').forEach(c => c.onclick = () => goSubView('contest/' + encodeURIComponent(c.dataset.id)));
+    } catch (e) {
+      view.innerHTML = '<div class="empty"><i class="fas fa-cloud-slash"></i>' + (e.offline ? 'Offline — cannot load' : esc(e.message)) + '</div>';
+    }
   }
 
-  state.user = getCurrentUser() || {};
-  loadProblemsCache();
-  loadStatesCache();
-  loadFavCache();
+  // ── Contest detail ──
+  async function renderContestDetail(view, cid) {
+    view.innerHTML = '<div class="loading-wrap"><span class="spinner"></span></div>';
+    try {
+      const d = await apiCall('/api/contests?action=page&id=' + encodeURIComponent(cid));
+      const c = d.contest;
+      const stText = { ongoing: 'Ongoing', upcoming: 'Upcoming', ended: 'Ended' }[c.status] || c.status;
+      const stCls = { ongoing: 'status-accepted', upcoming: 'status-pending', ended: 'status-system' }[c.status] || 'status-pending';
 
-  mountApp();
-  state.appReady = true;
+      const problems = (c.problems || []).map(p => {
+        const state = c.userContestStates[p.id] || (c.globalStates[p.id] === 'passed' ? 'passed' : 'not_started');
+        const score = c.userScores[p.id];
+        return `<div class="problem-card" data-id="${esc(p.id)}">
+          <span class="problem-id">${esc(p.id)}</span>
+          <div class="grow"><div class="problem-name">${esc(p.name || '')}</div></div>
+          <div class="problem-meta">
+            ${state === 'passed' ? '<i class="fas fa-check-circle" style="color:var(--success)"></i>'
+              : state === 'partial' ? `<span class="badge status-partial">${score ?? ''}</span>`
+              : state === 'failed' ? '<i class="fas fa-times-circle" style="color:var(--danger)"></i>' : ''}
+          </div>
+        </div>`;
+      }).join('');
 
-  // 背景預取
-  setTimeout(() => {
-    if ('requestIdleCallback' in window) requestIdleCallback(prefetchAll, { timeout: 2000 });
-    else setTimeout(prefetchAll, 300);
-  }, 200);
+      view.innerHTML = `
+        <div class="card">
+          <div class="row"><div class="grow"><div class="nm" style="font-weight:800;font-size:1.1rem">${esc(c.name || '')}</div></div>
+          <span class="badge ${stCls}">${stText}</span></div>
+          <div class="meta-item"><span class="k">Starts</span><span class="v">${formatDate(c.startTime)}</span></div>
+          <div class="meta-item"><span class="k">Duration</span><span class="v">${c.duration} min</span></div>
+          <div class="meta-item"><span class="k">Participants</span><span class="v">${c.participantCount}</span></div>
+          <div class="meta-item"><span class="k">My status</span><span class="v">${c.isParticipant ? 'Joined' : 'Not joined'}</span></div>
+          ${c.status !== 'ended' && !c.isParticipant ? '<button class="btn btn-block mt8" id="joinBtn">Join contest</button>' : ''}
+        </div>
+        ${problems ? `<div class="card"><div class="card-title">Problems (${c.problems.length})</div>${problems || '<span class="muted small">Problems shown when contest starts</span>'}</div>` : ''}
+        ${c.status === 'ended' ? '<button class="btn btn-block" id="resultsBtn"><i class="fas fa-list-ol"></i> View results</button>' : ''}`;
 
-  // 有網路時自動同步草稿
-  if (navigator.onLine) {
-    setTimeout(() => { syncDrafts(); }, 3000);
+      $('#joinBtn') && ($('#joinBtn').onclick = async () => {
+        try { await apiCall('/api/contests?action=join', 'POST', { contestId: c.id }); toast('Joined', 'ok'); renderContestDetail(view, cid); }
+        catch (e) { toast(e.message || 'Failed to join', 'err'); }
+      });
+      $('#resultsBtn') && ($('#resultsBtn').onclick = () => openContestResults(c.id));
+      $$('#view .problem-card').forEach(x => x.onclick = () => goSubView('problem/' + encodeURIComponent(x.dataset.id)));
+    } catch (e) {
+      view.innerHTML = '<div class="empty"><i class="fas fa-cloud-slash"></i>' + (e.offline ? 'Offline — cannot load' : 'Contest not found') + '</div>';
+    }
   }
-}
 
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
-else boot();
+  function openContestResults(cid) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `<div class="modal"><h3>Contest results</h3><div id="crBody"><div class="loading-wrap"><span class="spinner"></span></div></div>
+      <div class="modal-actions"><button class="btn btn-sm" id="crClose">Close</button></div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+    $('#crClose', overlay).onclick = () => overlay.remove();
+    apiCall('/api/contests?action=results&id=' + encodeURIComponent(cid)).then(d => {
+      const parts = (d.stats && d.stats.participants) || [];
+      $('#crBody', overlay).innerHTML = parts.length ? parts.map((p, i) => `
+        <div class="lb-row" data-user="${esc(p.username)}">
+          <span class="lb-rank ${i < 3 ? 'top' + (i + 1) : ''}">${i + 1}</span>
+          ${avatarHtml(p, 30)}
+          <div class="lb-main"><div class="lb-name">${esc(p.displayName || p.username)}</div></div>
+          <span class="lb-metric">${p.total}</span>
+        </div>`).join('') : '<div class="empty">No results yet</div>';
+      $$('#crBody .lb-row', overlay).forEach(r => r.onclick = () => { overlay.remove(); goSubView('user/' + encodeURIComponent(r.dataset.user)); });
+    }).catch(() => { $('#crBody', overlay).innerHTML = '<div class="empty">Failed to load</div>'; });
+  }
 
+  // ── Me ──
+  async function renderMe(view) {
+    const user = getCurrentUser();
+    view.innerHTML = `
+      <div class="card center">
+        <div class="avatar lg" style="margin:0 auto">${esc((user.displayName || user.username).charAt(0).toUpperCase())}</div>
+        <div class="hello" style="font-size:1.3rem;margin-top:10px">${esc(user.displayName || user.username)}</div>
+        <div class="sub muted">@${esc(user.username)} · ${esc(user.role)}</div>
+      </div>
+      <div class="card">
+        <div class="setting-row" id="meSettings"><span class="ic"><i class="fas fa-gear"></i></span><div class="tt"><span class="lbl">Settings</span><span class="dsc">Font, theme, cache</span></div><i class="fas fa-chevron-right" style="color:var(--text-3)"></i></div>
+        <div class="setting-row" id="meProfile"><span class="ic"><i class="fas fa-id-card"></i></span><div class="tt"><span class="lbl">My profile</span><span class="dsc">View progress</span></div><i class="fas fa-chevron-right" style="color:var(--text-3)"></i></div>
+        <div class="setting-row" id="meDraft"><span class="ic"><i class="fas fa-inbox"></i></span><div class="tt"><span class="lbl">Drafts</span><span class="dsc" id="meDraftDesc">0 pending</span></div><i class="fas fa-chevron-right" style="color:var(--text-3)"></i></div>
+      </div>
+      <button class="btn btn-block" id="logoutBtn" style="background:var(--danger)"><i class="fas fa-right-from-bracket"></i> Sign out</button>`;
+
+    $('#meSettings').onclick = () => goSubView('settings');
+    $('#meProfile').onclick = () => goSubView('user/' + encodeURIComponent(user.username));
+    $('#meDraft').onclick = () => openDraftBox();
+    $('#logoutBtn').onclick = () => logout();
+    const drafts = await DB.getDrafts();
+    $('#meDraftDesc').textContent = drafts.length + ' pending';
+  }
+
+  async function openDraftBox() {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `<div class="modal"><h3><i class="fas fa-inbox"></i> Drafts</h3><div id="draftBody"></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary btn-sm" id="draftClose">Close</button>
+        <button class="btn btn-sm" id="draftSync"><i class="fas fa-cloud-arrow-up"></i> Submit all</button>
+      </div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+    $('#draftClose', overlay).onclick = () => overlay.remove();
+    $('#draftSync', overlay).onclick = async () => { await syncDrafts(true); renderDrafts(); };
+
+    async function renderDrafts() {
+      const drafts = await DB.getDrafts();
+      $('#draftBody', overlay).innerHTML = drafts.length ? drafts.map(d => `
+        <div class="disc">
+          <div class="head">${esc(d.problemId)} · ${esc({ text: 'Text', image: 'Image', steps: 'AI Steps' }[d.type] || d.type)} · ${timeAgo(d.createdAt)}</div>
+          <div class="body small">${d.type === 'image' ? '[Image]' : esc(String(d.answer).slice(0, 80))}</div>
+        </div>`).join('') : '<div class="empty">Drafts empty</div>';
+    }
+    renderDrafts();
+  }
+
+  // ── Settings ──
+  async function renderSettings(view) {
+    view.innerHTML = `
+      <div class="card">
+        <div class="setting-row">
+          <span class="ic"><i class="fas fa-moon"></i></span>
+          <div class="tt"><span class="lbl">Dark theme</span><span class="dsc">Toggle dark / light mode</span></div>
+          <label class="switch"><input type="checkbox" id="swTheme"><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <span class="ic"><i class="fas fa-text-height"></i></span>
+          <div class="tt"><span class="lbl">Font size</span><span class="dsc" id="fontVal">${Settings.fontSize}px</span></div>
+          <div class="row" style="gap:4px">
+            <button class="btn btn-secondary btn-sm" id="fontMinus"><i class="fas fa-minus"></i></button>
+            <button class="btn btn-secondary btn-sm" id="fontPlus"><i class="fas fa-plus"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><i class="fas fa-database"></i> Offline cache</div>
+        <p class="small muted">Cache all problem statements & images for offline viewing.</p>
+        <div class="meta-item"><span class="k">Cached problems</span><span class="v" id="cacheStmtCount">…</span></div>
+        <div class="meta-item"><span class="k">Cached images</span><span class="v" id="cacheImgCount">…</span></div>
+        <div class="meta-item"><span class="k">Last cached</span><span class="v" id="cacheLastAt">—</span></div>
+        <div id="cacheProgress" style="display:none" class="mt8">
+          <div class="progress"><div id="cacheProgressBar" style="width:0%;background:var(--accent)"></div></div>
+          <div class="small muted mt8" id="cacheProgressText"></div>
+        </div>
+        <button class="btn btn-block mt8" id="cacheBtn"><i class="fas fa-download"></i> Cache all problems</button>
+        <button class="btn btn-secondary btn-block mt8" id="clearCacheBtn"><i class="fas fa-trash"></i> Clear cache</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><i class="fas fa-circle-info"></i> About</div>
+        <div class="small muted">WYK Maths Team Online Judge · Mobile PWA</div>
+        <div class="small muted mt8">Offline submissions go to drafts and auto-submit when online.</div>
+      </div>`;
+
+    $('#swTheme').checked = Settings.theme === 'dark';
+    $('#swTheme').onchange = e => Settings.setTheme(e.target.checked ? 'dark' : 'light');
+    $('#fontMinus').onclick = () => { Settings.setFontSize(Settings.fontSize - 1); $('#fontVal').textContent = Settings.fontSize + 'px'; };
+    $('#fontPlus').onclick = () => { Settings.setFontSize(Settings.fontSize + 1); $('#fontVal').textContent = Settings.fontSize + 'px'; };
+
+    const [stmts, imgCount, lastAt] = await Promise.all([
+      DB.getAllStatements(), DB.countImages(), DB.getMeta('lastCacheAt'),
+    ]);
+    $('#cacheStmtCount').textContent = stmts.length;
+    $('#cacheImgCount').textContent = imgCount;
+    $('#cacheLastAt').textContent = lastAt ? formatDate(lastAt) : '—';
+
+    $('#cacheBtn').onclick = async () => {
+      if (!isOnline()) { toast('Offline — cannot cache', 'err'); return; }
+      const btn = $('#cacheBtn');
+      btn.disabled = true;
+      $('#cacheProgress').style.display = 'block';
+      await cacheAllProblems(p => {
+        if (p.phase === 'statement') {
+          $('#cacheProgressText').textContent = `Caching statements… ${p.done}/${p.total}`;
+          $('#cacheProgressBar').style.width = Math.round(p.done / p.total * 70) + '%';
+        } else {
+          $('#cacheProgressText').textContent = `Caching images… ${p.done}/${p.total} (${p.ok || 0} ok)`;
+          $('#cacheProgressBar').style.width = (70 + Math.round(p.done / Math.max(1, p.total) * 30)) + '%';
+        }
+      });
+      $('#cacheProgressText').textContent = 'Done';
+      $('#cacheProgressBar').style.width = '100%';
+      btn.disabled = false;
+      renderSettings(view);
+      toast('Cache complete', 'ok');
+    };
+
+    $('#clearCacheBtn').onclick = async () => {
+      await DB.clearStatements();
+      await DB.clearImages();
+      toast('Cache cleared', 'ok');
+      renderSettings(view);
+    };
+  }
+
+  /* ────────────────────────────────────────────────
+   * 11. Draft box sync
+   * ──────────────────────────────────────────────── */
+  async function updateDraftBadge() {
+    const drafts = await DB.getDrafts();
+    const badge = $('#draftBadge');
+    const count = $('#draftCount');
+    if (drafts.length) {
+      badge.hidden = false;
+      count.textContent = drafts.length;
+    } else {
+      badge.hidden = true;
+    }
+  }
+
+  async function syncDrafts(manual) {
+    if (!isOnline()) { if (manual) toast('Offline — cannot sync', 'err'); return; }
+    const drafts = await DB.getDrafts();
+    if (!drafts.length) { if (manual) toast('Drafts empty', 'ok'); return; }
+
+    let ok = 0, fail = 0;
+    for (const d of drafts) {
+      try {
+        if (d.type === 'steps') {
+          const res = await apiCall('/api/steps-grade', 'POST', { problemId: d.problemId, steps: d.answer });
+          if (!res || !res.taskId) throw new Error(res && res.message || 'steps failed');
+        } else {
+          const res = await apiCall('/api/submit', 'POST', { problemId: d.problemId, answer: d.answer, type: d.type, image: d.image || '' });
+          if (!res.success) throw new Error(res.message || 'submit failed');
+        }
+        await DB.deleteDraft(d.id);
+        ok++;
+      } catch (e) {
+        if (e.offline) break;   // went offline mid-sync
+        fail++;
+      }
+    }
+    await updateDraftBadge();
+    if (manual) {
+      if (fail) toast(`Submitted ${ok}, ${fail} failed`, 'err');
+      else toast(`Submitted ${ok}`, 'ok');
+    } else if (ok) {
+      toast(`Drafts: auto-submitted ${ok}`, 'ok');
+    }
+    const route = currentRoute();
+    if (route.name === 'home') updateDraftSummary();
+  }
+
+  /* ────────────────────────────────────────────────
+   * 12. Heartbeat (online status) — NOT part of the nav lock
+   * ═══════════════════════════════════════════════════════
+   * Reports the user as online by POSTing /api/heartbeat, which
+   * bumps `lastSeenAt` (and unsets `explicitlyOffline`). This runs
+   * entirely in the background and is intentionally independent of
+   * the `isLoading` navigation lock, so it keeps firing while views
+   * are loading.
+   */
+  function startHeartbeat() {
+    let lastActivity = Date.now();
+    const markActivity = () => { lastActivity = Date.now(); };
+
+    ['mousemove', 'keydown', 'click', 'touchstart', 'scroll', 'wheel'].forEach(ev =>
+      document.addEventListener(ev, markActivity, { passive: true }));
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') markActivity();
+    });
+
+    async function beat() {
+      if (!isLoggedIn() || !isOnline()) return;
+      if (Date.now() - lastActivity > 180000) return;   // idle → skip
+      const token = getToken();
+      try {
+        await fetch('/api/heartbeat', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        });
+      } catch (e) { /* silent */ }
+    }
+
+    // initial beat shortly after load, then periodically
+    setTimeout(beat, 4000);
+    setInterval(beat, 180000);
+  }
+
+  /* ────────────────────────────────────────────────
+   * 13. Events + init
+   * ──────────────────────────────────────────────── */
+  function bindEvents() {
+    // bottom nav
+    $$('#bottomNav .nav-item').forEach(b => {
+      b.addEventListener('click', () => {
+        const route = b.dataset.route;
+        if (route === currentRoute().name) return;
+        navigate(route);
+      });
+    });
+
+    // hash change
+    window.addEventListener('hashchange', render);
+
+    // online / offline
+    window.addEventListener('online', () => {
+      refreshTopbar();
+      toast('Back online', 'ok');
+      syncDrafts(false);
+    });
+    window.addEventListener('offline', () => {
+      refreshTopbar();
+      toast('Offline', 'warn');
+    });
+  }
+
+  function init() {
+    loadFromLocal();
+    bindEvents();
+    startHeartbeat();
+
+    // SW registration
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/mobile/sw.js').catch(() => {});
+    }
+
+    // auth restore via root cookie (optional, best-effort)
+    if (!isLoggedIn()) {
+      fetch('/api/root-session', { method: 'GET', credentials: 'include', cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (d && d.success && d.token) {
+            localStorage.setItem(TOKEN_KEY, d.token);
+            render();
+          }
+        })
+        .catch(() => {});
+    }
+
+    // initial draft badge + auto sync
+    updateDraftBadge();
+    if (isOnline()) syncDrafts(false);
+
+    render();
+  }
+
+  // expose a couple helpers for debugging
+  window.MOJ = { navigate, goSubView, syncDrafts, cacheAllProblems, DB };
+
+  init();
 })();
