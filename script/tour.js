@@ -118,6 +118,7 @@
     if (p === '/submissions' || p === '/submissions.html') return 'submissions';
     if (/^\/submissions\/(user|problem)\/[^/]+$/.test(p)) return 'submissions';
     if (/^\/submissions\/[^/]+\/detail$/.test(p)) return 'submission';
+    if (p === '/ranklist' || p === '/leaderboard' || p === '/ranklist.html') return 'ranklist';
     if (/^\/problems\/[^/]+$/.test(p)) {
       const id = decodeURIComponent(p.split('/').pop());
       return (id === 'bookmarked' || id === 'bookmark') ? 'other' : 'problem';
