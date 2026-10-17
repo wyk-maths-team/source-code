@@ -5,7 +5,7 @@
  * ⚠️ 部署新版本時，把 VERSION 改成 'v2'、'v3'…，
  *    舊快取才會被清掉、新資源才會被預快取。
  * ═══════════════════════════════════════════════════════════ */
-const VERSION = 'v4';
+const VERSION = 'v6';
 const SHELL_CACHE = 'wyk-shell-' + VERSION;
 const CDN_CACHE   = 'wyk-cdn-'   + VERSION;
 const API_CACHE   = 'wyk-api-'   + VERSION;
@@ -18,8 +18,6 @@ const SHELL_FILES = [
   '/mobile/manifest.json',
   '/favicon.svg',
   '/icons/apple-touch-icon.png',
-  '/icons/icon-512x512.png',
-  '/icons/maskable-512x512.png',
 ];
 
 // CDN 預快取清單
@@ -67,7 +65,9 @@ self.addEventListener('activate', (e) => {
 function isCdn(url) {
   return url.hostname === 'cdnjs.cloudflare.com'
       || url.hostname === 'cdn.jsdelivr.net'
-      || url.hostname === 'unpkg.com';
+      || url.hostname === 'unpkg.com'
+      || url.hostname === 'res.cloudinary.com'
+      || url.hostname === 'raw.githubusercontent.com';
 }
 
 // ── fetch：策略分派 ──
