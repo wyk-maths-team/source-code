@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>window.__BUILD_V='46dacaea';</script>
+<script>window.__BUILD_V='1435c556';</script>
 
-<script src="/assets/js/arch-render.js?v=46dacaea"></script>
+<script src="/assets/js/arch-render.js?v=1435c556"></script>
   
 <meta charset="UTF-8" />
 <script>(function(){try{
@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=46dacaea" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=1435c556" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
   <style>
     .admin-container { background: var(--card-bg); border-radius: 4px; padding: 1.5rem; max-width: 600px; margin: 0 auto; }
@@ -39,10 +39,10 @@
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
     @media (max-width: 500px) { .form-row { grid-template-columns: 1fr; } }
   </style>
-<script src="/assets/js/core/ui.js?v=46dacaea"></script>
-<script src="/assets/js/core/net.js?v=46dacaea"></script>
-<script src="/assets/js/core/api.js?v=46dacaea"></script>
-<script src="/assets/js/core/page.js?v=46dacaea"></script>
+<script src="/assets/js/core/ui.js?v=1435c556"></script>
+<script src="/assets/js/core/net.js?v=1435c556"></script>
+<script src="/assets/js/core/api.js?v=1435c556"></script>
+<script src="/assets/js/core/page.js?v=1435c556"></script>
 </head>
 <body class="index-body">
   <div id="appContainer">
@@ -94,76 +94,14 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=46dacaea"></script>
-  <script src="/assets/js/app.js?v=46dacaea"></script>
-  <script src="/assets/js/topbar.js?v=46dacaea"></script>
+  <script src="/assets/js/auth.js?v=1435c556"></script>
+  <script src="/assets/js/app.js?v=1435c556"></script>
+  <script src="/assets/js/topbar.js?v=1435c556"></script>
   
-<script src="/assets/js/sidebar.js?v=46dacaea"></script>
-<script src="/assets/js/heartbeat.js?v=46dacaea"></script>
-<script src="/assets/js/pk-invite.js?v=46dacaea"></script>
+<script src="/assets/js/sidebar.js?v=1435c556"></script>
+<script src="/assets/js/heartbeat.js?v=1435c556"></script>
+<script src="/assets/js/pk-invite.js?v=1435c556"></script>
 
-  <script>
-    if (!isLoggedIn() || (getCurrentUser()?.role !== 'admin' && getCurrentUser()?.role !== 'root')) {
-      window.location.href = '/index.html';
-    }
-
-    const currentUser = getCurrentUser();
-    const isRoot = currentUser?.role === 'root';
-
-    if (isRoot) {
-      document.getElementById('roleGroup').style.display = 'block';
-    }
-
-    function setMessage(text, isError) {
-      const el = document.getElementById('message');
-      el.textContent = text;
-      el.style.color = isError ? 'var(--danger)' : '#2e7d32';
-    }
-
-    document.getElementById('newUserForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      const username = document.getElementById('newUsername').value.trim();
-      const password = document.getElementById('newPassword').value;
-      const displayName = document.getElementById('newDisplayName').value.trim();
-      const realName = document.getElementById('newRealName').value.trim();
-      const role = isRoot ? document.getElementById('newRole').value : undefined;
-
-      if (!username || !password) {
-        setMessage('Username and password are required.', true);
-        return;
-      }
-
-      const submitBtn = e.target.querySelector('button[type="submit"]');
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Creating...';
-
-      try {
-        const body = { username, password, displayName, realName };
-        if (isRoot) body.role = role;
-
-        const result = await apiCall('/api/users?action=adminCreate', 'POST', body);
-
-        if (result.success) {
-          // ⭐ 不跳轉：清空表單，保留 role（方便連續建同角色）
-          document.getElementById('newUsername').value = '';
-          document.getElementById('newPassword').value = '';
-          document.getElementById('newDisplayName').value = '';
-          document.getElementById('newRealName').value = '';
-          setMessage(`"${username}" created. Ready for next.`, false);
-          document.getElementById('newUsername').focus();
-        } else {
-          setMessage(result.message || 'Error creating user.', true);
-        }
-      } catch (err) {
-        setMessage('Network error: ' + err.message, true);
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Create User';
-      }
-    });
-
-    document.getElementById('newUsername').focus();
-  </script>
+  <script src="/assets/js/pages/admin-newuser.js?v=1435c556"></script>
 </body>
 </html>

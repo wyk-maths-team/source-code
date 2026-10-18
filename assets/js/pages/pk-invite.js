@@ -1,0 +1,170 @@
+
+    // ── 未登入 → 記住返回位址，登入後自動跳回
+    if (!isLoggedIn()) {
+      sessionStorage.setItem('pk_login_redirect', location.href);
+      window.location.href = '/index.html';
+      throw new Error('Not logged in');
+    }
+
+    const params = new URLSearchParams(location.search);
+    const inviteId = params.get('id');
+    const cardEl = document.getElementById('pkInvCard');
+
+    let invite = null;
+    let ttlTimer = null;
+
+    function esc(s) { return (window.DSHUI && window.DSHUI.esc) || function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]; }); }; }
+
+    function renderError(msg) {
+      cardEl.innerHTML = `
+        <div class="pk-inv-icon danger"><i class="fas fa-times"></i></div>
+        <div class="pk-inv-title">Invitation unavailable</div>
+        <div class="pk-inv-sub">${esc(msg)}</div>
+      `;
+    }
+
+    function renderStatus(msg, color) {
+      let el = cardEl.querySelector('.pk-inv-status');
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'pk-inv-status';
+        cardEl.appendChild(el);
+      }
+      el.textContent = msg;
+      el.style.color = color || 'var(--text-secondary)';
+    }
+
+    function renderInvite() {
+      const statusMap = {
+        pending:   'Pending',
+        accepted:  'Accepted',
+        declined:  'Declined',
+        cancelled: 'Cancelled',
+        expired:   'Expired',
+      };
+
+      if (!invite) { renderError('Invitation not found.'); return; }
+
+      // 已被接受 → 直接進房間
+      if (invite.status === 'accepted') {
+        if (invite.roomId) {
+          window.location.href = `/pk/room?id=${encodeURIComponent(invite.roomId)}`;
+          return;
+        }
+        renderError('This invitation was already accepted.');
+        return;
+      }
+
+      if (invite.status !== 'pending') {
+        renderError(`This invitation is ${statusMap[invite.status] || invite.status}.`);
+        return;
+      }
+
+      if (new Date(invite.expiresAt).getTime() < Date.now()) {
+        renderError('This invitation has expired.');
+        return;
+      }
+
+      // 身份檢查
+      const me = getCurrentUser();
+      if (invite.from === me.username) {
+        renderError("This is your own invitation — you can't accept it.");
+        return;
+      }
+      if (invite.to !== me.username) {
+        renderError('This invitation was sent to someone else.');
+        return;
+      }
+
+      const fromName = invite.fromDisplay || invite.from;
+      cardEl.innerHTML = `
+        <div class="pk-inv-icon"><i class="fas fa-swords"></i></div>
+        <div class="pk-inv-title">${esc(fromName)} invited you to PK</div>
+        <div class="pk-inv-sub">Accept to enter the arena</div>
+        <div class="pk-inv-ttl" id="pkInvTtl"></div>
+        <div class="pk-inv-actions">
+          <button class="pk-accept"  id="pkInvAccept">Accept</button>
+          <button class="pk-decline" id="pkInvDecline">Decline</button>
+        </div>
+        <div class="pk-inv-status"></div>
+      `;
+      document.getElementById('pkInvAccept').addEventListener('click', onAccept);
+      document.getElementById('pkInvDecline').addEventListener('click', onDecline);
+      startTtl();
+    }
+
+    function startTtl() {
+      const el = document.getElementById('pkInvTtl');
+      if (!el) return;
+      if (ttlTimer) clearInterval(ttlTimer);
+
+      const update = () => {
+        const remain = new Date(invite.expiresAt).getTime() - Date.now();
+        if (remain <= 0) {
+          el.textContent = 'Expired';
+          el.className = 'pk-inv-ttl danger';
+          clearInterval(ttlTimer);
+          setTimeout(() => renderError('This invitation has expired.'), 800);
+          return;
+        }
+        const sec = Math.ceil(remain / 1000);
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        el.textContent = `Expires in ${m}:${String(s).padStart(2, '0')}`;
+        el.className = 'pk-inv-ttl' + (sec <= 30 ? ' danger' : sec <= 60 ? ' warn' : '');
+      };
+      update();
+      ttlTimer = setInterval(update, 500);
+    }
+
+    async function onAccept() {
+      const a = document.getElementById('pkInvAccept');
+      const d = document.getElementById('pkInvDecline');
+      a.disabled = d.disabled = true;
+      a.textContent = 'Accepting…';
+      try {
+        const res = await apiCall('/api/pk?action=accept', 'POST', { inviteId });
+        if (res.success && res.roomId) {
+          if (ttlTimer) clearInterval(ttlTimer);
+          window.location.href = `/pk/room?id=${encodeURIComponent(res.roomId)}`;
+        } else {
+          renderStatus(res.message || 'Failed', 'var(--danger)');
+          a.disabled = d.disabled = false;
+          a.textContent = 'Accept';
+        }
+      } catch (err) {
+        renderStatus('Network error: ' + err.message, 'var(--danger)');
+        a.disabled = d.disabled = false;
+        a.textContent = 'Accept';
+      }
+    }
+
+    async function onDecline() {
+      const a = document.getElementById('pkInvAccept');
+      const d = document.getElementById('pkInvDecline');
+      a.disabled = d.disabled = true;
+      try { await apiCall('/api/pk?action=decline', 'POST', { inviteId }); } catch {}
+      if (ttlTimer) clearInterval(ttlTimer);
+      cardEl.innerHTML = `
+        <div class="pk-inv-icon danger"><i class="fas fa-ban"></i></div>
+        <div class="pk-inv-title">Invitation declined</div>
+        <div class="pk-inv-sub">You can close this page now.</div>
+      `;
+    }
+
+    // ── 載入
+    (async () => {
+      if (!inviteId) { renderError('Missing invite ID.'); return; }
+      try {
+        const data = await apiCall(`/api/pk?action=invite-status&inviteId=${encodeURIComponent(inviteId)}`);
+        if (!data.success || !data.invite) {
+          renderError(data.message || 'Invitation not found.');
+          return;
+        }
+        invite = data.invite;
+        renderInvite();
+      } catch (err) {
+        renderError(err.message || 'Failed to load invitation.');
+      }
+    })();
+  
