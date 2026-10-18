@@ -194,7 +194,7 @@ function clearWorkbenchStatus() {
 
   async function loadDrawTool() {
     if (window.DrawTool) return window.DrawTool;
-    await loadScript('https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/draw.js');
+    await loadScript('/assets/js/draw.js');
     if (!window.DrawTool) throw new Error('DrawTool not found in draw.js');
     return window.DrawTool;
   }

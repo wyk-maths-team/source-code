@@ -1,4 +1,4 @@
-﻿// sidebar.js
+// sidebar.js
 (function() {
   console.log('sidebar.js executing...');
   const sidebar = document.getElementById('sidebarContainer');
