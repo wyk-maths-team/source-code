@@ -66,6 +66,7 @@
     { "source": "/admin/cmd", "destination": "/admin/cmd.html" },
     { "source": "/admin/oplog","destination": "/admin/oplog.html" },
     { "source": "/admin/health","destination": "/admin/health.html"},
+    { "source": "/admin/send-message","destination": "/admin/send-message.html"},
 
     { "source": "/admin/problems/:id", "destination": "/admin/editproblem.html" },
     { "source": "/admin/contests/:id", "destination": "/admin/editcontest.html" },
@@ -103,6 +104,7 @@
     { "source": "/tcontest/:id", "destination": "/special-contest.html" },
     { "source": "/teams/:id", "destination": "/team.html" },
 
+    { "source": "/messages", "destination": "/messages.html"},
     { "source": "/users/edit", "destination": "/editpassword.html" },
     { "source": "/users/:username", "destination": "/user.html" },
     { "source": "/leaderboard", "destination": "/ranklist.html" },

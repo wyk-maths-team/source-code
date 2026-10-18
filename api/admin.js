@@ -299,7 +299,34 @@ async function handleMarkerDetail(req, res, db) {
     },
   });
 }
+// ── 发送系统消息 ──
+async function handleSendMessage(req, res, db, decoded) {
+  if (req.method !== 'POST') return fail(res, 405, 'Method not allowed');
 
+  const { targetUser, template, variables } = req.body || {};
+  if (!targetUser || !template) return fail(res, 400, 'Missing targetUser or template');
+
+  let content = '';
+  if (template === 'reviewed') {
+    content = `Your problem report on ${variables?.problemId || 'a problem'} was reviewed. Your submission was rejudged. Thank you.`;
+  } else if (template === 'toc') {
+    content = `Your profile picture violates the ToS and was removed. Please follow the rules. Thank you.`;
+  } else if (template === 'custom') {
+    content = variables?.customText || 'No content';
+  } else {
+    return fail(res, 400, 'Invalid template');
+  }
+
+  await db.collection('messages').insertOne({
+    username: targetUser,
+    content,
+    createdAt: new Date(),
+    read: false
+  });
+
+  await safeAudit(db, 'send_system_message', { targetUser, template }, decoded.username, 'info');
+  return ok(res, { success: true, message: 'Message sent' });
+}
 // ── Marker: 提交評分 ──
 async function handleMarkSubmit(req, res, db, decoded) {
   if (req.method !== 'PUT') return fail(res, 405, 'Method not allowed');
@@ -752,6 +779,7 @@ async function handler(req, res) {
       case 'setDifficulty':   return await handleSetDifficulty(req, res, db, decoded);
       case 'runDifficultyAdjust': return await handleRunDifficultyAdjust(req, res, db, decoded);
       case 'cmd':             return await handleCmd(req, res, db, decoded);
+      case 'sendMessage':     return await handleSendMessage(req, res, db, decoded);
       default:
         return fail(res, 400, 'Invalid action');
     }

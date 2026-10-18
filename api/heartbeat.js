@@ -29,12 +29,18 @@ async function handler(req, res) {
       { username: decoded.username },
       { $set: { lastSeenAt: new Date() },$inc: { heartbeatCount: 1 },$unset: { explicitlyOffline: '' } }
     );
-    return res.status(200).json({ success: true });
+    
+    // ⭐ 修复：这里用 decoded.username
+    const unreadCount = await db.collection('messages').countDocuments({ 
+      username: decoded.username, 
+      read: false 
+    });
+    
+    return res.status(200).json({ success: true, unreadMessages: unreadCount });
   } catch (err) {
     console.error('[heartbeat] failed:', err);
     return res.status(500).json({ success: false });
   }
 }
 
-// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
 export default wrapHandler(handler);

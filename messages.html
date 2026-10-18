@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>window.__BUILD_V='ca95f440';</script>
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+<meta name="requires-auth" content="true" />
+<title>Messages - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="/assets/css/styles.css?v=ca95f440" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+
+<script src="/assets/js/core/ui.js?v=ca95f440"></script>
+<script src="/assets/js/core/net.js?v=ca95f440"></script>
+<script src="/assets/js/core/api.js?v=ca95f440"></script>
+<script src="/assets/js/core/page.js?v=ca95f440"></script>
+
+<style>
+  .msg-container { max-width: 800px; margin: 20px auto; }
+  .msg-card {
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-left: 4px solid #d93025; border-radius: 8px; padding: 20px;
+    margin-bottom: 16px; display: flex; justify-content: space-between;
+    align-items: center; gap: 20px; animation: slideIn 0.3s ease-out;
+  }
+  .msg-content { flex: 1; color: var(--text-primary); font-size: 1rem; line-height: 1.5; }
+  .msg-time { font-size: 0.8rem; color: var(--text-secondary); margin-top: 8px; }
+  .btn-close-msg {
+    background: transparent; color: var(--text-secondary); border: 1px solid var(--border-color);
+    padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600;
+    transition: all 0.2s; white-space: nowrap;
+  }
+  .btn-close-msg:hover { background: #d93025; color: white; border-color: #d93025; }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-secondary); }
+  .empty-state i { font-size: 3rem; margin-bottom: 16px; opacity: 0.5; }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="msg-container" id="msgList"></div>
+    </main>
+  </div>
+
+  <script src="/assets/js/auth.js?v=ca95f440"></script>
+  <script src="/assets/js/app.js?v=ca95f440"></script>
+  <script src="/assets/js/topbar.js?v=ca95f440"></script>
+  <script src="/assets/js/sidebar.js?v=ca95f440"></script>
+  <script src="/assets/js/heartbeat.js?v=ca95f440"></script>
+  <script src="/assets/js/pk-invite.js?v=ca95f440"></script>
+
+  <script>
+    Page.boot({ title: 'Messages', requireAuth: true, skeleton: true });
+    Page.ready(async (user) => {
+      const container = document.getElementById('msgList');
+      
+      async function loadMessages() {
+        try {
+          const data = await API.get('/api/messages');
+          const msgs = data.messages || [];
+          
+          if (msgs.length === 0) {
+            container.innerHTML = `<div class="empty-state"><i class="fas fa-inbox"></i><h3>No new messages</h3><p>You're all caught up!</p></div>`;
+          } else {
+            container.innerHTML = msgs.map(m => `
+              <div class="msg-card" id="msg-${m._id}">
+                <div class="msg-content">
+                  ${DSHUI.esc(m.content)}
+                  <div class="msg-time">${new Date(m.createdAt).toLocaleString()}</div>
+                </div>
+                <button class="btn-close-msg" onclick="closeMsg('${m._id}')">Close</button>
+              </div>
+            `).join('');
+          }
+        } catch (err) {
+          container.innerHTML = `<p style="color:red;text-align:center;">Failed to load messages.</p>`;
+        } finally {
+          Page.hideSkeleton();
+        }
+      }
+
+      window.closeMsg = async (id) => {
+        try {
+          await API.post('/api/messages', { id });
+          const el = document.getElementById(`msg-${id}`);
+          if (el) {
+            el.style.opacity = '0';
+            setTimeout(() => { el.remove(); checkEmpty(); }, 300);
+          }
+        } catch (e) {
+          DSHUI.toast('Failed to mark as read', 'err');
+        }
+      };
+
+      function checkEmpty() {
+        if (!document.querySelector('.msg-card')) {
+          container.innerHTML = `<div class="empty-state"><i class="fas fa-inbox"></i><h3>No new messages</h3><p>You're all caught up!</p></div>`;
+        }
+      }
+
+      loadMessages();
+    });
+  </script>
+</body>
+</html>

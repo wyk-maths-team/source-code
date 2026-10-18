@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>window.__BUILD_V='ca95f440';</script>
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+}catch(e){}})();</script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+<meta name="requires-auth" content="true" />
+<title>Send System Message - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="stylesheet" href="/assets/css/styles.css?v=ca95f440" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+
+<script src="/assets/js/core/ui.js?v=ca95f440"></script>
+<script src="/assets/js/core/net.js?v=ca95f440"></script>
+<script src="/assets/js/core/api.js?v=ca95f440"></script>
+<script src="/assets/js/core/page.js?v=ca95f440"></script>
+
+<style>
+  .msg-form { max-width: 600px; margin: 20px auto; background: var(--card-bg); padding: 24px; border-radius: 12px; border: 1px solid var(--border-color); }
+  .msg-form h2 { margin-top: 0; color: var(--text-primary); display: flex; align-items: center; gap: 10px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; margin-bottom: 6px; font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); }
+  .form-group select, .form-group input, .form-group textarea {
+    width: 100%; padding: 10px; border-radius: 6px;
+    border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-primary);
+    font-family: inherit; box-sizing: border-box; font-size: 0.95rem;
+  }
+  .form-group textarea { resize: vertical; min-height: 100px; }
+  .btn-submit {
+    width: 100%; padding: 12px; background: var(--accent); color: white;
+    border: none; border-radius: 6px; font-size: 1rem; font-weight: 600;
+    cursor: pointer; transition: opacity 0.2s;
+  }
+  .btn-submit:hover { opacity: 0.9; }
+  .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+  .preview-box {
+    margin-top: 20px; padding: 16px; border-radius: 8px;
+    background: rgba(74,144,217,0.08); border-left: 4px solid var(--accent);
+    font-size: 0.95rem; line-height: 1.5; color: var(--text-primary);
+  }
+</style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="msg-form" id="adminMsgForm" style="display:none;">
+        <h2><i class="fas fa-paper-plane"></i> Send System Message</h2>
+        
+        <div class="form-group">
+          <label>Target User</label>
+          <select id="targetUser"><option value="">Loading users...</option></select>
+        </div>
+
+        <div class="form-group">
+          <label>Message Template</label>
+          <select id="templateType">
+            <option value="reviewed">Your [] was reviewed. Your submission was rejudged. Thank you.</option>
+            <option value="toc">Your [] was removed. Please follow the rules. Thank you.</option>
+            <option value="custom">Custom Message</option>
+          </select>
+        </div>
+
+        <div id="dynamicVars"></div>
+
+        <div class="preview-box" id="previewBox">Message preview will appear here...</div>
+
+        <button class="btn-submit" id="sendBtn" style="margin-top: 20px;">Send Message</button>
+      </div>
+    </main>
+  </div>
+
+  <script src="/assets/js/auth.js?v=ca95f440"></script>
+  <script src="/assets/js/app.js?v=ca95f440"></script>
+  <script src="/assets/js/topbar.js?v=ca95f440"></script>
+  <script src="/assets/js/sidebar.js?v=ca95f440"></script>
+  <script src="/assets/js/heartbeat.js?v=ca95f440"></script>
+  <script src="/assets/js/pk-invite.js?v=ca95f440"></script>
+
+  <script>
+    Page.boot({ title: 'Send Message', requireAuth: true, skeleton: true });
+    Page.ready(async (user) => {
+      if (user.role !== 'admin' && user.role !== 'root') {
+        document.getElementById('mainContent').innerHTML = '<h2 style="text-align:center;padding:40px;">403 Forbidden</h2>';
+        Page.hideSkeleton(); return;
+      }
+
+      const form = document.getElementById('adminMsgForm');
+      const targetUser = document.getElementById('targetUser');
+      const templateType = document.getElementById('templateType');
+      const dynamicVars = document.getElementById('dynamicVars');
+      const previewBox = document.getElementById('previewBox');
+      const sendBtn = document.getElementById('sendBtn');
+
+      // ⭐ 1. 拉取用户列表（修正 API 路径）
+      try {
+        targetUser.innerHTML = '<option value="">Loading...</option>';
+        // 注意这里用的是 users.js 里的 adminList action
+        const usersData = await API.get('/api/users?action=adminList');
+        const users = usersData.users || [];
+        
+        targetUser.innerHTML = '<option value="">-- Select User --</option>' + 
+          users.map(u => `<option value="${DSHUI.esc(u.username)}">${DSHUI.esc(u.username)} (${DSHUI.esc(u.displayName || '')})</option>`).join('');
+      } catch (e) {
+        targetUser.innerHTML = '<option value="">Failed to load users</option>';
+        DSHUI.toast('Failed to load user list', 'err');
+      }
+
+      form.style.display = 'block';
+      Page.hideSkeleton();
+
+      // ⭐ 2. 统一的预览更新函数（告别内联 oninput）
+      function updatePreview() {
+        const t = templateType.value;
+        let text = '';
+        
+        if (t === 'reviewed') {
+          const pid = document.getElementById('varProblemId')?.value.trim() || '[Problem ID]';
+          text = `Your problem report on ${pid} was reviewed. Your submission was rejudged. Thank you.`;
+        } else if (t === 'toc') {
+          text = `Your profile picture violates the ToS and was removed. Please follow the rules. Thank you.`;
+        } else if (t === 'custom') {
+          text = document.getElementById('varCustomText')?.value || '[Custom Message]';
+        }
+        previewBox.textContent = text;
+      }
+
+      // ⭐ 3. 动态渲染参数输入框
+      function renderTemplateVars() {
+        const t = templateType.value;
+        dynamicVars.innerHTML = '';
+        
+        if (t === 'reviewed') {
+          const group = document.createElement('div');
+          group.className = 'form-group';
+          group.innerHTML = `<label>Problem ID</label><input type="text" id="varProblemId" placeholder="e.g. HA0001">`;
+          dynamicVars.appendChild(group);
+          // 绑定事件
+          document.getElementById('varProblemId').addEventListener('input', updatePreview);
+        } else if (t === 'custom') {
+          const group = document.createElement('div');
+          group.className = 'form-group';
+          group.innerHTML = `<label>Custom Text</label><textarea id="varCustomText" placeholder="Enter message here..."></textarea>`;
+          dynamicVars.appendChild(group);
+          // 绑定事件
+          document.getElementById('varCustomText').addEventListener('input', updatePreview);
+        }
+        updatePreview();
+      }
+
+      // 初始化模板
+      templateType.addEventListener('change', renderTemplateVars);
+      renderTemplateVars();
+
+      // ⭐ 4. 发送消息（修正 API 路径）
+      sendBtn.addEventListener('click', async () => {
+        const target = targetUser.value;
+        if (!target) return DSHUI.toast('Please select a target user', 'warn');
+        
+        const template = templateType.value;
+        const variables = {};
+        if (template === 'reviewed') {
+          variables.problemId = document.getElementById('varProblemId')?.value.trim() || '';
+          if (!variables.problemId) return DSHUI.toast('Please enter Problem ID', 'warn');
+        }
+        if (template === 'custom') {
+          variables.customText = document.getElementById('varCustomText')?.value.trim() || '';
+          if (!variables.customText) return DSHUI.toast('Please enter message text', 'warn');
+        }
+
+        sendBtn.disabled = true;
+        sendBtn.textContent = 'Sending...'; // 强迫症友好：给个反馈
+
+        try {
+          // ⭐ 路径改为 api/admin?action=sendMessage
+          await API.post('/api/admin?action=sendMessage', { 
+            targetUser: target, 
+            template, 
+            variables 
+          });
+          
+          DSHUI.toast('Message sent successfully!', 'ok');
+          
+          // 清空表单
+          if (template === 'custom') document.getElementById('varCustomText').value = '';
+          if (template === 'reviewed') document.getElementById('varProblemId').value = '';
+          updatePreview();
+          
+        } catch (err) {
+          DSHUI.toast(err.message || 'Failed to send', 'err');
+        } finally {
+          sendBtn.disabled = false;
+          sendBtn.textContent = 'Send Message';
+        }
+      });
+    });
+  </script>
+</body>
+</html>
