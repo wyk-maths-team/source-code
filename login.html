@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>window.__BUILD_V='60e75531';</script>
+<script>window.__BUILD_V='80adb1e1';</script>
 
-<script src="/assets/js/arch-render.js?v=60e75531"></script>
+<script src="/assets/js/arch-render.js?v=80adb1e1"></script>
 <!-- <script>
 (function(){
   try {
@@ -24,12 +24,7 @@
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
   if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
-  if (localStorage.getItem('pageTransition') === 'off') return;
-  if (sessionStorage.getItem('__pt') !== 'in') return;
-  // ⭐ 铺的是"遮罩色"，不是页面底色
-  document.documentElement.style.background = (t === 'dark' ? '#0d1117' : '#0f3460');
 }catch(e){}})();</script>
-<script src="/assets/js/pageload.js?v=60e75531" defer></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
   <title>Sign In - WYK Maths Team</title><link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -39,7 +34,7 @@
   <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.amcharts.com">
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=60e75531" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=80adb1e1" />
   <style>
     :root {
       --card-bg: #fff;
@@ -271,10 +266,10 @@
   <meta name="apple-mobile-web-app-title" content="WYK Maths">
   <meta name="mobile-web-app-capable" content="yes">
 
-<script src="/assets/js/core/ui.js?v=60e75531"></script>
-<script src="/assets/js/core/net.js?v=60e75531"></script>
-<script src="/assets/js/core/api.js?v=60e75531"></script>
-<script src="/assets/js/core/page.js?v=60e75531"></script>
+<script src="/assets/js/core/ui.js?v=80adb1e1"></script>
+<script src="/assets/js/core/net.js?v=80adb1e1"></script>
+<script src="/assets/js/core/api.js?v=80adb1e1"></script>
+<script src="/assets/js/core/page.js?v=80adb1e1"></script>
 </head>
 <body class="index-body">
   <div id="loginVeil"></div>
@@ -321,13 +316,13 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=60e75531"></script>
-  <script src="/assets/js/app.js?v=60e75531"></script>
-  <script src="/assets/js/topbar.js?v=60e75531"></script>
+  <script src="/assets/js/auth.js?v=80adb1e1"></script>
+  <script src="/assets/js/app.js?v=80adb1e1"></script>
+  <script src="/assets/js/topbar.js?v=80adb1e1"></script>
   
-<script src="/assets/js/sidebar.js?v=60e75531"></script>
-<script src="/assets/js/heartbeat.js?v=60e75531"></script>
-<script src="/assets/js/pk-invite.js?v=60e75531"></script>
+<script src="/assets/js/sidebar.js?v=80adb1e1"></script>
+<script src="/assets/js/heartbeat.js?v=80adb1e1"></script>
+<script src="/assets/js/pk-invite.js?v=80adb1e1"></script>
 
   <script>
     // 如果已登录，直接跳转
@@ -376,8 +371,6 @@ loginForm.addEventListener('submit', async (e) => {
       veil.style.setProperty('--fy', (rect.top  + rect.height / 2) + 'px');
       veil.classList.add('active');
 
-      // ⭐ 3. 记住状态，主页那边要用来"揭幕"
-      try { sessionStorage.setItem('__pt', 'in'); } catch {}
 
       // ⭐ 4. 动画跑完再跳
       setTimeout(() => { window.location.href = redirect; }, 680);

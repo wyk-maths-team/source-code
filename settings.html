@@ -1,17 +1,13 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<script>window.__BUILD_V='60e75531';</script>
-<script src="/assets/js/arch-render.js?v=60e75531"></script>
+<script>window.__BUILD_V='80adb1e1';</script>
+<script src="/assets/js/arch-render.js?v=80adb1e1"></script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
   if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
-  if (localStorage.getItem('pageTransition') === 'off') return;
-  if (sessionStorage.getItem('__pt') !== 'in') return;
-  document.documentElement.style.background = (t === 'dark' ? '#0d1117' : '#0f3460');
 }catch(e){}})();</script>
-<script src="/assets/js/pageload.js?v=60e75531" defer></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
 <title>Settings - WYK Maths Team</title>
@@ -21,7 +17,7 @@
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=60e75531" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=80adb1e1" />
 
 <style>
   /* ═══════════════ Layout ═══════════════ */
@@ -164,10 +160,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="WYK Maths">
 <meta name="mobile-web-app-capable" content="yes">
-<script src="/assets/js/core/ui.js?v=60e75531"></script>
-<script src="/assets/js/core/net.js?v=60e75531"></script>
-<script src="/assets/js/core/api.js?v=60e75531"></script>
-<script src="/assets/js/core/page.js?v=60e75531"></script>
+<script src="/assets/js/core/ui.js?v=80adb1e1"></script>
+<script src="/assets/js/core/net.js?v=80adb1e1"></script>
+<script src="/assets/js/core/api.js?v=80adb1e1"></script>
+<script src="/assets/js/core/page.js?v=80adb1e1"></script>
 </head>
 
 <body class="index-body">
@@ -219,13 +215,6 @@
           </label>
         </div>
 
-        <div class="setting-row">
-          <span class="setting-label">Page transitions &amp; fade effects</span>
-          <label class="toggle-switch">
-            <input type="checkbox" id="pageTransitionToggle">
-            <span class="slider"></span>
-          </label>
-        </div>
 
         <div class="setting-row">
           <span class="setting-label">Random Problem Animation</span>
@@ -406,12 +395,12 @@
 </div>
 
 <!-- ═══════════════ Scripts ═══════════════ -->
-<script src="/assets/js/auth.js?v=60e75531"></script>
-<script src="/assets/js/app.js?v=60e75531"></script>
-<script src="/assets/js/topbar.js?v=60e75531"></script>
-<script src="/assets/js/sidebar.js?v=60e75531"></script>
-<script src="/assets/js/heartbeat.js?v=60e75531"></script>
-<script src="/assets/js/pk-invite.js?v=60e75531"></script>
+<script src="/assets/js/auth.js?v=80adb1e1"></script>
+<script src="/assets/js/app.js?v=80adb1e1"></script>
+<script src="/assets/js/topbar.js?v=80adb1e1"></script>
+<script src="/assets/js/sidebar.js?v=80adb1e1"></script>
+<script src="/assets/js/heartbeat.js?v=80adb1e1"></script>
+<script src="/assets/js/pk-invite.js?v=80adb1e1"></script>
 
 <script>
 (function () {
@@ -447,13 +436,6 @@
       $('showTagsToggle').checked = localStorage.getItem('showTags') !== 'false';
       $('pkInviteToggle').checked = localStorage.getItem('pkInviteEnabled') !== 'false';
 
-      // pageTransition（可能由外部 pageload.js 管理）
-      const pt = $('pageTransitionToggle');
-      if (typeof isPageTransitionEnabled === 'function') {
-        pt.checked = isPageTransitionEnabled();
-      } else {
-        pt.checked = localStorage.getItem('pageTransition') !== 'off';
-      }
     },
 
     applyTheme() {
@@ -506,14 +488,6 @@
       $('fontSizeSelect').addEventListener('change', () => this.applyFontSize());
       $('saveSettingsBtn').addEventListener('click', () => this.save());
 
-      // pageTransition
-      $('pageTransitionToggle').addEventListener('change', (e) => {
-        if (typeof setPageTransition === 'function') {
-          setPageTransition(e.target.checked);
-        } else {
-          localStorage.setItem('pageTransition', e.target.checked ? 'on' : 'off');
-        }
-      });
 
       // ⭐ 彩蛋：連續點 Animations 5 次 → /settings/extra
       let clicks = 0, timer = null;
