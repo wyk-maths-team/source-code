@@ -4,6 +4,7 @@
 import { connectToDatabase } from '../_pdb.js';
 import { portAuth } from './_auth.js';
 import crypto from 'crypto';
+import { wrapHandler } from '../../lib/errors.js';
 
 const MAX_STEPS = 10_000;
 const MAX_IMAGES = 10;
@@ -13,7 +14,7 @@ function genId(prefix) {
   return prefix + crypto.randomBytes(8).toString('hex');
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const decoded = await portAuth(req, res);
   if (!decoded) return;
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -87,3 +88,6 @@ export default async function handler(req, res) {
 
   return res.status(202).json({ success: true, taskId, submissionId });
 }
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);

@@ -3,13 +3,14 @@ import { connectToDatabase } from './_db.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { ObjectId } from 'mongodb';
+import { wrapHandler } from '../lib/errors.js';
 
 const MAX_TITLE_LEN   = 100;
 const MAX_DETAILS_LEN = 2000;
 const MAX_RANGE_DAYS  = 400;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
 
   const decoded = await verifyToken(req);
@@ -122,3 +123,6 @@ export default async function handler(req, res) {
 
   return res.status(400).json({ success: false, message: 'Invalid action' });
 }
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);

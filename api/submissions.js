@@ -4,6 +4,7 @@ import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { runCustomLogic } from '../lib/logic-runner.js';
 import { ObjectId } from 'mongodb';
+import { wrapHandler } from '../lib/errors.js';
 // ⭐ 移除 executeCustomLogic 死函數（原使用 vm，但 import 被註釋 → 一旦被呼叫就 ReferenceError）
 
 // =============== 快取 ===============
@@ -99,7 +100,7 @@ async function buildHeader(db, problemId, username) {
 }
 
 // =============== 主處理器 ===============
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
 
   const decoded = await verifyToken(req);
@@ -486,3 +487,6 @@ export default async function handler(req, res) {
     return res.status(500).json({ success: false, message: err.message });
   }
 }
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);

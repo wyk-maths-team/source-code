@@ -3,6 +3,7 @@ import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';
 import { connectToDatabase } from './_db.js';
+import { wrapHandler } from '../lib/errors.js';
 
 const FOLDER = 'static/reports/doc';
 const MAX_BYTES = 25 * 1024 * 1024;
@@ -21,7 +22,7 @@ function checkUploadRate(user) {
   return true;
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
 
   const decoded = await verifyToken(req);
@@ -187,3 +188,6 @@ export default async function handler(req, res) {
 
   return res.status(405).json({ error: 'Method not allowed' });
 }
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);

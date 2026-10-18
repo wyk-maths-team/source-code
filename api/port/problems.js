@@ -3,10 +3,11 @@
 // GET /api/port/problems?id=M2-001
 import { connectToDatabase } from '../_pdb.js';
 import { portAuth } from './_auth.js';
+import { wrapHandler } from '../../lib/errors.js';
 
 const SUBJECTS = ['chin', 'eng', 'maths', 'phy', 'chem', 'bio', 'm2'];
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const decoded = await portAuth(req, res);
   if (!decoded) return;
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
@@ -62,3 +63,6 @@ export default async function handler(req, res) {
     chapters: chapterAgg.filter(c => Number.isFinite(c)).sort((a, b) => a - b),
   });
 }
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);

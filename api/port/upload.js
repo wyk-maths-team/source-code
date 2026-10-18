@@ -3,11 +3,12 @@
 // body: { images: ["data:image/...;base64,...", ...] }
 // 回傳 GitHub CDN URLs
 import { portAuth } from './_auth.js';
+import { wrapHandler } from '../../lib/errors.js';
 
 const MAX_IMAGES = 10;
 const MAX_BYTES = 10 * 1024 * 1024;
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const decoded = await portAuth(req, res);
   if (!decoded) return;
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -50,3 +51,6 @@ export default async function handler(req, res) {
     return res.status(500).json({ success: false, message: err.message });
   }
 }
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);

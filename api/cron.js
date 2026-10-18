@@ -1,6 +1,7 @@
 // api/cron.js
 import { connectToDatabase } from './_db.js';
 import { auditLog } from '../lib/audit.js';
+import { wrapHandler } from '../lib/errors.js';
 function formatDuration(ms) {
   if (ms < 0) ms = 0;
   const s = Math.floor(ms / 1000);
@@ -11,7 +12,7 @@ function formatDuration(ms) {
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
 }
-export default async function handler(req, res) {
+async function handler(req, res) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
     return res.status(500).json({ error: 'CRON_SECRET not configured' });
@@ -132,3 +133,6 @@ export default async function handler(req, res) {
     return res.status(500).json({ success: false, message: err.message });
   }
 }
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);

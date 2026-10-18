@@ -6,6 +6,7 @@ import { applyRateLimit } from '../lib/rateLimit.js';
 import { sanitizeHTML } from '../lib/sanitize.js';
 // import { sanitizeDiscussion } from '../lib/sanitize.js';
 import { ObjectId } from 'mongodb';
+import { wrapHandler } from '../lib/errors.js';
 //説明：所有的題目相關的操作都在這裏。
 // ============== 輔助函數 ==============
 // ============== 輔助函數 ==============
@@ -122,7 +123,7 @@ async function fetchDiscussions(db, problemId, username, page = 1, limit = 50) {
 }
 
 // ============== 主處理器 ==============
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -1134,3 +1135,6 @@ async function fetchProblemsWithSolves(db, filter, sortBy, order) {
   });
   return await db.collection('problems').aggregate(pipe).toArray();
 }
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);

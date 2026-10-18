@@ -19,6 +19,7 @@ import { buildStepsPrompt } from '../lib/grade-prompt.js';
 // import { getModelChain, getModelInfo } from '../lib/model-router.js';
 import { getModelChain, getModelInfo, pickThinkingEffort } from '../lib/model-router.js';
 import crypto from 'crypto';
+import { wrapHandler } from '../lib/errors.js';
 
 const MAX_STEPS_LEN = 10000;
 const TASK_TTL_MS   = 30 * 60_000;
@@ -160,7 +161,7 @@ async function tryOneModel({ modelKey, prompt, db, taskId, problem, username, ef
   };
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
 
   const decoded = await verifyToken(req);
@@ -484,3 +485,6 @@ export const config = {
   maxDuration: 300,
   regions: ['iad1'],
 };
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);

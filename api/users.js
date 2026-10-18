@@ -5,6 +5,7 @@ import bcrypt from 'bcrypt';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';   // ⭐ 唯一来源，不再本地重复定义
 import { calculateUserRating } from '../lib/rating.js';
+import { wrapHandler } from '../lib/errors.js';
 // ⭐ 排行榜內存緩存（30 秒）
 let _leaderboardCache = { data: null, expireAt: 0 };
 const LEADERBOARD_TTL = 10_000;
@@ -12,7 +13,7 @@ const LEADERBOARD_TTL = 10_000;
 let _chartCache = { data: null, expireAt: 0 };
 const CHART_CACHE_TTL = 24 * 60 * 60_000;
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
 
   const { action } = req.query;
@@ -970,3 +971,6 @@ if (isPeriodMode) {
     res.status(500).json({ success: false, message: err.message });
   }
 }
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);
