@@ -257,7 +257,13 @@ window.addEventListener('storage', (e) => {
   const rawPath = window.location.pathname;
   const path = rawPath.length > 1 ? rawPath.replace(/\/+$/, '') : rawPath;
 
+  // 页面可以用 <meta name="requires-auth" content="false"> 自己声明为公开页，
+  // 这样新增页面不需要回来改这份白名单。
+  const _authMeta = document.querySelector('meta[name="requires-auth"]');
+  const _declaredPublic = !!_authMeta && _authMeta.getAttribute('content') === 'false';
+
   const isPublic =
+    _declaredPublic ||
     path === '/' || path === '/index.html' || path === '/404' || path === '/404.html' ||
     path === '/credits' || path === '/credits.html' ||
     path === '/guide' || path === '/guide.html' ||

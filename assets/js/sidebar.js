@@ -24,6 +24,22 @@
     </li>
   `;
 
+  // ═══════════════ 扩展导航 ═══════════════
+  // 新增页面时只改这里（或用 npm run new:page 自动追加），不要再手写 li。
+  // 字段：href / page / icon / label / adminOnly / guestOk / match
+  const EXTRA_NAV = [
+    // { href: '/example', page: 'example', icon: 'fa-star', label: 'Example' },
+  ];
+
+  function renderExtraNav() {
+    return EXTRA_NAV
+      .filter((it) => !it.adminOnly || isAdmin)
+      .map((it) => {
+        const cls = 'sidebar-link' + (it.guestOk ? '' : ' require-login');
+        return '<li><a href="' + it.href + '" class="' + cls + '" data-page="' + it.page + '"><i class="fa-solid ' + it.icon + ' fa-fw"></i> ' + it.label + '</a></li>';
+      })
+      .join('\n        ');
+  }
   const sidebarHTML = `
     <nav class="sidebar-nav">
       <ul>
@@ -41,6 +57,7 @@
         <li><a href="/settings" class="sidebar-link require-login" data-page="template"><i class="fa-solid fa-gear fa-fw"></i> Settings</a></li>
         <li><a href="/credits" class="sidebar-link" data-page="credits"><i class="fa-solid fa-heart fa-fw"></i> Credits</a></li>
         <li><a href="/guide" class="sidebar-link" data-page="guide"><i class="fa-solid fa-book-open fa-fw"></i> Guides</a></li>
+        ${renderExtraNav()}
       </ul>
     </nav>
   `;
@@ -191,6 +208,16 @@
     else if (page === 'credits' && path.startsWith('/credits')) link.classList.add('active');
     else if (page === 'contest' && path.startsWith('/contest')) link.classList.add('active');
     else if (page === 'guide' && path.startsWith('/guide')) link.classList.add('active');
+    else {
+      // 扩展导航（EXTRA_NAV）：按 match / href 前缀自动高亮
+      const extra = EXTRA_NAV.find((it) => it.page === page);
+      if (extra) {
+        const prefix = extra.match || extra.href;
+        if (path === extra.href || path === prefix || path.startsWith(prefix.endsWith('/') ? prefix : prefix + '/')) {
+          link.classList.add('active');
+        }
+      }
+    }
   });
 
   links.forEach(link => {
