@@ -23,6 +23,8 @@
 
   /* ═══════════ 1. 常量 ═══════════ */
   const CDN_BASE = '/assets/js/';
+  // 静态资源版本号：由 build 时 tools/version-assets.mjs 注入到 window.__BUILD_V
+  function assetV() { return window.__BUILD_V ? '?v=' + window.__BUILD_V : ''; }
   const HOME_PAGE = '/';
 
   // APPS 構建函式（於 init 時呼叫，此時 user 已確定）
@@ -63,75 +65,75 @@
     calculator: {
       id:'calculator', title:'Calculator', icon:'fa-calculator',
       category:'Tools', width:340, height:520,
-      scriptUrl: CDN_BASE + 'os-app-calculator.js',
+      scriptUrl: CDN_BASE + 'os-app-calculator.js' + assetV(),
     },
     paint: {
       id:'paint', title:'Paint', icon:'fa-palette',
       category:'Tools', width:940, height:660,
-      scriptUrl: CDN_BASE + 'os-app-paint.js',
+      scriptUrl: CDN_BASE + 'os-app-paint.js' + assetV(),
     },
     notepad: {
       id:'notepad', title:'Notepad', icon:'fa-pen',
       category:'Tools', width:720, height:520,
-      scriptUrl: CDN_BASE + 'os-app-notepad.js',
+      scriptUrl: CDN_BASE + 'os-app-notepad.js' + assetV(),
     },
     music: {
       id:'music', title:'Music', icon:'fa-music',
       category:'Tools', width:560, height:700,
-      scriptUrl: CDN_BASE + 'os-app-music.js',
+      scriptUrl: CDN_BASE + 'os-app-music.js' + assetV(),
     },
     // ⭐ 之前加過的
     pomodoro: {
       id:'pomodoro', title:'Pomodoro', icon:'fa-stopwatch',
       category:'Tools', width:420, height:640,
-      scriptUrl: CDN_BASE + 'os-app-pomodoro.js',
+      scriptUrl: CDN_BASE + 'os-app-pomodoro.js' + assetV(),
     },
     todo: {
       id:'todo', title:'To-Do', icon:'fa-list-check',
       category:'Tools', width:560, height:640,
-      scriptUrl: CDN_BASE + 'os-app-todo.js',
+      scriptUrl: CDN_BASE + 'os-app-todo.js' + assetV(),
     },
     notes: {
       id:'notes', title:'Notes', icon:'fa-book',
       category:'Tools', width:1000, height:680,
-      scriptUrl: CDN_BASE + 'os-app-notes.js',
+      scriptUrl: CDN_BASE + 'os-app-notes.js' + assetV(),
     },
     matrix: {
       id:'matrix', title:'Matrix', icon:'fa-table-cells',
       category:'Tools', width:820, height:720,
-      scriptUrl: CDN_BASE + 'os-app-matrix.js',
+      scriptUrl: CDN_BASE + 'os-app-matrix.js' + assetV(),
     },
     random: {
       id:'random', title:'Random', icon:'fa-dice',
       category:'Tools', width:560, height:600,
-      scriptUrl: CDN_BASE + 'os-app-random.js',
+      scriptUrl: CDN_BASE + 'os-app-random.js' + assetV(),
     },
 
     // ⭐ 本次新增
     draw: {
       id:'draw', title:'Draw', icon:'fa-paintbrush',
       category:'Tools', width:1000, height:720,
-      scriptUrl: CDN_BASE + 'os-app-draw.js',
+      scriptUrl: CDN_BASE + 'os-app-draw.js' + assetV(),
     },
     graph: {
       id:'graph', title:'Graph', icon:'fa-chart-line',
       category:'Tools', width:1100, height:720,
-      scriptUrl: CDN_BASE + 'os-app-graph.js',
+      scriptUrl: CDN_BASE + 'os-app-graph.js' + assetV(),
     },
     stopwatch: {
       id:'stopwatch', title:'Stopwatch', icon:'fa-stopwatch-20',
       category:'Tools', width:520, height:660,
-      scriptUrl: CDN_BASE + 'os-app-stopwatch.js',
+      scriptUrl: CDN_BASE + 'os-app-stopwatch.js' + assetV(),
     },
     converter: {
       id:'converter', title:'Converter', icon:'fa-arrows-rotate',
       category:'Tools', width:620, height:660,
-      scriptUrl: CDN_BASE + 'os-app-converter.js',
+      scriptUrl: CDN_BASE + 'os-app-converter.js' + assetV(),
     },
     formula: {
       id:'formula', title:'Formulas', icon:'fa-square-root-variable',
       category:'Tools', width:1000, height:720,
-      scriptUrl: CDN_BASE + 'os-app-formula.js',
+      scriptUrl: CDN_BASE + 'os-app-formula.js' + assetV(),
     },
   };
   const ICON_CHOICES = [
