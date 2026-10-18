@@ -1,27 +1,8 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<script>window.__BUILD_V='46dacaea';</script>
-<script>
-(function(){
-  try {
-    // ⭐ 只在頂層窗口執行，iframe 內不重定向
-    if (window.top !== window.self) return;
-
-    var isStandalone = window.matchMedia('(display-mode: standalone)').matches
-                    || window.navigator.standalone === true
-                    || window.matchMedia('(display-mode: fullscreen)').matches
-                    || window.matchMedia('(display-mode: minimal-ui)').matches;
-    if (!isStandalone) return;
-    if (location.pathname.indexOf('/os') === 0) return;
-    if (location.pathname.indexOf('/admin') === 0) return;
-    if (!sessionStorage.getItem('pwaEnteredOS')) {
-      sessionStorage.setItem('pwaEnteredOS', '1');
-      location.replace('/os' + location.search + location.hash);
-    }
-  } catch(e){}
-})();
-</script>
+<script>window.__BUILD_V='1435c556';</script>
+<script src="/assets/js/pages/os-temp.js?v=1435c556"></script>
 
 
 
@@ -36,7 +17,7 @@
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
-<link rel="stylesheet" href="/assets/css/os.css?v=46dacaea" />
+<link rel="stylesheet" href="/assets/css/os.css?v=1435c556" />
 
 
   <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
@@ -48,10 +29,10 @@
   <meta name="apple-mobile-web-app-title" content="WYK Maths">
   <meta name="mobile-web-app-capable" content="yes">
 
-<script src="/assets/js/core/ui.js?v=46dacaea"></script>
-<script src="/assets/js/core/net.js?v=46dacaea"></script>
-<script src="/assets/js/core/api.js?v=46dacaea"></script>
-<script src="/assets/js/core/page.js?v=46dacaea"></script>
+<script src="/assets/js/core/ui.js?v=1435c556"></script>
+<script src="/assets/js/core/net.js?v=1435c556"></script>
+<script src="/assets/js/core/api.js?v=1435c556"></script>
+<script src="/assets/js/core/page.js?v=1435c556"></script>
 </head>
 <body>
 <!-- ⭐ OS 鎖屏 / 登入 -->
@@ -250,238 +231,10 @@
     </div>
   </div>
 </div>
-<script>
-/* ═══════════ 全站禁止縮放（移動端 pinch-zoom） ═══════════ */
-(function () {
-  'use strict';
-
-  // 1) 攔截多指觸摸（iOS + Android 通用）
-  //    單指正常放行，兩指以上一律阻擋
-  document.addEventListener('touchstart', (e) => {
-    if (e.touches.length > 1) {
-      e.preventDefault();
-    }
-  }, { passive: false });
-
-  document.addEventListener('touchmove', (e) => {
-    if (e.touches.length > 1) {
-      e.preventDefault();
-    }
-  }, { passive: false });
-
-  // 2) iOS Safari 專屬的 gesture 事件（Safari 13+ 仍會派發）
-  ['gesturestart', 'gesturechange', 'gestureend'].forEach(evt => {
-    document.addEventListener(evt, (e) => {
-      e.preventDefault();
-    }, { passive: false });
-  });
-
-  // 3) 桌面瀏覽器 Ctrl/Cmd + 滾輪縮放（順手一起擋）
-  document.addEventListener('wheel', (e) => {
-    if (e.ctrlKey || e.metaKey) {
-      // 但如果游標在某個視窗的內容區內，讓那個視窗的 handler 自己處理
-      // （.os-win-body 有自己的 wheel 監聽，會 stopPropagation 嗎？不會，
-      //   但我們這裡的判斷會干擾它，所以做個例外）
-      const inWinBody = e.target.closest && e.target.closest('.os-win-body');
-      if (!inWinBody) e.preventDefault();
-    }
-  }, { passive: false });
-
-  // 4) 攔截雙擊縮放（iOS Safari 舊版可能透過此觸發）
-  let _lastTouchEnd = 0;
-  document.addEventListener('touchend', (e) => {
-    const now = Date.now();
-    if (now - _lastTouchEnd <= 300) {
-      e.preventDefault();
-    }
-    _lastTouchEnd = now;
-  }, { passive: false });
-
-  // 5) 保險：把 viewport meta 再次寫死（有些 SPA 動態改寫）
-  window.addEventListener('load', () => {
-    const meta = document.querySelector('meta[name="viewport"]');
-    if (meta) {
-      meta.setAttribute('content',
-        'width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover');
-    }
-  });
-})();
-</script>
-<script>
-/* ═══════════ OS 鎖屏邏輯（獨立於主程式） ═══════════ */
-window.__setupOSLockScreen = function (options) {
-  options = options || {};
-  const onUnlock = typeof options.onUnlock === 'function' ? options.onUnlock : function(){};
-
-  const lock        = document.getElementById('os-lock');
-  const clockScreen = document.getElementById('osLockClockScreen');
-  const loginScreen = document.getElementById('osLoginScreen');
-  const timeEl      = document.getElementById('osLockTime');
-  const dateEl      = document.getElementById('osLockDate');
-  if (!lock) return;
-
-  // ⭐ 每次加载都顯示鎖屏
-  lock.style.display = 'flex';
-  lock.style.opacity = '1';
-
-  /* ── 時鐘 ── */
-  function tick() {
-    const d = new Date();
-    const h = String(d.getHours()).padStart(2, '0');
-    const m = String(d.getMinutes()).padStart(2, '0');
-    const s = String(d.getSeconds()).padStart(2, '0');
-    const yyyy = d.getFullYear();
-    const MM = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    // ⭐ HH:MM + 小字秒
-    timeEl.innerHTML = `${h}:${m}<span class="os-lock-sec">:${s}</span>`;
-    dateEl.textContent = `${yyyy}-${MM}-${dd}`;
-  }
-  tick();
-  const clockTimer = setInterval(tick, 1000);   // ⭐ 每秒更新
-
-  /* ── 解鎖：淡出鎖屏 → 回調 onUnlock ── */
-  let unlocked = false;
-  function unlock() {
-    if (unlocked) return;
-    unlocked = true;
-    clearInterval(clockTimer);
-    document.removeEventListener('keydown', onKey);
-    document.removeEventListener('pointerdown', onPointer);
-
-    // ⭐ 先啟動 OS 初始化（在鎖屏下方）
-    onUnlock();
-
-    if (typeof document.startViewTransition === 'function') {
-      // ⭐ 無縫解鎖：View Transitions API
-      //    瀏覽器快照鎖屏「之前」的樣子，執行回調（隱藏鎖屏），
-      //    再快照「之後」的樣子，並在兩者之間播放過渡動畫。
-      const transition = document.startViewTransition(() => {
-        lock.style.display = 'none';
-      });
-
-      // 過渡結束後清理 view-transition-name（避免殘留）
-      if (transition && transition.finished) {
-        transition.finished.finally(() => {
-          lock.style.viewTransitionName = 'none';
-        });
-      }
-    } else {
-      // ⭐ 降級方案：手動 CSS 動畫（不支援 API 的瀏覽器）
-      lock.style.transition =
-        'opacity .55s cubic-bezier(.4,0,.2,1), ' +
-        'transform .55s cubic-bezier(.4,0,.2,1), ' +
-        'filter .5s ease';
-      requestAnimationFrame(() => {
-        lock.style.opacity = '0';
-        lock.style.transform = 'scale(1.08)';
-        lock.style.filter = 'blur(10px)';
-      });
-      setTimeout(() => { lock.style.display = 'none'; }, 650);
-    }
-  }
-
-  /* ── 階段切換：時鐘 → (已登入? 解鎖 : 登入表單) ── */
-  let advanced = false;
-  function advanceToLogin() {
-    if (advanced || unlocked) return;
-    advanced = true;
-    clearInterval(clockTimer);
-
-    document.removeEventListener('keydown', onKey);
-    document.removeEventListener('pointerdown', onPointer);
-
-    // ⭐ 已登入 → 直接解鎖進入 OS
-    if (typeof isLoggedIn === 'function' && isLoggedIn()) {
-      unlock();
-      return;
-    }
-
-    // ⭐ 未登入 → 顯示登入表單
-    clockScreen.style.transition = 'opacity .3s ease';
-    clockScreen.style.opacity = '0';
-    setTimeout(() => {
-      clockScreen.style.display = 'none';
-      loginScreen.style.display = '';
-      setTimeout(() => {
-        const un = document.getElementById('osLoginUsername');
-        if (un) un.focus();
-      }, 120);
-    }, 300);
-  }
-
-  function onKey(e) {
-    if (['Shift','Control','Alt','Meta','CapsLock','Tab'].includes(e.key)) return;
-    advanceToLogin();
-  }
-  function onPointer(e) {
-    if (e.button !== 0) return;
-    advanceToLogin();
-  }
-
-  document.addEventListener('keydown', onKey);
-  document.addEventListener('pointerdown', onPointer);
-  clockScreen.addEventListener('click', advanceToLogin);
-
-  /* ── 登入表單 ── */
-  const form     = document.getElementById('osLoginForm');
-  const usernameI= document.getElementById('osLoginUsername');
-  const passwordI= document.getElementById('osLoginPassword');
-  const submitBtn= document.getElementById('osLoginSubmit');
-  const errorEl  = document.getElementById('osLoginError');
-  const eyeBtn   = document.getElementById('osLoginEye');
-
-  eyeBtn.addEventListener('click', () => {
-    const isPwd = passwordI.type === 'password';
-    passwordI.type = isPwd ? 'text' : 'password';
-    eyeBtn.querySelector('i').className = isPwd ? 'fas fa-eye-slash' : 'fas fa-eye';
-  });
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const u = usernameI.value.trim();
-    const p = passwordI.value;
-    if (!u || !p) {
-      errorEl.textContent = 'Please enter both username and password';
-      return;
-    }
-
-    errorEl.textContent = '';
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing in…';
-
-    try {
-      const result = await window.login(u, p);
-      if (result && result.success) {
-        // ⭐ 登入成功 → 直接解鎖（不 reload）
-        unlock();
-      } else {
-        errorEl.textContent = (result && result.message) || 'Invalid credentials';
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<span class="os-login-submit-text">Sign In</span>';
-        passwordI.value = '';
-        passwordI.focus();
-      }
-    } catch (err) {
-      errorEl.textContent = 'Network error. Please try again.';
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = '<span class="os-login-submit-text">Sign In</span>';
-    }
-  });
-
-  [usernameI, passwordI].forEach(inp => {
-    inp.addEventListener('input', () => {
-      if (errorEl.textContent) errorEl.textContent = '';
-    });
-  });
-
-  document.getElementById('osLoginMs').addEventListener('click', () => {
-    window.location.href = '/api/auth/microsoft';
-  });
-};
-</script>
-<script src="/assets/js/auth.js?v=46dacaea"></script>
-<script src="/assets/js/os-system.js?v=46dacaea"></script>
+<script src="/assets/js/pages/os-temp-2.js?v=1435c556"></script>
+<script src="/assets/js/pages/os-temp-3.js?v=1435c556"></script>
+<script src="/assets/js/auth.js?v=1435c556"></script>
+<script src="/assets/js/os-system.js?v=1435c556"></script>
 
 </body>
 </html>
