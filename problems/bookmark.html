@@ -151,7 +151,7 @@
                     renderTable();
                 }
             } catch (e) {
-                alert('Error');
+                (window.DSHUI ? DSHUI.toast('Error', 'err') : alert('Error'));
             }
         }
 

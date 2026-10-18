@@ -1543,7 +1543,7 @@
 
       selectedBtn.addEventListener('click', async () => {
         if (getCooldownRemaining() > 0) {
-          alert(`請稍候 ${Math.ceil(getCooldownRemaining() / 1000)} 秒後再試。`);
+          (window.DSHUI ? DSHUI.toast(`請稍候 ${Math.ceil(getCooldownRemaining() / 1000)} 秒後再試。`) : alert(`請稍候 ${Math.ceil(getCooldownRemaining() / 1000)} 秒後再試。`));
           return;
         }
         const files = getSelectedFiles();
@@ -1570,7 +1570,7 @@
 
       allBtn.addEventListener('click', async () => {
         if (getCooldownRemaining() > 0) {
-          alert(`請稍候 ${Math.ceil(getCooldownRemaining() / 1000)} 秒後再試。`);
+          (window.DSHUI ? DSHUI.toast(`請稍候 ${Math.ceil(getCooldownRemaining() / 1000)} 秒後再試。`) : alert(`請稍候 ${Math.ceil(getCooldownRemaining() / 1000)} 秒後再試。`));
           return;
         }
         const allFiles = filterPurgeList(currentCatalog.flatMap(c => c.files));

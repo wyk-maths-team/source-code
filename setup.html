@@ -93,7 +93,7 @@
       });
       const data = await res.json();
       if (data.success) {
-        alert('Account created! Please sign in.');
+        (window.DSHUI ? DSHUI.toast('Account created! Please sign in.', 'ok') : alert('Account created! Please sign in.'));
         location.href = '/login';
       } else {
         err.textContent = data.message; err.style.display = 'block';

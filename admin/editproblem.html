@@ -316,11 +316,11 @@
                 }, 200);
               }
             } else {
-              alert(res.message || 'Delete failed');
+              (window.DSHUI ? DSHUI.toast(res.message || 'Delete failed', 'err') : alert(res.message || 'Delete failed'));
               btn.disabled = false;
             }
           } catch (e) {
-            alert('Error: ' + e.message);
+            (window.DSHUI ? DSHUI.toast('Error: ' + e.message, 'err') : alert('Error: ' + e.message));
             btn.disabled = false;
           }
         });
@@ -331,16 +331,16 @@
           const id = btn.dataset.id;
           const input = container.querySelector(`.set-likes-input[data-id="${id}"]`);
           const likes = parseInt(input.value, 10);
-          if (isNaN(likes)) return alert('Invalid number');
+          if (isNaN(likes)) return (window.DSHUI ? DSHUI.toast('Invalid number', 'err') : alert('Invalid number'));
           try {
             const res = await apiCall('/api/problem?action=adminSetDiscussionLikes', 'PUT', { id, likes });
             if (res.success) {
-              alert('Likes updated');
+              (window.DSHUI ? DSHUI.toast('Likes updated', 'ok') : alert('Likes updated'));
               loadAdminDiscussions(problemId);
             } else {
-              alert(res.message || 'Update failed');
+              (window.DSHUI ? DSHUI.toast(res.message || 'Update failed', 'err') : alert(res.message || 'Update failed'));
             }
-          } catch (e) { alert('Error: ' + e.message); }
+          } catch (e) { (window.DSHUI ? DSHUI.toast('Error: ' + e.message, 'err') : alert('Error: ' + e.message)); }
         });
       });
 
@@ -350,7 +350,7 @@
           const targetUser = btn.dataset.username;
           if (!targetUser) return;
           if (targetUser === currentUser.username) {
-            alert('You cannot ban yourself.');
+            (window.DSHUI ? DSHUI.toast('You cannot ban yourself.', 'err') : alert('You cannot ban yourself.'));
             return;
           }
           if (!confirm(`Ban user "${targetUser}"? They will be logged out and unable to login.`)) return;
@@ -366,12 +366,12 @@
               btn.style.borderColor = '#6c757d';
               setTimeout(() => { loadAdminDiscussions(problemId); }, 1200);
             } else {
-              alert(res.message || 'Ban failed');
+              (window.DSHUI ? DSHUI.toast(res.message || 'Ban failed', 'err') : alert(res.message || 'Ban failed'));
               btn.disabled = false;
               btn.innerHTML = '<i class="fas fa-user-slash"></i> Ban User';
             }
           } catch (e) {
-            alert('Network error: ' + e.message);
+            (window.DSHUI ? DSHUI.toast('Network error: ' + e.message, 'err') : alert('Network error: ' + e.message));
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-user-slash"></i> Ban User';
           }
@@ -764,7 +764,7 @@
             if (autoInsert) insertImageIntoStatement(currentUrl);
           } catch (err) {
             progress.style.display = 'none';
-            alert('Upload failed: ' + err.message);
+            (window.DSHUI ? DSHUI.toast('Upload failed: ' + err.message, 'err') : alert('Upload failed: ' + err.message));
           } finally {
             isUploading = false;
             pickBtn.disabled = false;
@@ -823,7 +823,7 @@
             btn.classList.add('done');
             btn.innerHTML = '<i class="fas fa-check"></i> Copied';
             setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = old; }, 1200);
-          } catch (err) { alert('Copy failed: ' + err.message); }
+          } catch (err) { (window.DSHUI ? DSHUI.toast('Copy failed: ' + err.message, 'err') : alert('Copy failed: ' + err.message)); }
         }
         copyUrlBtn.addEventListener('click', () => { if (currentUrl) copyText(currentUrl, copyUrlBtn); });
         copyHtmlBtn.addEventListener('click', () => { if (currentUrl) copyText(buildImgHtml(currentUrl), copyHtmlBtn); });
@@ -910,7 +910,7 @@
       dcSecEl.addEventListener('input', renderResult);
       document.getElementById('dcComputeBtn').addEventListener('click', () => {
         const r = computeAll();
-        if (!r) { alert('Please enter a valid time greater than 0.'); return; }
+        if (!r) { (window.DSHUI ? DSHUI.toast('Please enter a valid time greater than 0.') : alert('Please enter a valid time greater than 0.')); return; }
         dcDifficultyInput.value = r.suggested.toFixed(2);
         dcDifficultyInput.style.transition = 'box-shadow .3s';
         dcDifficultyInput.style.boxShadow = '0 0 0 3px rgba(74,144,217,.5)';

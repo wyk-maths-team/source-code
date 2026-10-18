@@ -1102,7 +1102,7 @@
 
     const vars = {};
     try { if (wf.setup) wf.setup(vars); }
-    catch (e) { alert('Setup failed: ' + e.message); return; }
+    catch (e) { (window.DSHUI ? DSHUI.toast('Setup failed: ' + e.message, 'err') : alert('Setup failed: ' + e.message)); return; }
 
     const runState = {
       running: true,

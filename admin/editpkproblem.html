@@ -406,7 +406,7 @@
         const old = btn.innerHTML;
         btn.innerHTML = '<i class="fas fa-check"></i>';
         setTimeout(() => { btn.innerHTML = old; }, 1200);
-      }).catch(() => alert('Copy failed'));
+      }).catch(() => (window.DSHUI ? DSHUI.toast('Copy failed', 'err') : alert('Copy failed')));
     }
     pkImgCopyUrl.addEventListener('click', () => { if (uploadedImageUrl) copyTo(uploadedImageUrl, pkImgCopyUrl); });
     pkImgCopyHtml.addEventListener('click', () => { if (uploadedImageUrl) copyTo(buildImgHtml(uploadedImageUrl), pkImgCopyHtml); });
@@ -468,7 +468,7 @@
     }
 
     document.getElementById('pkAddChoice').addEventListener('click', () => {
-      if (choices.length >= 10) return alert('Max 10 options');
+      if (choices.length >= 10) return (window.DSHUI ? DSHUI.toast('Max 10 options', 'err') : alert('Max 10 options'));
       choices.push('');
       renderChoices();
       renderAnsPicker();

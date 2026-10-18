@@ -606,7 +606,7 @@ function renderVercelSection(container, data) {
       } catch (err) {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-rotate"></i> Refresh';
-        alert('Refresh failed: ' + err.message);
+        (window.DSHUI ? DSHUI.toast('Refresh failed: ' + err.message, 'err') : alert('Refresh failed: ' + err.message));
       }
     });
   }

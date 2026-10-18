@@ -783,11 +783,11 @@
         if (res.success) {
           await reload();
         } else {
-          alert(res.message || 'Failed to join contest');
+          (window.DSHUI ? DSHUI.toast(res.message || 'Failed to join contest', 'err') : alert(res.message || 'Failed to join contest'));
           if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> Join Contest'; }
         }
       } catch (err) {
-        alert('Network error: ' + err.message);
+        (window.DSHUI ? DSHUI.toast('Network error: ' + err.message, 'err') : alert('Network error: ' + err.message));
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> Join Contest'; }
       }
     }
@@ -800,11 +800,11 @@
         if (res.success) {
           await reload();
         } else {
-          alert(res.message || 'Failed to quit contest');
+          (window.DSHUI ? DSHUI.toast(res.message || 'Failed to quit contest', 'err') : alert(res.message || 'Failed to quit contest'));
           if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-right-from-bracket"></i> Quit Contest'; }
         }
       } catch (err) {
-        alert('Network error: ' + err.message);
+        (window.DSHUI ? DSHUI.toast('Network error: ' + err.message, 'err') : alert('Network error: ' + err.message));
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-right-from-bracket"></i> Quit Contest'; }
       }
     }

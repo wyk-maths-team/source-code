@@ -881,12 +881,12 @@
                 pkBtn.disabled = false;
                 pkBtn.innerHTML = oldHtml;
               } else {
-                alert(res.message || 'Failed');
+                (window.DSHUI ? DSHUI.toast(res.message || 'Failed', 'err') : alert(res.message || 'Failed'));
                 pkBtn.disabled = false;
                 pkBtn.innerHTML = oldHtml;
               }
             } catch {
-              alert('Network error or already invited');
+              (window.DSHUI ? DSHUI.toast('Network error or already invited', 'err') : alert('Network error or already invited'));
               pkBtn.disabled = false;
               pkBtn.innerHTML = oldHtml;
             }

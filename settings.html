@@ -672,7 +672,7 @@
         url.searchParams.set('_t', Date.now().toString());
         location.replace(url.toString());
       } catch (err) {
-        alert('Failed: ' + err.message);
+        (window.DSHUI ? DSHUI.toast('Failed: ' + err.message, 'err') : alert('Failed: ' + err.message));
         btn.disabled = false;
         btn.innerHTML = origHTML;
       }

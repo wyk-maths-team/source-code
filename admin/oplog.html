@@ -773,7 +773,7 @@
           btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
           setTimeout(() => { btn.innerHTML = '<i class="fas fa-copy"></i> Copy JSON'; }, 1500);
         } catch (e) {
-          alert('Copy failed: ' + e.message);
+          (window.DSHUI ? DSHUI.toast('Copy failed: ' + e.message, 'err') : alert('Copy failed: ' + e.message));
         }
       };
     }
