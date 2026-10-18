@@ -2,7 +2,8 @@
 
 > 覆盖 63 个页面。数据采集自 `tools/audit-pages.mjs`（2026-10-18，重构 M1–M3 之后）。
 > 代码变化后重新生成：`node tools/audit-pages.mjs --json > .backup/pages-audit.json`
-
+# 请不要再使用AGENT去写代码了，远古bug全部给劳资挖出来，复现，何意味啊？！
+# 后面的小可爱们也别用agent，遵顼古法编程第一条。
 ---
 
 ## 0. 先读这一页
