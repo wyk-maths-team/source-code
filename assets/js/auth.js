@@ -1,4 +1,4 @@
-﻿// publichttps://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js
+// publichttps://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js
 (function() {
   const urlParams = new URLSearchParams(window.location.search);
   const token = urlParams.get('token');

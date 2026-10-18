@@ -1,39 +1,37 @@
 // app.js - 全局初始化
 (function() {
   // 初始化应用
+  // ═══════════════════════════════════════════════════
+// PWA：強制從 OS 啟動
+// ═══════════════════════════════════════════════════
+(function forcePWAHome() {
+  // 檢測是否以 PWA standalone 模式打開
+  if (window.top !== window.self) return;
+  const isStandalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true ||
+    window.matchMedia('(display-mode: fullscreen)').matches ||
+    window.matchMedia('(display-mode: minimal-ui)').matches;
+
+  if (!isStandalone) return;                       // 瀏覽器模式 → 不重定向
+  if (location.pathname.startsWith('/os')) return; // 已在 OS → 不重定向
+  if (location.pathname.startsWith('/admin')) return; // 管理端 → 不重定向
+
+  // 本次 PWA 會話是否已經進過 OS？
+  // 沒進過 → 第一次從圖標啟動，重定向到 /os
+  // 進過   → 是 OS 內部導航，放行
+  try {
+    if (!sessionStorage.getItem('pwaEnteredOS')) {
+      sessionStorage.setItem('pwaEnteredOS', '1');
+      location.replace('/os' + location.search + location.hash);
+    }
+  } catch (e) {
+    // sessionStorage 不可用時，保守處理：不重定向
+  }
+})();
   initApp();
 
   function initApp() {
-    if (!document.querySelector('link[rel="manifest"]')) {
-    const link = document.createElement('link');
-    link.rel = 'manifest';
-    link.href = '/manifest.json';
-    document.head.appendChild(link);
-  }
-
-  // iOS 的 apple-touch-icon
-  if (!document.querySelector('link[rel="apple-touch-icon"]')) {
-    const appleIcon = document.createElement('link');
-    appleIcon.rel = 'apple-touch-icon';
-    appleIcon.href = '/icons/apple-touch-icon.png';
-    document.head.appendChild(appleIcon);
-  }
-
-  // iOS 的 meta 標籤
-  const iosMetaTags = [
-    { name: 'apple-mobile-web-app-capable', content: 'yes' },
-    { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
-    { name: 'apple-mobile-web-app-title', content: 'WYK Maths' },
-    { name: 'mobile-web-app-capable', content: 'yes' }
-  ];
-  iosMetaTags.forEach(({ name, content }) => {
-    if (!document.querySelector(`meta[name="${name}"]`)) {
-      const meta = document.createElement('meta');
-      meta.name = name;
-      meta.content = content;
-      document.head.appendChild(meta);
-    }
-  });
     const currentUser = (typeof getCurrentUser === 'function') ? getCurrentUser() : { displayName: 'Guest' };
     const displayName = currentUser ? (currentUser.displayName || currentUser.username || 'Guest') : 'Guest';
 
@@ -71,7 +69,6 @@
         } else {
           if (typeof logout === 'function') logout();
           localStorage.removeItem('sidebarOpen');
-          localStorage.removeItem('pd_user_answers');
           window.location.href = '/';
         }
       });

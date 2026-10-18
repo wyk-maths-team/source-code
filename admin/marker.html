@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/arch-render.js"></script>
+<script src="/assets/js/arch-render.js"></script>
   
 
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
   // ⭐ 铺的是"遮罩色"，不是页面底色
   document.documentElement.style.background = (t === 'dark' ? '#0d1117' : '#0f3460');
 }catch(e){}})();</script>
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pageload.js" defer></script>
+<script src="/assets/js/pageload.js" defer></script>
   <title>Mark Submissions - WYK Maths Team</title><link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
@@ -23,7 +23,7 @@
   <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.amcharts.com">
 
-<link rel="stylesheet" href="/styles.css" />
+<link rel="stylesheet" href="/assets/css/styles.css" />
   <style>
     .sub-row { display: flex; align-items: center; padding: 0.5rem; border-bottom: 1px solid var(--border-color); }
     .sub-row.highlight { background: #ffffcc; }
@@ -38,13 +38,13 @@
     <main class="main-content" id="mainContent">Loading...</main>
     <!-- <button class="sidebar-toggle" id="sidebarToggle">☰</button> -->
   </div>
-  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/app.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/topbar.js"></script>
+  <script src="/assets/js/auth.js"></script>
+  <script src="/assets/js/app.js"></script>
+  <script src="/assets/js/topbar.js"></script>
   
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/sidebar.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/heartbeat.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/pk-invite.js"></script>
+<script src="/assets/js/sidebar.js"></script>
+<script src="/assets/js/heartbeat.js"></script>
+<script src="/assets/js/pk-invite.js"></script>
   <script>
     if(isLoggedIn())apiCall('/api/users?action=markAdminVisit', 'POST').catch(() => {});
     if (!isLoggedIn() || (getCurrentUser()?.role !== 'admin' && getCurrentUser()?.role !== 'root')) {

@@ -22,7 +22,7 @@
   const HIDE_STATUSBAR_KEY = 'osHideDeviceStatusBar';
 
   /* ═══════════ 1. 常量 ═══════════ */
-  const CDN_BASE = 'https://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/';
+  const CDN_BASE = '/assets/js/';
   const HOME_PAGE = '/';
 
   // APPS 構建函式（於 init 時呼叫，此時 user 已確定）

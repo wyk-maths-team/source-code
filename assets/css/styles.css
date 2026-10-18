@@ -51,6 +51,7 @@
 body {
     transition: background .2s ease,color .2s ease
 }
+html { background: var(--content-bg); }
 
 *,*::before,*::after {
     box-sizing: border-box;

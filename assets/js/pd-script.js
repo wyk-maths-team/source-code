@@ -456,8 +456,8 @@
   // [7] 動態載入器
   // ─────────────────────────────────────────────────────────────
   const MCQ_CSS_URL   = '/css/pd-pdf.css';        // PDF + MCQ 樣式
-  const MCQ_JS_URL    = '/script/pd-mcq.js';
-  const EXTRAS_JS_URL = '/script/pd-extras.js';
+  const MCQ_JS_URL    = '/assets/js/pd-mcq.js';
+  const EXTRAS_JS_URL = '/assets/js/pd-extras.js';
 
   let _mcqPromise = null;
   let _extrasPromise = null;
