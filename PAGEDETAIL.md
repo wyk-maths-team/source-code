@@ -261,11 +261,38 @@ git add -A && git commit -m "..."
 
 | 你改了什么 | 要做什么 |
 |---|---|
-| 页面 HTML | 直接改，刷新即见（HTML 是 `no-cache`） |
-| `assets/js/*.js`、`assets/css/*` | 改完跑 `npm run version:assets`，再提交 |
+| 页面 HTML（结构、文案） | 直接改，刷新即见（HTML 是 `no-cache`） |
+| **页面的业务逻辑 JS** | 改 `assets/js/pages/<页面>.js`，**不是 HTML**（内联已抽离） |
+| `assets/js/*.js`、`assets/css/*`、`assets/js/pages/*` | 改完跑 `npm run version:assets`，再提交 |
 | `api/*.js` | 直接改，`vercel dev` 会热重启 |
 | `vercel.json` | 改完重启 `vercel dev`（rewrites 只在启动时读） |
 | 新增页面 | `npm run new:page`，然后 `npm run version:assets` |
+
+### 5.1.1 页面脚本在哪（内联已抽离）
+
+原先 63 个页面共有 **16280 行内联 `<script>`**，这些无法被缓存。现已抽到 `assets/js/pages/`：
+
+| 文件命名 | 来源页面 |
+|---|---|
+| `assets/js/pages/index.js` | `index.html` |
+| `assets/js/pages/admin-users.js` | `admin/users.html` |
+| `assets/js/pages/problems-id.js` | `problems/[id].html` |
+| `assets/js/pages/settings-extra.js` | `settings/extra.html` |
+| `assets/js/pages/os-temp.js` / `-2.js` / `-3.js` | 同一页面有多个内联块时按序编号 |
+
+引用一律是**绝对路径** `/assets/js/pages/xxx.js`——与页面层级无关，根目录、`admin/`、`problems/` 下都一样正确，不需要 `../`，也不受 `vercel.json` rewrite 改写 URL 的影响。
+
+**三处仍在 HTML 里内联，是故意的**：
+
+| 内容 | 原因 |
+|---|---|
+| `<script>window.__BUILD_V='...'</script>` | 由 `version-assets` 注入与管理 |
+| 主题防闪白脚本（含 `theme` 且 ≤30 行的片段） | 在 `<head>` 同步执行，抽成外部文件会多一次网络等待，首屏更容易闪白 |
+| 小于 15 行的碎片 | 省不了多少，却多一个请求 |
+
+**注意**：抽离后新增文件需要重新跑 `version:assets`，否则它们没带 `?v=`，改代码后浏览器不会更新。
+
+**工具**：`node tools/extract-inline.mjs`（`--check` 只报告，`--only a.html,b.html` 指定页面，`--relative` 用相对路径）。幂等，可重复运行。
 
 ### 5.2 加一个 API
 
