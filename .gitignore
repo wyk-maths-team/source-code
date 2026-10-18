@@ -31,6 +31,8 @@ Thumbs.db
 temp.html
 *temp.html
 wasted.html
+.backup/
+.acl-recovery/
 
 
 # --------------- Local testing ---------------
