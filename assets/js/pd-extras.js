@@ -194,7 +194,7 @@ function clearWorkbenchStatus() {
 
   async function loadDrawTool() {
     if (window.DrawTool) return window.DrawTool;
-    await loadScript('/assets/js/draw.js');
+    await loadScript('/assets/js/draw.js' + (window.__BUILD_V ? '?v=' + window.__BUILD_V : ''));
     if (!window.DrawTool) throw new Error('DrawTool not found in draw.js');
     return window.DrawTool;
   }
