@@ -6,11 +6,7 @@
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
   if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
-  if (localStorage.getItem('pageTransition') === 'off') return;
-  if (sessionStorage.getItem('__pt') !== 'in') return;
-  document.documentElement.style.background = (t === 'dark' ? '#0d1117' : '#0f3460');
 }catch(e){}})();</script>
-<script src="/assets/js/pageload.js" defer></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
 <!-- content="false" 表示公开页（不需要登录）；null/true 则沿用 auth.js 的白名单判断 -->
