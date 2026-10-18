@@ -135,91 +135,6 @@ function clearWorkbenchStatus() {
   }
 
   // ═════════════════════════════════════════════════════════════
-  // [B] Draw + Draw 鎖
-  // ═════════════════════════════════════════════════════════════
-  const DRAW_LOCK_CLASS = 'draw-mode-active';
-  let _drawLocked = false;
-  let _drawpadObserver = null;
-  let _drawToggling = false;
-  function _preventScroll(e) { if (!_drawLocked) return; e.preventDefault(); }
-  function _preventKeyboardScroll(e) {
-    if (!_drawLocked) return;
-    const blocked = new Set([
-      'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
-      'PageUp', 'PageDown', 'Home', 'End', ' ', 'Spacebar',
-    ]);
-    if (blocked.has(e.key)) e.preventDefault();
-  }
-
-  function setDrawLock(locked) {
-    if (locked === _drawLocked) return;
-    _drawLocked = locked;
-
-    if (locked) {
-      document.documentElement.classList.add(DRAW_LOCK_CLASS);
-      document.body.classList.add(DRAW_LOCK_CLASS);
-      document.addEventListener('wheel',     _preventScroll, { passive: false, capture: true });
-      document.addEventListener('touchmove', _preventScroll, { passive: false, capture: true });
-      document.addEventListener('keydown',   _preventKeyboardScroll, { capture: true });
-    } else {
-      document.documentElement.classList.remove(DRAW_LOCK_CLASS);
-      document.body.classList.remove(DRAW_LOCK_CLASS);
-      document.removeEventListener('wheel',     _preventScroll, { capture: true });
-      document.removeEventListener('touchmove', _preventScroll, { capture: true });
-      document.removeEventListener('keydown',   _preventKeyboardScroll, { capture: true });
-    }
-  }
-
-  function observeDrawpadState() {
-    const wrapper = document.getElementById('drawpadWrapper');
-    if (!wrapper) return;
-
-    if (_drawpadObserver) {
-      try { _drawpadObserver.disconnect(); } catch {}
-      _drawpadObserver = null;
-    }
-
-    const check = () => {
-      const st = wrapper.style.display;
-      setDrawLock(st !== 'none' && st !== '');
-    };
-
-    _drawpadObserver = new MutationObserver(check);
-    _drawpadObserver.observe(wrapper, {
-      attributes: true,
-      attributeFilter: ['style', 'class', 'hidden'],
-    });
-    check();
-  }
-
-  async function loadDrawTool() {
-    if (window.DrawTool) return window.DrawTool;
-    await loadScript('/assets/js/draw.js' + (window.__BUILD_V ? '?v=' + window.__BUILD_V : ''));
-    if (!window.DrawTool) throw new Error('DrawTool not found in draw.js');
-    return window.DrawTool;
-  }
-
-  async function toggleDrawMode() {
-    if (_drawToggling) return;   // ⭐ 防併發
-    _drawToggling = true;
-
-    const btn = document.getElementById('drawToggleBtn');
-    const orig = btn ? btn.innerHTML : '';
-    if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
-    try {
-      const DrawTool = await loadDrawTool();
-      DrawTool.toggle();
-    } catch (e) {
-      console.error('[draw]', e);
-      alert('Failed to load drawing tool: ' + e.message);
-    } finally {
-      if (btn && orig) btn.innerHTML = orig;
-      _drawToggling = false;
-    }
-  }
-
-  // ═════════════════════════════════════════════════════════════
   // [C] Workbench（三模式）
   // ═════════════════════════════════════════════════════════════
   const WB_HINTS = {
@@ -798,7 +713,6 @@ async function handleStepsSubmit(stepsText, checkBtn) {
       setWorkbenchStatus('');
     });
 
-    document.getElementById('drawToggleBtn')?.addEventListener('click', toggleDrawMode);
     document.getElementById('timerToggleBtn')?.addEventListener('click', toggleTimer);
 
     workbench.setMode('none');
@@ -1160,11 +1074,6 @@ async function handleStepsSubmit(stepsText, checkBtn) {
   function cleanup() {
     if (document.getElementById('timerRow')) { pauseTimer(); saveTimer(); }
     if (S.pollTimer) clearInterval(S.pollTimer);
-    if (_drawpadObserver) {
-      try { _drawpadObserver.disconnect(); } catch {}
-      _drawpadObserver = null;
-    }
-    setDrawLock(false);
   }
   window.addEventListener('pagehide', cleanup);
 
@@ -1175,9 +1084,6 @@ async function handleStepsSubmit(stepsText, checkBtn) {
     workbench,
     cleanup,
     fetchNekoAndShow,
-    setDrawLock,
-    observeDrawpadState,
-    toggleDrawMode,
     toggleTimer,
     openSimilar,
     loadDiscussions,
@@ -1282,8 +1188,6 @@ async function handleStepsSubmit(stepsText, checkBtn) {
       // 綁定答題 / 提交
       bindAnswerInteractions();
       bindSubmitEvent();
-      document.addEventListener('drawtool:open',  () => setDrawLock(true));
-      document.addEventListener('drawtool:close', () => setDrawLock(false));
 
       // 上一題/下一題
       await setupNavigation(problem);

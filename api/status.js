@@ -1,4 +1,4 @@
-﻿// api/status.js
+// api/status.js
 import { connectToDatabase } from './_db.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
@@ -11,6 +11,19 @@ async function handler(req, res) {
   if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
 const action = req.query.action || (req.body && req.body.action);
+
+  // ══ 运维信息仅限管理员 ══
+  // system 暴露数据库集合大小/文档数，vercel 暴露团队账单用量，
+  // 这两类都不该给普通学生看。handleOsAction 是用户自己的数据，不受此限制。
+  const isAdminUser = decoded.role === 'admin' || decoded.role === 'root';
+  const isOpsAction = !action || action === 'system' || action === 'vercel';
+  if (isOpsAction && !isAdminUser) {
+    return res.status(403).json({
+      success: false,
+      message: 'Only administrators can view system status',
+      code: 'FORBIDDEN',
+    });
+  }
 
 // ── 無 action 或 action=system：原有系統狀態 ──
 if (!action || action === 'system') {
