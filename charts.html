@@ -639,7 +639,7 @@
         const start = new Date(startStr + 'T00:00:00Z');
         const end = new Date(endStr + 'T23:59:59Z');
         if (isNaN(start.getTime()) || isNaN(end.getTime())) return;
-        if (start > end) { alert('Start date must be before end date.'); return; }
+        if (start > end) { (window.DSHUI ? DSHUI.toast('Start date must be before end date.', 'err') : alert('Start date must be before end date.')); return; }
         try { xAxis.zoomToDates(start, end, true); } catch (e) { console.warn('zoomToDates failed', e); }
       }
 

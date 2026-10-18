@@ -414,12 +414,12 @@
             if (result.success) {
               window.location.href = '/admin/updates';
             } else {
-              alert(result.message || 'Delete failed');
+              (window.DSHUI ? DSHUI.toast(result.message || 'Delete failed', 'err') : alert(result.message || 'Delete failed'));
               delBtn.disabled = false;
               delBtn.innerHTML = '<i class="fas fa-trash"></i> Delete';
             }
           } catch (err) {
-            alert('Delete error: ' + err.message);
+            (window.DSHUI ? DSHUI.toast('Delete error: ' + err.message, 'err') : alert('Delete error: ' + err.message));
             delBtn.disabled = false;
             delBtn.innerHTML = '<i class="fas fa-trash"></i> Delete';
           }

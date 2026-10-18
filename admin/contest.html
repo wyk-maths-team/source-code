@@ -143,11 +143,11 @@
               const contests = await loadContests(currentPage);
               renderContests(contests);
             } else {
-              alert(res.message || 'Delete failed');
+              (window.DSHUI ? DSHUI.toast(res.message || 'Delete failed', 'err') : alert(res.message || 'Delete failed'));
               btn.disabled = false;
             }
           } catch (err) {
-            alert('Error: ' + err.message);
+            (window.DSHUI ? DSHUI.toast('Error: ' + err.message, 'err') : alert('Error: ' + err.message));
             btn.disabled = false;
           }
         });

@@ -481,7 +481,7 @@
             if (autoInsert) insertImageIntoStatement(currentUrl);
           } catch (err) {
             progress.style.display = 'none';
-            alert('Upload failed: ' + err.message);
+            (window.DSHUI ? DSHUI.toast('Upload failed: ' + err.message, 'err') : alert('Upload failed: ' + err.message));
           } finally {
             isUploading = false;
             pickBtn.disabled = false;
@@ -539,7 +539,7 @@
             btn.classList.add('done');
             btn.innerHTML = '<i class="fas fa-check"></i> Copied';
             setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = old; }, 1200);
-          } catch (err) { alert('Copy failed: ' + err.message); }
+          } catch (err) { (window.DSHUI ? DSHUI.toast('Copy failed: ' + err.message, 'err') : alert('Copy failed: ' + err.message)); }
         }
         copyUrlBtn.addEventListener('click', () => { if (currentUrl) copyText(currentUrl, copyUrlBtn); });
         copyHtmlBtn.addEventListener('click', () => { if (currentUrl) copyText(buildImgHtml(currentUrl), copyHtmlBtn); });

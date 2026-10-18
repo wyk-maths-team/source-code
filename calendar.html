@@ -702,8 +702,8 @@
     const title = $mTitle.value.trim();
     const details = $mDetails.value.trim();
 
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return alert('Invalid date');
-    if (!title) return alert('Title required');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return (window.DSHUI ? DSHUI.toast('Invalid date', 'err') : alert('Invalid date'));
+    if (!title) return (window.DSHUI ? DSHUI.toast('Title required', 'err') : alert('Title required'));
 
     try {
       if (state.editingId) {
@@ -734,7 +734,7 @@
       }
       closeModal();
     } catch (e) {
-      alert('Save failed: ' + e.message);
+      (window.DSHUI ? DSHUI.toast('Save failed: ' + e.message, 'err') : alert('Save failed: ' + e.message));
     }
   }
 
@@ -758,7 +758,7 @@
       }
       closeModal();
     } catch (e) {
-      alert('Delete failed: ' + e.message);
+      (window.DSHUI ? DSHUI.toast('Delete failed: ' + e.message, 'err') : alert('Delete failed: ' + e.message));
     }
   }
 
@@ -815,7 +815,7 @@
       refreshMonth(date.slice(0, 7));
       hideTooltip();
     } catch (e) {
-      alert('Update failed: ' + e.message);
+      (window.DSHUI ? DSHUI.toast('Update failed: ' + e.message, 'err') : alert('Update failed: ' + e.message));
     }
   }
 
