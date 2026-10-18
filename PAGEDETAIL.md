@@ -263,7 +263,8 @@ git add -A && git commit -m "..."
 |---|---|
 | 页面 HTML（结构、文案） | 直接改，刷新即见（HTML 是 `no-cache`） |
 | **页面的业务逻辑 JS** | 改 `assets/js/pages/<页面>.js`，**不是 HTML**（内联已抽离） |
-| `assets/js/*.js`、`assets/css/*`、`assets/js/pages/*` | 改完跑 `npm run version:assets`，再提交 |
+| **页面的专属样式** | 改 `assets/css/pages/<页面>.css`，**不是 HTML**（内联已抽离） |
+| `assets/js/*`、`assets/css/*`、`assets/js/pages/*`、`assets/css/pages/*` | 改完跑 `npm run version:assets`，再提交 |
 | `api/*.js` | 直接改，`vercel dev` 会热重启 |
 | `vercel.json` | 改完重启 `vercel dev`（rewrites 只在启动时读） |
 | 新增页面 | `npm run new:page`，然后 `npm run version:assets` |
@@ -293,6 +294,25 @@ git add -A && git commit -m "..."
 **注意**：抽离后新增文件需要重新跑 `version:assets`，否则它们没带 `?v=`，改代码后浏览器不会更新。
 
 **工具**：`node tools/extract-inline.mjs`（`--check` 只报告，`--only a.html,b.html` 指定页面，`--relative` 用相对路径）。幂等，可重复运行。
+
+### 5.1.2 页面样式也在 assets/css/pages/
+
+同理，原先 **9945 行内联 `<style>`（316 KB）**已抽到 `assets/css/pages/<slug>.css`：
+
+| 文件 | 来源页面 |
+|---|---|
+| `assets/css/pages/user.css` | `user.html` |
+| `assets/css/pages/admin-users.css` | `admin/users.html` |
+
+- `<link>` 插在原来第一个 `<style>` 的位置（仍在 `<head>` 里），**渲染阻塞行为不变，不会 FOUC**
+- CSS 占各页 HTML 体积的 57%~78%，抽离后 HTML 小了一半以上
+
+**公共样式为什么没有合并**：实测 63 个跨页重复选择器里，只有 17 个声明完全一致，
+其余各页写法不同（`.btn` 有 **9 种**、`.message` 6 种、`.admin-container` 5 种）。
+强行合并会改变 20 个页面的按钮外观，收益却只有 1~2 KB，因此只做每页抽离。
+要评估公共合并，先跑 `node tools/analyze-css-dup.mjs` 看冲突面。
+
+**工具**：`node tools/extract-css.mjs`（`--check` / `--only` / `--min-lines`）。幂等。
 
 ### 5.2 加一个 API
 
