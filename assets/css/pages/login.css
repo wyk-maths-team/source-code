@@ -1,0 +1,221 @@
+
+    :root {
+      --card-bg: #fff;
+      --border-color: #dee2e6;
+      --text-primary: #212529;
+      --text-secondary: #6c757d;
+      --accent: #337ab7;
+      --danger: #dc3545;
+      --input-bg: #fff;
+    }
+    [data-theme="dark"] {
+      --card-bg: #1e1e1e;
+      --border-color: #444;
+      --text-primary: #e0e0e0;
+      --text-secondary: #aaa;
+      --input-bg: #2d2d2d;
+    }
+
+    .login-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: calc(100vh - 100px);
+      padding: 1rem;
+    }
+    .login-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    .login-card h2 {
+      margin: 0 0 1.5rem 0;
+      font-size: 1.6rem;
+      color: var(--text-primary);
+      text-align: center;
+    }
+    .form-group {
+      margin-bottom: 1.2rem;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 0.35rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+    .form-group input {
+      width: 100%;
+      padding: 0.6rem 0.8rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 1rem;
+      background: var(--input-bg);
+      color: var(--text-primary);
+      box-sizing: border-box;
+    }
+    .login-btn {
+      width: 100%;
+      padding: 0.7rem;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .login-btn:hover {
+      background: #286090;
+    }
+    .login-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .login-error {
+      color: var(--danger);
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+      text-align: center;
+      display: none;
+    }
+    .login-error.visible {
+      display: block;
+    }
+    .divider {
+      display: flex;
+      align-items: center;
+      margin: 1.5rem 0;
+    }
+    .divider::before,
+    .divider::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--border-color);
+    }
+    .divider span {
+      margin: 0 0.8rem;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+    }
+    .microsoft-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 0.65rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+      gap: 0.5rem;
+    }
+    .microsoft-btn:hover {
+      background: var(--border-color);
+    }
+    .microsoft-btn img {
+      width: 20px;
+      height: 20px;
+    }
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 1.2rem;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    .back-link:hover {
+      color: var(--accent);
+    }
+    .success-msg {
+      color: #155724;
+      background: #d4edda;
+      padding: 0.5rem;
+      border-radius: 4px;
+      text-align: center;
+      margin-bottom: 1rem;
+      display: none;
+    }
+    .fp-link:hover { color: var(--accent) !important; }
+    /* ⭐ 加载状态 */
+.login-btn.loading {
+  background: #7a99b8;
+  cursor: wait;
+  position: relative;
+}
+.login-btn.loading::after {
+  content: '';
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-left: 8px;
+  border: 2px solid rgba(255,255,255,.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  vertical-align: -2px;
+  animation: loginSpin .7s linear infinite;
+}
+@keyframes loginSpin { to { transform: rotate(360deg); } }
+.login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.login-btn.loading {
+  background: #7a99b8; cursor: wait;
+}
+.login-btn.loading::after {
+  content: ''; display: inline-block;
+  width: 12px; height: 12px; margin-left: 8px;
+  border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
+  border-radius: 50%; vertical-align: -2px;
+  animation: loginSpin .7s linear infinite;
+}
+@keyframes loginSpin { to { transform: rotate(360deg); } }
+/* ⭐ 登录成功过渡 */
+.login-card {
+  transition: transform .35s cubic-bezier(.4,0,.2,1),
+              opacity .35s ease;
+}
+.login-card.sinking {
+  transform: scale(.94) translateY(8px);
+  opacity: .65;
+}
+
+#loginVeil {
+  position: fixed; inset: 0; z-index: 99999;
+  background: var(--accent, #337ab7);
+  pointer-events: none;
+  display: none;
+}
+#loginVeil.active {
+  display: block;
+  animation: veilExpand .65s cubic-bezier(.4,0,.2,1) forwards;
+}
+@keyframes veilExpand {
+  0%   { clip-path: circle(0% at var(--fx, 50%) var(--fy, 50%)); }
+  100% { clip-path: circle(160% at var(--fx, 50%) var(--fy, 50%)); }
+}
+
+/* 光晕叠加，让遮罩不那么单调 */
+#loginVeil::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at var(--fx,50%) var(--fy,50%),
+                              rgba(255,255,255,.28) 0%, transparent 55%);
+  opacity: .9;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #loginVeil.active { animation-duration: .01s; }
+  .login-card { transition: none; }
+}
+  

@@ -1,0 +1,41 @@
+
+    .admin-container { background: var(--card-bg); border-radius: 4px; padding: 1.5rem; max-width: 800px; margin: 0 auto; }
+    .form-group { margin-bottom: 1.2rem; }
+    .form-group label { display: block; font-weight: 600; margin-bottom: 0.3rem; }
+    .form-group input[type="text"],
+    .form-group select { width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; }
+    .code-editor-wrapper {
+      position: relative; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden;
+      background: #1e1e1e; font-family: 'Fira Code', 'Consolas', monospace;
+    }
+    .code-editor-toolbar { display: flex; gap: 0.3rem; padding: 0.4rem 0.6rem; background: #2d2d2d; border-bottom: 1px solid #3e3e3e; flex-wrap: wrap; }
+    .code-editor-toolbar button {
+      background: #3e3e3e; border: 1px solid #555; color: #ccc; font-family: inherit; font-size: 0.8rem;
+      padding: 0.2rem 0.5rem; border-radius: 3px; cursor: pointer; white-space: nowrap;
+    }
+    .code-editor-toolbar button:hover { background: #505050; color: #fff; }
+    .editor-area { position: relative; min-height: 200px; }
+    .editor-area pre {
+      margin: 0; padding: 1rem 1rem 1rem 4rem; background: transparent; color: #d4d4d4;
+      font-family: inherit; font-size: 0.9rem; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word;
+      overflow: auto; pointer-events: none; min-height: 200px; border: none; outline: none;
+    }
+    .editor-area textarea {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%; padding: 1rem 1rem 1rem 4rem;
+      background: transparent; color: transparent; caret-color: #fff; border: none; outline: none;
+      font-family: inherit; font-size: 0.9rem; line-height: 1.6; resize: vertical; tab-size: 2;
+      white-space: pre-wrap; word-wrap: break-word; overflow: auto;
+    }
+    .editor-area textarea::selection { background: rgba(100, 150, 255, 0.4); }
+    .line-numbers {
+      position: absolute; left: 0; top: 0; bottom: 0; width: 3rem; background: #2d2d2d; color: #858585;
+      font-family: inherit; font-size: 0.9rem; line-height: 1.6; padding: 1rem 0.5rem; text-align: right;
+      user-select: none; pointer-events: none; overflow: hidden; white-space: pre; z-index: 2;
+    }
+    .hl-tag { color: #569cd6; } .hl-attr { color: #9cdcfe; } .hl-value { color: #ce9178; }
+    .hl-latex { color: #d7ba7d; } .hl-brace { color: #ffd700; } .hl-text { color: #d4d4d4; }
+    .btn { padding: 0.5rem 1.5rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; margin-right: 0.5rem; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: #6c757d; color: #fff; }
+    .message { margin-top: 1rem; font-size: 0.9rem; }
+  

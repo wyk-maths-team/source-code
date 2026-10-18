@@ -1,0 +1,65 @@
+
+  .pkp-wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  .pkp-card {
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-radius: 12px; padding: 20px;
+  }
+  .pkp-head {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 12px; flex-wrap: wrap; margin-bottom: 16px;
+  }
+  .pkp-head h1 {
+    margin: 0; font-size: 1.35rem;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .pkp-search {
+    display: flex; gap: 8px; flex: 1; max-width: 320px;
+  }
+  .pkp-search input {
+    flex: 1; padding: 8px 12px;
+    border: 1px solid var(--border-color); border-radius: 6px;
+    background: var(--card-bg); color: var(--text-primary);
+    font-family: inherit; font-size: .9rem;
+  }
+  .pkp-search input:focus { outline: none; border-color: var(--accent); }
+  .pkp-table {
+    width: 100%; border-collapse: collapse;
+    font-size: .88rem;
+  }
+  .pkp-table th, .pkp-table td {
+    padding: 8px 10px; border-bottom: 1px solid var(--border-color);
+    text-align: left;
+  }
+  .pkp-table th {
+    background: rgba(0,0,0,.03);
+    font-weight: 700; font-size: .78rem;
+    text-transform: uppercase; letter-spacing: .5px;
+    color: var(--text-secondary);
+  }
+  [data-theme="dark"] .pkp-table th { background: rgba(255,255,255,.03); }
+  .pkp-table tr:hover td { background: rgba(74,144,217,.05); }
+  .pkp-id {
+    font-family: 'Consolas', monospace;
+    font-weight: 700; color: var(--accent);
+  }
+  .pkp-stmt {
+    max-width: 480px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: var(--text-secondary); font-size: .82rem;
+  }
+  .pkp-ans {
+    font-family: 'Consolas', monospace;
+    font-weight: 700;
+    color: #2e7d32;
+  }
+  [data-theme="dark"] .pkp-ans { color: #8fdf8f; }
+  .pkp-edit {
+    padding: 4px 12px;
+    background: var(--accent); color: #fff;
+    border-radius: 5px; text-decoration: none;
+    font-weight: 600; font-size: .8rem;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .pkp-edit:hover { filter: brightness(1.1); }
+  .pkp-loading { text-align: center; padding: 40px; color: var(--text-secondary); }
+  .pkp-empty { text-align: center; padding: 40px; color: var(--text-secondary); font-style: italic; }

@@ -1,0 +1,64 @@
+
+    .credits-container {
+      background: var(--card-bg);
+      border-radius: 4px;
+      padding: 2rem;
+      max-width: 700px;
+      margin: 2rem auto;
+    }
+    .credits-container h1 {
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+    .credits-container p {
+      line-height: 1.8;
+      color: var(--text-secondary);
+    }
+
+    .credits-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 2rem;
+    }
+    .credits-table th,
+    .credits-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: top;
+    }
+    .credits-table thead th {
+      text-align: left;
+      font-weight: 700;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      border-bottom: 2px solid var(--border-color);
+    }
+    .credits-table th.role-col {
+      width: 35%;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+    .credits-table tbody tr:hover {
+      background: rgba(0, 0, 0, 0.03);
+    }
+    [data-theme="dark"] .credits-table tbody tr:hover {
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .credits-table a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .credits-table a:hover {
+      text-decoration: underline;
+    }
+    .credits-table .empty-row td {
+      color: var(--text-secondary);
+      font-style: italic;
+      opacity: 0.5;
+    }
+
+    .back-link-row {
+      text-align: center;
+      margin-top: 1rem;
+    }
+  

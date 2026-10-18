@@ -1,0 +1,39 @@
+
+        .browser-container {
+            background: var(--card-bg);
+            border-radius: 4px;
+            padding: 1.2rem;
+            box-shadow: var(--shadow-sm);
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .breadcrumb {
+            padding: 0.5rem 0;
+            font-weight: 600;
+            color: var(--accent);
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1rem;
+        }
+        .breadcrumb span { cursor: pointer; }
+        .breadcrumb span:hover { text-decoration: underline; }
+        .item-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .item-list li {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 0.8rem;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .item-list li:hover { background: var(--hover-bg, #f0f0f0); }
+        .item-icon { margin-right: 0.8rem; font-size: 1.1rem; width: 24px; text-align: center; display: inline-flex; align-items: center; justify-content: center; }
+        .item-name { flex: 1; }
+        .item-size { color: var(--text-secondary); font-size: 0.85rem; margin-left: 1rem; }
+        .back-btn { cursor: pointer; margin-right: 1rem; }
+        .loading-msg { text-align: center; padding: 2rem; color: var(--text-secondary); }
+        [data-theme="dark"] .item-list li:hover { background: #2a2a2a; }
+    

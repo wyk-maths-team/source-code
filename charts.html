@@ -1,9 +1,9 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
 <head>
-<script>window.__BUILD_V='87754eaa';</script>
+<script>window.__BUILD_V='d9634c1d';</script>
 
-<script src="/assets/js/arch-render.js?v=87754eaa"></script>
+<script src="/assets/js/arch-render.js?v=d9634c1d"></script>
 <!-- <script>
 (function(){
   try {
@@ -31,206 +31,14 @@
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=87754eaa" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=d9634c1d" />
 
 <!-- amCharts 5 -->
 <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
 <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
 <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
 
-<style>
-  .chart-page-container {
-    background: var(--card-bg);
-    border-radius: 4px;
-    padding: 1.2rem;
-    box-shadow: var(--shadow-sm);
-  }
-  .page-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    margin-bottom: 0.75rem;
-  }
-  .page-header h1 {
-    margin: 0;
-    font-size: 1.5rem;
-    color: var(--text-primary);
-  }
-  .btn-group { display: flex; gap: 0.5rem; }
-  .btn {
-    padding: 0.4rem 1rem;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background: var(--card-bg);
-    color: var(--text-primary);
-    cursor: pointer;
-    font-size: 0.9rem;
-    text-decoration: none;
-    transition: background 0.2s;
-    display: inline-block;
-  }
-  .btn:hover { background: var(--hover-bg); }
-  .btn.disabled { opacity: 0.6; pointer-events: none; cursor: default; }
-  .btn-info { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .btn-info:hover { background: var(--accent-hover); }
-
-  .chart-row {
-    display: flex;
-    gap: 1rem;
-    align-items: flex-start;
-    flex-wrap: wrap;
-  }
-  .chart-main {
-    flex: 1 1 65%;
-    min-width: 320px;
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 0.8rem;
-  }
-  #solveChart { width: 100%; height: 560px; }
-
-  /* ⭐ 全局 tooltip（fixed 定位，跟随鼠标）*/
-  #cursorTooltip {
-    position: fixed;
-    pointer-events: none;
-    display: none;
-    background: rgba(25, 25, 30, 0.94);
-    color: #f0f0f0;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 0.82rem;
-    font-family: inherit;
-    max-height: 380px;
-    overflow-y: auto;
-    min-width: 180px;
-    max-width: 320px;
-    z-index: 9999;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.35);
-    border: 1px solid rgba(255,255,255,0.1);
-  }
-  #cursorTooltip .tt-header {
-    font-weight: 700;
-    margin-bottom: 6px;
-    padding-bottom: 5px;
-    border-bottom: 1px solid rgba(255,255,255,0.15);
-    color: #fff;
-    font-size: 0.85rem;
-  }
-  #cursorTooltip .tt-row {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    padding: 1px 0;
-    white-space: nowrap;
-  }
-  #cursorTooltip .tt-name {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  #cursorTooltip .tt-value {
-    font-weight: 700;
-    color: #fff;
-    font-variant-numeric: tabular-nums;
-    flex-shrink: 0;
-  }
-
-  .chart-options {
-    flex: 1 1 28%;
-    min-width: 260px;
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 0.9rem 1rem;
-  }
-  .chart-options h3 {
-    margin: 0.8rem 0 0.4rem 0;
-    font-size: 1rem;
-    color: var(--text-primary);
-  }
-  .chart-options h3:first-child { margin-top: 0; }
-  .opt-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.35rem 0;
-    font-size: 0.9rem;
-    color: var(--text-primary);
-    cursor: pointer;
-  }
-  .range-row { display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.85rem; }
-  .range-row label { display: flex; align-items: center; gap: 0.5rem; color: var(--text-primary); }
-  .range-row input[type="date"] {
-    flex: 1;
-    padding: 0.25rem 0.4rem;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background: var(--card-bg);
-    color: var(--text-primary);
-    font-size: 0.85rem;
-  }
-  .range-buttons { display: flex; gap: 0.4rem; margin-top: 0.3rem; }
-  .range-buttons .btn { flex: 1; padding: 0.3rem 0.5rem; font-size: 0.8rem; text-align: center; }
-
-  .chart-legend-list {
-    margin-top: 0.4rem;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    max-height: 320px;
-    overflow-y: auto;
-  }
-  .chart-legend-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.3rem 0.4rem;
-    font-size: 0.85rem;
-    cursor: pointer;
-    border-radius: 3px;
-    transition: background 0.15s;
-    user-select: none;
-  }
-  .chart-legend-item:hover { background: var(--hover-bg); }
-  .chart-legend-item input[type="checkbox"] { flex-shrink: 0; cursor: pointer; margin: 0; }
-  .chart-legend-swatch {
-    display: inline-block;
-    width: 20px; height: 3px;
-    border-radius: 2px;
-    flex-shrink: 0;
-  }
-  .chart-legend-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .chart-legend-count { color: var(--text-secondary); font-size: 0.8rem; flex-shrink: 0; }
-  .legend-toolbar {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
-    margin-top: 0.2rem;
-    font-size: 0.8rem;
-  }
-  .legend-toolbar a { color: var(--accent); cursor: pointer; text-decoration: none; }
-  .legend-toolbar a:hover { text-decoration: underline; }
-
-  .loading-msg { text-align: center; padding: 2rem; color: var(--text-secondary); }
-
-  @media (max-width: 768px) {
-    .chart-main, .chart-options { flex: 1 1 100%; }
-    #solveChart { height: 400px; }
-    #cursorTooltip { max-height: 260px; max-width: 240px; font-size: 0.75rem; }
-  }
-  #cursorTooltip.pinned {
-  border-color: rgba(255,255,255,0.45);
-  box-shadow: 0 8px 26px rgba(0,0,0,0.55);
-}
-#cursorTooltip.pinned .tt-header::after {
-  content: ' 📌';
-  font-size: 0.75rem;
-  opacity: 0.7;
-  margin-left: 4px;
-}
-</style>
+<link rel="stylesheet" href="/assets/css/pages/charts.css?v=d9634c1d" />
 
 <!-- ⭐ PWA -->
 <link rel="manifest" href="/manifest.json">
@@ -240,10 +48,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="WYK Maths">
 <meta name="mobile-web-app-capable" content="yes">
-<script src="/assets/js/core/ui.js?v=87754eaa"></script>
-<script src="/assets/js/core/net.js?v=87754eaa"></script>
-<script src="/assets/js/core/api.js?v=87754eaa"></script>
-<script src="/assets/js/core/page.js?v=87754eaa"></script>
+<script src="/assets/js/core/ui.js?v=d9634c1d"></script>
+<script src="/assets/js/core/net.js?v=d9634c1d"></script>
+<script src="/assets/js/core/api.js?v=d9634c1d"></script>
+<script src="/assets/js/core/page.js?v=d9634c1d"></script>
 </head>
 <body class="index-body">
   <div id="appContainer">
@@ -256,14 +64,14 @@
 
   <div id="cursorTooltip"></div>
 
-  <script src="/assets/js/auth.js?v=87754eaa"></script>
-  <script src="/assets/js/app.js?v=87754eaa"></script>
-  <script src="/assets/js/topbar.js?v=87754eaa"></script>
+  <script src="/assets/js/auth.js?v=d9634c1d"></script>
+  <script src="/assets/js/app.js?v=d9634c1d"></script>
+  <script src="/assets/js/topbar.js?v=d9634c1d"></script>
   
-<script src="/assets/js/sidebar.js?v=87754eaa"></script>
-<script src="/assets/js/heartbeat.js?v=87754eaa"></script>
-<script src="/assets/js/pk-invite.js?v=87754eaa"></script>
+<script src="/assets/js/sidebar.js?v=d9634c1d"></script>
+<script src="/assets/js/heartbeat.js?v=d9634c1d"></script>
+<script src="/assets/js/pk-invite.js?v=d9634c1d"></script>
 
-  <script src="/assets/js/pages/charts.js?v=87754eaa"></script>
+  <script src="/assets/js/pages/charts.js?v=d9634c1d"></script>
 </body>
 </html>

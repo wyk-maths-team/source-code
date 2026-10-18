@@ -2,9 +2,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>window.__BUILD_V='87754eaa';</script>
+<script>window.__BUILD_V='d9634c1d';</script>
 
-<script src="/assets/js/arch-render.js?v=87754eaa"></script>
+<script src="/assets/js/arch-render.js?v=d9634c1d"></script>
 <!-- <script>
 (function(){
   try {
@@ -26,7 +26,7 @@
   var t = localStorage.getItem('theme') || 'light';
   if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
 }catch(e){}})();</script>
-<script src="/assets/js/share-invite.js?v=87754eaa"></script>
+<script src="/assets/js/share-invite.js?v=d9634c1d"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>User Profile - WYK Maths Team</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -37,448 +37,9 @@
   <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.amcharts.com">
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=87754eaa" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=d9634c1d" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
-  <style>
-    .profile-container {
-      background: var(--card-bg);
-      border-radius: 4px;
-      padding: 1.5rem;
-      box-shadow: var(--shadow-sm);
-    }
-
-    /* ========== 头部信息 ========== */
-    .profile-header {
-      display: flex;
-      gap: 1.5rem;
-      align-items: flex-start;
-      flex-wrap: wrap;
-      padding-bottom: 1.2rem;
-      border-bottom: 1px solid var(--border-color);
-      margin-bottom: 1.2rem;
-    }
-    .profile-avatar {
-      flex-shrink: 0;
-    }
-    .profile-avatar img,
-    .profile-avatar .placeholder {
-      width: 130px;
-      height: 130px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 2px solid var(--accent);
-      display: block;
-    }
-    .profile-avatar .placeholder {
-      background: var(--border-color);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 3.5rem;
-      color: var(--text-secondary);
-    }
-    .profile-info {
-      flex: 1;
-      min-width: 200px;
-    }
-    .profile-info h1 {
-      margin: 0 0 0.3rem 0;
-      font-size: 1.7rem;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
-    .profile-realname {
-      font-size: 1rem;
-      color: var(--text-secondary);
-      margin-bottom: 0.5rem;
-    }
-    .profile-meta {
-      display: flex;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-      margin: 0.6rem 0;
-    }
-    .profile-meta .meta-badge {
-      background: var(--border-color);
-      color: var(--text-primary);
-      padding: 4px 12px;
-      border-radius: 4px;
-      font-size: 0.85rem;
-      font-weight: 600;
-    }
-    .profile-meta .btn-link {
-      background: var(--accent);
-      color: #fff;
-      padding: 4px 14px;
-      border-radius: 4px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      text-decoration: none;
-      transition: opacity 0.15s;
-    }
-    .profile-meta .btn-link:hover {
-      opacity: 0.88;
-    }
-    .profile-meta .btn-link.purple {
-      background: #7d5bb0;
-    }
-    .profile-meta .btn-link.purple.offline {
-      background: #8a7a9a;   /* 灰紫，視覺上弱一點但不至於像 disabled */
-      opacity: 0.75;
-    }
-    .profile-meta .btn-link.purple.offline:hover {
-      opacity: 1;
-    }
-    .profile-stats {
-      display: flex;
-      gap: 1.2rem;
-      font-weight: 600;
-      font-size: 0.95rem;
-      margin-top: 0.4rem;
-      color: var(--text-primary);
-    }
-    .profile-stats .passed {
-      color: #2e7d32;
-    }
-    [data-theme="dark"] .profile-stats .passed {
-      color: #8fce9f;
-    }
-
-    /* ========== 已解题目网格（HKOI 风格，用 flex 而非 table） ========== */
-    .section-title {
-      font-size: 1.15rem;
-      font-weight: 700;
-      color: var(--text-primary);
-      margin: 0 0 0.8rem 0;
-    }
-    .profile-solved {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 3px;
-      margin-bottom: 1rem;
-    }
-    .profile-solved a {
-      display: inline-block;
-      min-width: 5.5em;
-      padding: 5px 8px;
-      text-align: center;
-      border: 1px solid var(--border-color);
-      border-radius: 3px;
-      background: #f8f9fa;
-      color: var(--text-primary);
-      font-size: 0.82rem;
-      font-weight: 600;
-      font-family: monospace;
-      text-decoration: none;
-      transition: transform 0.12s ease, background 0.15s, border-color 0.15s;
-    }
-    .profile-solved a:hover {
-      transform: translateY(-1px);
-      border-color: var(--accent);
-      background: #e8f2ff;
-    }
-    .profile-solved a.state-passed {
-      background: #d4edda;
-      color: #155724;
-      border-color: #b1dfbb;
-    }
-    .profile-solved a.state-passed:hover {
-      background: #a5d6a7;
-    }
-    .profile-solved a.state-failed {
-      background: #f8d7da;
-      color: #721c24;
-      border-color: #f1b0b7;
-    }
-    .profile-solved a.state-failed:hover {
-      background: #ef9a9a;
-    }
-
-    /* ========== Dark mode ========== */
-    [data-theme="dark"] .profile-solved a {
-      background: #161b22;
-      color: var(--text-primary);
-      border-color: var(--border-color);
-    }
-    [data-theme="dark"] .profile-solved a:hover {
-      background: #21262d;
-      border-color: var(--accent);
-    }
-    [data-theme="dark"] .profile-solved a.state-passed {
-      background: #1a3a2a;
-      color: #8fce9f;
-      border-color: #2a5a3a;
-    }
-    [data-theme="dark"] .profile-solved a.state-failed {
-      background: #3a1a1a;
-      color: #e89a9a;
-      border-color: #5a2a2a;
-    }
-    .edit-realname-btn {
-  background: none;
-  border: none;
-  color: var(--accent);
-  cursor: pointer;
-  font-size: 0.9rem;
-  padding: 3px 7px;
-  border-radius: 4px;
-  transition: background 0.15s;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-}
-.edit-realname-btn:hover {
-  background: rgba(74, 144, 217, 0.12);
-}
-    /* ===== 只顯示 attempted 的開關 ===== */
-    .section-header-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin: 0 0 0.8rem 0;
-    }
-    .section-header-row .section-title { margin: 0; }
-    .attempted-toggle {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.88rem;
-      font-weight: 500;
-      color: var(--text-secondary);
-      cursor: pointer;
-      user-select: none;
-      padding: 4px 10px;
-      border: 1px solid var(--border-color);
-      border-radius: 20px;
-      background: var(--card-bg);
-      transition: border-color 0.15s, color 0.15s;
-    }
-    .attempted-toggle:hover { border-color: var(--accent); color: var(--accent); }
-    .attempted-toggle input[type="checkbox"] {
-      cursor: pointer;
-      accent-color: var(--accent);
-      margin: 0;
-    }
-        /* ═══════════════ Achievements ═══════════════ */
-    .ach-section {
-      margin-top: 1.5rem;
-      padding-top: 1.2rem;
-      border-top: 1px solid var(--border-color);
-    }
-    .ach-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: .5rem;
-      margin-bottom: 1rem;
-    }
-    .ach-header h2 {
-      margin: 0;
-      font-size: 1.15rem;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
-    .ach-progress {
-      font-size: .85rem;
-      color: var(--text-secondary);
-      font-weight: 600;
-    }
-    .ach-progress b {
-      color: var(--accent);
-      font-size: 1rem;
-    }
-
-    /* ─── 网格 ─── */
-    .ach-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-      gap: .7rem;
-    }
-    @media (max-width: 500px) {
-      .ach-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-    }
-
-    /* ─── 卡片 ─── */
-    .ach-card {
-      position: relative;
-      padding: .8rem .7rem;
-      border: 1.5px solid var(--border-color);
-      border-radius: 8px;
-      background: var(--card-bg);
-      text-align: center;
-      transition: transform .15s, box-shadow .15s, border-color .15s;
-      cursor: default;
-      min-height: 150px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: .35rem;
-    }
-    .ach-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,.08);
-    }
-    .ach-card.locked {
-      opacity: .45;
-      filter: grayscale(1);
-    }
-    .ach-card.locked:hover {
-      opacity: .65;
-    }
-
-    .ach-icon-wrap {
-      width: 48px;
-      height: 48px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 50%;
-      background: rgba(74,144,217,.1);
-      margin-bottom: .1rem;
-      flex-shrink: 0;
-    }
-    .ach-icon-wrap i {
-      font-size: 1.5rem;
-    }
-    .ach-name {
-      font-size: .88rem;
-      font-weight: 700;
-      color: var(--text-primary);
-      line-height: 1.2;
-    }
-    .ach-desc {
-      font-size: .72rem;
-      color: var(--text-secondary);
-      line-height: 1.35;
-      flex: 1;
-    }
-    .ach-date {
-      font-size: .68rem;
-      color: var(--text-secondary);
-      font-family: 'Consolas', monospace;
-      margin-top: auto;
-      opacity: .85;
-    }
-    .ach-rarity-tag {
-      position: absolute;
-      top: 6px;
-      right: 6px;
-      font-size: .6rem;
-      font-weight: 800;
-      padding: 1px 6px;
-      border-radius: 8px;
-      letter-spacing: .5px;
-      text-transform: uppercase;
-    }
-
-    /* ─── 稀有度配色（图标 + 边框 + tag） ─── */
-    .ach-card.rarity-common    { border-color: rgba(128,128,128,.4); }
-    .ach-card.rarity-common    .ach-icon-wrap { background: rgba(128,128,128,.15); color: #808080; }
-    .ach-card.rarity-common    .ach-rarity-tag { background: rgba(128,128,128,.15); color: #808080; }
-
-    .ach-card.rarity-uncommon  { border-color: rgba(0,128,0,.45); }
-    .ach-card.rarity-uncommon  .ach-icon-wrap { background: rgba(0,128,0,.14); color: #008000; }
-    .ach-card.rarity-uncommon  .ach-rarity-tag { background: rgba(0,128,0,.15); color: #008000; }
-
-    .ach-card.rarity-rare      { border-color: rgba(0,0,255,.45); }
-    .ach-card.rarity-rare      .ach-icon-wrap { background: rgba(0,0,255,.12); color: #0000FF; }
-    .ach-card.rarity-rare      .ach-rarity-tag { background: rgba(0,0,255,.12); color: #0000FF; }
-
-    .ach-card.rarity-epic      { border-color: rgba(170,0,170,.5); }
-    .ach-card.rarity-epic      .ach-icon-wrap { background: rgba(170,0,170,.14); color: #AA00AA; }
-    .ach-card.rarity-epic      .ach-rarity-tag { background: rgba(170,0,170,.14); color: #AA00AA; }
-
-    .ach-card.rarity-legendary {
-      border-color: rgba(255,170,0,.7);
-      box-shadow: 0 0 12px rgba(255,170,0,.18);
-    }
-    .ach-card.rarity-legendary .ach-icon-wrap { background: rgba(255,170,0,.18); color: #FFAA00; }
-    .ach-card.rarity-legendary .ach-rarity-tag { background: rgba(255,170,0,.2); color: #B37700; }
-
-    /* dark 模式微调 */
-    [data-theme="dark"] .ach-card.locked { opacity: .3; }
-    [data-theme="dark"] .ach-card.rarity-common .ach-rarity-tag { color: #aaa; }
-    [data-theme="dark"] .ach-card.rarity-uncommon .ach-rarity-tag { color: #6dbf6d; }
-    [data-theme="dark"] .ach-card.rarity-uncommon .ach-icon-wrap { color: #6dbf6d; }
-    [data-theme="dark"] .ach-card.rarity-rare .ach-rarity-tag { color: #7d9dff; }
-    [data-theme="dark"] .ach-card.rarity-rare .ach-icon-wrap { color: #7d9dff; }
-    [data-theme="dark"] .ach-card.rarity-epic .ach-rarity-tag { color: #d68cd6; }
-    [data-theme="dark"] .ach-card.rarity-epic .ach-icon-wrap { color: #d68cd6; }
-
-    /* ─── 空状态 ─── */
-    .ach-empty {
-      text-align: center;
-      padding: 2rem 1rem;
-      color: var(--text-secondary);
-      font-style: italic;
-    }
-        /* 已解锁的右上角绿色勾 */
-    .ach-card.unlocked::before {
-      content: '\f00c';  /* FontAwesome check */
-      font-family: 'Font Awesome 6 Free';
-      font-weight: 900;
-      position: absolute;
-      top: -6px;
-      left: -6px;
-      width: 20px;
-      height: 20px;
-      background: #2e7d32;
-      color: #fff;
-      border-radius: 50%;
-      font-size: .7rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 2px 4px rgba(0,0,0,.15);
-      z-index: 1;
-    }
-  /* ⭐ 在线时长 */
-.profile-online-row {
-  display: flex;
-  gap: .6rem;
-  flex-wrap: wrap;
-  margin-top: .7rem;
-  font-size: .85rem;
-}
-.profile-online-row .item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  background: rgba(74,144,217,.08);
-  border: 1px solid rgba(74,144,217,.18);
-  border-radius: 20px;
-  color: var(--text-secondary);
-}
-.profile-online-row .item i {
-  color: var(--accent);
-  opacity: .8;
-  font-size: .85rem;
-}
-.profile-online-row .item b {
-  color: var(--text-primary);
-  font-family: 'Consolas', monospace;
-  font-weight: 700;
-}
-.profile-online-row .item.online {
-  background: rgba(46,204,113,.1);
-  border-color: rgba(46,204,113,.3);
-}
-.profile-online-row .item.online i { color: #2ecc71; }
-.profile-online-row .item.online b { color: #2e7d32; }
-[data-theme="dark"] .profile-online-row .item {
-  background: rgba(74,144,217,.12);
-  border-color: rgba(74,144,217,.3);
-}
-[data-theme="dark"] .profile-online-row .item.online {
-  background: rgba(46,204,113,.14);
-  border-color: rgba(46,204,113,.4);
-}
-[data-theme="dark"] .profile-online-row .item.online b { color: #8fdf8f; }
-  </style>
+  <link rel="stylesheet" href="/assets/css/pages/user.css?v=d9634c1d" />
 
   <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
   <link rel="manifest" href="/manifest.json">
@@ -489,10 +50,10 @@
   <meta name="apple-mobile-web-app-title" content="WYK Maths">
   <meta name="mobile-web-app-capable" content="yes">
 
-<script src="/assets/js/core/ui.js?v=87754eaa"></script>
-<script src="/assets/js/core/net.js?v=87754eaa"></script>
-<script src="/assets/js/core/api.js?v=87754eaa"></script>
-<script src="/assets/js/core/page.js?v=87754eaa"></script>
+<script src="/assets/js/core/ui.js?v=d9634c1d"></script>
+<script src="/assets/js/core/net.js?v=d9634c1d"></script>
+<script src="/assets/js/core/api.js?v=d9634c1d"></script>
+<script src="/assets/js/core/page.js?v=d9634c1d"></script>
 </head>
 <body class="index-body">
   <div id="appContainer">
@@ -503,13 +64,13 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=87754eaa"></script>
-  <script src="/assets/js/app.js?v=87754eaa"></script>
-  <script src="/assets/js/topbar.js?v=87754eaa"></script>
+  <script src="/assets/js/auth.js?v=d9634c1d"></script>
+  <script src="/assets/js/app.js?v=d9634c1d"></script>
+  <script src="/assets/js/topbar.js?v=d9634c1d"></script>
   
-<script src="/assets/js/sidebar.js?v=87754eaa"></script>
-<script src="/assets/js/heartbeat.js?v=87754eaa"></script>
-<script src="/assets/js/pk-invite.js?v=87754eaa"></script>
-    <script src="/assets/js/pages/user.js?v=87754eaa"></script>
+<script src="/assets/js/sidebar.js?v=d9634c1d"></script>
+<script src="/assets/js/heartbeat.js?v=d9634c1d"></script>
+<script src="/assets/js/pk-invite.js?v=d9634c1d"></script>
+    <script src="/assets/js/pages/user.js?v=d9634c1d"></script>
 </body>
 </html>

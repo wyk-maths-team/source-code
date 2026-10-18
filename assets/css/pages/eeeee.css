@@ -1,0 +1,71 @@
+
+    .container {
+      background: var(--card-bg);
+      border-radius: 4px;
+      padding: 1.5rem;
+      max-width: 600px;
+      margin: 2rem auto;
+    }
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border-color);
+      gap: 12px;
+    }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-label { font-weight: 500; flex-shrink: 0; }
+    .setting-hint {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+      font-weight: 400;
+    }
+    .setting-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .btn { padding: 0.4rem 1rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--card-bg); cursor: pointer; font-size: 0.9rem; }
+    .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .toggle-switch { position: relative; display: inline-block; width: 50px; height: 24px; flex-shrink: 0; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .3s; border-radius: 50%; }
+    input:checked + .slider { background-color: var(--accent); }
+    input:checked + .slider:before { transform: translateX(26px); }
+    .message { margin-top: 1rem; font-size: 0.9rem; }
+    .back-link { display: inline-block; margin-top: 1.5rem; color: var(--accent); text-decoration: none; }
+    .back-link:hover { text-decoration: underline; }
+
+    /* ⭐ 新增：图片类型下拉框 */
+    .neko-select {
+      padding: 0.4rem 0.6rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      cursor: pointer;
+      min-width: 120px;
+      font-family: inherit;
+    }
+    .neko-select:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+    .neko-custom-input {
+      padding: 0.4rem 0.6rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      width: 120px;
+      font-family: inherit;
+      display: none;
+    }
+    .neko-custom-input.visible { display: block; }
+  

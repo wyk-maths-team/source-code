@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>window.__BUILD_V='87754eaa';</script>
+<script>window.__BUILD_V='d9634c1d';</script>
 
-<script src="/assets/js/arch-render.js?v=87754eaa"></script>
+<script src="/assets/js/arch-render.js?v=d9634c1d"></script>
 
 <meta charset="UTF-8">
 <script>(function(){try{
@@ -18,281 +18,10 @@
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=87754eaa" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=d9634c1d" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
-<style>
-  /* ═══════════════ Guide Layout ═══════════════ */
-  .guide-wrap {
-    max-width: 900px;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  /* ── Hero ── */
-  .guide-hero {
-    position: relative;
-    overflow: hidden;
-    border-radius: 14px;
-    padding: 2rem 2.2rem 1.8rem;
-    background: linear-gradient(135deg, #4a90d9 0%, #2e5fa0 60%, #1a1a2e 100%);
-    color: #fff;
-    box-shadow: 0 10px 30px rgba(74,144,217,.2);
-  }
-  .guide-hero::after {
-    content: '';
-    position: absolute;
-    top: -60px; right: -60px;
-    width: 240px; height: 240px;
-    background: radial-gradient(circle, rgba(255,255,255,.2) 0%, transparent 65%);
-    pointer-events: none;
-  }
-  .guide-hero h1 {
-    margin: 0 0 .4rem;
-    font-size: 1.9rem;
-    font-weight: 800;
-    letter-spacing: -.4px;
-    position: relative;
-    z-index: 1;
-  }
-  .guide-hero p {
-    margin: 0;
-    opacity: .9;
-    font-size: .95rem;
-    position: relative;
-    z-index: 1;
-  }
-  .guide-hero .last-updated {
-    margin-top: .8rem;
-    font-size: .78rem;
-    opacity: .7;
-    font-family: 'Consolas', monospace;
-    position: relative;
-    z-index: 1;
-  }
-
-  /* ── TOC ── */
-  .guide-toc {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 1rem 1.3rem;
-    box-shadow: var(--shadow-sm);
-  }
-  .guide-toc h2 {
-    margin: 0 0 .6rem;
-    font-size: .95rem;
-    color: var(--text-secondary);
-    font-weight: 700;
-    letter-spacing: .5px;
-    text-transform: uppercase;
-  }
-  .guide-toc ol {
-    margin: 0;
-    padding-left: 1.4rem;
-    columns: 2;
-    column-gap: 2rem;
-    font-size: .9rem;
-    line-height: 1.9;
-  }
-  .guide-toc a {
-    color: var(--text-primary);
-    text-decoration: none;
-    transition: color .15s;
-  }
-  .guide-toc a:hover { color: var(--accent); }
-  @media (max-width: 600px) {
-    .guide-toc ol { columns: 1; }
-  }
-
-  /* ── Section ── */
-  .guide-section {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 1.4rem 1.6rem;
-    box-shadow: var(--shadow-sm);
-    scroll-margin-top: 80px;
-  }
-  .guide-section h2 {
-    margin: 0 0 1rem;
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding-bottom: .7rem;
-    border-bottom: 2px solid var(--border-color);
-  }
-  .guide-section h2 .ico {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 9px;
-    background: var(--accent);
-    color: #fff;
-    font-size: .9rem;
-    flex-shrink: 0;
-  }
-  .guide-section h3 {
-    margin: 1.3rem 0 .5rem;
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--text-primary);
-  }
-  .guide-section h3:first-of-type { margin-top: 0; }
-  .guide-section p,
-  .guide-section li {
-    color: var(--text-secondary);
-    line-height: 1.75;
-    font-size: .92rem;
-  }
-  .guide-section ul {
-    padding-left: 1.4rem;
-    margin: .4rem 0;
-  }
-  .guide-section li { margin-bottom: .35rem; }
-  .guide-section li::marker { color: var(--accent); }
-
-  /* ── Callouts ── */
-  .callout {
-    border-left: 3px solid var(--accent);
-    background: rgba(74,144,217,.06);
-    padding: .7rem 1rem;
-    border-radius: 6px;
-    margin: .8rem 0;
-    font-size: .88rem;
-    color: var(--text-secondary);
-  }
-  .callout.warn {
-    border-left-color: #f0ad4e;
-    background: rgba(240,173,78,.08);
-  }
-  .callout.danger {
-    border-left-color: #e74c3c;
-    background: rgba(231,76,60,.08);
-  }
-  .callout.ok {
-    border-left-color: #2ecc71;
-    background: rgba(46,204,113,.08);
-  }
-  .callout strong { color: var(--text-primary); }
-
-  /* ── Badges ── */
-  .badge {
-    display: inline-block;
-    padding: 1px 8px;
-    border-radius: 10px;
-    font-size: .72rem;
-    font-weight: 700;
-    font-family: 'Consolas', monospace;
-    letter-spacing: .3px;
-    vertical-align: middle;
-    margin: 0 2px;
-  }
-  .badge.num    { background: rgba(74,144,217,.15); color: #2e5fa0; }
-  .badge.logic  { background: rgba(170,0,170,.15);  color: #AA00AA; }
-  .badge.mcq    { background: rgba(0,128,0,.15);    color: #008000; }
-  .badge.image  { background: rgba(231,76,60,.15);  color: #c0392b; }
-  .badge.paper  { background: rgba(240,173,78,.15); color: #b37700; }
-  .badge.ai     { background: rgba(170,0,170,.15);  color: #AA00AA; }
-  .badge.r1     { background: rgba(170,0,170,.18);  color: #AA00AA; }
-  .badge.v3     { background: rgba(240,173,78,.18); color: #b37700; }
-  [data-theme="dark"] .badge.num   { color: #8ec3ff; }
-  [data-theme="dark"] .badge.mcq   { color: #8fdf8f; }
-  [data-theme="dark"] .badge.image { color: #ff8a8a; }
-  [data-theme="dark"] .badge.paper { color: #ffc850; }
-  [data-theme="dark"] .badge.logic,
-  [data-theme="dark"] .badge.ai,
-  [data-theme="dark"] .badge.r1    { color: #e09ce0; }
-  [data-theme="dark"] .badge.v3    { color: #ffc850; }
-
-  /* ── Table ── */
-  .guide-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: .8rem 0;
-    font-size: .86rem;
-  }
-  .guide-table th,
-  .guide-table td {
-    padding: .55rem .8rem;
-    border: 1px solid var(--border-color);
-    text-align: left;
-    color: var(--text-secondary);
-  }
-  .guide-table th {
-    background: var(--hover-bg);
-    color: var(--text-primary);
-    font-weight: 700;
-    font-size: .82rem;
-    letter-spacing: .3px;
-  }
-  .guide-table code {
-    background: rgba(74,144,217,.1);
-    padding: 1px 6px;
-    border-radius: 4px;
-    font-family: 'Consolas', monospace;
-    font-size: .82rem;
-    color: var(--accent);
-  }
-
-  /* ── Step list ── */
-  .steps {
-    counter-reset: step;
-    list-style: none;
-    padding-left: 0;
-  }
-  .steps li {
-    counter-increment: step;
-    position: relative;
-    padding-left: 2.2rem;
-    margin-bottom: .6rem;
-  }
-  .steps li::before {
-    content: counter(step);
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 1.6rem;
-    height: 1.6rem;
-    background: var(--accent);
-    color: #fff;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: .78rem;
-    font-weight: 800;
-    font-family: 'Consolas', monospace;
-  }
-
-  /* ── Footer ── */
-  .guide-footer {
-    text-align: center;
-    padding: 1.5rem 0 2rem;
-    color: var(--text-secondary);
-    font-size: .85rem;
-  }
-  .guide-footer a {
-    color: var(--accent);
-    text-decoration: none;
-  }
-
-  @media (max-width: 640px) {
-    .guide-hero { padding: 1.5rem 1.3rem; border-radius: 12px; }
-    .guide-hero h1 { font-size: 1.4rem; }
-    .guide-section { padding: 1.1rem 1.15rem; border-radius: 10px; }
-    .guide-section h2 { font-size: 1.05rem; }
-    .guide-table { font-size: .78rem; }
-    .guide-table th, .guide-table td { padding: .4rem .55rem; }
-  }
-</style>
+<link rel="stylesheet" href="/assets/css/pages/guide.css?v=d9634c1d" />
 
 <!-- PWA manifest（必須靜態寫入，不能 JS 注入） -->
 <link rel="manifest" href="/manifest.json">
@@ -303,10 +32,10 @@
 <meta name="apple-mobile-web-app-title" content="WYK Maths">
 <meta name="mobile-web-app-capable" content="yes">
 
-<script src="/assets/js/core/ui.js?v=87754eaa"></script>
-<script src="/assets/js/core/net.js?v=87754eaa"></script>
-<script src="/assets/js/core/api.js?v=87754eaa"></script>
-<script src="/assets/js/core/page.js?v=87754eaa"></script>
+<script src="/assets/js/core/ui.js?v=d9634c1d"></script>
+<script src="/assets/js/core/net.js?v=d9634c1d"></script>
+<script src="/assets/js/core/api.js?v=d9634c1d"></script>
+<script src="/assets/js/core/page.js?v=d9634c1d"></script>
 </head>
 <body class="index-body">
   <div id="appContainer">
@@ -681,11 +410,11 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=87754eaa"></script>
-  <script src="/assets/js/app.js?v=87754eaa"></script>
-  <script src="/assets/js/topbar.js?v=87754eaa"></script>
-  <script src="/assets/js/sidebar.js?v=87754eaa"></script>
-  <script src="/assets/js/heartbeat.js?v=87754eaa"></script>
-  <script src="/assets/js/pk-invite.js?v=87754eaa"></script>
+  <script src="/assets/js/auth.js?v=d9634c1d"></script>
+  <script src="/assets/js/app.js?v=d9634c1d"></script>
+  <script src="/assets/js/topbar.js?v=d9634c1d"></script>
+  <script src="/assets/js/sidebar.js?v=d9634c1d"></script>
+  <script src="/assets/js/heartbeat.js?v=d9634c1d"></script>
+  <script src="/assets/js/pk-invite.js?v=d9634c1d"></script>
 </body>
 </html>

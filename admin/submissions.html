@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>window.__BUILD_V='87754eaa';</script>
+<script>window.__BUILD_V='d9634c1d';</script>
 
-<script src="/assets/js/arch-render.js?v=87754eaa"></script>
+<script src="/assets/js/arch-render.js?v=d9634c1d"></script>
   
 <meta charset="UTF-8" />
 <script>(function(){try{
@@ -26,302 +26,15 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
   
-  <link rel="stylesheet" href="/assets/css/styles.css?v=87754eaa" />
-  <link rel="stylesheet" href="/assets/css/submissions.css?v=87754eaa" />
+  <link rel="stylesheet" href="/assets/css/styles.css?v=d9634c1d" />
+  <link rel="stylesheet" href="/assets/css/submissions.css?v=d9634c1d" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 
-  <style>
-    /* ========== 過濾器外觀 ========== */
-    .adv-filter-form {
-      margin-top: 6px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      font-weight: normal;
-      font-size: 0.8rem;
-    }
-    .adv-filter-form input,
-    .adv-filter-form select {
-      padding: 6px 8px;
-      border: 1px solid var(--border-color);
-      border-radius: 3px;
-      font-size: 0.85rem;
-      background: var(--card-bg);
-      color: var(--text-primary);
-      width: 100%;
-      box-sizing: border-box;
-      min-height: 32px;
-    }
-    .adv-filter-buttons {
-      display: flex;
-      gap: 4px;
-      flex-wrap: wrap;
-    }
-    .adv-filter-buttons button {
-      padding: 4px 10px;
-      border: 1px solid var(--border-color);
-      border-radius: 3px;
-      font-size: 0.78rem;
-      cursor: pointer;
-      white-space: nowrap;
-      background: var(--card-bg);
-      color: var(--text-primary);
-      transition: opacity 0.15s;
-      line-height: 1.2;
-    }
-    .adv-filter-buttons button:hover { opacity: 0.85; }
-    .adv-filter-buttons .btn-apply {
-      background: var(--accent);
-      color: #fff;
-      border-color: var(--accent);
-    }
-    .adv-filter-buttons .btn-self {
-      background: #f0ad4e;
-      color: #fff;
-      border-color: #f0ad4e;
-    }
-
-    .filter-current {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-weight: normal;
-      font-size: 0.85rem;
-      padding: 4px 0;
-      margin-top: 4px;
-    }
-    .filter-current b {
-      font-weight: 700;
-      color: var(--accent);
-    }
-    .btn-remove {
-      background: #dc3545;
-      color: #fff;
-      border: 1px solid #dc3545;
-      border-radius: 3px;
-      padding: 3px 7px;
-      cursor: pointer;
-      font-size: 0.75rem;
-      line-height: 1;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .btn-remove:hover { opacity: 0.85; }
-
-    /* ========== 頂部工具列 ========== */
-    .header-actions {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-bottom: 0.75rem;
-    }
-    .header-actions h2 {
-      margin: 0;
-      font-size: 1.4rem;
-      color: var(--text-primary);
-    }
-    .header-actions .btn {
-      padding: 0.4rem 1rem;
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      background: var(--card-bg);
-      color: var(--text-primary);
-      text-decoration: none;
-      font-size: 0.9rem;
-      cursor: pointer;
-    }
-    #refreshSubmissionsBtn {
-      width: 38px;
-      height: 38px;
-      padding: 0 !important;
-      border-radius: 50%;
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      font-size: 1.1rem;
-      line-height: 1;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      vertical-align: middle;
-      transition: background 0.2s, transform 0.15s;
-    }
-    #refreshSubmissionsBtn:hover:not(:disabled) {
-      background: var(--accent-hover);
-      transform: scale(1.05);
-    }
-    #refreshSubmissionsBtn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    /* ========== 待批改提示條 ========== */
-    .to-mark-bar {
-      background: #fff3cd;
-      color: #856404;
-      padding: 0.5rem 1rem;
-      border-radius: 4px;
-      margin-bottom: 1rem;
-      font-weight: 600;
-      border: 1px solid #ffeeba;
-    }
-    .to-mark-bar a { color: inherit; }
-    [data-theme="dark"] .to-mark-bar {
-      background: #4d3e1b;
-      color: #dfc88f;
-      border-color: #6b562e;
-    }
-
-    /* ========== 過濾信息卡 ========== */
-    .filter-header {
-      background: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      padding: 0.9rem 1.1rem;
-      margin-bottom: 0.75rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-    }
-    .filter-header h2 {
-      margin: 0;
-      font-size: 1.35rem;
-      color: var(--text-primary);
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-    }
-    .filter-header h2 a {
-      color: inherit;
-      text-decoration: none;
-    }
-    .filter-header h2 a:hover { color: var(--accent); }
-    .filter-header .profile-40 {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 1px solid var(--border-color);
-    }
-    .filter-header .filter-meta {
-      display: flex;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-      font-size: 0.85rem;
-    }
-    .filter-header .meta-btn {
-      background: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      padding: 4px 12px;
-      color: var(--text-secondary);
-      font-weight: 500;
-    }
-    .filter-header .meta-btn.info {
-      background: var(--accent);
-      color: #fff;
-      border-color: var(--accent);
-      text-decoration: none;
-    }
-    .filter-header .meta-btn.info:hover { opacity: 0.9; }
-    .filter-header .meta-btn.purple {
-      background: #7d5bb0;
-      color: #fff;
-      border-color: #7d5bb0;
-      text-decoration: none;
-    }
-
-    /* ========== 表格：日期置中 ========== */
-    .submissions-table th.col-datetime,
-    .submissions-table td.col-datetime { text-align: center; }
-    .submissions-table thead th { vertical-align: top; text-align: left; }
-    .submissions-table thead th.col-datetime,
-    .submissions-table thead th.col-answer { vertical-align: middle; }
-
-    /* ========== 操作按鈕 ========== */
-    .btn-sm {
-      padding: 0.15rem 0.5rem;
-      font-size: 0.75rem;
-      border: 1px solid var(--border-color);
-      border-radius: 3px;
-      cursor: pointer;
-      background: var(--card-bg);
-      color: var(--text-primary);
-      margin-right: 2px;
-    }
-    .btn-sm.btn-danger { color: var(--danger); border-color: var(--danger); }
-    .btn-sm.btn-primary { color: var(--accent); border-color: var(--accent); }
-    .btn-sm:hover { opacity: 0.8; }
-    .btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    /* ========== 分頁 ========== */
-    .pagination-nav { min-height: 44px; }
-    .pagination-list {
-      display: flex;
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      gap: 4px;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: center;
-    }
-    .page-item { display: inline-flex; }
-    .page-link {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 34px;
-      height: 34px;
-      padding: 0 8px;
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      background: var(--card-bg);
-      color: var(--text-primary);
-      font-size: 0.85rem;
-      cursor: pointer;
-      user-select: none;
-      transition: background .15s, border-color .15s;
-    }
-    .page-link:hover {
-      background: rgba(74,144,217,.1);
-      border-color: var(--accent);
-    }
-    .page-item.active .page-link {
-      background: var(--accent);
-      color: #fff;
-      border-color: var(--accent);
-      font-weight: 700;
-      cursor: default;
-    }
-    .page-item.disabled .page-link {
-      opacity: .4;
-      cursor: not-allowed;
-      pointer-events: none;
-    }
-    .page-item.ellipsis .page-link {
-      border-color: transparent;
-      background: transparent;
-      cursor: default;
-      opacity: .55;
-      pointer-events: none;
-    }
-    .page-info {
-      display: inline-block;
-      vertical-align: middle;
-      font-size: 0.85rem;
-      color: var(--text-secondary);
-    }
-    .message { margin: 0.5rem 0; font-size: 0.9rem; }
-  </style>
-<script src="/assets/js/core/ui.js?v=87754eaa"></script>
-<script src="/assets/js/core/net.js?v=87754eaa"></script>
-<script src="/assets/js/core/api.js?v=87754eaa"></script>
-<script src="/assets/js/core/page.js?v=87754eaa"></script>
+  <link rel="stylesheet" href="/assets/css/pages/admin-submissions.css?v=d9634c1d" />
+<script src="/assets/js/core/ui.js?v=d9634c1d"></script>
+<script src="/assets/js/core/net.js?v=d9634c1d"></script>
+<script src="/assets/js/core/api.js?v=d9634c1d"></script>
+<script src="/assets/js/core/page.js?v=d9634c1d"></script>
 </head>
 <body class="index-body">
   <div id="appContainer">
@@ -332,14 +45,14 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=87754eaa"></script>
-  <script src="/assets/js/app.js?v=87754eaa"></script>
-  <script src="/assets/js/topbar.js?v=87754eaa"></script>
+  <script src="/assets/js/auth.js?v=d9634c1d"></script>
+  <script src="/assets/js/app.js?v=d9634c1d"></script>
+  <script src="/assets/js/topbar.js?v=d9634c1d"></script>
   
-<script src="/assets/js/sidebar.js?v=87754eaa"></script>
-<script src="/assets/js/heartbeat.js?v=87754eaa"></script>
-<script src="/assets/js/pk-invite.js?v=87754eaa"></script>
+<script src="/assets/js/sidebar.js?v=d9634c1d"></script>
+<script src="/assets/js/heartbeat.js?v=d9634c1d"></script>
+<script src="/assets/js/pk-invite.js?v=d9634c1d"></script>
 
-  <script src="/assets/js/pages/admin-submissions.js?v=87754eaa"></script>
+  <script src="/assets/js/pages/admin-submissions.js?v=d9634c1d"></script>
 </body>
 </html>

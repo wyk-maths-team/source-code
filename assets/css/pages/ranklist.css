@@ -1,0 +1,379 @@
+
+    :root {
+      --card-bg: #fff;
+      --border-color: #dee2e6;
+      --text-primary: #212529;
+      --text-secondary: #6c757d;
+      --accent: #337ab7;
+      --danger: #dc3545;
+      --hover-bg: #e9ecef;
+      --table-hover-bg: #f0f7ff;
+    }
+    [data-theme="dark"] {
+      --card-bg: #1e1e1e;
+      --border-color: #444;
+      --text-primary: #e0e0e0;
+      --text-secondary: #aaa;
+      --hover-bg: #2c2c2c;
+      --table-hover-bg: #2a2a2a;
+    }
+
+    .leaderboard-container {
+      background: var(--card-bg);
+      border-radius: 4px;
+      padding: 1.2rem;
+      box-shadow: var(--shadow-sm);
+    }
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-bottom: 0.75rem;
+    }
+    .page-header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      color: var(--text-primary);
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    /* ⭐ Period 切换按钮（tab 风格） */
+    .period-tabs {
+      display: inline-flex;
+      gap: 3px;
+      background: var(--hover-bg);
+      padding: 3px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+    .period-btn {
+      padding: 0.32rem 0.85rem;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: 4px;
+      transition: background .15s, color .15s, box-shadow .15s;
+      font-family: inherit;
+      letter-spacing: 0.2px;
+      white-space: nowrap;
+    }
+    .period-btn:hover {
+      color: var(--text-primary);
+    }
+    .period-btn.active {
+      background: var(--card-bg);
+      color: var(--accent);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    }
+    [data-theme="dark"] .period-btn.active {
+      background: #2c2c2c;
+      color: #5ea5dc;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .btn {
+      padding: 0.4rem 1rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      cursor: pointer;
+      font-size: 0.9rem;
+      text-decoration: none;
+      transition: background 0.2s;
+      display: inline-block;
+    }
+    .btn:hover {
+      background: var(--hover-bg);
+    }
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: default;
+      pointer-events: none;
+    }
+    .btn.disabled {
+      opacity: 0.6;
+      pointer-events: none;
+      cursor: default;
+    }
+    .btn-info {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .btn-info:hover {
+      background: #286090;
+    }
+
+    .submissions-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+    }
+    .submissions-table th,
+    .submissions-table td {
+      padding: 0.75rem 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .submissions-table th {
+      background: #e9ecef;
+      font-weight: 700;
+      color: #333;
+    }
+    .submissions-table tbody tr:hover {
+      background: var(--table-hover-bg);
+    }
+    .submissions-table tr.mine {
+      background: #fffde7 !important;
+      font-weight: 500;
+    }
+    .submissions-table tr.mine td {
+      border-bottom-color: #ffe082;
+    }
+    [data-theme="dark"] .submissions-table th {
+      background: #333;
+      color: #ddd;
+    }
+    [data-theme="dark"] .submissions-table td {
+      border-bottom-color: var(--border-color);
+    }
+    [data-theme="dark"] .submissions-table tr.mine {
+      background: #3e3a20 !important;
+    }
+    [data-theme="dark"] .submissions-table tr.mine td {
+      border-bottom-color: #5c5518;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(0,0,0,0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    [data-theme="dark"] .spinner {
+      border-color: rgba(255,255,255,0.2);
+    }
+
+    .text-center { text-align: center; }
+    .text-danger { color: var(--danger); }
+    [data-theme="dark"] .text-danger { color: #ff8888; }
+
+    /* ===== Hover tooltip ===== */
+    #userTooltip {
+      position: fixed;
+      top: 0; left: 0;
+      z-index: 10000;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      box-shadow: 0 8px 28px rgba(0,0,0,.18);
+      padding: 10px 14px;
+      display: none;
+      align-items: center;
+      gap: 12px;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity .12s ease, transform .12s ease;
+      max-width: 340px;
+    }
+    #userTooltip.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    #userTooltip .tip-avatar {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 2px solid var(--border-color);
+      background: var(--hover-bg);
+    }
+    #userTooltip .tip-avatar.placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      color: var(--text-secondary);
+    }
+    #userTooltip .tip-info {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    #userTooltip .tip-display {
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #userTooltip .tip-username {
+      font-family: 'Consolas', monospace;
+      font-size: 0.82rem;
+      color: var(--accent);
+    }
+    #userTooltip .tip-realname {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    /* ⭐ 头像 + 在线点 */
+    .user-avatar-wrap {
+      position: relative;
+      display: inline-flex;
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+      margin-right: 8px;
+    }
+    .user-avatar-wrap img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      display: block;
+    }
+    .user-avatar-wrap .avatar-placeholder {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      color: #fff;
+      background: linear-gradient(135deg, #4a90d9, #2e5fa0);
+    }
+    .user-avatar-wrap .online-dot {
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #2ecc71;
+      border: 2px solid var(--card-bg);
+      box-shadow: 0 0 0 0 rgba(46,204,113,.7);
+      animation: pulseDot 2s infinite;
+    }
+    @keyframes pulseDot {
+      0%   { box-shadow: 0 0 0 0 rgba(46,204,113,.7); }
+      70%  { box-shadow: 0 0 0 6px rgba(46,204,113,0); }
+      100% { box-shadow: 0 0 0 0 rgba(46,204,113,0); }
+    }
+    [data-theme="dark"] .user-avatar-wrap .online-dot {
+      border-color: var(--card-bg);
+    }
+
+    /* tooltip 头像也用同样方式 */
+    #userTooltip .tip-avatar-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+    #userTooltip .tip-avatar-wrap .online-dot {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #2ecc71;
+      border: 2px solid var(--card-bg);
+    }
+
+    #refreshBtn {
+      min-width: 110px;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+    #refreshBtn i {
+      transition: transform .15s;
+    }
+    #refreshBtn.spinning i {
+      animation: spin 1s linear infinite;
+    }
+    #refreshBtn .rf-time {
+      font-family: 'Consolas', monospace;
+      font-size: .82em;
+      opacity: .7;
+      margin-left: 2px;
+    }
+
+    #leaderboardBody {
+      transition: opacity .2s;
+    }
+    #leaderboardBody.refreshing {
+      opacity: .5;
+    }
+
+    /* ═══════════════════════════════════════════════
+       ⭐ Rating 徽章
+       ═══════════════════════════════════════════════ */
+    .user-rating {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1px 7px;
+      border-radius: 10px;
+      border: 1.5px solid currentColor;
+      font-family: 'Consolas', monospace;
+      font-size: 0.82em;
+      line-height: 1.4;
+      letter-spacing: 0.3px;
+      background: transparent;
+      white-space: nowrap;
+      transition: transform .15s, box-shadow .15s, background .15s;
+    }
+
+    .user-rating:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 10px rgba(0,0,0,.15);
+    }
+
+    [data-theme="dark"] .user-rating {
+      background: rgba(255,255,255,.04);
+    }
+
+    /* ⭐ 2900+：黑金传奇 */
+    .user-rating--legend {
+      color: #FBBF24;
+      border-color: #FBBF24;
+      background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+      padding: 2px 10px;
+      text-shadow: 0 0 8px rgba(251, 191, 36, .55);
+      animation: legendPulse 2.2s ease-in-out infinite alternate;
+    }
+
+    @keyframes legendPulse {
+      from { box-shadow: 0 0 6px rgba(251, 191, 36, .35); }
+      to   { box-shadow: 0 0 16px rgba(251, 191, 36, .75); }
+    }
+
+    /* ⭐ 2600+：额外光晕 */
+    .user-rating--elite {
+      box-shadow: 0 0 8px -2px currentColor;
+    }
+  

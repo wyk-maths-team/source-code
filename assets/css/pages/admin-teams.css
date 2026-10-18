@@ -1,0 +1,22 @@
+
+  .admin-container { background: var(--card-bg); border-radius: 4px; padding: 1.5rem; max-width: 1100px; margin: 0 auto; }
+  .filter-bar { display: flex; gap: .6rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .filter-bar input, .filter-bar select { padding: .4rem .7rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--card-bg); color: var(--text-primary); font-size: .9rem; }
+  .teams-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+  .teams-table th, .teams-table td { padding: .6rem .5rem; border-bottom: 1px solid var(--border-color); text-align: left; }
+  .teams-table th { background: #e9ecef; font-weight: 700; font-size: .8rem; text-transform: uppercase; letter-spacing: .3px; color: #333; }
+  [data-theme="dark"] .teams-table th { background: #2d2d2d; color: #ddd; }
+  .teams-table tr:hover td { background: rgba(0,0,0,.02); }
+  [data-theme="dark"] .teams-table tr:hover td { background: rgba(255,255,255,.04); }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: .72rem; font-weight: 700; }
+  .badge.team { background: rgba(74,144,217,.15); color: #2a6cb0; }
+  .badge.locked { background: rgba(220,53,69,.15); color: #c82333; }
+  .badge.mode1 { background: rgba(251,191,36,.2); color: #b28500; }
+  .badge.mode2 { background: rgba(74,222,128,.15); color: #2e7d32; }
+  .btn { padding: .35rem .8rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--card-bg); color: var(--text-primary); cursor: pointer; font-size: .82rem; font-weight: 600; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.danger { color: var(--danger); border-color: var(--danger); }
+  .btn.danger:hover { background: var(--danger); color: #fff; }
+  .team-id-code { font-family: 'Consolas', monospace; color: var(--accent); font-weight: 700; }
+  .loading-msg { text-align: center; padding: 2rem; color: var(--text-secondary); }
+  .empty-msg { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); }
