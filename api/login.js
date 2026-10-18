@@ -3,6 +3,7 @@ import { connectToDatabase } from './_db.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { applyRateLimit } from '../lib/rateLimit.js';
+import { wrapHandler } from '../lib/errors.js';
 
 // ⭐ Rate limit map + 定期清理
 const rateLimitMap = new Map();   // IP → { count, firstAttempt }
@@ -29,7 +30,7 @@ function getClientIP(req) {
          'unknown';
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -94,3 +95,6 @@ export default async function handler(req, res) {
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 }
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);

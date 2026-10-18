@@ -2,6 +2,7 @@
 // AI 批改代理 —— 把用戶答案轉發到 Cloudflare Tunnel 上的 FastAPI
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
+import { wrapHandler } from '../lib/errors.js';
 const UPSTREAM_URL =
   process.env.EX_GRADE_UPSTREAM ||
   'https://laser-nextel-numerous-deborah.trycloudflare.com/grade';
@@ -10,7 +11,7 @@ const MAX_ANSWER_LEN   = 200;
 const UPSTREAM_TIMEOUT = 300_000;        // 30 秒
 const VALID_PATTERN    = /^CSB-(0[1-9]|1[0-9]|2[01])$/;
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -86,3 +87,6 @@ export default async function handler(req, res) {
     clearTimeout(timer);
   }
 } 
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);

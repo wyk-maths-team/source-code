@@ -2,8 +2,9 @@
 import { connectToDatabase } from './_db.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
+import { wrapHandler } from '../lib/errors.js';
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
 
   const decoded = await verifyToken(req);
@@ -378,3 +379,6 @@ async function handleOsAction(action, req, res, decoded) {
       return res.status(400).json({ success: false, message: 'Unknown action: ' + action });
   }
 }
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);

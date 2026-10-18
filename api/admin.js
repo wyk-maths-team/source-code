@@ -21,6 +21,7 @@ import * as nodeCrypto      from 'crypto';
 import * as nodeUtil        from 'util';
 import * as nodeQuerystring from 'querystring';
 import * as nodeUrl         from 'url';
+import { wrapHandler } from '../lib/errors.js';
 
 // ═══════════════════════════════════════════════════════════════════
 // [2] 通用工具
@@ -704,7 +705,7 @@ async function handleCmd(req, res, db, decoded) {
 // [6] 主 handler
 // ═══════════════════════════════════════════════════════════════════
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   // Rate limit
   try {
     if (!(await applyRateLimit(req, res))) return;
@@ -760,3 +761,6 @@ export default async function handler(req, res) {
     return fail(res, 500, e?.message || 'Internal error');
   }
 }
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);

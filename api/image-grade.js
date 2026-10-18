@@ -13,6 +13,7 @@ import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';
 import crypto from 'crypto';
+import { wrapHandler } from '../lib/errors.js';
 
 const VALID_MODELS = new Set(['r1', 'v3']);
 const TASK_TTL_MS  = 30 * 60_000;
@@ -21,7 +22,7 @@ function genTaskId() {
   return 'IGT' + crypto.randomBytes(8).toString('hex');
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
 
   const decoded = await verifyToken(req);
@@ -266,3 +267,6 @@ async function handlePoll(req, res, db, decoded) {
     message: `Unknown task status: ${task.status}`,
   });
 }
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);

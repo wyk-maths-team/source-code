@@ -9,6 +9,7 @@ import { auditLog } from '../../lib/audit.js';
 import { askClaude } from '../../lib/temp/claude-api.js';
 import { buildStepsPrompt } from '../../lib/grade-prompt.js';
 import crypto from 'crypto';
+import { wrapHandler } from '../../lib/errors.js';
 
 const MAX_STEPS_LEN = 1000;
 const VALID_MODELS  = new Set(['claude-sonnet', 'claude-opus']);
@@ -96,7 +97,7 @@ function parseReply(raw) {
   }
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, message: 'Method not allowed' });
@@ -253,3 +254,6 @@ export const config = {
   maxDuration: 300,
   regions: ['iad1'],
 };
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);

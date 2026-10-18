@@ -16,6 +16,7 @@ import { runCustomLogic } from '../lib/logic-runner.js';
 import crypto from 'crypto';
 import { json } from 'stream/consumers';
 import { waitUntil } from '@vercel/functions';
+import { wrapHandler } from '../lib/errors.js';
 
 // ═══════════════ Constants ═══════════════
 const RATE_MAX_PER_MIN = 10;
@@ -252,7 +253,7 @@ function resolveSubmitTime(body, now) {
 }
 
 // ═══════════════ Main handler ═══════════════
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -748,3 +749,6 @@ async function handleBatch(req, res, db, username, now) {
     return res.status(500).json({ success: false, message: err.message });
   }
 }
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);

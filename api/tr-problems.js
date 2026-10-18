@@ -2,6 +2,7 @@
 import { connectToDatabase } from './_db.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
+import { wrapHandler } from '../lib/errors.js';
 
 // ── 權限設定（環境變數）──
 function allowedUsers() {
@@ -97,7 +98,7 @@ const LIST_PROJECTION = {
   hasImage: { $gt: [{ $strLenCP: { $ifNull: ['$imageurl', ''] } }, 0] },
 };
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
 
   const decoded = await verifyToken(req);
@@ -294,3 +295,6 @@ export default async function handler(req, res) {
 
   return res.status(400).json({ success: false, message: 'Invalid action' });
 }
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);

@@ -5,6 +5,7 @@ import { connectToDatabase } from './_db.js';
 import { auditLog } from '../lib/audit.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { timingSafeEqual, createHash } from 'crypto';
+import { wrapHandler } from '../lib/errors.js';
 
 // 暴力破解保護（in-memory，per-instance）
 const _attempts = new Map();
@@ -30,7 +31,7 @@ function safeEqual(a, b) {
   return timingSafeEqual(ah, bh);
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -100,3 +101,6 @@ export default async function handler(req, res) {
 
   return res.status(200).json({ success: true, token });
 }
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);

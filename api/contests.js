@@ -3,6 +3,7 @@ import { connectToDatabase } from './_db.js';
 import { auditLog } from '../lib/audit.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
+import { wrapHandler } from '../lib/errors.js';
 
 function isAdminUser(user) {
   return !!user && (user.role === 'admin' || user.role === 'root');
@@ -31,7 +32,7 @@ function normalizeProblems(raw) {
   return out;
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
 
   const decoded = await verifyToken(req);
@@ -564,3 +565,6 @@ async function calculateContestStats(db, contest) {
     })
   };
 }
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);

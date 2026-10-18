@@ -4,8 +4,9 @@ import { connectToDatabase } from './_db.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';
+import { wrapHandler } from '../lib/errors.js';
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ success: false });
@@ -102,3 +103,6 @@ export default async function handler(req, res) {
 
   return res.status(400).json({ success: false, message: 'Invalid action' });
 }
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);

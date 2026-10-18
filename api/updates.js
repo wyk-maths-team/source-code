@@ -4,6 +4,7 @@ import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { sanitizeHTML } from '../lib/sanitize.js';
 import { ObjectId } from 'mongodb';
+import { wrapHandler } from '../lib/errors.js';
 
 let _updatesCache = { data: null, expireAt: 0 };
 const SERVER_CACHE_TTL = 30 * 60_000;
@@ -12,7 +13,7 @@ function isAdminUser(user) {
   return !!user && (user.role === 'admin' || user.role === 'root');
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
 
   const action = req.query.action;
@@ -138,3 +139,6 @@ export default async function handler(req, res) {
 
   return res.status(400).json({ success: false, message: 'Invalid action' });
 }
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);

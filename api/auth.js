@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { connectToDatabase } from './_db.js';
 import { auditLog } from '../lib/audit.js';
+import { wrapHandler } from '../lib/errors.js';
 
 /**
  * 從微軟回傳的 displayName 抽出真名。
@@ -48,7 +49,7 @@ function getCookie(req, name) {
   const match = cookies.match(new RegExp(`(?:^|; )${name}=([^;]+)`));
   return match ? decodeURIComponent(match[1]) : null;
 }
-export default async function handler(req, res) {
+async function handler(req, res) {
   const action = req.query.action || (req.body && req.body.action);
 
   // ===== 1. 發起微軟登入 =====
@@ -265,3 +266,6 @@ if (action === 'complete-reset') {
 
   res.status(400).json({ error: 'Invalid action' });
 }
+
+// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+export default wrapHandler(handler);
