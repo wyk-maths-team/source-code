@@ -82,7 +82,7 @@
       const submitTime = new Date(sub.timestamp);
       const submitTimeStr = submitTime.toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong' });
       const judgeTime = sub.markedAt ? new Date(sub.markedAt) : submitTime;
-      const diffSec = Math.floor((judgeTime - submitTime) / 1000);
+      const diffSec = Math.max(Math.floor((judgeTime - submitTime) / 1000),judgingMs);
       const timeStr = diffSec < 60
         ? `${diffSec} seconds`
         : `${Math.floor(diffSec / 60)} min ${diffSec % 60} sec`;
