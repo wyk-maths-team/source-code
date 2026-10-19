@@ -122,7 +122,11 @@ async function handler(req, res) {
           projection: {
             subid: 1, username: 1, problemId: 1, type: 1, timestamp: 1,
             correct: 1, systemError: 1, marked: 1, score: 1, comment: 1,
-            answer: 1, image: 1, markedAt: 1, _id: 0
+            answer: 1, image: 1, markedAt: 1, _id: 0,
+            // ⭐ 新增下面这三个
+            judgingMs: 1,      // AI 耗时
+            tokenUsage: 1,     // Token 消耗
+            usedModel: 1       // 使用的模型
           }
         }
       ),
@@ -163,7 +167,11 @@ async function handler(req, res) {
       score: sub.score,
       correct: sub.correct,
       systemError: !!sub.systemError,
-      markedAt: sub.markedAt || null
+      markedAt: sub.markedAt || null,
+      // ⭐ 返回给前端
+      judgingMs: sub.judgingMs || null,
+      tokenUsage: sub.tokenUsage || 0,
+      usedModel: sub.usedModel || null
     };
 
     if (sub.type === 'image') {

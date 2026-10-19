@@ -115,11 +115,18 @@
             <button onclick="flagSubmission('yellow')" style="margin-left:5px; background:#e3a008; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Yellow Flag</button>
           </div>
         </div>
-        <div class="meta-row">
+                <div class="meta-row">
           <div class="meta-item"><strong>User:</strong> <a href="/users/${encodeURIComponent(sub.username)}">${escapeHtml(sub.username)}</a></div>
           <div class="meta-item"><strong>Problem:</strong> <a href="/problems/${encodeURIComponent(sub.problemId)}">${escapeHtml(sub.problemId)} - ${escapeHtml(problemName)}</a></div>
           <div class="meta-item"><strong>Submitted:</strong> ${escapeHtml(submitTimeStr)}</div>
           <div class="meta-item"><strong>Judging time:</strong> ${escapeHtml(timeStr)}</div>
+          
+          ${sub.tokenUsage > 0 ? `
+            <div class="meta-item" style="color:#4a90d9; font-weight:bold;">
+              <i class="fas fa-microchip"></i> AI Cost: ${sub.tokenUsage} tokens 
+              ${sub.usedModel ? `<span style="font-size:12px; opacity:0.7;">(${escapeHtml(sub.usedModel)})</span>` : ''}
+            </div>
+          ` : ''}
         </div>
         <div class="attempts-info"><strong>Total attempts on this problem:</strong> ${attempts}</div>
         <div id="answerPlaceholder">${answerHtml}</div>
