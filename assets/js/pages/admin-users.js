@@ -25,22 +25,43 @@
             if (oa !== ob) return oa - ob;
             return String(a.username).localeCompare(String(b.username));
           });
+
           tbody.innerHTML = sorted.map(u => {
             const isRoot = u.role === 'root';
             const canEdit = editorUser.role === 'root' ? !isRoot : (u.role === 'student');
             const canDelete = editorUser.role === 'root' ? !isRoot : (u.role === 'student');
             const canBan = editorUser.role === 'root' ? !isRoot : (u.role === 'student');
 
+            // 角色配色
+            let roleBadge = '';
+            if (u.role === 'root') roleBadge = '<span style="background:#8e44ad; color:#fff; padding:2px 6px; border-radius:4px; font-size:12px; font-weight:bold;">ROOT</span>';
+            else if (u.role === 'admin') roleBadge = '<span style="background:#2980b9; color:#fff; padding:2px 6px; border-radius:4px; font-size:12px; font-weight:bold;">ADMIN</span>';
+            else roleBadge = '<span style="background:#7f8c8d; color:#fff; padding:2px 6px; border-radius:4px; font-size:12px;">STUDENT</span>';
+
+            // 状态与黄牌
+            let statusBadge = u.banned 
+              ? '<span style="color:#d93025; font-weight:bold;"><i class="fas fa-ban"></i> Banned</span>' 
+              : '<span style="color:#2e7d32;"><i class="fas fa-check-circle"></i> Active</span>';
+            
+            if (!u.banned && u.yellowCards > 0) {
+              statusBadge += ` <span style="background:#e3a008; color:#fff; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:5px;" title="Yellow Cards">${u.yellowCards} Warn</span>`;
+            }
+
             return `
-              <tr>
-                <td>${escapeHtml(u.displayName)}</td>
-                <td>${escapeHtml(u.username)}</td>
-                <td>${u.role}</td>
-                <td>${u.banned ? '🔴 Banned' : '🟢 Normal'}</td>
-                <td>
-                  ${canEdit ? `<button class="btn btn-warning" onclick="window.location.href='/admin/users/${encodeURIComponent(u.username)}'">Edit</button>` : ''}
-                  ${canBan ? `<button class="btn ${u.banned ? 'btn-primary' : 'btn-danger'}" onclick="toggleBan('${escapeHtml(u.username)}', ${u.banned})">${u.banned ? 'Unban' : 'Ban'}</button>` : ''}
-                  ${canDelete ? `<button class="btn btn-danger" onclick="deleteUser('${escapeHtml(u.username)}')">Delete</button>` : ''}
+              <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 10px;">
+                  <div style="font-weight:bold; color:var(--text-primary);">${escapeHtml(u.displayName || u.username)}</div>
+                  <div style="font-size: 12px; color:var(--text-secondary);">@${escapeHtml(u.username)}</div>
+                </td>
+                <td style="padding: 10px; font-size: 14px;">${escapeHtml(u.realName || '-')}</td>
+                <td style="padding: 10px;">${roleBadge}</td>
+                <td style="padding: 10px;">${statusBadge}</td>
+                <td style="padding: 10px; text-align: right;">
+                  <div style="display: flex; gap: 6px; justify-content: flex-end;">
+                    ${canEdit ? `<a href="/admin/users/${encodeURIComponent(u.username)}" class="btn btn-warning" style="padding: 4px 10px;" title="Edit"><i class="fas fa-edit"></i></a>` : ''}
+                    ${canBan ? `<button class="btn ${u.banned ? 'btn-primary' : 'btn-danger'}" style="padding: 4px 10px;" onclick="toggleBan('${escapeHtml(u.username)}', ${u.banned})" title="${u.banned ? 'Unban' : 'Ban'}"><i class="fas ${u.banned ? 'fa-unlock' : 'fa-gavel'}"></i></button>` : ''}
+                    ${canDelete ? `<button class="btn btn-danger" style="padding: 4px 10px;" onclick="deleteUser('${escapeHtml(u.username)}')" title="Delete"><i class="fas fa-trash"></i></button>` : ''}
+                  </div>
                 </td>
               </tr>
             `;
