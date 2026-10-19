@@ -56,6 +56,9 @@
         <h2><i class="fas fa-paper-plane"></i> Send System Message</h2>
         
         <div class="form-group">
+          <label>Search User</label>
+          <input type="text" id="userSearch" placeholder="Type to filter by username..." autocomplete="off" style="margin-bottom: 8px;">
+          
           <label>Target User</label>
           <select id="targetUser"><option value="">Loading users...</option></select>
         </div>
@@ -94,30 +97,65 @@
       }
 
       const form = document.getElementById('adminMsgForm');
-      const targetUser = document.getElementById('targetUser');
+      const targetUserSelect = document.getElementById('targetUser');
+      const userSearchInput = document.getElementById('userSearch');
       const templateType = document.getElementById('templateType');
       const dynamicVars = document.getElementById('dynamicVars');
       const previewBox = document.getElementById('previewBox');
       const sendBtn = document.getElementById('sendBtn');
 
-      // ⭐ 1. 拉取用户列表（修正 API 路径）
-      try {
-        targetUser.innerHTML = '<option value="">Loading...</option>';
-        // 注意这里用的是 users.js 里的 adminList action
-        const usersData = await API.get('/api/users?action=adminList');
-        const users = usersData.users || [];
+      let allUsers = []; // 存储所有用户
+
+      // ⭐ 渲染用户下拉列表
+      function renderUserOptions(filterText = '') {
+        const query = filterText.toLowerCase().trim();
+        // 1. 过滤
+        const filtered = allUsers.filter(u => 
+          u.username.toLowerCase().includes(query) || 
+          (u.displayName && u.displayName.toLowerCase().includes(query))
+        );
         
-        targetUser.innerHTML = '<option value="">-- Select User --</option>' + 
-          users.map(u => `<option value="${DSHUI.esc(u.username)}">${DSHUI.esc(u.username)} (${DSHUI.esc(u.displayName || '')})</option>`).join('');
+        // 2. 排序（按 username 字母顺序）
+        filtered.sort((a, b) => a.username.localeCompare(b.username));
+
+        // 3. 渲染
+        if (filtered.length === 0) {
+          targetUserSelect.innerHTML = '<option value="">No users found</option>';
+        } else {
+          // 记住当前选中的值
+          const currentVal = targetUserSelect.value;
+          targetUserSelect.innerHTML = '<option value="">-- Select User --</option>' + 
+            filtered.map(u => `<option value="${DSHUI.esc(u.username)}">${DSHUI.esc(u.username)} (${DSHUI.esc(u.displayName || '')})</option>`).join('');
+          
+          // 尝试恢复选中状态
+          if (filtered.some(u => u.username === currentVal)) {
+            targetUserSelect.value = currentVal;
+          }
+        }
+      }
+
+      // 1. 拉取用户列表
+      try {
+        userSearchInput.disabled = true;
+        const usersData = await API.get('/api/users?action=adminList');
+        allUsers = usersData.users || [];
+        
+        renderUserOptions(); // 初始渲染
+        userSearchInput.disabled = false;
       } catch (e) {
-        targetUser.innerHTML = '<option value="">Failed to load users</option>';
+        targetUserSelect.innerHTML = '<option value="">Failed to load users</option>';
         DSHUI.toast('Failed to load user list', 'err');
       }
+
+      // 2. 监听搜索输入
+      userSearchInput.addEventListener('input', (e) => {
+        renderUserOptions(e.target.value);
+      });
 
       form.style.display = 'block';
       Page.hideSkeleton();
 
-      // ⭐ 2. 统一的预览更新函数（告别内联 oninput）
+      // ⭐ 3. 统一的预览更新函数
       function updatePreview() {
         const t = templateType.value;
         let text = '';
@@ -133,7 +171,7 @@
         previewBox.textContent = text;
       }
 
-      // ⭐ 3. 动态渲染参数输入框
+      // ⭐ 4. 动态渲染参数输入框
       function renderTemplateVars() {
         const t = templateType.value;
         dynamicVars.innerHTML = '';
@@ -143,14 +181,12 @@
           group.className = 'form-group';
           group.innerHTML = `<label>Problem ID</label><input type="text" id="varProblemId" placeholder="e.g. HA0001">`;
           dynamicVars.appendChild(group);
-          // 绑定事件
           document.getElementById('varProblemId').addEventListener('input', updatePreview);
         } else if (t === 'custom') {
           const group = document.createElement('div');
           group.className = 'form-group';
           group.innerHTML = `<label>Custom Text</label><textarea id="varCustomText" placeholder="Enter message here..."></textarea>`;
           dynamicVars.appendChild(group);
-          // 绑定事件
           document.getElementById('varCustomText').addEventListener('input', updatePreview);
         }
         updatePreview();
@@ -160,9 +196,9 @@
       templateType.addEventListener('change', renderTemplateVars);
       renderTemplateVars();
 
-      // ⭐ 4. 发送消息（修正 API 路径）
+      // ⭐ 5. 发送消息
       sendBtn.addEventListener('click', async () => {
-        const target = targetUser.value;
+        const target = targetUserSelect.value;
         if (!target) return DSHUI.toast('Please select a target user', 'warn');
         
         const template = templateType.value;
@@ -177,10 +213,9 @@
         }
 
         sendBtn.disabled = true;
-        sendBtn.textContent = 'Sending...'; // 强迫症友好：给个反馈
+        sendBtn.textContent = 'Sending...';
 
         try {
-          // ⭐ 路径改为 api/admin?action=sendMessage
           await API.post('/api/admin?action=sendMessage', { 
             targetUser: target, 
             template, 
@@ -189,7 +224,6 @@
           
           DSHUI.toast('Message sent successfully!', 'ok');
           
-          // 清空表单
           if (template === 'custom') document.getElementById('varCustomText').value = '';
           if (template === 'reviewed') document.getElementById('varProblemId').value = '';
           updatePreview();
