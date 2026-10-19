@@ -336,22 +336,32 @@ async function handleFlagUser(req, res, db, decoded) {
     return fail(res, 400, 'Missing or invalid parameters');
   }
 
+  // ⭐ 1. 拦截自己
+  if (targetUser === decoded.username) {
+    return fail(res, 400, 'You cannot flag yourself.');
+  }
+
   const target = await db.collection('users').findOne({ username: targetUser });
   if (!target) return fail(res, 404, 'User not found');
+
+  // ⭐ 2. 权限隔离
   if (target.role === 'root') return fail(res, 403, 'Cannot flag root user');
+  if (decoded.role === 'admin' && target.role === 'admin') {
+    return fail(res, 403, 'Admins cannot flag other admins.');
+  }
 
   const isRed = flagType === 'red';
   const message = isRed
     ? `[RED CARD] Your account has been suspended due to severe violation of Terms of Service (inappropriate content).`
     : `[YELLOW CARD] You have been warned for inappropriate behavior or rule violation. Please follow the rules.`;
 
-  // 1. 更新用户状态 (红牌封号，黄牌记过)
+  // 3. 更新用户状态 (红牌封号，黄牌记过)
   const updateData = isRed 
     ? { $set: { banned: true } } 
     : { $inc: { yellowCards: 1 } };
   await db.collection('users').updateOne({ username: targetUser }, updateData);
 
-  // 2. 发送系统通知
+  // 4. 发送系统通知
   await db.collection('messages').insertOne({
     username: targetUser,
     content: message,

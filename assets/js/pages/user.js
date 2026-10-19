@@ -261,12 +261,18 @@
           ? `<img src="${escapeHtml(pfp)}" alt="avatar">`
           : `<div class="placeholder">👤</div>`;
 
+        // ⭐ 增加权限判断：不能操作自己、不能操作同级/上级
+        const isSelf = (currentUser.username === username);
+        const canFlag = isAdmin && !isSelf && (
+          currentUser.role === 'root' ? (data.role !== 'root') : (data.role === 'student')
+        );
+
         const realNameHtml = `
           <div class="profile-realname">
             <span id="realNameText">${realName ? escapeHtml(realName) : '<i style="color:var(--text-secondary);">(no real name)</i>'}</span>
             ${isAdmin ? `<a href="/admin/users/${encodeURIComponent(username)}" class="edit-realname-btn" title="Edit user"><i class="fas fa-pencil-alt"></i></a>` : ''}
           </div>
-          ${isAdmin ? `
+          ${canFlag ? `
             <div style="margin-top:8px; display:flex; gap:8px;">
               <button class="btn-link" style="background:#d93025; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;" onclick="flagUser('${escapeHtml(username)}', 'red')">Red Flag</button>
               <button class="btn-link" style="background:#e3a008; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;" onclick="flagUser('${escapeHtml(username)}', 'yellow')">Yellow Flag</button>
