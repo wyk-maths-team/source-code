@@ -13,6 +13,7 @@
     function escapeHtml(s) { return ((window.DSHUI && window.DSHUI.esc) || function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]; }); })(s); }
 
     function computeStatus(sub) {
+      if (sub.status === 'Violation') return { text: 'Violation', cls: 'status-system' };
       if (sub.marked && sub.score !== undefined) {
         if (sub.score === 100) return { text: 'Accepted', cls: 'status-accepted' };
         if (sub.score === 0) return { text: 'Wrong Answer', cls: 'status-wrong' };
@@ -108,7 +109,11 @@
       return `<div class="detail-container" id="detailRoot">
         <div class="submission-header">
           <h2>Submission #${escapeHtml(sub.subid)}</h2>
-          <div class="badge-group"><span class="badge ${status.cls}">${escapeHtml(status.text)}</span></div>
+          <div class="badge-group">
+            <span class="badge ${status.cls}">${escapeHtml(status.text)}</span>
+            <button onclick="flagSubmission('red')" style="margin-left:10px; background:#d93025; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Red Flag</button>
+            <button onclick="flagSubmission('yellow')" style="margin-left:5px; background:#e3a008; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Yellow Flag</button>
+          </div>
         </div>
         <div class="meta-row">
           <div class="meta-item"><strong>User:</strong> <a href="/users/${encodeURIComponent(sub.username)}">${escapeHtml(sub.username)}</a></div>
@@ -158,6 +163,25 @@
     window.addEventListener('beforeunload', () => {
       if (scrambleTimer) clearInterval(scrambleTimer);
     });
+        window.flagSubmission = async (flagType) => {
+      if (!confirm(`Are you sure you want to issue a ${flagType.toUpperCase()} card to this user? This will reset their progress on this problem.`)) return;
+      
+      try {
+        const res = await apiCall('/api/submissions?action=flag', 'POST', { subid, flagType });
+        if (!res.success) throw new Error(res.message || 'Failed to flag');
+        
+        // 跳转到发信页面，带上 URL 参数
+        const urlParams = new URLSearchParams({
+          username: document.querySelector('.meta-item a').textContent, // 简单粗暴地从 DOM 拿 username
+          problemid: subid.substring(0, 0), // 这里需要拿到 problemId，最好从 API 数据传
+          subid: subid,
+          flag: flagType
+        });
+        window.location.href = `/admin/send-message?${urlParams.toString()}`;
+      } catch (e) {
+        alert(e.message);
+      }
+    };
 
     loadDetail();
   

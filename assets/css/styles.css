@@ -913,3 +913,4 @@ input, textarea, select, [contenteditable="true"] {
   animation-duration: 0.001s !important;
   animation-delay: 0s !important;
 }
+.status-violation { background: #ffcccc; color: #d93025; }

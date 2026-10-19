@@ -105,7 +105,12 @@
       const sendBtn = document.getElementById('sendBtn');
 
       let allUsers = []; // 存储所有用户
-
+            // 检查 URL 参数
+      const urlParams = new URLSearchParams(window.location.search);
+      const prefillUser = urlParams.get('username');
+      const prefillProblemId = urlParams.get('problemid') || ''; // 如果没传，暂用硬编码或空
+      const prefillSubid = urlParams.get('subid') || '';
+      const prefillFlag = urlParams.get('flag');
       // ⭐ 渲染用户下拉列表
       function renderUserOptions(filterText = '') {
         const query = filterText.toLowerCase().trim();
@@ -142,6 +147,29 @@
         
         renderUserOptions(); // 初始渲染
         userSearchInput.disabled = false;
+        if (prefillUser) {
+          targetUserSelect.value = prefillUser;
+          // 如果列表里没有这个用户，尝试直接塞进去一个 option
+          if (targetUserSelect.value !== prefillUser) {
+             targetUserSelect.innerHTML += `<option value="${DSHUI.esc(prefillUser)}" selected>${DSHUI.esc(prefillUser)} (Auto)</option>`;
+          }
+        }
+        if (prefillFlag) {
+          // 自动切到 Custom Message
+          templateType.value = 'custom';
+          renderTemplateVars();
+          setTimeout(() => {
+            const textarea = document.getElementById('varCustomText');
+            if (textarea) {
+               if (prefillFlag === 'red') {
+                 textarea.value = `[RED CARD WARNING] Your account has been flagged for severe violation (obscene/inappropriate content) regarding submission ${prefillSubid}. Your progress on this problem has been reset. This is a final warning before account suspension. Thank you.`;
+               } else {
+                 textarea.value = `[YELLOW CARD WARNING] Your submission ${prefillSubid} has been flagged for inappropriate content or AI usage. Your progress on this problem has been reset. Please follow the rules. Thank you.`;
+               }
+               updatePreview();
+            }
+          }, 50); // 等待 DOM 渲染
+        }
       } catch (e) {
         targetUserSelect.innerHTML = '<option value="">Failed to load users</option>';
         DSHUI.toast('Failed to load user list', 'err');

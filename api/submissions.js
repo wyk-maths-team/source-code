@@ -183,6 +183,41 @@ async function handler(req, res) {
 
     return res.status(200).json({ success: true, submission: result, problemName, attempts, canSeeContent, isOwner });
   }
+  // ---------- 管理员：标记违规 (Flag) ----------
+  if (req.query.action === 'flag') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    if (!isAdmin) return res.status(403).json({ success: false, message: 'Admin only' });
+
+    const { subid, flagType } = req.body || {}; // flagType: 'red' | 'yellow'
+    if (!subid || !flagType) return res.status(400).json({ success: false, message: 'Missing subid or flagType' });
+
+    const sub = await db.collection('submissions').findOne({ subid });
+    if (!sub) return res.status(404).json({ success: false, message: 'Submission not found' });
+
+    // 1. 标记违规状态
+    await db.collection('submissions').updateOne(
+      { subid },
+      { 
+        $set: { 
+          marked: true, 
+          score: 0, 
+          status: 'Violation', // 前端 computeStatus 需要处理这个状态
+          flagged: true,
+          flagType: flagType,
+          comment: `[${flagType.toUpperCase()} CARD] Flagged by Admin.`
+        } 
+      }
+    );
+
+    // 2. 清除用户在此题的状态 (如果是 passed 或 failed，直接 unset 掉，相当于回到未做状态)
+    const statsCol = db.collection('userstats');
+    await statsCol.updateOne(
+      { username: sub.username },
+      { $unset: { [`states.${sub.problemId}`]: '' } }
+    );
+
+    return res.status(200).json({ success: true });
+  }
 
   // ---------- 管理員模式 ----------
   if (req.query.admin === '1') {
