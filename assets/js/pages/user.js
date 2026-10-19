@@ -266,6 +266,12 @@
             <span id="realNameText">${realName ? escapeHtml(realName) : '<i style="color:var(--text-secondary);">(no real name)</i>'}</span>
             ${isAdmin ? `<a href="/admin/users/${encodeURIComponent(username)}" class="edit-realname-btn" title="Edit user"><i class="fas fa-pencil-alt"></i></a>` : ''}
           </div>
+          ${isAdmin ? `
+            <div style="margin-top:8px; display:flex; gap:8px;">
+              <button class="btn-link" style="background:#d93025; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;" onclick="flagUser('${escapeHtml(username)}', 'red')">Red Flag</button>
+              <button class="btn-link" style="background:#e3a008; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;" onclick="flagUser('${escapeHtml(username)}', 'yellow')">Yellow Flag</button>
+            </div>
+          ` : ''}
         `;
 
         const percent = totalProblems ? Math.round(totalPassed / totalProblems * 100) : 0;
@@ -390,6 +396,26 @@
             : '<div class="ach-section"><div class="ach-header"><h2><i class="fa-solid fa-trophy" style="color:#FFAA00;margin-right:.4rem;"></i>Achievements</h2></div><div class="ach-empty">Failed to load achievements.</div></div>';
         })();
       }
+            window.flagUser = async (username, flagType) => {
+        const msg = flagType === 'red' 
+          ? `Confirm send ${username} a red card? This will ban every action of the account!` 
+          : `Confirm ${username} a yellow card? This will increase the counter by 1`;
+        if (!confirm(msg)) return;
+        
+        try {
+          const res = await apiCall('/api/admin?action=flagUser', 'POST', { targetUser: username, flagType });
+          if (res.success) {
+            (window.DSHUI ? DSHUI.toast(res.message, 'ok') : alert(res.message));
+            if (flagType === 'red') {
+              setTimeout(() => window.location.reload(), 1000); // 红牌直接刷新页面
+            }
+          } else {
+            throw new Error(res.message || 'Failed');
+          }
+        } catch (e) {
+          (window.DSHUI ? DSHUI.toast(e.message, 'err') : alert(e.message));
+        }
+      };
 
       (async function init() {
       const data = await loadProfile();

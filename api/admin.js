@@ -327,6 +327,41 @@ async function handleSendMessage(req, res, db, decoded) {
   await safeAudit(db, 'send_system_message', { targetUser, template }, decoded.username, 'info');
   return ok(res, { success: true, message: 'Message sent' });
 }
+// ── 用户红黄牌制裁 ──
+async function handleFlagUser(req, res, db, decoded) {
+  if (req.method !== 'POST') return fail(res, 405, 'Method not allowed');
+
+  const { targetUser, flagType } = req.body || {};
+  if (!targetUser || !['red', 'yellow'].includes(flagType)) {
+    return fail(res, 400, 'Missing or invalid parameters');
+  }
+
+  const target = await db.collection('users').findOne({ username: targetUser });
+  if (!target) return fail(res, 404, 'User not found');
+  if (target.role === 'root') return fail(res, 403, 'Cannot flag root user');
+
+  const isRed = flagType === 'red';
+  const message = isRed
+    ? `[RED CARD] Your account has been suspended due to severe violation of Terms of Service (inappropriate content).`
+    : `[YELLOW CARD] You have been warned for inappropriate behavior or rule violation. Please follow the rules.`;
+
+  // 1. 更新用户状态 (红牌封号，黄牌记过)
+  const updateData = isRed 
+    ? { $set: { banned: true } } 
+    : { $inc: { yellowCards: 1 } };
+  await db.collection('users').updateOne({ username: targetUser }, updateData);
+
+  // 2. 发送系统通知
+  await db.collection('messages').insertOne({
+    username: targetUser,
+    content: message,
+    createdAt: new Date(),
+    read: false
+  });
+
+  await safeAudit(db, 'flag_user', { targetUser, flagType }, decoded.username, 'danger');
+  return ok(res, { success: true, message: `User ${targetUser} flagged with ${flagType} card.` });
+}
 // ── Marker: 提交評分 ──
 async function handleMarkSubmit(req, res, db, decoded) {
   if (req.method !== 'PUT') return fail(res, 405, 'Method not allowed');
@@ -780,6 +815,7 @@ async function handler(req, res) {
       case 'runDifficultyAdjust': return await handleRunDifficultyAdjust(req, res, db, decoded);
       case 'cmd':             return await handleCmd(req, res, db, decoded);
       case 'sendMessage':     return await handleSendMessage(req, res, db, decoded);
+      case 'flagUser':        return await handleFlagUser(req, res, db, decoded);
       default:
         return fail(res, 400, 'Invalid action');
     }
