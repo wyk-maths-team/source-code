@@ -89,6 +89,26 @@
       avatarImg.style.display = 'none';
     }
   }
+  // ⭐ 格式化数字（100K, 23M）
+  function formatTokens(n) {
+    if (n === undefined || n === null) return '0';
+    const num = Number(n);
+    if (isNaN(num)) return '0';
+    const absNum = Math.abs(num);
+    const sign = num < 0 ? '-' : '';
+    
+    if (absNum >= 1_000_000) {
+      return sign + (absNum / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+    }
+    if (absNum >= 10_000) {
+      return sign + (absNum / 1_000).toFixed(0) + 'K';
+    }
+    if (absNum >= 1_000) {
+      return sign + (absNum / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
+    }
+    return sign + absNum;
+  }
+
   // ⭐ 暴露全局更新方法，供其他地方直接调用
   window.updateTopbarTokens = function(daily, global) {
     if (!loggedIn) return;
@@ -100,12 +120,12 @@
       const oldHtml = el.innerHTML;
       
       el.innerHTML = `
-        <span style="color:${dailyCls}; font-weight:bold;" title="Daily Tokens">
-          <i class="fa-solid fa-bolt" style="color:#e3a008;"></i> ${daily.toLocaleString()}
+        <span style="color:${dailyCls}; font-weight:bold;" title="Daily Tokens: ${daily.toLocaleString()}">
+          <i class="fa-solid fa-bolt" style="color:#e3a008;"></i> ${formatTokens(daily)}
         </span>
         <span style="margin:0 4px; opacity:0.4;">|</span>
-        <span style="color:${globalCls}; font-weight:bold;" title="Global Tokens">
-          <i class="fa-solid fa-coins" style="color:#ffd700;"></i> ${global.toLocaleString()}
+        <span style="color:${globalCls}; font-weight:bold;" title="Global Tokens: ${global.toLocaleString()}">
+          <i class="fa-solid fa-coins" style="color:#ffd700;"></i> ${formatTokens(global)}
         </span>
       `;
       

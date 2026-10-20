@@ -160,7 +160,18 @@
         Page.hideSkeleton();
       }
     }
-
+        function formatTokens(n) {
+      if (n === undefined || n === null) return '0';
+      const num = Number(n);
+      if (isNaN(num)) return '0';
+      const absNum = Math.abs(num);
+      const sign = num < 0 ? '-' : '';
+      
+      if (absNum >= 1_000_000) return sign + (absNum / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+      if (absNum >= 10_000) return sign + (absNum / 1_000).toFixed(0) + 'K';
+      if (absNum >= 1_000) return sign + (absNum / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
+      return sign + absNum;
+    }
     function renderTable(users) {
       const tbody = document.querySelector('#tokenTable tbody');
       if (users.length === 0) {
@@ -180,8 +191,8 @@
                 ${u.realName ? `· ${DSHUI.esc(u.realName)}` : ''}
               </div>
             </td>
-            <td class="num ${dailyCls}" id="daily-${DSHUI.esc(u.username)}">${u.daily.toLocaleString()}</td>
-            <td class="num ${globalCls}" id="global-${DSHUI.esc(u.username)}">${u.global.toLocaleString()}</td>
+            <td class="num ${dailyCls}" id="daily-${DSHUI.esc(u.username)}" title="${u.daily.toLocaleString()}">${formatTokens(u.daily)}</td>
+            <td class="num ${globalCls}" id="global-${DSHUI.esc(u.username)}" title="${u.global.toLocaleString()}">${formatTokens(u.global)}</td>
             <td class="num">${u.totalUsed.toLocaleString()}</td>
             <td style="text-align:right;">
               <button class="tm-btn small" onclick="startEdit('${DSHUI.esc(u.username)}')">
@@ -244,9 +255,10 @@
         const dailyTd = document.getElementById(`daily-${username}`);
         const globalTd = document.getElementById(`global-${username}`);
         
-        dailyTd.innerHTML = daily.toLocaleString();
-        globalTd.innerHTML = global.toLocaleString();
-        
+        dailyTd.innerHTML = formatTokens(daily);
+        globalTd.innerHTML = formatTokens(global);
+        dailyTd.title = daily.toLocaleString();
+        globalTd.title = global.toLocaleString();
         dailyTd.className = `num ${daily <= 0 ? 'neg' : ''} num-pop`;
         globalTd.className = `num ${global < 0 ? 'neg' : (global > 100000 ? 'pos' : '')} num-pop`;
         
