@@ -618,6 +618,16 @@ async function handleSingleSubmit(ctx) {
 
   if (!jr.systemError) {
     await updateUserStats(db, effectiveUsername, pid, jr.correct);
+    
+    // ⭐ 发 Token 奖励
+    if (jr.correct && !inContest) {
+      const { rewardAC } = await import('../lib/token.js');
+      try {
+        await rewardAC(db, effectiveUsername, problem.difficulty || 1);
+      } catch(e) {
+        console.error('[submit] reward failed:', e);
+      }
+    }
   }
 
     return sendSuccess(db, rawUsername, res, {
