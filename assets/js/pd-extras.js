@@ -265,7 +265,7 @@ async function handleStepsSubmit(stepsText, checkBtn) {
     }
   } catch (err) {
     stopWaiting();
-    setWorkbenchStatus(res?.message || 'Submission failed', 'err');
+    setWorkbenchStatus('Network error: ' + (err.message || 'Submission failed'), 'err');
     S.cooldown = false;
     checkBtn.disabled = false;
   }
