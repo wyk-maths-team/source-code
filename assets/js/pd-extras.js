@@ -240,11 +240,11 @@ async function handleStepsSubmit(stepsText, checkBtn) {
     }
 
     // 如果是 Root，走后端轮询
-    if (res.status === 'pending') {
-      setWorkbenchStatus('Waiting for local bridge...', 'busy');
-      pollGradeResult({ endpoint: '/api/steps-grade', taskId: res.taskId, checkBtn, maxAttempts: 100 });
-      return;
-    }
+    // if (res.status === 'pending') {
+    //   setWorkbenchStatus('Waiting for local bridge...', 'busy');
+    //   pollGradeResult({ endpoint: '/api/steps-grade', taskId: res.taskId, checkBtn, maxAttempts: 100 });
+    //   return;
+    // }
 
     // 非 Root，直接拿结果
     if (res.status === 'done') {
