@@ -116,9 +116,9 @@ async function handleCreate(req, res, db, decoded) {
   });
 
   // Root 用户跳过后端 API，交给你本地的 Bridge
-  if (decoded.role === 'root') {
-    return res.status(202).json({ success: true, taskId, handledBy: 'bridge' });
-  }
+  // if (decoded.role === 'root') {
+  //   return res.status(202).json({ success: true, taskId, handledBy: 'bridge' });
+  // }
 
   // 非 Root：同步执行 API
   const chain = getModelChain(problem.difficulty);
