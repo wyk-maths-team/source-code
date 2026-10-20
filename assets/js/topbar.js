@@ -89,7 +89,35 @@
       avatarImg.style.display = 'none';
     }
   }
+  // ⭐ 暴露全局更新方法，供其他地方直接调用
+  window.updateTopbarTokens = function(daily, global) {
+    if (!loggedIn) return;
+    const el = document.getElementById('tokenDisplay');
+    if (el) {
+      const dailyCls = daily < 3000 ? '#d93025' : '#fff';
+      const globalCls = global < 0 ? '#d93025' : '#00ff00';
+      el.innerHTML = `
+        <span style="color:${dailyCls}; font-weight:bold;" title="Daily Tokens">
+          <i class="fa-solid fa-bolt" style="color:#e3a008;"></i> ${daily.toLocaleString()}
+        </span>
+        <span style="margin:0 4px; opacity:0.4;">|</span>
+        <span style="color:${globalCls}; font-weight:bold;" title="Global Tokens">
+          <i class="fa-solid fa-coins" style="color:#ffd700;"></i> ${global.toLocaleString()}
+        </span>
+      `;
+    }
+  };
 
+  // 原有的拉取方法保留，页面加载时调用
+  async function loadTokens() {
+    if (!loggedIn) return;
+    try {
+      const res = await apiCall('/api/token');
+      if (res.success) {
+        window.updateTopbarTokens(res.daily, res.global);
+      }
+    } catch(e) {}
+  }
   // ---------- 下拉切换 ----------
   function toggleDropdown(e) {
     if (e) e.stopPropagation();
@@ -180,7 +208,9 @@
     </div>
     <div class="topbar-right">
   `;
-
+  if (loggedIn) {
+    topbarHTML += `<div id="tokenDisplay" style="display:flex; align-items:center; font-family:monospace; font-size:14px; margin-right:15px; background:rgba(255,255,255,0.08); padding:4px 12px; border-radius:12px;"></div>`;
+  }
   if (loggedIn) {
     topbarHTML += `
       <div class="user-menu" id="userMenu">
@@ -297,6 +327,9 @@
   // 加载头像
   if (loggedIn && realUsername) {
     setTimeout(loadUserAvatar, 100);
+  }
+  if(loggedIn){
+    setTimeout(loadTokens, 200);
   }
 
   // 恢复桌面端侧边栏状态

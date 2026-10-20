@@ -67,6 +67,7 @@
     { "source": "/admin/oplog","destination": "/admin/oplog.html" },
     { "source": "/admin/health","destination": "/admin/health.html"},
     { "source": "/admin/send-message","destination": "/admin/send-message.html"},
+    { "source": "/admin/tokens", "destination": "/admin/tokens.html" },
 
     { "source": "/admin/problems/:id", "destination": "/admin/editproblem.html" },
     { "source": "/admin/contests/:id", "destination": "/admin/editcontest.html" },

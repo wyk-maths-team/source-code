@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Token Management - WYK Maths Team</title>
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+  
+  <script src="/assets/js/core/ui.js"></script>
+  <script src="/assets/js/core/net.js"></script>
+  <script src="/assets/js/core/api.js"></script>
+  <script src="/assets/js/core/page.js"></script>
+  
+  <style>
+    .token-container { max-width: 1000px; margin: 20px auto; padding: 20px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .header h2 { margin: 0; color: var(--text-primary); }
+    .btn-init { background: #e3a008; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+    .btn-init:hover { background: #c98b06; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); color: var(--text-primary); }
+    th { background: rgba(0,0,0,0.05); font-weight: 600; }
+    [data-theme="dark"] th { background: rgba(255,255,255,0.05); }
+    .num { font-family: monospace; font-size: 14px; }
+    .num.neg { color: #d93025; font-weight: bold; }
+    .num.pos { color: #2ea44f; }
+  </style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="token-container">
+        <div class="header">
+          <h2><i class="fas fa-coins"></i> Token Management</h2>
+          <button class="btn-init" id="btnInit" onclick="initHistory()">Recalculate History</button>
+        </div>
+        <table id="tokenTable">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Daily Tokens</th>
+              <th>Global Tokens</th>
+              <th>Total Used</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="4" style="text-align:center;">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script src="/assets/js/auth.js"></script>
+  <script src="/assets/js/app.js"></script>
+  <script src="/assets/js/topbar.js"></script>
+  <script src="/assets/js/sidebar.js"></script>
+  <script src="/assets/js/heartbeat.js"></script>
+  <script src="/assets/js/pk-invite.js"></script>
+
+  <script>
+    Page.boot({ title: 'Token Management', requireAuth: true, skeleton: true });
+
+    Page.ready(async (user) => {
+      if (user.role !== 'admin' && user.role !== 'root') {
+        document.getElementById('mainContent').innerHTML = '<h2 style="text-align:center;padding:40px;">403 Forbidden</h2>';
+        Page.hideSkeleton(); return;
+      }
+      
+      loadTokens();
+    });
+
+    async function loadTokens() {
+      const tbody = document.querySelector('#tokenTable tbody');
+      try {
+        const res = await API.get('/api/admin-tokens');
+        if (!res.success) throw new Error(res.message);
+        
+        if (res.users.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No users found.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = res.users.map(u => {
+          const globalCls = u.global < 0 ? 'neg' : 'pos';
+          return `
+            <tr>
+              <td><b>${DSHUI.esc(u.displayName)}</b> <span style="opacity:0.6;font-size:12px;">(${DSHUI.esc(u.username)})</span></td>
+              <td class="num">${u.daily.toLocaleString()}</td>
+              <td class="num ${globalCls}">${u.global.toLocaleString()}</td>
+              <td class="num">${u.totalUsed.toLocaleString()}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:red;">Error: ${err.message}</td></tr>`;
+      } finally {
+        Page.hideSkeleton();
+      }
+    }
+
+    async function initHistory() {
+      if (!confirm('This will recalculate all historical token usage from submissions. Continue?')) return;
+      
+      const btn = document.getElementById('btnInit');
+      btn.disabled = true;
+      btn.textContent = 'Recalculating...';
+      
+      try {
+        const res = await API.post('/api/admin-tokens', {});
+        if (res.success) {
+          DSHUI.toast('History recalculated successfully!', 'ok');
+          loadTokens();
+        } else {
+          DSHUI.toast(res.message || 'Failed', 'err');
+        }
+      } catch (err) {
+        DSHUI.toast(err.message, 'err');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Recalculate History';
+      }
+    }
+  </script>
+</body>
+</html>
