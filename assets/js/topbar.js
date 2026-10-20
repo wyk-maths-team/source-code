@@ -231,7 +231,7 @@
       <span class="brand-name">
         <a href="/" style="display:flex; align-items:center; gap:8px; text-decoration:none; color:#ffffff; font-weight:800; letter-spacing:1px;">
           <img src="/favicon.svg" alt="Home" style="display:block; width:28px; height:28px; border-radius:50%; flex-shrink:0;" id="brandIcon">
-          <span class="brand-text">WYK Maths Team</span>
+          ${isMobile?'':<span class="brand-text">WYK Maths Team</span>}
         </a>
       </span>
     </div>
