@@ -82,11 +82,20 @@ function compareNumeric(ansStr, userAnswer) {
 
 async function updateUserStats(db, username, pid, correct) {
   const col = db.collection('userstats');
+  
+  // ⭐ 先查一下之前是否已经 AC 过
+  const existing = await col.findOne(
+    { username, [`states.${pid}`]: 'passed' },
+    { projection: { _id: 1 } }
+  );
+  const wasPassed = !!existing;
+
   await col.updateOne(
     { username },
     { $setOnInsert: { username, states: {} } },
     { upsert: true }
   );
+  
   if (correct) {
     await col.updateOne({ username }, { $set: { [`states.${pid}`]: 'passed' } });
   } else {
@@ -95,6 +104,9 @@ async function updateUserStats(db, username, pid, correct) {
       { $set: { [`states.${pid}`]: 'failed' } }
     );
   }
+  
+  // ⭐ 返回是否是新 AC（之前没 passed，现在 passed 了）
+  return correct && !wasPassed; 
 }
 
 // ═══════════════ Judging (pure — no DB writes) ═══════════════
@@ -617,10 +629,11 @@ async function handleSingleSubmit(ctx) {
   await db.collection('submissions').insertOne(submissionData);
 
   if (!jr.systemError) {
-    await updateUserStats(db, effectiveUsername, pid, jr.correct);
+    // ⭐ 接收返回值
+    const isFirstAC = await updateUserStats(db, effectiveUsername, pid, jr.correct);
     
-    // ⭐ 发 Token 奖励
-    if (jr.correct && !inContest) {
+    // ⭐ 只有首次 AC 才发奖励
+    if (isFirstAC && !inContest) {
       const { rewardAC } = await import('../lib/token.js');
       try {
         await rewardAC(db, effectiveUsername, problem.difficulty || 1);

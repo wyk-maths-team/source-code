@@ -96,6 +96,9 @@
     if (el) {
       const dailyCls = daily < 3000 ? '#d93025' : '#fff';
       const globalCls = global < 0 ? '#d93025' : '#00ff00';
+      
+      const oldHtml = el.innerHTML;
+      
       el.innerHTML = `
         <span style="color:${dailyCls}; font-weight:bold;" title="Daily Tokens">
           <i class="fa-solid fa-bolt" style="color:#e3a008;"></i> ${daily.toLocaleString()}
@@ -105,6 +108,12 @@
           <i class="fa-solid fa-coins" style="color:#ffd700;"></i> ${global.toLocaleString()}
         </span>
       `;
+      
+      if (oldHtml !== '' && oldHtml !== el.innerHTML) {
+        el.classList.remove('topbar-token-pop');
+        void el.offsetWidth; 
+        el.classList.add('topbar-token-pop');
+      }
     }
   };
 
@@ -554,7 +563,15 @@
         padding-left: 0 !important;
       }
     }
-
+        /* ===== Token 跳动特效 ===== */
+    @keyframes tokenPop {
+      0% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 1; text-shadow: 0 0 10px rgba(255,255,255,0.6); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .topbar-token-pop {
+      animation: tokenPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
     /* ===== 移动端 ===== */
     @media (max-width: 768px) {
       .topbar { padding: 0 12px !important; }

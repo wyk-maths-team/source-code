@@ -14,18 +14,55 @@
   <script src="/assets/js/core/page.js?v=60de492e"></script>
   
   <style>
-    .token-container { max-width: 1000px; margin: 20px auto; padding: 20px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); }
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .header h2 { margin: 0; color: var(--text-primary); }
-    .btn-init { background: #e3a008; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; }
-    .btn-init:hover { background: #c98b06; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); color: var(--text-primary); }
-    th { background: rgba(0,0,0,0.05); font-weight: 600; }
-    [data-theme="dark"] th { background: rgba(255,255,255,0.05); }
-    .num { font-family: monospace; font-size: 14px; }
-    .num.neg { color: #d93025; font-weight: bold; }
-    .num.pos { color: #2ea44f; }
+    .tm-container { max-width: 1100px; margin: 20px auto; padding: 24px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border-color); box-shadow: 0 4px 24px rgba(0,0,0,0.15); }
+    
+    .tm-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+    .tm-title { margin: 0; color: var(--text-primary); font-size: 1.4rem; font-weight: 800; letter-spacing: 0.5px; display:flex; align-items:center; gap:8px; }
+    
+    .tm-toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .tm-search { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-color); color: var(--text-primary); font-family: inherit; font-size: 0.9rem; outline: none; min-width: 260px; }
+    .tm-search:focus { border-color: var(--accent); }
+    .tm-select { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-color); color: var(--text-primary); font-family: inherit; font-size: 0.9rem; outline: none; cursor: pointer; }
+    
+    .tm-btn { 
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      background: #2c3e50; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; 
+      cursor: pointer; font-weight: 600; font-size: 0.9rem; font-family: inherit;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: all 0.1s; 
+    }
+    .tm-btn:hover { background: #1a252f; }
+    .tm-btn:active { transform: translateY(2px); box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+    .tm-btn:disabled { background: #555; cursor: not-allowed; box-shadow: none; transform: none; opacity: 0.7; }
+    
+    .tm-btn.warn { background: #d35400; }
+    .tm-btn.warn:hover { background: #e67e22; }
+    
+    .tm-btn.small { padding: 4px 10px; font-size: 0.8rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+    .tm-btn.small:active { transform: translateY(1px); box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+    .tm-btn.success { background: #27ae60; } .tm-btn.success:hover { background: #2ecc71; }
+
+    .tm-table-wrapper { overflow-x: auto; border: 1px solid var(--border-color); border-radius: 4px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+    th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border-color); color: var(--text-primary); }
+    th { background: rgba(0,0,0,0.03); font-weight: 700; font-size: 0.85rem; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px; }
+    [data-theme="dark"] th { background: rgba(255,255,255,0.03); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(0,0,0,0.01); }
+    [data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.02); }
+    
+    .num { font-family: 'Consolas', 'Monaco', monospace; font-size: 14px; }
+    .num.neg { color: #e74c3c; font-weight: bold; }
+    .num.pos { color: #2ecc71; }
+    
+    .tm-input-edit { width: 120px; padding: 4px 8px; border: 1px solid var(--accent); background: transparent; color: var(--text-primary); border-radius: 3px; font-family: 'Consolas', monospace; font-weight: bold; }
+    
+    /* 動效 */
+    @keyframes numPop {
+      0% { transform: scale(1); color: var(--accent); }
+      50% { transform: scale(1.15); color: var(--accent); text-shadow: 0 0 8px rgba(74,144,217,0.5); }
+      100% { transform: scale(1); color: inherit; }
+    }
+    .num-pop { animation: numPop 0.4s ease-out; display: inline-block; }
   </style>
 </head>
 <body class="index-body">
@@ -33,24 +70,38 @@
     <header class="topbar" id="topbarContainer"></header>
     <aside class="sidebar" id="sidebarContainer"></aside>
     <main class="main-content" id="mainContent">
-      <div class="token-container">
-        <div class="header">
-          <h2><i class="fas fa-coins"></i> Token Management</h2>
-          <button class="btn-init" id="btnInit" onclick="initHistory()">Recalculate History</button>
+      <div class="tm-container">
+        <div class="tm-header">
+          <h2 class="tm-title"><i class="fas fa-coins" style="color:#f1c40f;"></i> Token Management</h2>
+          
+          <div class="tm-toolbar">
+            <input type="text" id="searchInput" class="tm-search" placeholder="Search username / realname...">
+            <select id="sortSelect" class="tm-select">
+              <option value="username">Sort by Username</option>
+              <option value="totalUsed">Sort by Total Used (Desc)</option>
+              <option value="global">Sort by Global Tokens (Desc)</option>
+              <option value="daily">Sort by Daily Tokens (Desc)</option>
+            </select>
+            <button class="tm-btn warn" id="btnInit"><i class="fas fa-sync-alt"></i> Init History</button>
+          </div>
         </div>
-        <table id="tokenTable">
-          <thead>
-            <tr>
-              <th>User</th>
-              <th>Daily Tokens</th>
-              <th>Global Tokens</th>
-              <th>Total Used</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td colspan="4" style="text-align:center;">Loading...</td></tr>
-          </tbody>
-        </table>
+
+        <div class="tm-table-wrapper">
+          <table id="tokenTable">
+            <thead>
+              <tr>
+                <th>User Info</th>
+                <th>Daily Tokens (⚡)</th>
+                <th>Global Tokens (🪙)</th>
+                <th>Total Used</th>
+                <th style="text-align:right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="5" style="text-align:center; padding: 40px;">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </main>
   </div>
@@ -64,6 +115,9 @@
 
   <script>
     Page.boot({ title: 'Token Management', requireAuth: true, skeleton: true });
+    
+    let currentUsers = [];
+    let searchTimeout = null;
 
     Page.ready(async (user) => {
       if (user.role !== 'admin' && user.role !== 'root') {
@@ -71,47 +125,155 @@
         Page.hideSkeleton(); return;
       }
       
+      document.getElementById('searchInput').addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => loadTokens(), 300); // 防抖
+      });
+      
+      document.getElementById('sortSelect').addEventListener('change', () => loadTokens());
+      document.getElementById('btnInit').addEventListener('click', initHistory);
+      
       loadTokens();
     });
 
     async function loadTokens() {
       const tbody = document.querySelector('#tokenTable tbody');
+      const search = document.getElementById('searchInput').value.trim();
+      const sortBy = document.getElementById('sortSelect').value;
+      
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 40px;"><span class="spinner"></span> Loading...</td></tr>';
+      
       try {
-        const res = await API.get('/api/admin-tokens');
+        const url = new URL('/api/admin-tokens', window.location.origin);
+        if (search) url.searchParams.set('search', search);
+        if (sortBy) url.searchParams.set('sortBy', sortBy);
+
+        const res = await API.get(url.pathname + url.search);
         if (!res.success) throw new Error(res.message);
         
-        if (res.users.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No users found.</td></tr>';
-          return;
-        }
-
-        tbody.innerHTML = res.users.map(u => {
-          const globalCls = u.global < 0 ? 'neg' : 'pos';
-          return `
-            <tr>
-              <td><b>${DSHUI.esc(u.displayName)}</b> <span style="opacity:0.6;font-size:12px;">(${DSHUI.esc(u.username)})</span></td>
-              <td class="num">${u.daily.toLocaleString()}</td>
-              <td class="num ${globalCls}">${u.global.toLocaleString()}</td>
-              <td class="num">${u.totalUsed.toLocaleString()}</td>
-            </tr>
-          `;
-        }).join('');
+        currentUsers = res.users;
+        renderTable(currentUsers);
+        
       } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:red;">Error: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#e74c3c; padding: 20px;">Error: ${DSHUI.esc(err.message)}</td></tr>`;
       } finally {
         Page.hideSkeleton();
       }
     }
 
-    async function initHistory() {
-      if (!confirm('This will recalculate all historical token usage from submissions. Continue?')) return;
+    function renderTable(users) {
+      const tbody = document.querySelector('#tokenTable tbody');
+      if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 40px; color: var(--text-secondary);">No users found.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = users.map(u => {
+        const globalCls = u.global < 0 ? 'neg' : (u.global > 100000 ? 'pos' : '');
+        const dailyCls = u.daily <= 0 ? 'neg' : '';
+        return `
+          <tr id="row-${DSHUI.esc(u.username)}" data-editing="false">
+            <td>
+              <div style="font-weight:600; color:var(--text-primary);">${DSHUI.esc(u.displayName)}</div>
+              <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">
+                @${DSHUI.esc(u.username)}
+                ${u.realName ? `· ${DSHUI.esc(u.realName)}` : ''}
+              </div>
+            </td>
+            <td class="num ${dailyCls}" id="daily-${DSHUI.esc(u.username)}">${u.daily.toLocaleString()}</td>
+            <td class="num ${globalCls}" id="global-${DSHUI.esc(u.username)}">${u.global.toLocaleString()}</td>
+            <td class="num">${u.totalUsed.toLocaleString()}</td>
+            <td style="text-align:right;">
+              <button class="tm-btn small" onclick="startEdit('${DSHUI.esc(u.username)}')">
+                <i class="fas fa-edit"></i> Edit
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function startEdit(username) {
+      const tr = document.getElementById(`row-${username}`);
+      if (!tr || tr.dataset.editing === 'true') return;
+      tr.dataset.editing = 'true';
+
+      const u = currentUsers.find(x => x.username === username);
+      if (!u) return;
+
+      const dailyTd = document.getElementById(`daily-${username}`);
+      const globalTd = document.getElementById(`global-${username}`);
+      const actionTd = tr.lastElementChild;
+
+      dailyTd.innerHTML = `<input type="number" id="input-daily-${username}" class="tm-input-edit" value="${u.daily}">`;
+      globalTd.innerHTML = `<input type="number" id="input-global-${username}" class="tm-input-edit" value="${u.global}">`;
       
+      actionTd.innerHTML = `
+        <button class="tm-btn small success" onclick="saveEdit('${username}')"><i class="fas fa-check"></i> Save</button>
+        <button class="tm-btn small" onclick="renderTable(currentUsers)" style="background:#7f8c8d; margin-left:4px;"><i class="fas fa-times"></i></button>
+      `;
+      
+      document.getElementById(`input-daily-${username}`).focus();
+    }
+
+    async function saveEdit(username) {
+      const dailyInput = document.getElementById(`input-daily-${username}`);
+      const globalInput = document.getElementById(`input-global-${username}`);
+      if (!dailyInput || !globalInput) return;
+
+      const daily = parseInt(dailyInput.value, 10);
+      const global = parseInt(globalInput.value, 10);
+
+      if (isNaN(daily) || isNaN(global)) {
+        DSHUI.toast('Tokens must be numbers', 'err');
+        return;
+      }
+
+      try {
+        const res = await API.post('/api/admin-tokens?action=updateUser', { username, daily, global });
+        if (!res.success) throw new Error(res.message);
+        
+        DSHUI.toast('Tokens updated successfully', 'ok');
+        
+        const u = currentUsers.find(x => x.username === username);
+        if (u) { u.daily = daily; u.global = global; }
+
+        const tr = document.getElementById(`row-${username}`);
+        tr.dataset.editing = 'false';
+        
+        const dailyTd = document.getElementById(`daily-${username}`);
+        const globalTd = document.getElementById(`global-${username}`);
+        
+        dailyTd.innerHTML = daily.toLocaleString();
+        globalTd.innerHTML = global.toLocaleString();
+        
+        dailyTd.className = `num ${daily <= 0 ? 'neg' : ''} num-pop`;
+        globalTd.className = `num ${global < 0 ? 'neg' : (global > 100000 ? 'pos' : '')} num-pop`;
+        
+        tr.lastElementChild.innerHTML = `
+          <button class="tm-btn small" onclick="startEdit('${username}')">
+            <i class="fas fa-edit"></i> Edit
+          </button>
+        `;
+        
+        setTimeout(() => {
+          dailyTd.classList.remove('num-pop');
+          globalTd.classList.remove('num-pop');
+        }, 400);
+
+      } catch (err) {
+        DSHUI.toast(err.message, 'err');
+      }
+    }
+
+    async function initHistory() {
+      if (!confirm('This will recalculate total usage history from all submissions. Continue?')) return;
       const btn = document.getElementById('btnInit');
       btn.disabled = true;
-      btn.textContent = 'Recalculating...';
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Recalculating...';
       
       try {
-        const res = await API.post('/api/admin-tokens', {});
+        const res = await API.post('/api/admin-tokens?action=initHistory', {});
         if (res.success) {
           DSHUI.toast('History recalculated successfully!', 'ok');
           loadTokens();
@@ -122,7 +284,7 @@
         DSHUI.toast(err.message, 'err');
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Recalculate History';
+        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Init History';
       }
     }
   </script>
