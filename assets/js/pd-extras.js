@@ -475,7 +475,12 @@ function bindSubmitEvent() {
       if (window.PD.cooldown) window.PD.cooldown.start(payload.type === 'image' ? 'photo' : 'text');
       if (result.unlockedAchievements && typeof showAchievementToasts === 'function') showAchievementToasts(result.unlockedAchievements);
             // ⭐ 刷新 Topbar 的 Token
-       window.updateTopbarTokens(res.tokens.daily, res.tokens.global);
+      if (window.updateTopbarTokens) {
+        try {
+          const tokenRes = await apiCall('/api/token');
+          if (tokenRes.success) window.updateTopbarTokens(tokenRes.daily, tokenRes.global);
+        } catch(e) {}
+      }
       
     } catch (err) {
       stopWaiting(); checkBtn.disabled = false; S.cooldown = false;
