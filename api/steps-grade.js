@@ -103,10 +103,21 @@ async function handleCreate(req, res, db, decoded) {
 
   const problem = await db.collection('problems').findOne({ id: String(problemId) }, { projection: { id: 1, statement: 1, ans: 1, difficulty: 1 } });
   if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
-
+    // ⭐ 前置余额校验
+  const tokenCost = problem.difficulty/3000;
+  const { getTokenBalance } = await import('../lib/token.js');
+  const currentToken = await getTokenBalance(db, decoded.username);
+  const available = (currentToken.daily || 0) + (currentToken.global || 0);
+  
+  if (available < tokenCost) {
+    return res.status(400).json({ 
+      success: false, 
+      message: `Insufficient tokens. You need ${tokenCost.toLocaleString()}, but only have ${available.toLocaleString()}. Please solve easier problems to earn tokens.` 
+    });
+  }
   const taskId = genTaskId();
   const now = new Date();
-  const tokenCost = (problem.difficulty >= 5) ? 30000 : 3000; // 预计成本
+  // const tokenCost = (problem.difficulty >= 5) ? 30000 : 3000; // 预计成本
 
   // 写入任务记录
   await db.collection('steps_grading_tasks').insertOne({
