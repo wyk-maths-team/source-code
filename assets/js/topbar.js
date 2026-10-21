@@ -89,6 +89,7 @@
       avatarImg.style.display = 'none';
     }
   }
+
   // ⭐ 格式化数字（100K, 23M）
   function formatTokens(n) {
     if (n === undefined || n === null) return '0';
@@ -109,7 +110,6 @@
     return sign + absNum;
   }
 
-  // ⭐ 暴露全局更新方法，供其他地方直接调用
   // ⭐ 暴露全局更新方法，供其他地方直接调用
   window.updateTopbarTokens = function(daily, global) {
     if (!loggedIn) return;
@@ -162,26 +162,8 @@
       }
     } catch(e) {}
   }
-    // ---------- 绑定 Token 下拉事件 ----------
-  const tokenDisplayBtn = document.getElementById('tokenDisplay');
-  const tokenDropdownMenu = document.getElementById('tokenDropdown');
-  const tokenMenuContainer = document.getElementById('tokenMenu');
 
-  if (tokenDisplayBtn && tokenDropdownMenu) {
-    tokenDisplayBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const isVisible = tokenDropdownMenu.style.display === 'block';
-      tokenDropdownMenu.style.display = isVisible ? 'none' : 'block';
-    });
-
-    // 点击其他区域关闭
-    document.addEventListener('click', (e) => {
-      if (tokenMenuContainer && !tokenMenuContainer.contains(e.target)) {
-        tokenDropdownMenu.style.display = 'none';
-      }
-    });
-  }
-  // ---------- 下拉切换 ----------
+  // ---------- 下拉切换（User） ----------
   function toggleDropdown(e) {
     if (e) e.stopPropagation();
     if (!loggedIn) {
@@ -271,6 +253,7 @@
     </div>
     <div class="topbar-right">
   `;
+  
   if (loggedIn) {
     topbarHTML += `
       <div class="token-menu" id="tokenMenu">
@@ -288,6 +271,7 @@
       </div>
     `;
   }
+
   if (loggedIn) {
     topbarHTML += `
       <div class="user-menu" id="userMenu">
@@ -323,16 +307,16 @@
     `;
   }
   
-  // 全屏侧边栏切换按钮（桌面可见）
-    // 移動端漢堡按鈕（桌面端由 CSS 隱藏）
+  // 移動端漢堡按鈕
   if (isMobile) {
-  topbarHTML += `
+    topbarHTML += `
       <button class="topbar-sidebar-toggle" id="mobileSidebarToggle" title="Menu">
         ☰
       </button>
-  `;
+    `;
   }
-    // ⭐ WYK OS 啟動按鈕（僅桌面 / iPad）
+  
+  // ⭐ WYK OS 啟動按鈕
   if (!isMobile) {
     topbarHTML += `
       <button class="os-launch-btn" id="osLaunchBtn" title="Enter WYK OS">
@@ -341,8 +325,7 @@
     `;
   }
 
-
-  // 桌面端全屏側邊欄切換按鈕（移動端由 CSS 隱藏）
+  // 桌面端全屏側邊欄切換按鈕
   topbarHTML += `
       <button class="topbar-fullscreen-toggle" id="fullscreenToggleBtn" title="Toggle sidebar">
         <i class="fa-solid fa-angles-left"></i>
@@ -353,21 +336,44 @@
     </div>
   `;
 
+  // ⭐ 核心：先渲染 HTML
   container.innerHTML = topbarHTML;
 
-  // ---------- 绑定事件 ----------
-  // 移动端汉堡按钮
+  // ==========================================
+  // ⭐ 核心：渲染完之后再绑定事件
+  // ==========================================
+
+  // 1. 绑定 Token 下拉事件
+  const tokenDisplayBtn = document.getElementById('tokenDisplay');
+  const tokenDropdownMenu = document.getElementById('tokenDropdown');
+  const tokenMenuContainer = document.getElementById('tokenMenu');
+
+  if (tokenDisplayBtn && tokenDropdownMenu) {
+    tokenDisplayBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isVisible = tokenDropdownMenu.style.display === 'block';
+      tokenDropdownMenu.style.display = isVisible ? 'none' : 'block';
+    });
+
+    // 点击其他区域关闭
+    document.addEventListener('click', (e) => {
+      if (tokenMenuContainer && !tokenMenuContainer.contains(e.target)) {
+        tokenDropdownMenu.style.display = 'none';
+      }
+    });
+  }
+
+  // 2. 绑定其他事件
   const mobileToggle = document.getElementById('mobileSidebarToggle');
   if (mobileToggle) {
     mobileToggle.addEventListener('click', toggleSidebarMobile);
   }
 
-  // 桌面端全屏按钮
   const fullscreenBtn = document.getElementById('fullscreenToggleBtn');
   if (fullscreenBtn) {
     fullscreenBtn.addEventListener('click', toggleDesktopSidebar);
   }
-    // ⭐ WYK OS 按鈕（桌面 / iPad 才渲染，DOM 已存在，可以安全綁定）
+
   const osLaunchBtn = document.getElementById('osLaunchBtn');
   if (osLaunchBtn) {
     osLaunchBtn.addEventListener('click', (e) => {
@@ -376,7 +382,6 @@
     });
   }
 
-  // 用户框：点击整块（左+右）都触发 dropdown
   const userBox = document.getElementById('userBox');
   if (userBox) {
     userBox.addEventListener('click', (e) => {
@@ -385,7 +390,6 @@
     });
   }
 
-  // 登出按钮
   const logoutBtn = document.getElementById('logoutBtnHeader');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', (e) => {
@@ -394,14 +398,14 @@
     });
   }
 
-  // 暴露全局（保留向后兼容）
+  // 暴露全局
   window.toggleDropdown = toggleDropdown;
   window.performLogout = performLogout;
 
-  // 点击页面其他区域关闭下拉
+  // 点击页面其他区域关闭 User 下拉
   document.addEventListener('click', closeDropdown);
 
-  // 加载头像
+  // 加载头像和 Token
   if (loggedIn && realUsername) {
     setTimeout(loadUserAvatar, 100);
   }
