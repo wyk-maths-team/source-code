@@ -65,7 +65,7 @@ async function tryOneModel({ modelKey, prompt, effort }) {
   if (info.provider === 'claude') {
     reply = await askClaude(prompt, { model: modelKey, timeoutMs: 280_000, maxTokens: 8192 });
   } else if (info.provider === 'deepseek') {
-    reply = await askDeepSeekAPI(prompt, { model: info.id, timeoutMs: 50_000, effort, maxTokens: 8192 });
+    reply = await askDeepSeekAPI(prompt, { model: info.id, timeoutMs: 50_000, effort, maxTokens: 81920 });
   } else throw new Error(`Unknown provider`);
 
   const elapsed = Date.now() - t0;

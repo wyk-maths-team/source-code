@@ -617,7 +617,15 @@ function bindSubmitEvent() {
       }).join('') || '<p>No discussions yet.</p>';
 
       if (typeof renderMathInElement === 'function') {
-        renderMathInElement(listDiv, { delimiters: [{ left: '$$', right: '$$', display: true }, { left: '$', right: '$', display: false }] });
+        renderMathInElement(listDiv, { 
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '\\[', right: '\\]', display: true },
+            { left: '$', right: '$', display: false },
+            { left: '\\(', right: '\\)', display: false }  
+          ],
+          throwOnError: false 
+        });
       }
 
       listDiv.querySelectorAll('.like-btn').forEach(btn => {
