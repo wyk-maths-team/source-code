@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>window.__BUILD_V='29c4f1dd';</script>
+<script>window.__BUILD_V='1e3820d4';</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Token Management - WYK Maths Team</title>
-  <link rel="stylesheet" href="/assets/css/styles.css?v=29c4f1dd">
+  <link rel="stylesheet" href="/assets/css/styles.css?v=1e3820d4">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
   
-  <script src="/assets/js/core/ui.js?v=29c4f1dd"></script>
-  <script src="/assets/js/core/net.js?v=29c4f1dd"></script>
-  <script src="/assets/js/core/api.js?v=29c4f1dd"></script>
-  <script src="/assets/js/core/page.js?v=29c4f1dd"></script>
+  <script src="/assets/js/core/ui.js?v=1e3820d4"></script>
+  <script src="/assets/js/core/net.js?v=1e3820d4"></script>
+  <script src="/assets/js/core/api.js?v=1e3820d4"></script>
+  <script src="/assets/js/core/page.js?v=1e3820d4"></script>
   
   <style>
     .tm-container { max-width: 1100px; margin: 20px auto; padding: 24px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border-color); box-shadow: 0 4px 24px rgba(0,0,0,0.15); }
@@ -106,12 +106,12 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=29c4f1dd"></script>
-  <script src="/assets/js/app.js?v=29c4f1dd"></script>
-  <script src="/assets/js/topbar.js?v=29c4f1dd"></script>
-  <script src="/assets/js/sidebar.js?v=29c4f1dd"></script>
-  <script src="/assets/js/heartbeat.js?v=29c4f1dd"></script>
-  <script src="/assets/js/pk-invite.js?v=29c4f1dd"></script>
+  <script src="/assets/js/auth.js?v=1e3820d4"></script>
+  <script src="/assets/js/app.js?v=1e3820d4"></script>
+  <script src="/assets/js/topbar.js?v=1e3820d4"></script>
+  <script src="/assets/js/sidebar.js?v=1e3820d4"></script>
+  <script src="/assets/js/heartbeat.js?v=1e3820d4"></script>
+  <script src="/assets/js/pk-invite.js?v=1e3820d4"></script>
 
   <script>
     Page.boot({ title: 'Token Management', requireAuth: true, skeleton: true });
@@ -185,7 +185,9 @@
         return `
           <tr id="row-${DSHUI.esc(u.username)}" data-editing="false">
             <td>
-              <div style="font-weight:600; color:var(--text-primary);">${DSHUI.esc(u.displayName)}</div>
+              <a href="/user/${encodeURIComponent(u.username)}" style="font-weight:600; color:var(--text-primary); text-decoration:none; transition: color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-primary)'">
+                ${DSHUI.esc(u.displayName)}
+              </a>
               <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">
                 @${DSHUI.esc(u.username)}
                 ${u.realName ? `· ${DSHUI.esc(u.realName)}` : ''}
