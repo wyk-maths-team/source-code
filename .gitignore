@@ -7,6 +7,15 @@ private/
 !.env.example
 node_modules/
 
+# --------------- 已从历史清除的敏感文件 ---------------
+# 这三个曾在早期提交里误入版本库：
+#   hunt.mjs        —— 内含硬编码的 MongoDB 生产连接串（凭据已轮换）
+#   offenders.*     —— 学生违规记录，属个人资料，不得入库
+# 已用 git filter-repo 从全部历史中移除，此处永久拦截，防止再次提交。
+hunt.mjs
+offenders.json
+offenders.md
+
 # --------------- Build / Dependencies ---------------
 
 # .vercel
