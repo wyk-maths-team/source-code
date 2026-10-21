@@ -110,16 +110,21 @@
   }
 
   // ⭐ 暴露全局更新方法，供其他地方直接调用
+  // ⭐ 暴露全局更新方法，供其他地方直接调用
   window.updateTopbarTokens = function(daily, global) {
     if (!loggedIn) return;
-    const el = document.getElementById('tokenDisplay');
-    if (el) {
+    const displayEl = document.getElementById('tokenDisplay');
+    const dailyExactEl = document.getElementById('tokenDailyExact');
+    const globalExactEl = document.getElementById('tokenGlobalExact');
+    
+    if (displayEl) {
       const dailyCls = daily < 3000 ? '#d93025' : '#fff';
       const globalCls = global < 0 ? '#d93025' : '#00ff00';
       
-      const oldHtml = el.innerHTML;
+      const oldHtml = displayEl.innerHTML;
       
-      el.innerHTML = `
+      // 更新外层简略版
+      displayEl.innerHTML = `
         <span style="color:${dailyCls}; font-weight:bold;" title="Daily Tokens: ${daily.toLocaleString()}">
           <i class="fa-solid fa-bolt" style="color:#e3a008;"></i> ${formatTokens(daily)}
         </span>
@@ -129,10 +134,20 @@
         </span>
       `;
       
-      if (oldHtml !== '' && oldHtml !== el.innerHTML) {
-        el.classList.remove('topbar-token-pop');
-        void el.offsetWidth; 
-        el.classList.add('topbar-token-pop');
+      // 更新下拉菜单里的精确数字（带千分位）
+      if (dailyExactEl) {
+        dailyExactEl.textContent = daily.toLocaleString();
+        dailyExactEl.style.color = daily < 3000 ? '#d93025' : '#fff';
+      }
+      if (globalExactEl) {
+        globalExactEl.textContent = global.toLocaleString();
+        globalExactEl.style.color = global < 0 ? '#d93025' : '#00ff00';
+      }
+      
+      if (oldHtml !== '' && oldHtml !== displayEl.innerHTML) {
+        displayEl.classList.remove('topbar-token-pop');
+        void displayEl.offsetWidth; 
+        displayEl.classList.add('topbar-token-pop');
       }
     }
   };
@@ -146,6 +161,25 @@
         window.updateTopbarTokens(res.daily, res.global);
       }
     } catch(e) {}
+  }
+    // ---------- 绑定 Token 下拉事件 ----------
+  const tokenDisplayBtn = document.getElementById('tokenDisplay');
+  const tokenDropdownMenu = document.getElementById('tokenDropdown');
+  const tokenMenuContainer = document.getElementById('tokenMenu');
+
+  if (tokenDisplayBtn && tokenDropdownMenu) {
+    tokenDisplayBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isVisible = tokenDropdownMenu.style.display === 'block';
+      tokenDropdownMenu.style.display = isVisible ? 'none' : 'block';
+    });
+
+    // 点击其他区域关闭
+    document.addEventListener('click', (e) => {
+      if (tokenMenuContainer && !tokenMenuContainer.contains(e.target)) {
+        tokenDropdownMenu.style.display = 'none';
+      }
+    });
   }
   // ---------- 下拉切换 ----------
   function toggleDropdown(e) {
@@ -238,7 +272,21 @@
     <div class="topbar-right">
   `;
   if (loggedIn) {
-    topbarHTML += `<div id="tokenDisplay" style="display:flex; align-items:center; font-family:monospace; font-size:14px; margin-right:15px; background:rgba(255,255,255,0.08); padding:4px 12px; border-radius:12px;"></div>`;
+    topbarHTML += `
+      <div class="token-menu" id="tokenMenu">
+        <div id="tokenDisplay" class="token-display-box" title="Click for details"></div>
+        <div id="tokenDropdown" class="token-dropdown">
+          <div class="token-detail-row">
+            <span><i class="fa-solid fa-bolt" style="color:#e3a008;"></i> Daily free:</span>
+            <strong id="tokenDailyExact">0</strong>
+          </div>
+          <div class="token-detail-row">
+            <span><i class="fa-solid fa-coins" style="color:#ffd700;"></i> Global:</span>
+            <strong id="tokenGlobalExact">0</strong>
+          </div>
+        </div>
+      </div>
+    `;
   }
   if (loggedIn) {
     topbarHTML += `
@@ -591,6 +639,52 @@
     }
     .topbar-token-pop {
       animation: tokenPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+          /* ===== Token 下拉菜单 ===== */
+    .token-menu {
+      position: relative;
+      display: flex;
+      align-items: center;
+      margin-right: 15px;
+    }
+    .token-display-box {
+      display: flex;
+      align-items: center;
+      font-family: monospace;
+      font-size: 14px;
+      background: rgba(255,255,255,0.08);
+      padding: 4px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+      user-select: none;
+    }
+    .token-display-box:hover { background: rgba(255,255,255,0.15); }
+    .token-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      background: #1e1e1e;
+      border: 1px solid #444;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      min-width: 180px;
+      z-index: 99999;
+      padding: 6px 0;
+    }
+    .token-detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 16px;
+      font-size: 13px;
+      color: #ccc;
+    }
+    .token-detail-row strong {
+      font-family: monospace;
+      font-size: 14px;
+      color: #fff;
     }
     /* ===== 移动端 ===== */
     @media (max-width: 768px) {
