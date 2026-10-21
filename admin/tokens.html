@@ -185,7 +185,7 @@
         return `
           <tr id="row-${DSHUI.esc(u.username)}" data-editing="false">
             <td>
-              <a href="/user/${encodeURIComponent(u.username)}" style="font-weight:600; color:var(--text-primary); text-decoration:none; transition: color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-primary)'">
+              <a href="/users/${encodeURIComponent(u.username)}" style="font-weight:600; color:var(--text-primary); text-decoration:none; transition: color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-primary)'">
                 ${DSHUI.esc(u.displayName)}
               </a>
               <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">
