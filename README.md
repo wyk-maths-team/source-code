@@ -1,102 +1,125 @@
 # WYK Maths Team
 
-> 一个为中学数学队打造的练习平台：**2437 道题、AI 辅助评分、实时 PK 对战、限时竞赛、成就系统**。
->
-> 零框架、零构建步骤 —— 全部跑在 Vercel 的静态托管 + Serverless Functions 上。
+A web-based mathematics practice and assessment platform developed for a secondary school olympiad team.
 
 ---
 
-## 这是什么
+## Overview
 
-一套完整的在线数学习题平台，最初为校内数学队日常训练而建，后来长成了覆盖题库、判题、竞赛、社交的完整系统。
+WYK Maths Team is a production web application used for daily mathematical practice. It provides a problem bank, an automated judging system, AI-assisted evaluation of free-form responses, timed contests, head-to-head matches, and an administrative console.
 
-设计上刻意避开现代前端框架：**63 个 HTML 页面 + 40 个 Serverless API + 原生 JavaScript**，没有 webpack、没有 bundler、没有 `npm run build`。改完文件刷新即见，部署就是 `git push`。
+The system has operated continuously and manages real student accounts, submissions, and assessment records.
 
-## 核心功能
+---
 
-### 判题系统
+## Scope of This Repository
 
-支持三种作答与校验方式：
+This repository contains application source code only. The following resources are deliberately excluded and are not distributed with this project:
 
-| 模式 | 说明 |
-|---|---|
-| 数值比对 | 浮点容差、有效数字处理 |
-| 表达式等价 | 符号化比较，避免 `x+1` 与 `1+x` 判错 |
-| **自定义脚本** | 出题人可写 JavaScript 判题逻辑，运行在 QuickJS 沙箱中（16 MB 内存上限、1.5 秒超时） |
+- Problem statements, statement archives, and reference solutions
+- Student records, submission history, and account data
+- Grading rubrics and model prompt configurations
+- Environment secrets and deployment credentials
 
-### AI 辅助评分
+Any local configuration required to operate the system is environment-specific and is not included.
 
-主观题与手写过程题由模型评分，三种输入形态：
+---
 
-- **纯文字**作答
-- **分步过程**（steps）—— 按步骤给分，可人工复核
-- **截图** —— 上传手写照片，视觉模型识别后评分
+## Functional Scope
 
-评分结果与教师的人工复核并行，人工结论优先。
+### Judging
 
-### 竞赛与 PK
+Submitted answers are validated through one of three mechanisms:
 
-- **限时竞赛**：报名、开赛、实时排行榜、赛后成绩单
-- **PK 对战**：一对一抢答，支持旁观者实时观战
-- 竞赛题与普通题库分离，赛后可归档
+| Mechanism | Description |
+| --- | --- |
+| Numeric comparison | Floating-point tolerance with significant-figure handling |
+| Expression equivalence | Symbolic comparison, so algebraically equivalent forms are accepted |
+| Custom script | Author-supplied JavaScript evaluated inside a QuickJS sandbox, subject to a 16 MB memory ceiling and a 1.5 second execution limit |
 
-### 其他
+### AI-Assisted Evaluation
 
-- **成就系统** —— 按稀有度分级解锁，滑入式通知
-- **多主题** —— 明/暗双主题，跟随 `prefers-color-scheme`
-- **PWA** —— 可安装，断网时仍能打开访问过的页面（联网时始终取最新版）
-- **站内消息 / 系统公告 / 操作日志**
-- **管理后台** —— 用户、题目、提交、竞赛、举报一应俱全
+Free-form and handwritten responses are assessed by language models. Three input modes are supported: plain text, structured step-by-step working, and photographic capture. Model output is advisory; human review takes precedence.
 
-## 技术选型
+### Contests and Matches
 
-| 层 | 选择 |
-|---|---|
-| 前端 | 原生 JavaScript（ES2020+），无框架 |
-| 样式 | 手写 CSS，CSS 变量驱动主题 |
-| 后端 | Vercel Serverless Functions（Node.js） |
-| 数据库 | MongoDB Atlas |
-| 判题沙箱 | QuickJS 编译为 WebAssembly |
-| 数学排版 | KaTeX |
-| 图表 | Chart.js |
-| 图标 | Font Awesome |
-| 缓存策略 | 内容指纹版本号 + 分层缓存（HTML 协商缓存、静态资源 immutable） |
+- Timed contests with registration, live standings, and post-contest result sheets
+- Head-to-head matches with spectator support
+- Contest problems are partitioned from the general problem bank
 
-**为什么不用框架？** 这个项目的核心矛盾是「页面多、但每个页面的交互都很简单」。框架带来的构建链、hydration、依赖升级成本，远大于它省下的那点 DOM 操作。原生 JS + 一套共享的 `core/` 层（统一请求、错误处理、页面生命周期）已经足够。
+### Supporting Systems
 
-## 目录结构
+- Achievement system with rarity tiers
+- Dual light/dark theming
+- Installable progressive web application with offline access to previously visited pages
+- Internal messaging, announcements, and audit logging
+- Administrative console covering users, problems, submissions, contests, and reports
+
+---
+
+## Technical Architecture
+
+| Layer | Implementation |
+| --- | --- |
+| Client | Native JavaScript (ES2020+), no framework |
+| Styling | Hand-authored CSS with custom properties for theming |
+| Server | Vercel Serverless Functions (Node.js) |
+| Database | MongoDB Atlas |
+| Judging sandbox | QuickJS compiled to WebAssembly |
+| Mathematics typesetting | KaTeX |
+| Charting | Chart.js |
+| Iconography | Font Awesome |
+
+The client is a multi-page application of 63 HTML documents and approximately 40 serverless endpoints. Static assets carry content-derived version identifiers and are served with immutable caching; HTML documents are served with revalidation, so deployments propagate immediately.
+
+There is no build step. Files are deployed as authored.
+
+---
+
+## Repository Layout
 
 ```
-├── *.html              页面（根目录为公开页，子目录为分类页）
-├── api/                Serverless 接口，每个文件对应一组 action
-├── lib/                服务端共享逻辑（鉴权、错误规范、判题沙箱等）
+.
+├── *.html                 Public pages; subdirectories hold grouped routes
+├── api/                   Serverless endpoints, one module per action group
+├── lib/                   Shared server logic: authentication, error handling,
+│                          judging sandbox
 ├── assets/
-│   ├── js/core/        前端共享层：请求、错误上报、页面生命周期
-│   ├── js/pages/       每个页面自己的脚本（由 HTML 抽离而来）
-│   └── css/pages/      每个页面自己的样式
-├── _template/          新页面模板
-├── tools/              开发辅助脚本（脚手架、资源版本化、审计）
-├── vercel.json         路由重写与缓存策略
-└── PAGEDETAIL.md       逐页说明与维护指南
+│   ├── js/core/           Client foundation: transport, error reporting,
+│   │                      page lifecycle
+│   ├── js/pages/          Per-page scripts, extracted from their HTML documents
+│   └── css/pages/         Per-page stylesheets
+├── _template/             Scaffold for new pages
+├── tools/                 Development utilities: scaffolding, asset versioning,
+│                          auditing
+├── vercel.json            Routing and cache policy
+└── PAGEDETAIL.md          Per-page reference and maintenance notes
 ```
 
-## 一些设计决定
+---
 
-- **没有构建步骤**。所有资源以文件形式直接部署。代价是必须自己实现「内容指纹版本化」，收益是任何一台机器 clone 下来就能改、就能跑。
-- **每个页面的 JS/CSS 独立成文件**。早期这些代码内联在 HTML 里，每次访问都要重传；抽离后能走 `immutable` 缓存。
-- **错误响应统一格式**。所有 API 返回 `{ success, code, message, requestId }`，前端共享层自动处理 5xx 并给出可复制的诊断信息。
-- **服务端细节按角色分级**。错误堆栈只对管理员可见。
+## Design Constraints
 
-## 关于开源
+The architecture reflects a small set of deliberate constraints rather than convention.
 
-这个项目的代码里保留了完整的开发痕迹：有临时的调试脚本，有历史遗留的注释，也有若干「我知道它不优雅但暂时不想动」的地方。
+**No build pipeline.** Introducing a bundler would require a compile step, a dependency graph, and a release artifact. The savings would be marginal: the application consists of many pages with comparatively simple interactions. Assets are therefore served as authored.
 
-它不是一个教科书式的样板工程，而是一个**真实运行了数年、被学生每天使用**的系统。如果你要从中借鉴什么，建议看架构决策和取舍，而不是复制具体实现。
+**Framework independence.** The client is written against platform APIs. Shared behaviour is consolidated into a small foundation layer rather than inherited from a component model.
 
-题目内容、学生数据与评分细节不在本仓库内。
+**Immediate propagation.** Documents revalidate on each request and assets are fingerprinted by content. A deployment is visible to users on their next navigation, without cache invalidation procedures.
 
-## 许可
+**Uniform error contract.** All endpoints return a structured payload containing a status flag, a machine-readable code, a human-readable message, and a request identifier. Server-side diagnostic detail is restricted by caller privilege.
 
-见 [LICENSE](LICENSE)。
+---
 
-题目版权归各原始出处所有，仅供校内教学使用。
+## Status
+
+The codebase is in active production use. It retains the ordinary accumulation of a long-running system: transitional modules, superseded approaches, and areas identified for revision. It is published as a working implementation rather than as a reference design.
+
+---
+
+## License
+
+See [LICENSE](LICENSE).
+
+Problem content is not included in this repository. Rights to individual problems remain with their respective sources.
