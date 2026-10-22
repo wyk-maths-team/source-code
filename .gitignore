@@ -8,13 +8,21 @@ private/
 node_modules/
 
 # --------------- 已从历史清除的敏感文件 ---------------
-# 这三个曾在早期提交里误入版本库：
+# 这些文件曾在早期提交里误入版本库：
 #   hunt.mjs        —— 内含硬编码的 MongoDB 生产连接串（凭据已轮换）
 #   offenders.*     —— 学生违规记录，属个人资料，不得入库
-# 已用 git filter-repo 从全部历史中移除，此处永久拦截，防止再次提交。
+#   _problems_*.json、all-scripts.txt、_difficulty_changes.md
+#                   —— 题库全量与题目脚本导出，泄露未公开题目
+# 均已用 git filter-repo 从全部历史中移除，此处永久拦截，防止再次提交。
 hunt.mjs
 offenders.json
 offenders.md
+_problems_*.json
+all-scripts.txt
+_difficulty_changes.md
+
+# 临时导出目录（题目脚本等，内容等同于题库）
+temp/
 
 # --------------- Build / Dependencies ---------------
 
