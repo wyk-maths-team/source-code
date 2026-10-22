@@ -93,6 +93,25 @@
           <div id="balanceContent">
             <div style="color: var(--text-secondary); font-size: 0.9rem;">Loading balance...</div>
           </div>
+          <div id="economyTracker" style="display: none; margin-top: 24px; padding-top: 20px; border-top: 1px dashed var(--border-color);">
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
+              <span style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary);"><i class="fas fa-chart-pie"></i> Token Reserve Ratio</span>
+              <span id="reserveRatioText" style="font-family: monospace; font-size: 0.9rem;"></span>
+            </div>
+            
+            <div style="height: 12px; background: var(--border-color); border-radius: 6px; overflow: hidden; position: relative;">
+              <!-- 进度条填充 -->
+              <div id="reserveProgressBar" style="height: 100%; width: 0%; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s;"></div>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-top: 8px; color: var(--text-secondary);">
+              <span>Circulating: <strong id="circText" style="color: var(--text-primary); font-family: monospace;">0</strong></span>
+              <span>Reserve: <strong id="resvText" style="color: var(--text-primary); font-family: monospace;">0</strong></span>
+            </div>
+            <div id="inflationWarning" style="display: none; color: #e74c3c; font-size: 0.8rem; margin-top: 8px; font-weight: bold;">
+              <i class="fas fa-exclamation-triangle"></i> Warning: Reserve is less than circulating tokens! Bank run risk!
+            </div>
+          </div>
         </div>
 
         <!-- 表格区 -->
