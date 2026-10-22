@@ -1,6 +1,7 @@
 // api/port/problems.js
-// GET /api/port/problems?subject=m2&chapter=3&page=1&limit=50
-// GET /api/port/problems?id=M2-001
+// GET  /api/port/problems?subject=m2&chapter=3&page=1&limit=50
+// GET  /api/port/problems?id=M2-001
+// POST /api/port/problems?action=update  (Root Only)
 import { connectToDatabase } from '../_pdb.js';
 import { portAuth } from './_auth.js';
 import { wrapHandler } from '../../lib/errors.js';
@@ -8,12 +9,40 @@ import { wrapHandler } from '../../lib/errors.js';
 const SUBJECTS = ['chin', 'eng', 'maths', 'phy', 'chem', 'bio', 'm2'];
 
 async function handler(req, res) {
+  // 鉴权（包含 Rate Limit 和 Root 校验）
   const decoded = await portAuth(req, res);
   if (!decoded) return;
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
   const db = await connectToDatabase();
   const col = db.collection('port_problems');
+
+  // ==========================================
+  // ⭐ POST: 更新题目（仅 Root 可操作）
+  // ==========================================
+  if (req.method === 'POST' && req.query.action === 'update') {
+    const { id, maxScore, statement, answer } = req.body || {};
+    if (!id) return res.status(400).json({ success: false, message: 'Missing problem ID' });
+
+    const updateData = {};
+    if (maxScore !== undefined) updateData.maxScore = Number(maxScore) || 100;
+    if (statement !== undefined) updateData.statement = String(statement);
+    if (answer !== undefined) updateData.answer = String(answer);
+    updateData.updatedAt = new Date();
+
+    const result = await col.updateOne({ id: String(id) }, { $set: updateData });
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ success: false, message: 'Problem not found' });
+    }
+    return res.status(200).json({ success: true, message: 'Problem updated successfully' });
+  }
+
+  // ==========================================
+  // ⭐ GET: 查询题目（列表或单题）
+  // ==========================================
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
   const { id, subject, chapter, page = '1', limit = '50' } = req.query;
 
@@ -64,5 +93,5 @@ async function handler(req, res) {
   });
 }
 
-// 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
+// 统一错误兜底
 export default wrapHandler(handler);
