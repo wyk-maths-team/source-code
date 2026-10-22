@@ -49,7 +49,7 @@ async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { id, subject, chapter, page = '1', limit = '50' } = req.query;
+  const { id, subject, chapter, page = '1', limit = '500' } = req.query;
 
   // ── 單題 ──
   if (id) {
@@ -72,7 +72,7 @@ async function handler(req, res) {
   }
 
   const pageNum = Math.max(1, parseInt(page) || 1);
-  const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 50));
+  const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 500));
 
   const [total, items, chapterAgg] = await Promise.all([
     col.countDocuments(filter),
