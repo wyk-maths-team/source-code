@@ -425,67 +425,51 @@ function bindSubmitEvent() {
 
       if (!result.success) { setWorkbenchStatus(result.message || 'Submission failed', 'err'); return; }
 
-// 替换前端的 bindSubmitEvent 里的图片处理逻辑
-if (result.message && result.message.includes('Image submitted')) {
-  S.cooldown = true; checkBtn.disabled = true;
-  let imageUrl = result.imageUrl;
-  if (!imageUrl && result.subid) {
-    try { 
-      const detailRes = await apiCall(`/api/submissions?action=detail&subid=${encodeURIComponent(result.subid)}`); 
-      imageUrl = detailRes?.submission?.image || ''; 
-    } catch (e) {}
-  }
-  
-  if (!imageUrl) { 
-    setWorkbenchStatusHtml(statusBoxHtml(result.subid, 'Image saved (no imageUrl)', 'status-system')); 
-    S.cooldown = false; checkBtn.disabled = false; 
-    return; 
-  }
+      if (result.message && result.message.includes('Image submitted')) {
+        S.cooldown = true; checkBtn.disabled = true;
+        let imageUrl = result.imageUrl;
+        if (!imageUrl && result.subid) {
+          try { const detailRes = await apiCall(`/api/submissions?action=detail&subid=${encodeURIComponent(result.subid)}`); imageUrl = detailRes?.submission?.image || ''; } catch (e) {}
+        }
+        if (!imageUrl) { 
+          setWorkbenchStatusHtml(statusBoxHtml(result.subid, 'Image saved (no imageUrl)', 'status-system')); 
+          S.cooldown = false; checkBtn.disabled = false; 
+          return; 
+        }
 
-  startWaiting();
-  try {
-    // ⭐ 直接 await 同步请求，前端死死等后端返回
-    const gradeRes = await apiCall('/api/image-grade', 'POST', { problemId, subid: result.subid, imageUrl });
-    
-    // 此时拿到的 gradeRes 应该是包含直接结果的
-    if (gradeRes?.success && gradeRes.status === 'done') {
-      stopWaiting();
-      checkBtn.disabled = false; S.cooldown = false;
-
-      const finalScore = gradeRes.result.score;
-      let txt, cls;
-      if (finalScore === 100) { txt = 'Accepted'; cls = 'status-accepted'; }
-      else if (finalScore === 0) { txt = 'Wrong Answer'; cls = 'status-wrong'; }
-      else { txt = `Partial Score (${finalScore}%)`; cls = 'status-partial'; }
-      
-      setWorkbenchStatusHtml(statusBoxHtml(result.subid, txt, cls));
-      
-      // 更新页面状态
-      if (finalScore === 100) {
-        PD.setProblemState(problemId, 'passed');
-        updateProblemDetailIcon();
-      } else if (S.userStates[problemId] !== 'passed') {
-        PD.setProblemState(problemId, 'failed');
-        updateProblemDetailIcon();
+        // ⭐ 直接同步等，不需要任何 taskId 判断
+        startWaiting();
+        try {
+          const gradeRes = await apiCall('/api/image-grade', 'POST', { problemId, subid: result.subid, imageUrl });
+          
+          if (gradeRes?.success && gradeRes.status === 'done') {
+            stopWaiting();
+            checkBtn.disabled = false; S.cooldown = false;
+            
+            // 统一复用 renderStepsResult 来渲染 AI 批改的结果
+            renderStepsResult(gradeRes.result, result.subid);
+            
+            if (window.PD.cooldown) window.PD.cooldown.start('photo');
+            
+            // 刷新 Token
+            if (gradeRes.tokens && window.updateTopbarTokens) {
+              window.updateTopbarTokens(gradeRes.tokens.daily, gradeRes.tokens.global);
+            }
+            return;
+          }
+          
+          // 如果后端真的返回了别的（比如被降级），给出提示
+          stopWaiting();
+          setWorkbenchStatus(gradeRes?.message || 'AI Grading failed', 'err');
+          S.cooldown = false; checkBtn.disabled = false;
+          
+        } catch (e) {
+          stopWaiting(); 
+          setWorkbenchStatus('Network error: ' + (e.message || 'unknown'), 'err'); 
+          S.cooldown = false; checkBtn.disabled = false;
+        }
+        return;
       }
-
-      // 更新 Token 余额
-      if (gradeRes.tokens && window.updateTopbarTokens) {
-        window.updateTopbarTokens(gradeRes.tokens.daily, gradeRes.tokens.global);
-      }
-
-    } else {
-      stopWaiting();
-      setWorkbenchStatus(gradeRes?.message || 'AI Grading failed, please try again.', 'err');
-      S.cooldown = false; checkBtn.disabled = false;
-    }
-  } catch (e) {
-    stopWaiting(); 
-    setWorkbenchStatus('AI Grading Timeout or Network error. Please try again.', 'err'); 
-    S.cooldown = false; checkBtn.disabled = false;
-  }
-  return;
-}
 
       if (result.systemError) {
         setWorkbenchStatusHtml(statusBoxHtml(result.subid, 'System Error: please report.', 'status-system'));
