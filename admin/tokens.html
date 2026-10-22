@@ -257,6 +257,7 @@
     document.getElementById('refreshBalanceBtn').addEventListener('click', loadDeepSeekBalance);
 
     // ⭐ 表格逻辑
+    // ⭐ 表格逻辑
     async function loadTokens() {
       const tbody = document.querySelector('#tokenTable tbody');
       const search = document.getElementById('searchInput').value.trim();
@@ -265,7 +266,14 @@
       tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 40px;"><span class="spinner"></span> Loading...</td></tr>';
       
       try {
-        const res = await API.get(url.pathname + url.search);
+        // ⭐ 修复：手动构造 URLSearchParams，而不是用一个不存在的 url 变量
+        const params = new URLSearchParams({
+          search: search,
+          sortBy: sortBy,
+          order: currentOrder
+        });
+        
+        const res = await API.get(`/api/admin-tokens?${params.toString()}`);
         if (!res.success) throw new Error(res.message);
         
         currentUsers = res.users;
@@ -281,7 +289,6 @@
         Page.hideSkeleton();
       }
     }
-
     function formatTokens(n) {
       if (n === undefined || n === null) return '0';
       const num = Number(n);
