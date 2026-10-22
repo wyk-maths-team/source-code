@@ -17,7 +17,7 @@ async function handler(req, res) {
   // ── GET: 查詢、搜尋、排序 ──
   if (req.method === 'GET') {
     try {
-      const { search, sortBy } = req.query;
+      const { search, sortBy, order } = req.query;
       
       let filter = {};
       if (search) {
@@ -32,9 +32,10 @@ async function handler(req, res) {
       }
 
       let sort = { username: 1 };
-      if (sortBy === 'totalUsed') sort = { 'token.totalUsed': -1 };
-      else if (sortBy === 'global') sort = { 'token.global': -1 };
-      else if (sortBy === 'daily') sort = { 'token.daily': -1 };
+      const sortDir = order === 'asc' ? 1 : -1;
+      if (sortBy === 'totalUsed') sort = { 'token.totalUsed': sortDir};
+      else if (sortBy === 'global') sort = { 'token.global': sortDir };
+      else if (sortBy === 'daily') sort = { 'token.daily': sortDir };
 
       const users = await db.collection('users')
         .find(filter, { projection: { username: 1, displayName: 1, realName: 1, token: 1, _id: 0 } })

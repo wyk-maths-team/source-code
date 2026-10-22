@@ -14,12 +14,25 @@
   <script src="/assets/js/core/page.js?v=5641d9a1"></script>
   
   <style>
-    .tm-container { max-width: 1100px; margin: 20px auto; padding: 24px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border-color); box-shadow: 0 4px 24px rgba(0,0,0,0.15); }
+    .tm-container { max-width: 1100px; margin: 20px auto; padding: 24px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border-color); box-shadow: 0 4px 24px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 20px; }
     
-    .tm-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+    /* Balance Card */
+    .tm-balance-card { background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 6px; padding: 20px; }
+    [data-theme="dark"] .tm-balance-card { background: rgba(0,0,0,0.2); }
+    .tm-balance-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .tm-balance-title { margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+    .tm-balance-content { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end; }
+    .tm-bal-stat { flex: 1; min-width: 150px; }
+    .tm-bal-label { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .tm-bal-value { font-size: 2rem; font-weight: 800; font-family: monospace; line-height: 1; }
+    .tm-bal-value.warn { color: var(--danger); }
+    .tm-bal-value.ok { color: var(--accent); }
+    .tm-bal-sub { font-size: 0.85rem; color: var(--text-secondary); margin-top: 6px; display: flex; justify-content: space-between; }
+
+    .tm-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 16px; }
     .tm-title { margin: 0; color: var(--text-primary); font-size: 1.4rem; font-weight: 800; letter-spacing: 0.5px; display:flex; align-items:center; gap:8px; }
     
-    .tm-toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .tm-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
     .tm-search { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-color); color: var(--text-primary); font-family: inherit; font-size: 0.9rem; outline: none; min-width: 260px; }
     .tm-search:focus { border-color: var(--accent); }
     .tm-select { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-color); color: var(--text-primary); font-family: inherit; font-size: 0.9rem; outline: none; cursor: pointer; }
@@ -33,10 +46,8 @@
     .tm-btn:hover { background: #1a252f; }
     .tm-btn:active { transform: translateY(2px); box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
     .tm-btn:disabled { background: #555; cursor: not-allowed; box-shadow: none; transform: none; opacity: 0.7; }
-    
-    .tm-btn.warn { background: #d35400; }
-    .tm-btn.warn:hover { background: #e67e22; }
-    
+    .tm-btn.warn { background: #d35400; } .tm-btn.warn:hover { background: #e67e22; }
+    .tm-btn.icon-only { padding: 8px 12px; }
     .tm-btn.small { padding: 4px 10px; font-size: 0.8rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
     .tm-btn.small:active { transform: translateY(1px); box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
     .tm-btn.success { background: #27ae60; } .tm-btn.success:hover { background: #2ecc71; }
@@ -56,7 +67,6 @@
     
     .tm-input-edit { width: 120px; padding: 4px 8px; border: 1px solid var(--accent); background: transparent; color: var(--text-primary); border-radius: 3px; font-family: 'Consolas', monospace; font-weight: bold; }
     
-    /* 動效 */
     @keyframes numPop {
       0% { transform: scale(1); color: var(--accent); }
       50% { transform: scale(1.15); color: var(--accent); text-shadow: 0 0 8px rgba(74,144,217,0.5); }
@@ -71,37 +81,58 @@
     <aside class="sidebar" id="sidebarContainer"></aside>
     <main class="main-content" id="mainContent">
       <div class="tm-container">
-        <div class="tm-header">
-          <h2 class="tm-title"><i class="fas fa-coins" style="color:#f1c40f;"></i> Token Management</h2>
-          
-          <div class="tm-toolbar">
-            <input type="text" id="searchInput" class="tm-search" placeholder="Search username / realname...">
-            <select id="sortSelect" class="tm-select">
-              <option value="username">Sort by Username</option>
-              <option value="totalUsed">Sort by Total Used (Desc)</option>
-              <option value="global">Sort by Global Tokens (Desc)</option>
-              <option value="daily">Sort by Daily Tokens (Desc)</option>
-            </select>
-            <button class="tm-btn warn" id="btnInit"><i class="fas fa-sync-alt"></i> Init History</button>
+        
+        <!-- ⭐ 余额监控 -->
+        <div class="tm-balance-card">
+          <div class="tm-balance-header">
+            <h2 class="tm-balance-title"><i class="fas fa-wallet" style="color: var(--accent);"></i> API Balance Monitor</h2>
+            <button class="tm-btn small" id="refreshBalanceBtn" style="background: var(--card-bg); color: var(--text-primary); border: 1px solid var(--border-color); box-shadow: none;">
+              <i class="fas fa-sync-alt" id="refreshIcon"></i> Refresh
+            </button>
+          </div>
+          <div id="balanceContent">
+            <div style="color: var(--text-secondary); font-size: 0.9rem;">Loading balance...</div>
           </div>
         </div>
 
-        <div class="tm-table-wrapper">
-          <table id="tokenTable">
-            <thead>
-              <tr>
-                <th>User Info</th>
-                <th>Daily Tokens (⚡)</th>
-                <th>Global Tokens (🪙)</th>
-                <th>Total Used</th>
-                <th style="text-align:right;">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td colspan="5" style="text-align:center; padding: 40px;">Loading...</td></tr>
-            </tbody>
-          </table>
+        <!-- 表格区 -->
+        <div>
+          <div class="tm-header">
+            <h2 class="tm-title"><i class="fas fa-coins" style="color:#f1c40f;"></i> Token Management</h2>
+            
+            <div class="tm-toolbar">
+              <input type="text" id="searchInput" class="tm-search" placeholder="Search username / realname...">
+              <select id="sortSelect" class="tm-select">
+                <option value="username">Sort by Username</option>
+                <option value="totalUsed">Sort by Total Used</option>
+                <option value="global">Sort by Global Tokens</option>
+                <option value="daily">Sort by Daily Tokens</option>
+              </select>
+              <button class="tm-btn icon-only" id="sortOrderBtn" title="Toggle Asc/Desc">
+                <i class="fas fa-sort-amount-down"></i>
+              </button>
+              <button class="tm-btn warn" id="btnInit"><i class="fas fa-sync-alt"></i> Init History</button>
+            </div>
+          </div>
+
+          <div class="tm-table-wrapper">
+            <table id="tokenTable">
+              <thead>
+                <tr>
+                  <th>User Info</th>
+                  <th>Daily Tokens (⚡)</th>
+                  <th>Global Tokens (🪙)</th>
+                  <th>Total Used</th>
+                  <th style="text-align:right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="5" style="text-align:center; padding: 40px;">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
+
       </div>
     </main>
   </div>
@@ -118,6 +149,7 @@
     
     let currentUsers = [];
     let searchTimeout = null;
+    let currentOrder = 'desc'; // 默认降序
 
     Page.ready(async (user) => {
       if (user.role !== 'admin' && user.role !== 'root') {
@@ -127,15 +159,79 @@
       
       document.getElementById('searchInput').addEventListener('input', () => {
         clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => loadTokens(), 300); // 防抖
+        searchTimeout = setTimeout(() => loadTokens(), 300);
       });
       
       document.getElementById('sortSelect').addEventListener('change', () => loadTokens());
+      
+      // 排序方向切换
+      document.getElementById('sortOrderBtn').addEventListener('click', () => {
+        currentOrder = currentOrder === 'desc' ? 'asc' : 'desc';
+        const icon = currentOrder === 'desc' ? 'fa-sort-amount-down' : 'fa-sort-amount-up';
+        document.getElementById('sortOrderBtn').innerHTML = `<i class="fas ${icon}"></i>`;
+        loadTokens();
+      });
+
       document.getElementById('btnInit').addEventListener('click', initHistory);
       
+      // 加载余额和列表
+      loadDeepSeekBalance();
       loadTokens();
     });
 
+    // ⭐ 余额监控逻辑
+    async function loadDeepSeekBalance() {
+      const content = document.getElementById('balanceContent');
+      const icon = document.getElementById('refreshIcon');
+      if (!content) return;
+      
+      icon.classList.add('fa-spin');
+      content.innerHTML = '<div style="color: var(--text-secondary); font-size: 0.9rem;">Fetching...</div>';
+
+      try {
+        const res = await API.get('/api/admin-balance'); 
+        if (!res.success) throw new Error(res.message || 'Failed to load');
+
+        const { totalBalance, grantedBalance, toppedUpBalance, estTokens, estUnit, available, currency } = res;
+        
+        const formatNum = (n) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const formatTokens = (n) => {
+          if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
+          if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
+          return n.toString();
+        };
+
+        const isWarning = totalBalance < 10;
+
+        content.innerHTML = `
+          <div class="tm-balance-content">
+            <div class="tm-bal-stat">
+              <div class="tm-bal-label">Current Balance (${currency})</div>
+              <div class="tm-bal-value ${isWarning ? 'warn' : 'ok'}">¥ ${formatNum(totalBalance)}</div>
+              ${!available ? `<div style="color: var(--danger); font-size: 0.8rem; margin-top: 4px;">⚠ API Unavailable</div>` : ''}
+            </div>
+            <div class="tm-bal-stat" style="border-left: 1px solid var(--border-color); padding-left: 24px;">
+              <div class="tm-bal-label">Estimated Tokens</div>
+              <div class="tm-bal-value" style="color: var(--text-primary); font-size: 1.5rem;">${formatTokens(estTokens)}</div>
+              <div class="tm-bal-sub"><span>At ¥${estUnit}/M tok</span></div>
+            </div>
+            <div class="tm-bal-stat" style="border-left: 1px solid var(--border-color); padding-left: 24px;">
+              <div class="tm-bal-label">Breakdown</div>
+              <div class="tm-bal-sub"><span>Granted:</span> <span style="color:var(--text-primary);font-family:monospace;">¥ ${formatNum(grantedBalance)}</span></div>
+              <div class="tm-bal-sub"><span>Topped Up:</span> <span style="color:var(--text-primary);font-family:monospace;">¥ ${formatNum(toppedUpBalance)}</span></div>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        console.error(err);
+        content.innerHTML = `<div style="color: var(--danger); font-size: 0.9rem;"><i class="fas fa-exclamation-circle"></i> Error: ${DSHUI.esc(err.message || 'Unknown')}</div>`;
+      } finally {
+        icon.classList.remove('fa-spin');
+      }
+    }
+    document.getElementById('refreshBalanceBtn').addEventListener('click', loadDeepSeekBalance);
+
+    // ⭐ 表格逻辑
     async function loadTokens() {
       const tbody = document.querySelector('#tokenTable tbody');
       const search = document.getElementById('searchInput').value.trim();
@@ -147,20 +243,21 @@
         const url = new URL('/api/admin-tokens', window.location.origin);
         if (search) url.searchParams.set('search', search);
         if (sortBy) url.searchParams.set('sortBy', sortBy);
+        url.searchParams.set('order', currentOrder); // ⭐ 传入升降序参数
 
         const res = await API.get(url.pathname + url.search);
         if (!res.success) throw new Error(res.message);
         
         currentUsers = res.users;
         renderTable(currentUsers);
-        
       } catch (err) {
         tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#e74c3c; padding: 20px;">Error: ${DSHUI.esc(err.message)}</td></tr>`;
       } finally {
         Page.hideSkeleton();
       }
     }
-        function formatTokens(n) {
+
+    function formatTokens(n) {
       if (n === undefined || n === null) return '0';
       const num = Number(n);
       if (isNaN(num)) return '0';
@@ -172,6 +269,7 @@
       if (absNum >= 1_000) return sign + (absNum / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
       return sign + absNum;
     }
+
     function renderTable(users) {
       const tbody = document.querySelector('#tokenTable tbody');
       if (users.length === 0) {
@@ -189,8 +287,7 @@
                 ${DSHUI.esc(u.displayName)}
               </a>
               <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">
-                @${DSHUI.esc(u.username)}
-                ${u.realName ? `· ${DSHUI.esc(u.realName)}` : ''}
+                @${DSHUI.esc(u.username)} ${u.realName ? `· ${DSHUI.esc(u.realName)}` : ''}
               </div>
             </td>
             <td class="num ${dailyCls}" id="daily-${DSHUI.esc(u.username)}" title="${u.daily.toLocaleString()}">${formatTokens(u.daily)}</td>
