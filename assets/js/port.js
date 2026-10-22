@@ -5,16 +5,12 @@ let allProblems = [];
 Page.boot({ title: 'Port', requireAuth: true });
 
 Page.ready(async (user) => {
-  // ==========================================
-  // ⭐ 所有的 DOM 获取必须在 ready 内部执行
-  // ==========================================
   const elSteps = document.getElementById('stepsInput');
   const elSubmitBtn = document.getElementById('submitBtn');
   const elDraftStatus = document.getElementById('draftIndicator');
   const elResultPanel = document.getElementById('resultPanel');
   const elClearSteps = document.getElementById('clearSteps');
 
-  // 绑定视图切换
   document.querySelectorAll('.ptb-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.ptb-tab').forEach(t => t.classList.remove('active'));
@@ -30,12 +26,10 @@ Page.ready(async (user) => {
     });
   });
 
-  // 加载题目
   await loadProblems();
   document.getElementById('subjectSelect').addEventListener('change', loadProblems);
   document.getElementById('searchInput').addEventListener('input', renderList);
 
-  // 清空草稿
   if (elClearSteps) {
     elClearSteps.addEventListener('click', () => {
       if (!currentProblem) return;
@@ -46,7 +40,6 @@ Page.ready(async (user) => {
     });
   }
 
-  // 自动保存草稿（LocalStorage + API）
   elSteps.addEventListener('input', () => {
     if (!currentProblem) return;
     document.getElementById('stepsCount').textContent = elSteps.value.length;
@@ -60,7 +53,6 @@ Page.ready(async (user) => {
     draftTimer = setTimeout(() => saveDraft(currentProblem.id, elSteps.value), 1000);
   });
 
-  // 提交
   elSubmitBtn.addEventListener('click', handleSubmit);
   document.getElementById('resultClose').addEventListener('click', () => elResultPanel.hidden = true);
 });
@@ -87,27 +79,55 @@ async function loadProblems() {
       API.get(`/api/port/stats?subject=${subject}`)
     ]);
     const stats = statRes.summary?.[subject]?.states || {};
-    allProblems = probRes.items.map(p => ({ ...p, status: stats[p.id] || 'none' }));
+    
+    // ⭐ 映射状态
+    allProblems = probRes.items.map(p => ({ 
+      ...p, 
+      status: stats[p.id] || 'none' 
+    }));
+    
     renderList();
   } catch (err) {
     listEl.innerHTML = '<div style="padding:20px;color:red;">Failed to load</div>';
   }
 }
 
+// ⭐ 优化的题库列表渲染
 function renderList() {
   const keyword = document.getElementById('searchInput').value.toLowerCase();
-  const filtered = allProblems.filter(p => p.id.toLowerCase().includes(keyword));
+  const filtered = allProblems.filter(p => 
+    p.id.toLowerCase().includes(keyword) || 
+    (p.chapterName && p.chapterName.toLowerCase().includes(keyword))
+  );
+
   const listEl = document.getElementById('problemList');
   if (!filtered.length) {
     listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#666;">No problems.</div>';
     return;
   }
-  listEl.innerHTML = filtered.map(p => `
-    <div class="sb-item ${currentProblem?.id === p.id ? 'active' : ''}" onclick="selectProblem('${p.id}')">
-      <span>${p.id} ${p.source ? `- ${p.source}` : ''}</span>
-      <span class="${p.status === 'passed' ? 'status-pass' : ''}">${p.status === 'passed' ? '✓' : (p.status === 'failed' ? '✗' : '')}</span>
-    </div>
-  `).join('');
+
+  listEl.innerHTML = filtered.map(p => {
+    // 状态图标
+    let statusIcon = '<i class="fas fa-circle" style="color: #333; font-size: 10px;"></i>'; // 未做
+    if (p.status === 'passed') statusIcon = '<i class="fas fa-check-circle" style="color: #2ecc71;"></i>';
+    if (p.status === 'failed') statusIcon = '<i class="fas fa-times-circle" style="color: #e74c3c;"></i>';
+
+    return `
+      <div class="sb-item ${currentProblem?.id === p.id ? 'active' : ''}" onclick="selectProblem('${p.id}')">
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-weight: 600; color: ${currentProblem?.id === p.id ? '#4a90d9' : '#ddd'}; font-size: 14px;">
+            ${p.id}
+          </div>
+          <div style="font-size: 11px; color: #888; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            ${p.chapterName ? p.chapterName : (p.chapter ? 'Ch.' + p.chapter : '')} ${p.source ? `· ${p.source}` : ''}
+          </div>
+        </div>
+        <div style="flex-shrink: 0; margin-left: 10px; display: flex; align-items: center; justify-content: center; width: 20px;">
+          ${statusIcon}
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 window.selectProblem = async function(id) {
@@ -121,11 +141,13 @@ window.selectProblem = async function(id) {
   document.getElementById('submitBtn').disabled = false;
   
   document.getElementById('ppId').textContent = p.id;
-  document.getElementById('ppChapter').textContent = p.chapter ? `Ch.${p.chapter}` : '';
+  document.getElementById('ppChapter').textContent = p.chapterName ? p.chapterName : (p.chapter ? `Ch.${p.chapter}` : '');
   document.getElementById('ppSource').textContent = p.source || '';
   document.getElementById('ppMaxScore').textContent = `Max: ${p.maxScore || 100}`;
   document.getElementById('ppStatement').innerHTML = p.statement || 'No statement.';
-  document.getElementById('ppAnswer').innerHTML = p.answer || 'No answer.';
+  
+  // ⭐ 修复：兼容 ans 字段
+  document.getElementById('ppAnswer').innerHTML = p.ans || p.answer || 'No answer.';
 
   renderMathInElement(document.getElementById('problemPanel'), { delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}] });
 
@@ -175,7 +197,7 @@ async function handleSubmit() {
       showResult(res.result);
       document.getElementById('draftIndicator').textContent = 'Submitted!';
       localStorage.removeItem(`port_draft_${currentProblem.id}`);
-      await loadProblems();
+      await loadProblems(); // 重新加载以刷新左侧状态图标
     }
   } catch (err) {
     DSHUI.toast(err.message || 'Grading failed', 'err');
@@ -204,24 +226,20 @@ function showResult(result) {
   renderMathInElement(elResultPanel, { delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}] });
 }
 
-// ⭐ 恢复提交记录页面
+// 其他页面逻辑不变...
 async function loadSubmissions(page = 1) {
   const listEl = document.getElementById('subsList');
   if (!listEl) return;
   listEl.innerHTML = '<div style="padding:20px;text-align:center;">Loading...</div>';
-  
   const subject = document.getElementById('subsSubject').value;
-  
   try {
     const params = new URLSearchParams({ page, limit: 20 });
     if (subject) params.set('subject', subject);
     const res = await API.get(`/api/port/submissions?${params.toString()}`);
-    
     if (!res.items.length) {
       listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#666;">No submissions yet.</div>';
       return;
     }
-    
     listEl.innerHTML = res.items.map(s => `
       <div style="background:#141414; border:1px solid #333; padding:16px; margin-bottom:12px; border-radius:6px;">
         <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
@@ -239,7 +257,6 @@ async function loadSubmissions(page = 1) {
   }
 }
 
-// ⭐ 恢复设置页面
 async function loadSettings() {
   const input = document.getElementById('chatUrlInput');
   if (!input) return;
@@ -259,3 +276,29 @@ async function loadSettings() {
     }
   };
 }
+
+// ⭐ Admin 弹窗兼容 ans
+window.openAdminModal = function() {
+  if (!currentProblem) return DSHUI.toast('Select a problem first', 'warn');
+  document.getElementById('adminPid').value = currentProblem.id;
+  document.getElementById('adminMaxScore').value = currentProblem.maxScore || 100;
+  document.getElementById('adminStatement').value = currentProblem.statement || '';
+  document.getElementById('adminAnswer').value = currentProblem.ans || currentProblem.answer || '';
+  document.getElementById('adminModal').style.display = 'flex';
+};
+
+window.saveProblem = async function() {
+  const id = document.getElementById('adminPid').value;
+  const maxScore = parseInt(document.getElementById('adminMaxScore').value) || 100;
+  const statement = document.getElementById('adminStatement').value;
+  const ans = document.getElementById('adminAnswer').value;
+
+  try {
+    // ⭐ 传 ans 字段
+    await API.post('/api/port/problems?action=update', { id, maxScore, statement, ans });
+    DSHUI.toast('Saved successfully', 'ok');
+    document.getElementById('adminModal').style.display = 'none';
+    await loadProblems();
+    selectProblem(id);
+  } catch (e) { DSHUI.toast(e.message, 'err'); }
+};

@@ -27,6 +27,9 @@ async function handler(req, res) {
   const problem = await db.collection('port_problems').findOne({ id: String(problemId) }, { projection: { _id: 0 } });
   if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
 
+  // ⭐ 修复：兼容 ans 字段
+  const refAnswer = problem.ans || problem.answer || '';
+
   const submissionId = genId('PS');
   const now = new Date();
 
@@ -53,7 +56,7 @@ async function handler(req, res) {
   // 2. 构建 Prompt 并调用 DeepSeek API
   const prompt = buildPortGradePrompt({
     statement: problem.statement || '',
-    referenceAnswer: problem.answer || '',
+    referenceAnswer: refAnswer, // ⭐ 使用兼容后的变量
     studentSteps: stepsStr,
     maxScore: problem.maxScore || 100,
     subject: String(subject)
@@ -74,7 +77,11 @@ async function handler(req, res) {
       })
     });
 
-    if (!apiRes.ok) throw new Error(`DeepSeek API error: ${apiRes.status}`);
+    if (!apiRes.ok) {
+      const errText = await apiRes.text().catch(()=> '');
+      throw new Error(`DeepSeek API error: ${apiRes.status} - ${errText.slice(0, 100)}`);
+    }
+    
     const aiData = await apiRes.json();
     const content = aiData.choices[0].message.content;
     const result = JSON.parse(content);
@@ -102,10 +109,18 @@ async function handler(req, res) {
       { $setOnInsert: { username: decoded.username, subject: String(subject), states: {} } },
       { upsert: true }
     );
+    
+    // DSE 满分的 90% 以上算 passed
     if (finalScore >= (problem.maxScore || 100) * 0.9) {
-      await statsCol.updateOne({ username: decoded.username, subject: String(subject) }, { $set: { [`states.${problemId}`]: 'passed' } });
+      await statsCol.updateOne(
+        { username: decoded.username, subject: String(subject) }, 
+        { $set: { [`states.${problemId}`]: 'passed' } }
+      );
     } else {
-      await statsCol.updateOne({ username: decoded.username, subject: String(subject), [`states.${problemId}`]: { $ne: 'passed' } }, { $set: { [`states.${problemId}`]: 'failed' } });
+      await statsCol.updateOne(
+        { username: decoded.username, subject: String(subject), [`states.${problemId}`]: { $ne: 'passed' } }, 
+        { $set: { [`states.${problemId}`]: 'failed' } }
+      );
     }
 
     return res.status(200).json({ success: true, submissionId, result: { score: finalScore, ...result } });

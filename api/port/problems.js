@@ -20,13 +20,18 @@ async function handler(req, res) {
   // ⭐ POST: 更新题目（仅 Root 可操作）
   // ==========================================
   if (req.method === 'POST' && req.query.action === 'update') {
-    const { id, maxScore, statement, answer } = req.body || {};
+    // ⭐ 接收 ans，同时也兼容 answer
+    const { id, maxScore, statement, ans, answer } = req.body || {};
     if (!id) return res.status(400).json({ success: false, message: 'Missing problem ID' });
 
     const updateData = {};
     if (maxScore !== undefined) updateData.maxScore = Number(maxScore) || 100;
     if (statement !== undefined) updateData.statement = String(statement);
-    if (answer !== undefined) updateData.answer = String(answer);
+    
+    // ⭐ 统一保存到 ans
+    const finalAns = ans !== undefined ? ans : answer;
+    if (finalAns !== undefined) updateData.ans = String(finalAns);
+    
     updateData.updatedAt = new Date();
 
     const result = await col.updateOne({ id: String(id) }, { $set: updateData });
@@ -44,7 +49,7 @@ async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { id, subject, chapter, page = '1', limit = '1000' } = req.query;
+  const { id, subject, chapter, page = '1', limit = '50' } = req.query;
 
   // ── 單題 ──
   if (id) {
@@ -67,7 +72,7 @@ async function handler(req, res) {
   }
 
   const pageNum = Math.max(1, parseInt(page) || 1);
-  const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 1000));
+  const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 50));
 
   const [total, items, chapterAgg] = await Promise.all([
     col.countDocuments(filter),
