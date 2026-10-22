@@ -150,6 +150,8 @@
     let currentUsers = [];
     let searchTimeout = null;
     let currentOrder = 'desc'; // 默认降序
+    let globalEstTokens = 0; 
+    let circulatingTokens = 0;
 
     Page.ready(async (user) => {
       if (user.role !== 'admin' && user.role !== 'root') {
@@ -194,6 +196,10 @@
 
         const { totalBalance, grantedBalance, toppedUpBalance, estTokens, estUnit, available, currency } = res;
         
+        // ⭐ 存入全局变量
+        globalEstTokens = estTokens;
+        updateEconomyStats();
+
         const formatNum = (n) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const formatTokens = (n) => {
           if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
@@ -211,7 +217,7 @@
               ${!available ? `<div style="color: var(--danger); font-size: 0.8rem; margin-top: 4px;">⚠ API Unavailable</div>` : ''}
             </div>
             <div class="tm-bal-stat" style="border-left: 1px solid var(--border-color); padding-left: 24px;">
-              <div class="tm-bal-label">Estimated Tokens</div>
+              <div class="tm-bal-label">Estimated Reserve</div>
               <div class="tm-bal-value" style="color: var(--text-primary); font-size: 1.5rem;">${formatTokens(estTokens)}</div>
               <div class="tm-bal-sub"><span>At ¥${estUnit}/M tok</span></div>
             </div>
@@ -240,15 +246,15 @@
       tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 40px;"><span class="spinner"></span> Loading...</td></tr>';
       
       try {
-        const url = new URL('/api/admin-tokens', window.location.origin);
-        if (search) url.searchParams.set('search', search);
-        if (sortBy) url.searchParams.set('sortBy', sortBy);
-        url.searchParams.set('order', currentOrder); // ⭐ 传入升降序参数
-
         const res = await API.get(url.pathname + url.search);
         if (!res.success) throw new Error(res.message);
         
         currentUsers = res.users;
+        
+        // ⭐ 计算流通中的总 Token
+        circulatingTokens = currentUsers.reduce((sum, u) => sum + (u.daily || 0) + (u.global || 0), 0);
+        updateEconomyStats();
+
         renderTable(currentUsers);
       } catch (err) {
         tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#e74c3c; padding: 20px;">Error: ${DSHUI.esc(err.message)}</td></tr>`;
@@ -302,7 +308,47 @@
         `;
       }).join('');
     }
+        function updateEconomyStats() {
+      // 如果两个数据都没加载完，先不显示
+      if (globalEstTokens === 0 && circulatingTokens === 0) return;
+      
+      const tracker = document.getElementById('economyTracker');
+      tracker.style.display = 'block';
 
+      const totalEconomy = circulatingTokens + globalEstTokens;
+      // 流通率 = 学生手里印出来的钱 / 整个系统的总资产
+      let circulatingRatio = totalEconomy > 0 ? (circulatingTokens / totalEconomy) * 100 : 0;
+      // 储备率（准备金率） = 储备池 / 流通量
+      let reserveRatio = circulatingTokens > 0 ? (globalEstTokens / circulatingTokens) : Infinity;
+
+      const formatTokens = (n) => {
+        if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
+        if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
+        return n.toString();
+      };
+
+      document.getElementById('circText').textContent = formatTokens(circulatingTokens);
+      document.getElementById('resvText').textContent = formatTokens(globalEstTokens);
+
+      const bar = document.getElementById('reserveProgressBar');
+      const ratioText = document.getElementById('reserveRatioText');
+      const warning = document.getElementById('inflationWarning');
+
+      // 设定进度条宽度为流通比例（最大 100%）
+      bar.style.width = `${Math.min(100, circulatingRatio)}%`;
+
+      if (globalEstTokens < circulatingTokens) {
+        // 🚨 准备金不足（赤字）
+        bar.style.background = '#e74c3c'; // 红色
+        ratioText.innerHTML = `Reserve Ratio: <strong style="color: #e74c3c;">${reserveRatio.toFixed(2)}</strong>`;
+        warning.style.display = 'block';
+      } else {
+        // 🟢 准备金充足
+        bar.style.background = '#2ecc71'; // 绿色
+        ratioText.innerHTML = `Reserve Ratio: <strong style="color: #2ecc71;">${reserveRatio === Infinity ? '∞' : reserveRatio.toFixed(2)}</strong>`;
+        warning.style.display = 'none';
+      }
+    }
     function startEdit(username) {
       const tr = document.getElementById(`row-${username}`);
       if (!tr || tr.dataset.editing === 'true') return;
