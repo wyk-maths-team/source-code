@@ -92,8 +92,9 @@ There is no build step. Files are deployed as authored.
 ├── _template/             Scaffold for new pages
 ├── tools/                 Development utilities: scaffolding, asset versioning,
 │                          auditing
+├── dev/                   Developer reference: per-page technical notes
 ├── vercel.json            Routing and cache policy
-└── PAGEDETAIL.md          Per-page reference and maintenance notes
+└── PAGEDETAIL.md          System overview for newcomers
 ```
 
 ---
