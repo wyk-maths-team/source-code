@@ -74,6 +74,10 @@
       .tour-btn:active { transform: translateY(1px); }
       .tour-btn-ghost { background: transparent; color: inherit; opacity: .62; padding-left: 6px; padding-right: 6px; }
       .tour-btn-ghost:hover { opacity: 1; }
+      .tour-progress {
+        font-size: .72rem; font-variant-numeric: tabular-nums; opacity: .5;
+        margin-left: 8px; letter-spacing: .3px;
+      }
       .tour-wait-spinner {
         display: inline-block; width: 14px; height: 14px; vertical-align: middle;
         border: 2px solid rgba(127,127,127,.3); border-top-color: #337ab7;
@@ -153,16 +157,20 @@
     overlay = null;
   }
 
-  function makeTip(html, buttons) {
+  function makeTip(html, buttons, progress) {
     const tip = document.createElement('div');
     tip.className = 'tour-tip';
     const btnHtml = (buttons || []).map(b =>
       `<button class="tour-btn ${b.primary ? '' : 'tour-btn-ghost'}" data-act="${esc(b.act)}">${esc(b.label)}</button>`
     ).join('');
+    const progressHtml = progress
+      ? `<span class="tour-progress">${esc(progress.now)} / ${esc(progress.total)}</span>`
+      : '';
     tip.innerHTML = `
       <div class="tour-tip-body">${html || ''}</div>
       <div class="tour-tip-actions">
         <button class="tour-btn tour-btn-ghost" data-act="skip">Skip tour</button>
+        ${progressHtml}
         <div class="tour-tip-spacer"></div>
         ${btnHtml}
       </div>`;
@@ -185,7 +193,7 @@
     root.style.cssText = 'position:fixed;inset:0;z-index:2147483000;pointer-events:none;';
     document.body.appendChild(root);
 
-    const tip = makeTip(html, buttons);
+    const tip = makeTip(html, buttons, opts.progress);
     root.appendChild(tip);
 
     const shields = {};
@@ -267,12 +275,12 @@
     };
   }
 
-  function showCenter(html, buttons) {
+  function showCenter(html, buttons, progress) {
     clearOverlay();
     const root = document.createElement('div');
     root.id = 'tour-root';
     root.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px;pointer-events:auto;box-sizing:border-box;';
-    const tip = makeTip(html, buttons);
+    const tip = makeTip(html, buttons, progress);
     tip.style.position = 'relative';
     tip.style.maxWidth = '440px';
     tip.style.width = '100%';
@@ -351,8 +359,8 @@
     el.innerHTML = `
       <div class="tour-welcome-card">
         <div class="tour-welcome-icon"><i class="fas fa-graduation-cap"></i></div>
-        <h2>Welcome to WYK Maths Team!</h2>
-        <p>Let's take a quick tour to show you around. It takes less than a minute — we'll have you solving your first problem in no time.</p>
+        <h2>Welcome to WYK Maths Team</h2>
+        <p>A short walkthrough — finding a problem, submitting an answer, and reading the result.</p>
         <div class="tour-welcome-actions">
           <button class="tour-btn tour-btn-ghost" data-act="skip">Skip</button>
           <button class="tour-btn" data-act="start">Start tour</button>
@@ -393,7 +401,15 @@
 
     const buttons = stepButtons(step);
 
-    if (step.type === 'back') { showCenter(step.html, buttons); return; }
+    // Progress indicator: position within the tour, counting only the steps the
+    // user actually sees (the welcome card has its own layout).
+    const visibleSteps = tour.steps.filter(s => s.type !== 'welcome');
+    const progress = {
+      now: visibleSteps.findIndex(s => s.id === step.id) + 1,
+      total: visibleSteps.length,
+    };
+
+    if (step.type === 'back') { showCenter(step.html, buttons, progress); return; }
 
     const renderAt = (el) => {
       // guard: tour may have been skipped / advanced while we were waiting
@@ -401,7 +417,7 @@
       if (!st || st.step !== step.id) return;
       ensureVisible(el, () => {
         if (step.type === 'input') {
-          showSpotlight(el, step.html, buttons, {});
+          showSpotlight(el, step.html, buttons, { progress });
           try { el.focus(); } catch (e) {}
           const onInput = () => {
             if (String(el.value || '').trim() === '0.000123') {
@@ -419,6 +435,7 @@
 
         // click step (and 'info' steps fall through here too if a target is set)
         showSpotlight(el, step.html, buttons, {
+          progress,
           targetSel: step.target,
           ignoreSel: step.ignoreSel,
           onTargetClick: () => {
@@ -445,7 +462,7 @@
     showWaiting(step.html);
     waitFor(step.target, step.timeout || 10000).then(async (el) => {
       if (!el) {
-        showCenter(step.html + '<div class="small" style="margin-top:10px;opacity:.6">Target not found on this page — you can skip the tour.</div>', []);
+        showCenter(step.html + '<div class="small" style="margin-top:10px;opacity:.6">Target not found on this page — you can skip the tour.</div>', [], progress);
         return;
       }
       if (typeof step.ready === 'function') {
@@ -521,7 +538,6 @@
   }
 
   /* ────────────────────────── tour definition ────────────────────────── */
-  /* ────────────────────────── tour definition ────────────────────────── */
   const NEW_USER_TOUR = {
     name: 'New user tour',
     steps: [
@@ -529,18 +545,18 @@
 
       { id: 'index_problems', page: 'index', type: 'click',
         target: '.sidebar-link[data-page="problems"]',
-        html: "Hello! Let's take a quick tour. First, click <b>Problems</b> in the sidebar to open the problem set.",
+        html: 'The sidebar is how you move around. Start with the <b>Problems</b> bank.',
         next: 'problems_a001' },
 
       { id: 'problems_a001', page: 'problems', type: 'click',
         target: 'tr.problem-row[data-id="' + PROBLEM_ID + '"]',
         ignoreSel: '.col-fav',
-        html: 'This is problem <b>' + PROBLEM_ID + '</b>. Click it to open the problem.',
+        html: 'Each row carries a difficulty rating and topic tags. Open <b>' + PROBLEM_ID + '</b> to see one from the inside.',
         next: 'detail_text' },
 
       { id: 'detail_text', page: 'problem', type: 'click',
         target: '.wb-tab[data-mode="text"]',
-        html: 'Click the <b>Text</b> (keyboard) tab to open the answer box.',
+        html: 'Problems accept more than one answer format. Switch to <b>Text</b> to type one.',
         next: 'detail_statement',
         ready: () => !!(window.PD && window.PD.workbench),
         onAdvance: () => {
@@ -556,7 +572,7 @@
 
       { id: 'detail_statement', page: 'problem', type: 'info',
         target: '#statementContent',
-        html: 'This is the problem statement. Read it carefully, then click the statement to continue.',
+        html: 'The statement. Formulas are typeset properly, so read them as you would on paper. Click to continue.',
         next: 'detail_input' },
 
       { id: 'detail_input', page: 'problem', type: 'input',
@@ -565,54 +581,42 @@
           const p = document.querySelector('.wb-pane[data-pane="text"]');
           return !!p && p.classList.contains('active');
         },
-        html: 'Type <b>0.000123</b> into the answer box.',
+        html: 'Enter <b>0.000123</b> as the answer.',
         next: 'detail_submit' },
 
       { id: 'detail_submit', page: 'problem', type: 'click',
         target: '#checkAnswerBtn',
-        html: 'Great! Now click <b>Submit</b>.',
+        html: 'Submit when you are ready. A wrong answer costs nothing — you can try again.',
         next: 'detail_accepted' },
 
       { id: 'detail_accepted', page: 'problem', type: 'click',
         target: '#wbStatus a.feedback-box',
-        html: 'Your result appears here. Click the <b>Accepted</b> status to open your submission.',
+        html: 'The verdict appears here. Open it to see exactly what was recorded.',
         next: 'submission_back' },
 
       { id: 'submission_back', page: 'submission', type: 'back',
         buttonLabel: 'Back', goto: '/problems/' + PROBLEM_ID,
-        html: 'This is your submission detail. Click <b>Back</b> to return to the problem.',
+        html: 'Your submission, with the answer and the result. Go back to the problem.',
         next: 'detail_problem_subs' },
 
       { id: 'detail_problem_subs', page: 'problem', type: 'click',
         target: '#submissionsBtn',
-        html: 'Click <b>Submissions</b> to see all submissions for this problem.',
+        html: 'Every attempt at this problem, from everyone — often useful for comparing methods.',
         next: 'detail_subs_back' },
 
       { id: 'detail_subs_back', page: 'submissions', type: 'back',
         buttonLabel: 'Back', goto: '/problems/' + PROBLEM_ID,
-        html: 'This is the submissions list. Click <b>Back</b> to return.',
-        next: 'problem_sidebar_subs' },
-
-      { id: 'problem_sidebar_subs', page: 'problem', type: 'click',
-        target: '.sidebar-link[data-page="all-submissions"]',
-        html: 'Click <b>All Submissions</b> in the sidebar to see every submission.',
-        next: 'submissions_back' },
-
-      { id: 'submissions_back', page: 'submissions', type: 'back',
-        buttonLabel: 'Back', goto: '/problems/' + PROBLEM_ID,
-        html: 'This is the global submissions list. Click <b>Back</b> to return.',
+        html: 'Filter by status or read other people\'s answers here. Back to the problem.',
         next: 'problem_sidebar_rank' },
 
-      // ⭐ 新增：在题目页引导点侧边栏的 Leaderboard
       { id: 'problem_sidebar_rank', page: 'problem', type: 'click',
         target: '.sidebar-link[data-page="ranklist"], .sidebar-link[href="/ranklist"], .sidebar-link[href="/leaderboard"], .sidebar-link[data-page="leaderboard"]',
-        html: 'Now let\'s see the <b>Leaderboard</b>. Click it in the sidebar to see how you rank.',
+        html: 'Last stop: the <b>Leaderboard</b>, to see where you stand.',
         next: 'ranklist_view' },
 
-      // ⭐ 新增：在排行榜页面结束
       { id: 'ranklist_view', page: 'ranklist', type: 'back',
-        buttonLabel: 'Finish', goto: '/problems/' + PROBLEM_ID,
-        html: "Here you can see how everyone is doing! That's the end of the tour. Click <b>Finish</b> to wrap up. 🎉",
+        buttonLabel: 'Finish',
+        html: 'That is the whole loop — pick a problem, answer it, read the result. You are ready to start.',
         next: null },
     ],
   };
