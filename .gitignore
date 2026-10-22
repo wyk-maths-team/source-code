@@ -33,6 +33,13 @@ api/bio/
 assets/js/pages/bio-infoday-*.js
 assets/css/pages/bio-infoday-*.css
 
+# --------------- 已移除的内部文档 ---------------
+# 内部交接文档、开发规范与协作指南已迁出仓库（留存于 private/readmes/）。
+# 仓库对外只保留根目录 README.md 一个说明文件。
+README/
+_template/README.md
+grader/README.md
+
 # --------------- Build / Dependencies ---------------
 
 # .vercel
