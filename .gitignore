@@ -24,6 +24,15 @@ _difficulty_changes.md
 # 临时导出目录（题目脚本等，内容等同于题库）
 temp/
 
+# --------------- 已迁移的独立子项目 ---------------
+# bio/ 是 Bio Infoday 活动的独立站点，与数学平台无共用逻辑，
+# 且其接口连接着同一个生产数据库。迁移完成后已从本仓库与全部历史中移除，
+# 源码留存于 private/bio-system/（不入库）。
+bio/
+api/bio/
+assets/js/pages/bio-infoday-*.js
+assets/css/pages/bio-infoday-*.css
+
 # --------------- Build / Dependencies ---------------
 
 # .vercel
