@@ -425,32 +425,67 @@ function bindSubmitEvent() {
 
       if (!result.success) { setWorkbenchStatus(result.message || 'Submission failed', 'err'); return; }
 
-      if (result.message && result.message.includes('Image submitted')) {
-        S.cooldown = true; checkBtn.disabled = true;
-        let imageUrl = result.imageUrl;
-        if (!imageUrl && result.subid) {
-          try { const detailRes = await apiCall(`/api/submissions?action=detail&subid=${encodeURIComponent(result.subid)}`); imageUrl = detailRes?.submission?.image || ''; } catch (e) {}
-        }
-        if (!imageUrl) { setWorkbenchStatusHtml(statusBoxHtml(result.subid, 'Image saved (no imageUrl)', 'status-system')); S.cooldown = false; checkBtn.disabled = false; return; }
+// 替换前端的 bindSubmitEvent 里的图片处理逻辑
+if (result.message && result.message.includes('Image submitted')) {
+  S.cooldown = true; checkBtn.disabled = true;
+  let imageUrl = result.imageUrl;
+  if (!imageUrl && result.subid) {
+    try { 
+      const detailRes = await apiCall(`/api/submissions?action=detail&subid=${encodeURIComponent(result.subid)}`); 
+      imageUrl = detailRes?.submission?.image || ''; 
+    } catch (e) {}
+  }
+  
+  if (!imageUrl) { 
+    setWorkbenchStatusHtml(statusBoxHtml(result.subid, 'Image saved (no imageUrl)', 'status-system')); 
+    S.cooldown = false; checkBtn.disabled = false; 
+    return; 
+  }
 
-        // 图片这里你可以根据后端是否支持同步选择是否保留 Polling，我这里保留以确保安全
-        startWaiting();
-        try {
-          const gradeRes = await apiCall('/api/image-grade', 'POST', { problemId, subid: result.subid, imageUrl });
-          if (gradeRes?.success && gradeRes.taskId) {
-            if (window.PD.cooldown) window.PD.cooldown.start('photo');
-            setWorkbenchStatus('Waiting for grading...', 'busy');
-            pollGradeResult({ endpoint: '/api/image-grade', taskId: gradeRes.taskId, checkBtn, maxAttempts: 60 });
-            return;
-          }
-          stopWaiting();
-          setWorkbenchStatus(gradeRes?.message || 'Failed to create AI task', 'err');
-          S.cooldown = false; checkBtn.disabled = false;
-        } catch (e) {
-          stopWaiting(); setWorkbenchStatus('Network error', 'err'); S.cooldown = false; checkBtn.disabled = false;
-        }
-        return;
+  startWaiting();
+  try {
+    // ⭐ 直接 await 同步请求，前端死死等后端返回
+    const gradeRes = await apiCall('/api/image-grade', 'POST', { problemId, subid: result.subid, imageUrl });
+    
+    // 此时拿到的 gradeRes 应该是包含直接结果的
+    if (gradeRes?.success && gradeRes.status === 'done') {
+      stopWaiting();
+      checkBtn.disabled = false; S.cooldown = false;
+
+      const finalScore = gradeRes.result.score;
+      let txt, cls;
+      if (finalScore === 100) { txt = 'Accepted'; cls = 'status-accepted'; }
+      else if (finalScore === 0) { txt = 'Wrong Answer'; cls = 'status-wrong'; }
+      else { txt = `Partial Score (${finalScore}%)`; cls = 'status-partial'; }
+      
+      setWorkbenchStatusHtml(statusBoxHtml(result.subid, txt, cls));
+      
+      // 更新页面状态
+      if (finalScore === 100) {
+        PD.setProblemState(problemId, 'passed');
+        updateProblemDetailIcon();
+      } else if (S.userStates[problemId] !== 'passed') {
+        PD.setProblemState(problemId, 'failed');
+        updateProblemDetailIcon();
       }
+
+      // 更新 Token 余额
+      if (gradeRes.tokens && window.updateTopbarTokens) {
+        window.updateTopbarTokens(gradeRes.tokens.daily, gradeRes.tokens.global);
+      }
+
+    } else {
+      stopWaiting();
+      setWorkbenchStatus(gradeRes?.message || 'AI Grading failed, please try again.', 'err');
+      S.cooldown = false; checkBtn.disabled = false;
+    }
+  } catch (e) {
+    stopWaiting(); 
+    setWorkbenchStatus('AI Grading Timeout or Network error. Please try again.', 'err'); 
+    S.cooldown = false; checkBtn.disabled = false;
+  }
+  return;
+}
 
       if (result.systemError) {
         setWorkbenchStatusHtml(statusBoxHtml(result.subid, 'System Error: please report.', 'status-system'));
