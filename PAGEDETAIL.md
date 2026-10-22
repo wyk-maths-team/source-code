@@ -1,225 +1,241 @@
-# 这个系统怎么运作
+# Using the Platform
 
-> 写给第一次接触这个项目的人。不假设你会写代码，但假设你想搞明白它是怎么运转的。
-
----
-
-## 它是什么
-
-一个数学练习网站。学生登录后能看到题库、做题、提交答案、看自己的进度；题目由机器判分，主观题可以由 AI 辅助评估；还可以参加限时竞赛、和同学一对一 PK。
-
-它已经在真实环境里跑了很久，每天都有人用。
-
-**它不是一个通用产品。** 它只为一所学校、一支数学队做的，很多设计是在特定条件下做的取舍。理解这一点，很多看起来奇怪的地方就说得通了。
+A guide to the student experience: signing in, working through problems, tracking progress, and taking part in contests.
 
 ---
 
-## 系统由什么组成
+## Contents
 
-用最简单的话说，它分三块：
-
-| 层 | 是什么 | 打个比方 |
-|---|---|---|
-| **页面** | 63 个 HTML 文件，学生看到的东西 | 店面的玻璃橱窗 |
-| **接口** | 40 个程序，处理「做题」「看排名」这类请求 | 后厨 |
-| **数据库** | 存放题目、账号、提交记录的地方 | 仓库 |
-
-和很多现代网站不同的是——**它没有打包、没有编译**。
-
-你改一个文件，保存，刷新浏览器，就生效了。部署也只是把文件传上去而已。这不是偷懒，是刻意的选择：省掉了「改完要等几分钟构建」的麻烦，代价是有些事得手动做（后面会说）。
+- [1. Signing in](#1-signing-in)
+  - [First-time setup](#first-time-setup)
+  - [Forgotten password](#forgotten-password)
+  - [What you can see without an account](#what-you-can-see-without-an-account)
+- [2. Finding problems](#2-finding-problems)
+  - [The problem list](#the-problem-list)
+  - [Filtering and searching](#filtering-and-searching)
+  - [Bookmarks](#bookmarks)
+- [3. Answering a problem](#3-answering-a-problem)
+  - [Three ways to answer](#three-ways-to-answer)
+  - [When only the final answer is not enough](#when-only-the-final-answer-is-not-enough)
+  - [Submitting an image](#submitting-an-image)
+- [4. Reading your results](#4-reading-your-results)
+  - [Judging outcomes](#judging-outcomes)
+  - [Why some results take longer](#why-some-results-take-longer)
+  - [Submission history](#submission-history)
+- [5. Tracking progress](#5-tracking-progress)
+  - [Your profile page](#your-profile-page)
+  - [Progress charts](#progress-charts)
+  - [The calendar](#the-calendar)
+  - [The leaderboard](#the-leaderboard)
+- [6. Contests and matches](#6-contests-and-matches)
+  - [Contests](#contests)
+  - [Head-to-head matches](#head-to-head-matches)
+- [7. Settings](#7-settings)
+- [8. Common questions](#8-common-questions)
 
 ---
 
-## 页面地图
+## 1. Signing in
 
-### 进门
+Go to `/login` and enter your username and password.
 
-| 页面 | 短地址 | 说明 |
-|---|---|---|
-| 首页 | `/` | 公告、个人概览、各入口 |
-| 登录 | `/login` | 用户名 + 密码 |
-| 忘记密码 | `/auth/forgot-password` | 走邮件找回 |
-| 首次设密 | `/auth/setup` | 新账号第一次登录时强制设置 |
+### First-time setup
 
-未登录的人只能看首页、排行榜、致谢、指南和这几个登录相关页面。访问别的会被送回首页。
+New accounts arrive with a temporary password. On your first sign-in you will be taken to `/auth/setup` and asked to choose a new one. Pick something you will remember — there is a password reset by email, but it is slower than just remembering it.
 
-### 做题
+### Forgotten password
 
-| 页面 | 短地址 | 说明 |
-|---|---|---|
-| 题库列表 | `/problems` | 所有题目，可筛选 |
-| **题目详情** | `/problems/HA0001` | 系统的核心，题面 + 作答 + 提交 |
-| 收藏夹 | `/problems/bookmarked` | 自己标记的题 |
-| 提交列表 | `/submissions` | 所有提交记录 |
-| 提交详情 | `/submissions/:id/detail` | 某次提交的完整信息 |
-| 评测状态 | `/status` | 最近提交的判题结果 |
+Use **Forgot password** on the sign-in page. You will be asked for your email or username; a reset link is sent to the registered address. Open the link and set a new password.
 
-**题目详情页是最复杂的一个页面**，占了整个系统相当一部分代码。因为它要同时处理三种完全不同的作答方式：
+If the email does not arrive within a few minutes, check your spam folder before asking for help.
 
-1. **填一个数** — 最常见
-2. **写一个式子** — 机器要判断 `2(x+3)` 和 `2x+6` 是不是同一个东西
-3. **写过程 / 拍照片** — 交给 AI 评估，老师可以复核
+### What you can see without an account
 
-有些题**不允许只写答案**，必须写过程或拍照。这是出题时设定的。
+Four pages are public:
 
-### 自己的数据
+- the home page
+- the leaderboard
+- the credits page
+- this guide
 
-| 页面 | 短地址 | 说明 |
-|---|---|---|
-| 用户主页 | `/users/张三` | 解题统计、难度分布、最近活动 |
-| 排行榜 | `/leaderboard` | 公开可见，不需要登录 |
-| 解题进度 | `/charts` | 图表形式看自己的进步 |
-| 学习日历 | `/calendar` | 按天看做题记录 |
-| 设置 | `/settings` | 主题、动画、侧栏等个人偏好 |
-| 改密码 | `/users/edit` | |
+Everything else requires signing in. If you open any other address while signed out, you will be sent back to the home page.
 
-**排行榜和用户主页用的是两套统计口径**——「做了多少题」和「难度分」不是一回事。所以同一个人的名次在页面之间看起来可能不一致，这是设计如此。
+---
 
-### 竞赛与对战
+## 2. Finding problems
 
-| 页面 | 说明 |
+### The problem list
+
+`/problems` shows the full question bank. Each row carries the problem identifier, its title, a difficulty rating, and topic tags.
+
+Difficulty runs on a decimal scale. It is **calculated from how other students performed on that problem**, not assigned by hand — so a rating can shift over time as more attempts are recorded.
+
+### Filtering and searching
+
+You can narrow the list by topic, difficulty range, or status (attempted / solved / unsolved). Filters combine, and the current selection is written into the address bar — so you can bookmark a filtered view, or send the link to a classmate.
+
+### Bookmarks
+
+Press the bookmark icon on any problem to save it. Saved problems appear at `/problems/bookmarked`.
+
+---
+
+## 3. Answering a problem
+
+### Three ways to answer
+
+Which one you get depends on the problem, not on your preference:
+
+| Mode | What you do |
 |---|---|
-| `/contest` | 竞赛列表与详情 |
-| `/pk/invite` · `/pk/waiting` · `/pk/room` | PK 对战的三步：邀请 → 等待 → 开战 |
+| **Numeric** | Type a single value |
+| **Expression** | Type a formula |
+| **Written / image** | Write out your working, or photograph it |
 
-竞赛是限时的，有独立排行榜和赛后成绩单。**用得不多**，不必在这个模块上花太多精力。
+The expression mode accepts algebraically equivalent forms. `2(x+3)` and `2x+6` are treated as the same answer — you do not need to guess which arrangement the system expects.
 
-PK 是两个人实时抢答，第三方可以围观——**围观是故意开放的**，不是漏洞，是为了让同学看热闹、增加气氛。
+### When only the final answer is not enough
 
-### 其他
+Some problems are marked as **requiring working**. For these, a bare final answer is not accepted. You must either:
 
-| 页面 | 说明 |
+- write your reasoning step by step, or
+- upload a photograph of your handwritten solution
+
+This is set per problem by whoever authored it, usually because the answer alone would not show whether you actually solved it.
+
+### Submitting an image
+
+Photograph your work, then upload it directly on the problem page. Take the photo in reasonable light, keep the page flat, and make sure the whole solution is in frame — the text is read automatically, and a clear image means a fairer assessment.
+
+---
+
+## 4. Reading your results
+
+### Judging outcomes
+
+| Result | Meaning |
 |---|---|
-| `/credits` | 致谢 |
-| `/guide` | 用户指南（内容直接写在页面里） |
-| `/settings/extra` | 隐藏的设置页，连点某个开关五次能进 |
-| `/os` | 手机版入口 |
-| 404 页 | 地址写错时的兜底 |
+| **Accepted** | Correct |
+| **Wrong answer** | The answer does not match |
+| **Partial** | Partially correct — the working earned some credit |
+| **Pending** | Still being processed |
+| **System error** | Something failed on our side; not your fault |
+
+### Why some results take longer
+
+Numeric and expression answers are checked immediately.
+
+Written answers and photographs are assessed by a language model, which takes longer. The result appears once assessment finishes — you do not need to keep the page open, and you can find it later in your submission history.
+
+Where a problem has a human reviewer, their judgement overrides the automated one.
+
+### Submission history
+
+`/submissions` lists your attempts, most recent first. Three views are available:
+
+- **all submissions** — everyone's
+- **by user** — one person's history
+- **by problem** — everyone's attempts at a single problem
+
+The last two are useful when comparing approaches.
 
 ---
 
-## 一次答题，背后发生了什么
+## 5. Tracking progress
 
-以「在题目页填答案并提交」为例：
+### Your profile page
 
-```
-学生点提交
-   ↓
-页面把答案发给接口 /api/submit
-   ↓
-接口检查：这个人登录了吗？这题存在吗？有没有在刷屏？
-   ↓
-按题目类型判分：
-   · 数值  → 直接比对（有误差容忍）
-   · 式子  → 符号化比较，等价就算对
-   · 特殊 → 在隔离环境里跑出题人写的一小段判定程序
-   ↓
-结果写进数据库，返回给页面
-   ↓
-页面显示对错，同时通知「进度」「排行榜」等数据发生了变化
-```
+`/users/<your-name>` collects your activity in one place: how many problems you have solved, how that splits across difficulty bands, and what you have worked on recently.
 
-如果题目要 AI 评分，流程会多一步：答案先入队，由后台的评分程序处理，页面轮询等待结果。所以主观题**不会立刻出分**。
+You can view anyone's profile, not just your own.
 
----
+### Progress charts
 
-## 改东西之前要知道的
+`/charts` plots your solving history over time, broken down by difficulty and topic. Useful for spotting which area has gone quiet.
 
-如果你要动这个项目，有四条规矩能避免大部分事故：
+### The calendar
 
-### 1. 改样式或脚本后，必须跑一次版本更新
+`/calendar` shows a day-by-day record of your activity. You can add notes to particular days.
 
-```powershell
-npm run version:assets
-```
+### The leaderboard
 
-**为什么**：为了让网站加载快，脚本和样式被设成「浏览器一年内不用再问」。文件名不变的话，学生永远拿的是旧版。
+`/leaderboard` ranks everyone. It is public — visible without signing in.
 
-这个工具会给每个文件算一个指纹，塞进地址里（`?v=abc123`）。指纹变了，浏览器就当新文件重新下载。
+Two different measures are shown, and they do not always agree:
 
-**忘了跑这一步，是最常见的线上事故**——页面是新的，脚本是旧的，然后白屏。
+- **problems solved** — raw count
+- **difficulty score** — weighted by how hard the problems were
 
-可以用这个命令检查有没有忘：
-
-```powershell
-npm run check:versions
-```
-
-### 2. 页面逻辑不在 HTML 里
-
-早期所有代码都堆在 HTML 里，后来抽出去了。现在：
-
-| 你想改 | 应该改这个文件 |
-|---|---|
-| 页面文字、结构 | `*.html` 本身 |
-| 页面的交互逻辑 | `assets/js/pages/<页面名>.js` |
-| 页面的专属样式 | `assets/css/pages/<页面名>.css` |
-
-举例：改题目页的行为，要去 `assets/js/pd-script.js`，**在 `problems/[id].html` 里找不到**。
-
-### 3. 新加页面要用脚手架
-
-```powershell
-npm run new:page stats --title "Statistics" --icon fa-chart-simple --public
-```
-
-它会一次搞定：页面文件、脚本文件、侧栏条目、路由映射。
-
-**不要复制现有页面改**。因为手写路由很容易漏，而漏了就是永久 404（地址表最后一条是「其余全部 → 404」，新规则必须插在它前面）。
-
-### 4. 改共享文件要小心
-
-`assets/js/` 下的每一个文件都被全部 63 个页面引用。改 `sidebar.js`、`topbar.js`、`auth.js` 这类骨架文件，等于同时改了所有页面。
-
-改完至少抽查几个不同类型的页面（首页、题目页、后台页）确认没坏。
+Somebody who grinds easy problems can lead on one and trail on the other. Both are shown on purpose.
 
 ---
 
-## 常见问题
+## 6. Contests and matches
 
-### 页面一直跳回首页？
+### Contests
 
-多半是登录状态的问题，或者你访问的页面没被标记为「公开」。
+A contest is a set of problems with a start time and a fixed duration. You join beforehand; at the start the problems unlock; when time runs out submissions stop being accepted.
 
-公开页需要在 HTML 的头部写一行声明：
-```html
-<meta name="requires-auth" content="false" />
-```
+Contest problems are kept separate from the general bank so that nobody can look them up in advance. Results are published afterwards at `/contest/<id>/results`.
 
-### 改了代码但页面没变？
+Contests are run only occasionally.
 
-按可能性排序：
+### Head-to-head matches
 
-1. **忘了跑 `version:assets`**（最常见）
-2. 浏览器缓存了旧版——强制刷新试试
-3. 改错了文件位置（见上面第 2 条）
+A match is two people answering the same problem at the same time, first correct answer winning.
 
-注意：设置页里那个「清除缓存」按钮**只清一部分缓存**，对上面第 1 种情况无效。
+The flow is three steps:
 
-### 新加的页面 404？
+1. **Invite** — send a challenge from `/pk/invite`
+2. **Wait** — both sides confirm at `/pk/waiting`
+3. **Play** — the match runs at `/pk/room`
 
-路由没加，或者加到了兜底规则后面。用脚手架生成就不会有这个问题。
-
-### 想看出错的具体原因？
-
-在网址后面加 `?apiDebug=1`，之后所有接口报错都会弹出详细信息（错误码、请求 ID、真实异常），可以一键复制发给别人看。
-
-平时默认不弹细节，因为会打扰学生。
-
-### 数据会不会对不上？
-
-改完资源后跑一次：
-
-```powershell
-npm run check:versions
-```
-
-它会告诉你哪些页面的版本号和实际文件不匹配。
+**Other people can watch.** This is deliberate, not a privacy gap — an audience is part of the point. Spectators see progress but cannot answer.
 
 ---
 
-## 想更深入？
+## 7. Settings
 
-这个文件只讲「整体怎么运作」。具体到某个页面的实现细节、数据流、以及踩过的坑，放在 `dev/PAGEDETAIL.md`。
+`/settings` holds your personal preferences. Everything here is stored in your own browser, not on the server, so it does not follow you to another device:
 
-管理员相关的页面（后台管理、审核、用户维护等）不在本文范围。
+- **Theme** — light or dark
+- **Animations** — turn off if motion is distracting
+- **Sidebar** — pin it open or collapse it
+- **Code font size** — for problems that show code
+
+Two of the pages in this section are less obvious:
+
+- **Clear cached scripts & styles** — forces the site to re-download its own files. Use it if a page looks broken or out of date.
+- A hidden extra settings page exists. It is reached by a small easter egg on this page.
+
+---
+
+## 8. Common questions
+
+**"I was sent back to the home page."**
+
+You were signed out, or your session expired. Sign in again. If it keeps happening on a page that should be visible while signed out, the page may have lost its public marking — mention it to whoever maintains the site.
+
+**"My answer was rejected but I am sure it is right."**
+
+Check the expected format first — for expression problems, a numeric approximation is not the same as an exact expression. If it genuinely looks wrong, open the submission detail page; it shows what was actually submitted and what the system compared it against.
+
+**"The problem page looks broken — text overlapping, formulas missing."**
+
+Reload with a hard refresh first. If it persists, use **Clear cached scripts & styles** in settings. Formula rendering depends on a stylesheet that occasionally fails to load.
+
+**"My writing submission has been pending for a long time."**
+
+Written answers are queued for assessment. Under heavy load the queue is longer. If it stays pending for hours, report it — that usually means the assessment process has stopped rather than being slow.
+
+**"Can I see the answer after submitting?"**
+
+No. Reference solutions are not shown, even after an accepted submission. This is deliberate: problems are reused between cohorts.
+
+**"Why does my rank differ between two pages?"**
+
+The leaderboard shows both raw solved count and a difficulty-weighted score. Depending on which tab you are looking at, your position will differ.
+
+---
+
+*This guide covers the student-facing side. Technical notes for whoever maintains the platform are in [`dev/PAGEDETAIL.md`](dev/PAGEDETAIL.md).*

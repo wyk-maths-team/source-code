@@ -40,6 +40,11 @@ README/
 _template/README.md
 grader/README.md
 
+# --------------- 仅留存本地、不入库的文档 ---------------
+# dev/API.md 逐条记录了全部接口（含管理员动作），公开会暴露完整攻击面。
+# dev/PAGEDETAIL.md 只讲页面实现，不含接口清单，可以公开。
+dev/API.md
+
 # --------------- Build / Dependencies ---------------
 
 # .vercel
