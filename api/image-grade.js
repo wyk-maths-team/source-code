@@ -36,7 +36,7 @@ async function callDeepSeekVision(prompt, imageUrl) {
       }
     ],
     stream: false,
-    max_tokens: 2048,
+    max_tokens: 204800,
     temperature: 0.1 // 评卷最好温度低点，保证稳定
   };
 
