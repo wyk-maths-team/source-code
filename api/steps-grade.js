@@ -13,7 +13,7 @@ import { wrapHandler } from '../lib/errors.js';
 
 const MAX_STEPS_LEN = 10000;
 const TASK_TTL_MS   = 30 * 60_000;
-
+const MAX_TOKEN_CONSUMPTION=120000;
 function genTaskId() { return 'SGT' + crypto.randomBytes(8).toString('hex'); }
 function genSubid() { return 'SGS' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex'); }
 
@@ -65,7 +65,7 @@ async function tryOneModel({ modelKey, prompt, effort }) {
   if (info.provider === 'claude') {
     reply = await askClaude(prompt, { model: modelKey, timeoutMs: 280_000, maxTokens: 8192 });
   } else if (info.provider === 'deepseek') {
-    reply = await askDeepSeekAPI(prompt, { model: info.id, timeoutMs: 50_000, effort, maxTokens: 81920 });
+    reply = await askDeepSeekAPI(prompt, { model: info.id, timeoutMs: 50_000, effort, maxTokens: MAX_TOKEN_CONSUMPTION });
   } else throw new Error(`Unknown provider`);
 
   const elapsed = Date.now() - t0;
@@ -104,7 +104,7 @@ async function handleCreate(req, res, db, decoded) {
   const problem = await db.collection('problems').findOne({ id: String(problemId) }, { projection: { id: 1, statement: 1, ans: 1, difficulty: 1 } });
   if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
     // ⭐ 前置余额校验
-  const tokenCost = problem.difficulty/3000;
+  const tokenCost = problem.difficulty*3000;
   const { getTokenBalance } = await import('../lib/token.js');
   const currentToken = await getTokenBalance(db, decoded.username);
   const available = (currentToken.daily || 0) + (currentToken.global || 0);
