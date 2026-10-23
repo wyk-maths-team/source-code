@@ -45,7 +45,7 @@ async function callDeepSeekVision(prompt, imageUrl) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(50000) // 50 秒超时
+    signal: AbortSignal.timeout(500000) // 50 秒超时
   });
 
   if (!res.ok) throw new Error(`API HTTP ${res.status}`);
