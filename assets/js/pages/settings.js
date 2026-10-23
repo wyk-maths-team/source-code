@@ -35,7 +35,9 @@
 
     applyTheme() {
       const t = $('themeSelect').value;
-      if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      // 'scifi' is a visual skin, not a colour scheme; store and apply it the
+      // same way as 'dark' so every page picks it up via data-theme.
+      if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
       else document.documentElement.removeAttribute('data-theme');
     },
 
