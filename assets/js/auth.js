@@ -271,7 +271,7 @@ window.addEventListener('storage', (e) => {
     path === '/os' || path === '/os.html' || path === '/root-login' ||
     path.startsWith('/os') ||
     path === '/auth/forgot-password' || path === '/auth/reset-password' ||
-    path === '/ranklist.html' || path === '/forgot-password.html' ||
+    path === '/ranklist.html' || path === '/leaderboard' || path === '/forgot-password.html' ||
     path === '/reset-password.html' || path.startsWith('/auth/');
 
   const token = getToken();

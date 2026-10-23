@@ -3,141 +3,644 @@
     {
       "source": "/favicon.svg",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
     },
     {
       "source": "/favicon.ico",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
     },
     {
       "source": "/icons/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
     },
-    
     {
       "source": "/(.*)\\.(css|js|woff2?|ttf|eot)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
     },
     {
       "source": "/mobile/sw.js",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
       ]
     },
     {
       "source": "/(.*)\\.(png|jpg|jpeg|gif|webp|svg|ico)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/admin",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/admin/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/problems",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/problems/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/submissions",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/submissions/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/users/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/settings",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/settings/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/status",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/status/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/charts",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/charts/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/calendar",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/calendar/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/contest",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/contest/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/pk/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/resources",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/resources/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/port/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/os",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/os/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/extra",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/extra/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/eeeee",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/editpassword",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
+      ]
+    },
+    {
+      "source": "/user",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet"
+        }
       ]
     }
   ],
   "rewrites": [
-    { "source":"/i","destination":"/internal.html"},
-    { "source": "/mobile/:path*", "destination": "/mobile/:path*" },
-    { "source": "/api/auth/microsoft", "destination": "/api/auth?action=microsoft" },
-    { "source": "/api/auth/callback", "destination": "/api/auth?action=callback" },
-    { "source": "/api/auth/complete-setup", "destination": "/api/auth?action=complete-setup" },
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/auth/setup", "destination": "/setup.html" },
-    { "source": "/auth/forgot-password", "destination": "/forgot-password.html" },
-    { "source": "/auth/reset-password",  "destination": "/reset-password.html" },
-    { "source": "/admin", "destination": "/admin.html" },
-    { "source": "/admin/create", "destination": "/admin/createlist.html" },
-    { "source": "/admin/create/problem", "destination": "/admin/newproblem.html" },
-    { "source": "/admin/create/contest", "destination": "/admin/newcontest.html" },
-    { "source": "/admin/create/update", "destination": "/admin/newupdate.html" },
-    { "source": "/admin/create/user", "destination": "/admin/newuser.html" },
-
-    { "source": "/admin/problems", "destination": "/admin/problems.html" },
-    { "source": "/admin/contests", "destination": "/admin/contest.html" },
-    { "source": "/admin/updates", "destination": "/admin/updates.html" },
-    { "source": "/admin/users", "destination": "/admin/users.html" },
-    { "source": "/admin/submissions", "destination": "/admin/submissions.html" },
-    { "source": "/admin/reports", "destination": "/admin/reports.html" },
-    { "source": "/admin/log", "destination": "/admin/log.html" },
-    { "source": "/admin/sql", "destination": "/admin/terminal.html" },
-    { "source": "/admin/cmd", "destination": "/admin/cmd.html" },
-    { "source": "/admin/oplog","destination": "/admin/oplog.html" },
-    { "source": "/admin/health","destination": "/admin/health.html"},
-    { "source": "/admin/send-message","destination": "/admin/send-message.html"},
-    { "source": "/admin/tokens", "destination": "/admin/tokens.html" },
-
-    { "source": "/admin/problems/:id", "destination": "/admin/editproblem.html" },
-    { "source": "/admin/contests/:id", "destination": "/admin/editcontest.html" },
-    { "source": "/admin/updates/:id", "destination": "/admin/editupdate.html" },
-    { "source": "/admin/users/:username", "destination": "/admin/edituser.html" },
-    { "source": "/admin/updates/:id", "destination": "/editupdate.html" },
-
-    { "source": "/admin/marker/:subid", "destination": "/admin/marksubmissions.html" },
-    { "source": "/admin/marker", "destination": "/admin/marker.html" },
-
-    { "source": "/charts", "destination": "/charts.html" },
-
-    { "source": "/contest/:id/results", "destination": "/contestresults.html" },
-    { "source": "/contest/:id", "destination": "/contest/[id].html" },
-    { "source": "/contest", "destination": "/contest.html" },
-
-    { "source": "/credits", "destination": "/credits.html" },
-    { "source": "/chat", "destination": "/chat.html" },
-    { "source":"/changelog","destination":"/changelog.html"},
-    { "source": "/guide", "destination": "/guide.html" },
-    { "source": "/log", "destination": "/log.html" },
-    { "source": "/login", "destination": "/login.html" },
-
-    { "source": "/problems/bookmarked", "destination": "/problems/bookmark.html" },
-    { "source": "/problems/:id", "destination": "/problems/[id].html" },
-    { "source": "/problems", "destination": "/problems.html" },
-
-    { "source": "/resources", "destination": "/resources.html" },
-
-    { "source": "/submissions/user/:username", "destination": "/submissions.html" },
-    { "source": "/submissions/problem/:id", "destination": "/submissions.html" },
-    { "source": "/submissions/:id/detail", "destination": "/submissions/detail.html" },
-    { "source": "/submissions", "destination": "/submissions.html" },
-
-    { "source": "/tcontest/:id", "destination": "/special-contest.html" },
-    { "source": "/teams/:id", "destination": "/team.html" },
-
-    { "source": "/messages", "destination": "/messages.html"},
-    { "source": "/users/edit", "destination": "/editpassword.html" },
-    { "source": "/users/:username", "destination": "/user.html" },
-    { "source": "/leaderboard", "destination": "/ranklist.html" },
-    { "source": "/settings", "destination": "/settings.html" },
-    { "source": "/settings/extra", "destination": "/extra.html" },
-    { "source": "/status", "destination": "/status.html" },
-    { "source": "/port/1308250238502613513507813709509238092874092846", "destination":"/port.html"},
-
-    { "source": "/za984hp9guoq2p948thqp93284ut-q9p83u4gtr9i3wh4p9roqgh3wp9o4irhg9aowuirhqg9pouiw34h-r9pgtq3wp94uorih9owuh40q824uyq-0285gunq02359g85hrb0n9e4ugh03uwgaiog9aerh0g9uawhe09ruih09waeuirqg9uowergoew4rhqg9iu3wgr90quiawe4hgqu9i0erguaew4hgr90awuhr08gqer9geruigh09eiourgh9eaoiur", "destination": "/eeeee.html" },
-    { "source": "/eeeee.html", "destination": "/404.html" },
-    { "source": "/circuit", "destination": "/z.html" },
-    { "source": "/os", "destination": "/mobile/index.html" },
-    { "source": "/ac", "destination": "/zz.html" },
-    { "source": "/fac", "destination": "/zzz.html" },
-    { "source": "/pk/waiting", "destination": "/pk-waiting.html" },
-    { "source": "/pk/room",    "destination": "/pk-room.html" },
-    { "source": "/pk/waiting", "destination": "/pk-waiting.html" },
-    { "source": "/pk/room",    "destination": "/pk-room.html" },
-    { "source": "/pk/invite", "destination": "/pk-invite.html" },
-    { "source": "/admin/pkproblems",        "destination": "/admin/pkproblems.html" },
-    { "source": "/admin/pkproblems/:id", "destination": "/admin/editpkproblem.html" },
-    { "source": "/root-login",  "destination": "/root-login.html"  },
-    { "source": "/root-webauthn-login", "destination": "/root-webauthn-login.html" },
-    { "source": "/root-webauthn-setup", "destination": "/root-webauthn-setup.html" },
-    { "source": "/ex", "destination": "/ex.html" },
-    { "source": "/(.*)", "destination": "/404.html" }
+    {
+      "source": "/i",
+      "destination": "/internal.html"
+    },
+    {
+      "source": "/mobile/:path*",
+      "destination": "/mobile/:path*"
+    },
+    {
+      "source": "/api/auth/microsoft",
+      "destination": "/api/auth?action=microsoft"
+    },
+    {
+      "source": "/api/auth/callback",
+      "destination": "/api/auth?action=callback"
+    },
+    {
+      "source": "/api/auth/complete-setup",
+      "destination": "/api/auth?action=complete-setup"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/auth/setup",
+      "destination": "/setup.html"
+    },
+    {
+      "source": "/auth/forgot-password",
+      "destination": "/forgot-password.html"
+    },
+    {
+      "source": "/auth/reset-password",
+      "destination": "/reset-password.html"
+    },
+    {
+      "source": "/admin",
+      "destination": "/admin.html"
+    },
+    {
+      "source": "/admin/create",
+      "destination": "/admin/createlist.html"
+    },
+    {
+      "source": "/admin/create/problem",
+      "destination": "/admin/newproblem.html"
+    },
+    {
+      "source": "/admin/create/contest",
+      "destination": "/admin/newcontest.html"
+    },
+    {
+      "source": "/admin/create/update",
+      "destination": "/admin/newupdate.html"
+    },
+    {
+      "source": "/admin/create/user",
+      "destination": "/admin/newuser.html"
+    },
+    {
+      "source": "/admin/problems",
+      "destination": "/admin/problems.html"
+    },
+    {
+      "source": "/admin/contests",
+      "destination": "/admin/contest.html"
+    },
+    {
+      "source": "/admin/updates",
+      "destination": "/admin/updates.html"
+    },
+    {
+      "source": "/admin/users",
+      "destination": "/admin/users.html"
+    },
+    {
+      "source": "/admin/submissions",
+      "destination": "/admin/submissions.html"
+    },
+    {
+      "source": "/admin/reports",
+      "destination": "/admin/reports.html"
+    },
+    {
+      "source": "/admin/log",
+      "destination": "/admin/log.html"
+    },
+    {
+      "source": "/admin/sql",
+      "destination": "/admin/terminal.html"
+    },
+    {
+      "source": "/admin/cmd",
+      "destination": "/admin/cmd.html"
+    },
+    {
+      "source": "/admin/oplog",
+      "destination": "/admin/oplog.html"
+    },
+    {
+      "source": "/admin/health",
+      "destination": "/admin/health.html"
+    },
+    {
+      "source": "/admin/send-message",
+      "destination": "/admin/send-message.html"
+    },
+    {
+      "source": "/admin/tokens",
+      "destination": "/admin/tokens.html"
+    },
+    {
+      "source": "/admin/problems/:id",
+      "destination": "/admin/editproblem.html"
+    },
+    {
+      "source": "/admin/contests/:id",
+      "destination": "/admin/editcontest.html"
+    },
+    {
+      "source": "/admin/updates/:id",
+      "destination": "/admin/editupdate.html"
+    },
+    {
+      "source": "/admin/users/:username",
+      "destination": "/admin/edituser.html"
+    },
+    {
+      "source": "/admin/updates/:id",
+      "destination": "/editupdate.html"
+    },
+    {
+      "source": "/admin/marker/:subid",
+      "destination": "/admin/marksubmissions.html"
+    },
+    {
+      "source": "/admin/marker",
+      "destination": "/admin/marker.html"
+    },
+    {
+      "source": "/charts",
+      "destination": "/charts.html"
+    },
+    {
+      "source": "/contest/:id/results",
+      "destination": "/contestresults.html"
+    },
+    {
+      "source": "/contest/:id",
+      "destination": "/contest/[id].html"
+    },
+    {
+      "source": "/contest",
+      "destination": "/contest.html"
+    },
+    {
+      "source": "/credits",
+      "destination": "/credits.html"
+    },
+    {
+      "source": "/chat",
+      "destination": "/chat.html"
+    },
+    {
+      "source": "/changelog",
+      "destination": "/changelog.html"
+    },
+    {
+      "source": "/guide",
+      "destination": "/guide.html"
+    },
+    {
+      "source": "/log",
+      "destination": "/log.html"
+    },
+    {
+      "source": "/login",
+      "destination": "/login.html"
+    },
+    {
+      "source": "/problems/bookmarked",
+      "destination": "/problems/bookmark.html"
+    },
+    {
+      "source": "/problems/:id",
+      "destination": "/problems/[id].html"
+    },
+    {
+      "source": "/problems",
+      "destination": "/problems.html"
+    },
+    {
+      "source": "/resources",
+      "destination": "/resources.html"
+    },
+    {
+      "source": "/submissions/user/:username",
+      "destination": "/submissions.html"
+    },
+    {
+      "source": "/submissions/problem/:id",
+      "destination": "/submissions.html"
+    },
+    {
+      "source": "/submissions/:id/detail",
+      "destination": "/submissions/detail.html"
+    },
+    {
+      "source": "/submissions",
+      "destination": "/submissions.html"
+    },
+    {
+      "source": "/tcontest/:id",
+      "destination": "/special-contest.html"
+    },
+    {
+      "source": "/teams/:id",
+      "destination": "/team.html"
+    },
+    {
+      "source": "/messages",
+      "destination": "/messages.html"
+    },
+    {
+      "source": "/users/edit",
+      "destination": "/editpassword.html"
+    },
+    {
+      "source": "/users/:username",
+      "destination": "/user.html"
+    },
+    {
+      "source": "/leaderboard",
+      "destination": "/ranklist.html"
+    },
+    {
+      "source": "/settings",
+      "destination": "/settings.html"
+    },
+    {
+      "source": "/settings/extra",
+      "destination": "/extra.html"
+    },
+    {
+      "source": "/status",
+      "destination": "/status.html"
+    },
+    {
+      "source": "/port/1308250238502613513507813709509238092874092846",
+      "destination": "/port.html"
+    },
+    {
+      "source": "/za984hp9guoq2p948thqp93284ut-q9p83u4gtr9i3wh4p9roqgh3wp9o4irhg9aowuirhqg9pouiw34h-r9pgtq3wp94uorih9owuh40q824uyq-0285gunq02359g85hrb0n9e4ugh03uwgaiog9aerh0g9uawhe09ruih09waeuirqg9uowergoew4rhqg9iu3wgr90quiawe4hgqu9i0erguaew4hgr90awuhr08gqer9geruigh09eiourgh9eaoiur",
+      "destination": "/eeeee.html"
+    },
+    {
+      "source": "/eeeee.html",
+      "destination": "/404.html"
+    },
+    {
+      "source": "/circuit",
+      "destination": "/z.html"
+    },
+    {
+      "source": "/os",
+      "destination": "/mobile/index.html"
+    },
+    {
+      "source": "/ac",
+      "destination": "/zz.html"
+    },
+    {
+      "source": "/fac",
+      "destination": "/zzz.html"
+    },
+    {
+      "source": "/pk/waiting",
+      "destination": "/pk-waiting.html"
+    },
+    {
+      "source": "/pk/room",
+      "destination": "/pk-room.html"
+    },
+    {
+      "source": "/pk/waiting",
+      "destination": "/pk-waiting.html"
+    },
+    {
+      "source": "/pk/room",
+      "destination": "/pk-room.html"
+    },
+    {
+      "source": "/pk/invite",
+      "destination": "/pk-invite.html"
+    },
+    {
+      "source": "/admin/pkproblems",
+      "destination": "/admin/pkproblems.html"
+    },
+    {
+      "source": "/admin/pkproblems/:id",
+      "destination": "/admin/editpkproblem.html"
+    },
+    {
+      "source": "/root-login",
+      "destination": "/root-login.html"
+    },
+    {
+      "source": "/root-webauthn-login",
+      "destination": "/root-webauthn-login.html"
+    },
+    {
+      "source": "/root-webauthn-setup",
+      "destination": "/root-webauthn-setup.html"
+    },
+    {
+      "source": "/ex",
+      "destination": "/ex.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/404.html"
+    }
   ],
   "crons": [
     {
       "path": "/api/cron?action=dailyBackup",
       "schedule": "0 18 * * *"
     },
-    { "path": "/api/cron?action=dailyOnlineSnapshot", "schedule": "30 18 * * *" }
+    {
+      "path": "/api/cron?action=dailyOnlineSnapshot",
+      "schedule": "30 18 * * *"
+    }
   ]
 }
