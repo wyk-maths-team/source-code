@@ -43,7 +43,7 @@
 :root[data-theme="dark"] #appContainer .problems-table .problem-row.state-failed:hover td:not(.difficulty-cell){background-color:#4a2a2a!important}
 .problem-name{font-weight:600}
 .tags-container{display:flex;gap:.4rem;flex-wrap:nowrap;overflow:hidden;min-height:1.5em;align-items:center;padding:0}
-.tag{background:#f0f0f0;padding:.1rem .5rem;border-radius:12px;font-size:.7rem;white-space:nowrap}
+.tag{background:#f0f0f0;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;white-space:nowrap}
 .sortable{cursor:pointer;user-select:none}
 .sortable:hover{color:var(--accent)}
 .pagination{display:flex;justify-content:center;align-items:center;gap:.5rem;margin:1rem 0;flex-wrap:wrap}
@@ -160,3 +160,11 @@ body.hide-difficulty .col-level,body.hide-difficulty .difficulty-cell{display:no
 :root[data-theme="scifi"] #appContainer .problems-table .problem-row:hover td:not(.difficulty-cell){background-color:#132430!important}
 :root[data-theme="scifi"] #appContainer .problems-table .problem-row.state-passed:hover td:not(.difficulty-cell){background-color:#0f3a34!important}
 :root[data-theme="scifi"] #appContainer .problems-table .problem-row.state-failed:hover td:not(.difficulty-cell){background-color:#3a1826!important}
+
+/* ── tag 与表头的主题适配 ─────────────────────────────────────────
+   .tag 的浅灰 #f0f0f0 与 .problems-table th 的 #e9ecef 都是硬编码。
+   dark 下表头由 styles.css 的 :root[data-theme="dark"] table th 覆盖，
+   但 .tag 一直没有适配；scifi 两者都缺。 */
+:root[data-theme="dark"] .tag{background:#30363d;color:#c9d1d9}
+:root[data-theme="scifi"] .tag{background:#0f2231;color:#9fe8ff;border:1px solid rgba(0,229,255,.22)}
+:root[data-theme="scifi"] .problems-table th{background:#0a1520;color:#9fe8ff;border-bottom:2px solid var(--border-color)}

@@ -591,6 +591,9 @@
     [data-theme="dark"] .user-dropdown .logout-btn { background: #1e1e1e; color: #e0e0e0; }
     [data-theme="dark"] .user-dropdown .dropdown-item:hover,
     [data-theme="dark"] .user-dropdown .logout-btn:hover { background: #2a2a2a; }
+    [data-theme="scifi"] .user-dropdown .dropdown-item:hover,
+    [data-theme="scifi"] .user-dropdown .logout-btn:hover { background: #0f2231; }
+    [data-theme="scifi"] .user-dropdown .logout-btn:hover { background: #2a1118; }
     [data-theme="dark"] .user-dropdown .logout-btn { color: #f85149; }
     [data-theme="dark"] .user-dropdown .logout-btn:hover { background: #3a1a1a; }
         /* ⭐ WYK OS 按鈕 */
