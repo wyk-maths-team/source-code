@@ -28,6 +28,66 @@
             --table-border: #ddd;
         }
 
+        /* ── 主题适配 ──────────────────────────────────────────────
+           本文件在 :root 里自行定义了一套变量，会覆盖 styles.css 的
+           同名全局变量（同样式表后加载、同特异性）。因此暗色与科幻
+           的取值必须在这里补一份，否则页面会一直停留在浅色。 */
+        :root[data-theme="dark"] {
+            --card-bg: #161b22;
+            --border-color: #30363d;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent: #58a6ff;
+            --accent-hover: #1f6feb;
+            --danger: #f85149;
+            --success-bg: #1a3a2a;
+            --success-text: #7ee787;
+            --danger-bg: #3d1d20;
+            --danger-text: #ffa198;
+            --warning-bg: #3d2f12;
+            --warning-text: #e3b341;
+            --secondary-bg: #21262d;
+            --secondary-text: #8b949e;
+            --pending-bg: #21262d;
+            --pending-text: #8b949e;
+            --table-header-bg: #161b22;
+            --table-header-text: #c9d1d9;
+            --table-stripe-bg: #0d1117;
+            --table-hover-bg: #1c2128;
+            --pagination-active-bg: #1f6feb;
+            --pagination-active-text: #fff;
+            --pagination-hover-bg: #21262d;
+            --table-border: #30363d;
+        }
+
+        :root[data-theme="scifi"] {
+            --card-bg: #09101a;
+            --border-color: #14313f;
+            --text-primary: #c6eeff;
+            --text-secondary: #6c8fa3;
+            --accent: #00e5ff;
+            --accent-hover: #6ef7ff;
+            --danger: #ff3d71;
+            --success-bg: #052b2b;
+            --success-text: #5ef2d0;
+            --danger-bg: #2e0d1a;
+            --danger-text: #ff9db8;
+            --warning-bg: #2e2410;
+            --warning-text: #ffd166;
+            --secondary-bg: #101b26;
+            --secondary-text: #7fa3b8;
+            --pending-bg: #101b26;
+            --pending-text: #7fa3b8;
+            --table-header-bg: #0a1520;
+            --table-header-text: #9fe8ff;
+            --table-stripe-bg: #070d15;
+            --table-hover-bg: #0f2231;
+            --pagination-active-bg: #00c8e0;
+            --pagination-active-text: #001014;
+            --pagination-hover-bg: #101b26;
+            --table-border: #14313f;
+        }
+
         .main-content {
             font-size: 1rem;
         }
@@ -59,14 +119,14 @@
             font-size: 0.875rem;
             color: var(--text-primary);
             cursor: pointer;
-            background: #f8f9fa;
+            background: var(--table-header-bg);
             padding: 0.35rem 0.75rem;
             border-radius: 4px;
             border: 1px solid var(--border-color);
             transition: background 0.15s;
         }
         .filter-bar .toggle-label:hover {
-            background: #e9ecef;
+            background: var(--pagination-hover-bg);
         }
         .filter-bar .toggle-label input[type="checkbox"] {
             margin: 0;
@@ -76,7 +136,7 @@
         .filter-info {
             font-size: 0.85rem;
             color: var(--text-secondary);
-            background: #f0f4f8;
+            background: var(--table-stripe-bg);
             padding: 0.3rem 0.7rem;
             border-radius: 4px;
             display: inline-flex;
@@ -185,7 +245,7 @@
             color: var(--table-header-text);
             font-weight: 600;
             padding: 0.6rem 0.5rem;
-            border-bottom: 2px solid #ccc;
+            border-bottom: 2px solid var(--table-border);
             border-right: 1px solid var(--table-border);
             text-align: center;
             vertical-align: middle;
@@ -222,7 +282,7 @@
             background: var(--table-hover-bg);
         }
         .submissions-table tbody tr:nth-child(even):hover td {
-            background: #e8f0f9;
+            background: var(--table-hover-bg);
         }
         .submissions-table a {
             color: var(--accent);

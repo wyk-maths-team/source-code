@@ -521,7 +521,9 @@
       position: absolute;
       top: calc(100% + 6px);
       right: 0;
-      background: #fff;
+      /* 走主题变量：这段样式在运行时注入，优先级高于 styles.css 的同名规则，
+         写死 #fff 会让暗色与科幻主题下的下拉变成刺眼的纯白 */
+      background: var(--card-bg, #fff);
       border-radius: var(--radius-sm, 6px);
       box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,0.15));
       min-width: 160px;
@@ -535,7 +537,7 @@
       gap: 8px;
       width: 100%;
       padding: 11px 18px;
-      background: #fff;
+      background: var(--card-bg, #fff);
       color: var(--text-primary, #212529);
       text-decoration: none;
       font-size: 0.9rem;

@@ -224,7 +224,7 @@ ul {
 .dropdown-item,.logout-btn {
     width: 100%;
     padding: 11px 18px;
-    background: #fff;
+    background: var(--card-bg);
     border: none;
     cursor: pointer;
     font-size: .9rem;
@@ -236,7 +236,7 @@ ul {
 }
 
 .dropdown-item:hover,.logout-btn:hover {
-    background: #f0f2f5
+    background: var(--sidebar-hover-bg)
 }
 
 .logout-btn {

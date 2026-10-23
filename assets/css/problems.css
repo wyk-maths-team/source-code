@@ -152,3 +152,11 @@ body.hide-difficulty .col-level,body.hide-difficulty .difficulty-cell{display:no
 .tag.tag-clickable:hover{background:var(--accent);color:#fff}
 .tag.tag-clickable.active{background:var(--accent);color:#fff;box-shadow:0 0 0 2px #4a90d959}
 .tag.tag-clickable.active::before{content:'✓ ';font-weight:700}
+/* ── 科幻主题：题目行的状态底色与 hover ────────────────────────────
+   dark 已有一套覆盖，scifi 需要自己的取值，否则会落回浅色
+   （#e6ffed / #ffeaea / #f0f0f0）。色相沿用青系以配合整体皮肤。 */
+:root[data-theme="scifi"] #appContainer .problems-table .problem-row.state-passed td:not(.difficulty-cell){background-color:#0b2a24!important}
+:root[data-theme="scifi"] #appContainer .problems-table .problem-row.state-failed td:not(.difficulty-cell){background-color:#2a1118!important}
+:root[data-theme="scifi"] #appContainer .problems-table .problem-row:hover td:not(.difficulty-cell){background-color:#132430!important}
+:root[data-theme="scifi"] #appContainer .problems-table .problem-row.state-passed:hover td:not(.difficulty-cell){background-color:#0f3a34!important}
+:root[data-theme="scifi"] #appContainer .problems-table .problem-row.state-failed:hover td:not(.difficulty-cell){background-color:#3a1826!important}
