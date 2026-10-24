@@ -26,6 +26,7 @@
       $('fontSizeSelect').value = localStorage.getItem('fontSize') || '16';
       $('compactToggle').checked = localStorage.getItem('compactMode') === 'true';
       $('animationToggle').checked = localStorage.getItem('animations') !== 'false';
+      $('ui3dToggle').checked = localStorage.getItem('ui3d') === 'true';
       $('randomAnimToggle').checked = localStorage.getItem('randomAnimation') !== 'false';
       $('hideDifficultyToggle').checked = localStorage.getItem('hideDifficulty') === 'true';
       $('showTagsToggle').checked = localStorage.getItem('showTags') !== 'false';
@@ -53,11 +54,17 @@
       document.body.classList.toggle('no-animations', !on);
     },
 
+    // 3D 按钮是纯视觉偏好，用 body 上的类切换，CSS 里全部规则都挂在 .ui-3d 下
+    applyUi3d(on) {
+      document.body.classList.toggle('ui-3d', on);
+    },
+
     save() {
       const theme = $('themeSelect').value;
       const fontSize = $('fontSizeSelect').value;
       const compact = $('compactToggle').checked;
       const animations = $('animationToggle').checked;
+      const ui3d = $('ui3dToggle').checked;
       const randomAnim = $('randomAnimToggle').checked;
       const hideDifficulty = $('hideDifficultyToggle').checked;
       const showTags = $('showTagsToggle').checked;
@@ -67,6 +74,7 @@
       localStorage.setItem('fontSize', fontSize);
       localStorage.setItem('compactMode', compact);
       localStorage.setItem('animations', animations);
+      localStorage.setItem('ui3d', ui3d);
       localStorage.setItem('randomAnimation', randomAnim);
       localStorage.setItem('hideDifficulty', hideDifficulty);
       localStorage.setItem('showTags', showTags);
@@ -76,6 +84,7 @@
       this.applyFontSize();
       this.applyCompact(compact);
       this.applyAnimations(animations);
+      this.applyUi3d(ui3d);
 
       showMsg('saveMessage', '✅ Saved!', true);
     },
@@ -83,6 +92,11 @@
     bind() {
       $('themeSelect').addEventListener('change', () => this.applyTheme());
       $('fontSizeSelect').addEventListener('change', () => this.applyFontSize());
+      // 3D 开关即时生效（不必等按 Save），同时也写进 localStorage
+      $('ui3dToggle').addEventListener('change', (e) => {
+        this.applyUi3d(e.target.checked);
+        localStorage.setItem('ui3d', e.target.checked);
+      });
       $('saveSettingsBtn').addEventListener('click', () => this.save());
 
 
@@ -283,6 +297,7 @@
     APPEARANCE.applyFontSize();
     APPEARANCE.applyCompact(localStorage.getItem('compactMode') === 'true');
     APPEARANCE.applyAnimations(localStorage.getItem('animations') !== 'false');
+    APPEARANCE.applyUi3d(localStorage.getItem('ui3d') === 'true');
 
     APPEARANCE.bind();
     DISPLAY_NAME.init();

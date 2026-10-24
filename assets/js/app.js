@@ -243,6 +243,12 @@
     } else {
       document.body.classList.remove('no-animations');
     }
+    // 3D 按钮：纯视觉偏好，缺省关闭
+    if (localStorage.getItem('ui3d') === 'true') {
+      document.body.classList.add('ui-3d');
+    } else {
+      document.body.classList.remove('ui-3d');
+    }
 
     console.log(`WYK Maths Team ready. Welcome, ${displayName}!`);
   }

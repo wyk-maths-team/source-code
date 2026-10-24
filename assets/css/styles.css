@@ -1077,3 +1077,85 @@ input, textarea, select, [contenteditable="true"] {
         transition: none !important;
     }
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   3D buttons — optional preference, toggled by localStorage.ui3d
+
+   原本只有 <button> 靠浏览器默认的 border:outset 有一点点凸起，
+   一旦某个类把 border 覆盖掉就变平了（user 页那个紫色 Invite 就是
+   普通 button，所以看起来有立体感，而大多数写了 border:none 的按钮没有）。
+
+   这里统一用 box-shadow 模拟：
+     - inset 顶部高光 + 底部暗影 = 按钮自身有厚度
+     - 外部 0 2px 的实心投影 = 落在平面上的接触阴影
+   只加视觉，不改尺寸、不改布局，也不动 :disabled。
+   ══════════════════════════════════════════════════════════════════ */
+body.ui-3d button,
+body.ui-3d input[type="submit"],
+body.ui-3d input[type="button"],
+body.ui-3d input[type="reset"],
+body.ui-3d [role="button"],
+body.ui-3d .btn,
+body.ui-3d [class*="btn"],
+body.ui-3d [class*="-button"] {
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, .22),
+        inset 0 -1px 0 rgba(0, 0, 0, .12),
+        0 2px 0 rgba(0, 0, 0, .16),
+        0 3px 6px rgba(0, 0, 0, .12);
+    transition: box-shadow .12s ease, transform .12s ease, filter .12s ease;
+}
+
+body.ui-3d button:hover:not(:disabled),
+body.ui-3d input[type="submit"]:hover:not(:disabled),
+body.ui-3d input[type="button"]:hover:not(:disabled),
+body.ui-3d [role="button"]:hover,
+body.ui-3d .btn:hover,
+body.ui-3d [class*="btn"]:hover,
+body.ui-3d [class*="-button"]:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.06);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, .28),
+        inset 0 -1px 0 rgba(0, 0, 0, .12),
+        0 3px 0 rgba(0, 0, 0, .16),
+        0 6px 12px rgba(0, 0, 0, .18);
+}
+
+/* 按下时整体下沉 1px 并取消外部投影，模拟被压进平面 */
+body.ui-3d button:active:not(:disabled),
+body.ui-3d input[type="submit"]:active:not(:disabled),
+body.ui-3d input[type="button"]:active:not(:disabled),
+body.ui-3d [role="button"]:active,
+body.ui-3d .btn:active,
+body.ui-3d [class*="btn"]:active,
+body.ui-3d [class*="-button"]:active {
+    transform: translateY(1px);
+    box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, .22),
+        0 1px 0 rgba(0, 0, 0, .12);
+}
+
+body.ui-3d :disabled,
+body.ui-3d .disabled,
+body.ui-3d [aria-disabled="true"] {
+    transform: none;
+    filter: none;
+    box-shadow: none;
+}
+
+/* 减少动效时不位移，只保留静态的厚度阴影 */
+@media (prefers-reduced-motion: reduce) {
+    body.ui-3d button,
+    body.ui-3d input[type="submit"],
+    body.ui-3d [class*="btn"],
+    body.ui-3d [class*="-button"] {
+        transition: none !important;
+    }
+    body.ui-3d button:hover,
+    body.ui-3d button:active,
+    body.ui-3d [class*="btn"]:hover,
+    body.ui-3d [class*="btn"]:active {
+        transform: none !important;
+    }
+}

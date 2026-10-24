@@ -133,8 +133,11 @@ async function handler(req, res) {
     }
 
     // 自己已有 pending 邀请
+    // ⚠ 必须带 expiresAt 条件：清理只在 action=pending 时执行，
+    // 单看 status 会把早已过期的邀请当成「仍在等待」，导致该用户永远收到 409。
     const myPending = await db.collection('pk_invitations').findOne({
       status: 'pending',
+      expiresAt: { $gt: new Date() },
       $or: [{ from: username }, { to: username }],
     });
     if (myPending) {
@@ -148,6 +151,7 @@ async function handler(req, res) {
     // 对方已有 pending 邀请
     const theirPending = await db.collection('pk_invitations').findOne({
       status: 'pending',
+      expiresAt: { $gt: new Date() },
       $or: [{ from: to }, { to }],
     });
     if (theirPending) {
