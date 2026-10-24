@@ -86,7 +86,7 @@ Page.ready(async (user) => {
       }).join('');
       return `
         <div class="pkb-side">
-          <div class="who">${esc(p.displayName)}${isMe ? '<span class="me">YOU</span>' : ''}</div>
+          <div class="who"><a class="pkb-link" href="/users/${encodeURIComponent(p.username)}">${esc(p.displayName)}</a>${isMe ? '<span class="me">YOU</span>' : ''}</div>
           <div class="meta">rating ${p.rating} · ${submitted}/3 attempted</div>
           <div class="pips">${pips}</div>
         </div>`;

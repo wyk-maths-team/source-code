@@ -110,7 +110,9 @@ Page.ready(async (user) => {
       return `
         <div class="pkc-item ${status}">
           <div class="pkc-main">
-            <div class="pkc-opp">${esc(i.toDisplay || i.to)}</div>
+            <div class="pkc-opp">
+              <a class="pkc-link" href="/users/${encodeURIComponent(i.to)}">${esc(i.toDisplay || i.to)}</a>
+            </div>
             <div class="pkc-sub">
               sent ${relTime(i.createdAt)}
               ${status === 'pending' ? ' · ' + leftTime(i.expiresAt) : ''}
