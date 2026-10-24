@@ -199,9 +199,16 @@ async function handler(req, res) {
     }
 
     const me = await db.collection('users').findOne({ username }, { projection: { token: 1, displayName: 1 } });
+    const have = totalTokens(me?.token);
     const after = deductTokens(me?.token, amount);
     if (!after) {
-      return res.status(400).json({ success: false, message: 'Not enough tokens' });
+      return res.status(400).json({
+        success: false,
+        message: `Not enough tokens: you need ${amount.toLocaleString()} but have ${have.toLocaleString()}`,
+        code: 'INSUFFICIENT_TOKENS',
+        need: amount,
+        have,
+      });
     }
     await db.collection('users').updateOne({ username }, { $set: { token: after } });
 
@@ -240,10 +247,24 @@ async function handler(req, res) {
     const me = await db.collection('users').findOne({ username }, { projection: { token: 1, displayName: 1 } });
     const myTokens = totalTokens(me?.token);
     if (myTokens < invite.stake) {
-      return res.status(400).json({ success: false, message: 'Not enough tokens to match this stake' });
+      return res.status(400).json({
+        success: false,
+        message: `Not enough tokens to match this stake: need ${invite.stake.toLocaleString()}, you have ${myTokens.toLocaleString()}`,
+        code: 'INSUFFICIENT_TOKENS',
+        need: invite.stake,
+        have: myTokens,
+      });
     }
     const after = deductTokens(me?.token, invite.stake);
-    if (!after) return res.status(400).json({ success: false, message: 'Not enough tokens' });
+    if (!after) {
+      return res.status(400).json({
+        success: false,
+        message: `Not enough tokens to match this stake: need ${invite.stake.toLocaleString()}, you have ${myTokens.toLocaleString()}`,
+        code: 'INSUFFICIENT_TOKENS',
+        need: invite.stake,
+        have: myTokens,
+      });
+    }
 
     // 双方 rating → 平均难度
     const [rA, rB] = await Promise.all([
@@ -442,6 +463,48 @@ async function handler(req, res) {
     if (invite.status !== 'pending') return res.status(409).json({ success: false, message: `Already ${invite.status}` });
     await refundInvite(db, invite, 'declined');
     return res.status(200).json({ success: true });
+  }
+
+  // ── 我发出的全部挑战（含历史） ──
+  if (action === 'outgoing') {
+    const now = new Date();
+    // 先把过期但仍 pending 的落定
+    await db.collection('pk_bet_invitations').updateMany(
+      { status: 'pending', expiresAt: { $lt: now } },
+      { $set: { status: 'expired' } }
+    );
+
+    const invites = await db.collection('pk_bet_invitations')
+      .find({ from: username }, { sort: { createdAt: -1 }, limit: 100, projection: { _id: 0 } })
+      .toArray();
+
+    // 每个邀请带上房间/结果 id，方便前端直接跳
+    const roomIds = invites.filter(i => i.roomId).map(i => i.roomId);
+    let roomMap = {};
+    if (roomIds.length) {
+      const rooms = await db.collection('pk_bet_rooms')
+        .find({ id: { $in: roomIds } }, { projection: { id: 1, resultId: 1, status: 1, _id: 0 } })
+        .toArray();
+      roomMap = Object.fromEntries(rooms.map(r => [r.id, r]));
+    }
+
+    const items = invites.map(i => {
+      const room = i.roomId ? roomMap[i.roomId] : null;
+      return {
+        id: i.id,
+        to: i.to,
+        toDisplay: i.toDisplay,
+        stake: i.stake,
+        status: i.status,
+        createdAt: i.createdAt,
+        expiresAt: i.expiresAt,
+        roomId: i.roomId || null,
+        resultId: room ? room.resultId || null : null,
+        canCancel: i.status === 'pending' && new Date(i.expiresAt) > now,
+      };
+    });
+
+    return res.status(200).json({ success: true, invites: items, serverNow: now.toISOString() });
   }
 
   // ── 待处理的邀请（给全局通知用） ──

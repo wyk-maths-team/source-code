@@ -295,6 +295,9 @@
                 <div class="profile-meta">
                   <span class="meta-badge">Username: ${escapeHtml(username)}</span>
                   <a href="/submissions/user/${encodeURIComponent(username)}" class="btn-link">Submissions</a>
+                  ${(getCurrentUser() || {}).username === data.username
+                    ? '<a href="/pk-bet-challenges" class="btn-link" title="Challenges you have sent">My Challenges</a>'
+                    : ''}
                   <button class="btn-link purple" id="pkInviteBtn">
                     <i class="fas fa-swords"></i>Invite
                   </button>
