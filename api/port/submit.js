@@ -21,11 +21,22 @@ async function handler(req, res) {
   if (!problemId || !subject) return res.status(400).json({ success: false, message: 'Missing problemId or subject' });
 
   const stepsStr = String(steps).slice(0, MAX_STEPS);
+  // MAX_IMAGES 原先声明了却没检查，可以无限传图撑爆文档
+  if (Array.isArray(images) && images.length > MAX_IMAGES) {
+    return res.status(400).json({ success: false, message: `Too many images (max ${MAX_IMAGES})` });
+  }
   if (!stepsStr.trim() && images.length === 0) return res.status(400).json({ success: false, message: 'Provide steps or images' });
 
   const db = await connectToDatabase();
   const problem = await db.collection('port_problems').findOne({ id: String(problemId) }, { projection: { _id: 0 } });
   if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
+
+  // 题目属于哪个 subject，就以题库为准。否则前端传错/伪造 subject 会把成绩
+  // 记到另一门科目下，统计与 passed 状态都会串。
+  const realSubject = String(problem.subject || subject);
+  if (problem.subject && String(problem.subject) !== String(subject)) {
+    return res.status(400).json({ success: false, message: 'Subject does not match problem' });
+  }
 
   // ⭐ 修复：兼容 ans 字段
   const refAnswer = problem.ans || problem.answer || '';
@@ -50,8 +61,8 @@ async function handler(req, res) {
     gradedAt: null,
   });
 
-  // 清除当前题目的草稿
-  await db.collection('port_drafts').deleteOne({ username: decoded.username, problemId: String(problemId) });
+  // 草稿等到阅卷成功后再删。原先在提交前就删，一旦 DeepSeek 报错，
+  // 学生刚写的内容就从云端消失（只剩 localStorage 里的一份，换设备即丢）。
 
   // 2. 构建 Prompt 并调用 DeepSeek API
   const prompt = buildPortGradePrompt({
@@ -86,7 +97,10 @@ async function handler(req, res) {
     const content = aiData.choices[0].message.content;
     const result = JSON.parse(content);
 
-    const finalScore = Math.max(0, Math.min(problem.maxScore || 100, result.score || 0));
+    // AI 偶尔把分数写成 "85/100"、"85分" 这类字符串，直接参与 Math.min 会得到 NaN，
+    // 再写进数据库就成了 null/NaN，前端 display 全乱。先做数值化兜底。
+    const rawScore = Number(result.score);
+    const finalScore = Math.max(0, Math.min(problem.maxScore || 100, Number.isFinite(rawScore) ? rawScore : 0));
     
     // 3. 更新 Submission 结果
     await db.collection('port_submissions').updateOne(
@@ -122,6 +136,9 @@ async function handler(req, res) {
         { $set: { [`states.${problemId}`]: 'failed' } }
       );
     }
+
+    // 阅卷成功：此时删草稿是安全的
+    await db.collection('port_drafts').deleteOne({ username: decoded.username, problemId: String(problemId) });
 
     return res.status(200).json({ success: true, submissionId, result: { score: finalScore, ...result } });
 

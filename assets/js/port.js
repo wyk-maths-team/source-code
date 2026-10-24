@@ -35,6 +35,8 @@ Page.ready(async (user) => {
       if (!currentProblem) return;
       if (confirm('Clear current draft?')) {
         elSteps.value = '';
+        // 本地与云端都要清，否则下次选题时本地草稿会把旧内容带回来
+        localStorage.removeItem(`port_draft_${currentProblem.id}`);
         saveDraft(currentProblem.id, '');
       }
     });
@@ -49,8 +51,12 @@ Page.ready(async (user) => {
     elDraftStatus.textContent = 'Saving...';
     localStorage.setItem(`port_draft_${currentProblem.id}`, elSteps.value);
     
+    // 捕获当前题目 id：若 1 秒内切换题目，回调里的 currentProblem 已指向新题，
+    // 直接读它会把旧内容写进新题的草稿（串号）。
+    const pid = currentProblem.id;
+    const val = elSteps.value;
     clearTimeout(draftTimer);
-    draftTimer = setTimeout(() => saveDraft(currentProblem.id, elSteps.value), 1000);
+    draftTimer = setTimeout(() => saveDraft(pid, val), 1000);
   });
 
   elSubmitBtn.addEventListener('click', handleSubmit);
@@ -94,11 +100,13 @@ async function loadProblems() {
 
 // ⭐ 优化的题库列表渲染
 function renderList() {
-  const keyword = document.getElementById('searchInput').value.toLowerCase();
-  const filtered = allProblems.filter(p => 
-    p.id.toLowerCase().includes(keyword) || 
-    (p.chapterName && p.chapterName.toLowerCase().includes(keyword))
-  );
+  const keyword = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+  // 原来只匹配 id / chapterName，搜「三角」「Geometry」这类内容完全搜不到
+  const filtered = !keyword ? allProblems : allProblems.filter(p => {
+    const hay = [p.id, p.chapterName, p.chapter, p.source, p.statement, p.answer, p.ans]
+      .filter(Boolean).join(' ').toLowerCase();
+    return hay.includes(keyword);
+  });
 
   const listEl = document.getElementById('problemList');
   if (!filtered.length) {
@@ -112,14 +120,16 @@ function renderList() {
     if (p.status === 'passed') statusIcon = '<i class="fas fa-check-circle" style="color: #2ecc71;"></i>';
     if (p.status === 'failed') statusIcon = '<i class="fas fa-times-circle" style="color: #e74c3c;"></i>';
 
+    // id / source 来自数据库，直接拼进 innerHTML 会被内容里的标签或引号破坏；
+    // 内联 onclick 也有同样问题（id 含单引号会截断字符串）。改为 data 属性 + 事件委托。
     return `
-      <div class="sb-item ${currentProblem?.id === p.id ? 'active' : ''}" onclick="selectProblem('${p.id}')">
+      <div class="sb-item ${currentProblem?.id === p.id ? 'active' : ''}" data-pid="${DSHUI.esc(p.id)}">
         <div style="flex: 1; min-width: 0;">
           <div style="font-weight: 600; color: ${currentProblem?.id === p.id ? '#4a90d9' : '#ddd'}; font-size: 14px;">
-            ${p.id}
+            ${DSHUI.esc(p.id)}
           </div>
           <div style="font-size: 11px; color: #888; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            ${p.chapterName ? p.chapterName : (p.chapter ? 'Ch.' + p.chapter : '')} ${p.source ? `· ${p.source}` : ''}
+            ${DSHUI.esc(p.chapterName ? p.chapterName : (p.chapter ? 'Ch.' + p.chapter : ''))} ${p.source ? `· ${DSHUI.esc(p.source)}` : ''}
           </div>
         </div>
         <div style="flex-shrink: 0; margin-left: 10px; display: flex; align-items: center; justify-content: center; width: 20px;">
@@ -128,6 +138,10 @@ function renderList() {
       </div>
     `;
   }).join('');
+
+  listEl.querySelectorAll('.sb-item').forEach(el => {
+    el.addEventListener('click', () => window.selectProblem(el.dataset.pid));
+  });
 }
 
 window.selectProblem = async function(id) {
@@ -138,7 +152,9 @@ window.selectProblem = async function(id) {
 
   document.getElementById('problemEmpty').hidden = true;
   document.getElementById('problemPanel').hidden = false;
-  document.getElementById('submitBtn').disabled = false;
+  // 先禁用，等下面把草稿读出来后再按内容决定是否可提交。
+  // 原来直接设 false，会出现「空白草稿也能点提交」，点了才弹提示。
+  document.getElementById('submitBtn').disabled = true;
   
   document.getElementById('ppId').textContent = p.id;
   document.getElementById('ppChapter').textContent = p.chapterName ? p.chapterName : (p.chapter ? `Ch.${p.chapter}` : '');
@@ -163,11 +179,19 @@ window.selectProblem = async function(id) {
   }
 
   try {
-    const res = await API.get(`/api/port/draft?problemId=${id}`);
-    if (res.steps) {
+    const res = await API.get(`/api/port/draft?problemId=${encodeURIComponent(id)}`);
+    // 用 !== undefined 判断：清空草稿后背端返回 steps:''，
+    // 旧的 if (res.steps) 会把空串当「没有草稿」，于是又回填 localStorage 里的旧内容，
+    // 导致「Clear draft」实际无效。
+    if (res.steps !== undefined && res.steps !== null) {
       elSteps.value = res.steps;
-      localStorage.setItem(`port_draft_${id}`, res.steps);
-      document.getElementById('draftIndicator').textContent = 'Cloud draft loaded';
+      if (res.steps) {
+        localStorage.setItem(`port_draft_${id}`, res.steps);
+        document.getElementById('draftIndicator').textContent = 'Cloud draft loaded';
+      } else {
+        localStorage.removeItem(`port_draft_${id}`);
+        document.getElementById('draftIndicator').textContent = 'Ready';
+      }
     } else if (!localDraft) {
       elSteps.value = '';
       document.getElementById('draftIndicator').textContent = 'Ready';
@@ -176,6 +200,8 @@ window.selectProblem = async function(id) {
     document.getElementById('draftIndicator').textContent = 'Ready (offline)';
   }
   document.getElementById('stepsCount').textContent = elSteps.value.length;
+  // 草稿加载完毕，按实际内容决定提交按钮状态
+  document.getElementById('submitBtn').disabled = !elSteps.value.trim();
 };
 
 async function handleSubmit() {
@@ -212,13 +238,14 @@ function showResult(result) {
   elResultPanel.hidden = false;
   document.getElementById('resultScore').textContent = `Score: ${result.score} / ${currentProblem.maxScore || 100}`;
   
-  const commentHtml = window.marked ? marked.parse(result.comment || '') : (result.comment || '');
+  const commentHtml = window.marked ? marked.parse(result.comment || '') : DSHUI.esc(result.comment || '');
   document.getElementById('resultComment').innerHTML = commentHtml;
   
   const warnEl = document.getElementById('resultWarning');
   if (result.warnings && result.warnings.length > 0) {
     warnEl.style.display = 'block';
-    warnEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <b>Warning:</b> ${result.warnings.join('<br>')}`;
+    // warnings 由 AI 生成，属于不可信内容，必须转义后再插入
+    warnEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <b>Warning:</b> ${result.warnings.map(w => DSHUI.esc(String(w))).join('<br>')}`;
   } else {
     warnEl.style.display = 'none';
   }
@@ -243,13 +270,13 @@ async function loadSubmissions(page = 1) {
     listEl.innerHTML = res.items.map(s => `
       <div style="background:#141414; border:1px solid #333; padding:16px; margin-bottom:12px; border-radius:6px;">
         <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-          <strong style="color:#4a90d9;">${s.problemId} (${s.subject})</strong>
+          <strong style="color:#4a90d9;">${DSHUI.esc(s.problemId)} (${DSHUI.esc(s.subject)})</strong>
           <span style="color:${s.score >= 90 ? '#2ecc71' : '#e74c3c'}; font-weight:bold;">
-            ${s.score !== null ? `${s.score}/${s.maxScore}` : s.status.toUpperCase()}
+            ${s.score !== null && s.score !== undefined ? `${DSHUI.esc(String(s.score))}/${DSHUI.esc(String(s.maxScore))}` : DSHUI.esc(String(s.status || '').toUpperCase())}
           </span>
         </div>
-        <div style="font-size:13px; color:#aaa; margin-bottom:8px;">${new Date(s.createdAt).toLocaleString()}</div>
-        <div style="font-size:14px; color:#ccc; white-space:pre-wrap;">${s.steps ? s.steps.slice(0, 100) + '...' : 'Image submission'}</div>
+        <div style="font-size:13px; color:#aaa; margin-bottom:8px;">${DSHUI.esc(new Date(s.createdAt).toLocaleString())}</div>
+        <div style="font-size:14px; color:#ccc; white-space:pre-wrap;">${s.steps ? DSHUI.esc(String(s.steps).slice(0, 100)) + '...' : 'Image submission'}</div>
       </div>
     `).join('');
   } catch (e) {
