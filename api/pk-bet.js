@@ -101,29 +101,46 @@ async function computeRating(db, username) {
 
 // 按目标难度在附近抽 3 道 public 题，尽量不重复
 // CHAIN_WARNING 的题在判题链路上有问题（见主站），一律不抽
-async function pickProblems(db, targetDiff) {
+// players：参赛双方的 username，用于排除「双方任一人已经 AC 过」的题。
+// 否则先做过这题的一方没法再交（主站会判定 alreadyAC），等于白送 0 分。
+async function pickProblems(db, targetDiff, players) {
   const band = 1.2;
   const lo = Math.max(1, targetDiff - band);
   const hi = Math.min(10, targetDiff + band);
   const baseFilter = { public: true, tags: { $ne: 'CHAIN_WARNING' } };
 
-  let pool = await db.collection('problems').find(
-    { ...baseFilter, difficulty: { $gte: lo, $lte: hi } },
-    { projection: { id: 1, difficulty: 1, _id: 0 } }
-  ).toArray();
+  // 先把双方已 AC 的题号取出来（states.pid === 'passed'）
+  let solved = new Set();
+  if (Array.isArray(players) && players.length) {
+    const stats = await db.collection('userstats').find(
+      { username: { $in: players } },
+      { projection: { states: 1, _id: 0 } }
+    ).toArray();
+    for (const s of stats) {
+      for (const [pid, st] of Object.entries(s.states || {})) {
+        if (st === 'passed') solved.add(pid);
+      }
+    }
+  }
+
+  async function fetchPool(filter, limit) {
+    let cur = db.collection('problems').find(filter, { projection: { id: 1, difficulty: 1, _id: 0 } });
+    if (limit) cur = cur.limit(limit);
+    const rows = await cur.toArray();
+    return solved.size ? rows.filter(p => !solved.has(p.id)) : rows;
+  }
+
+  let pool = await fetchPool({ ...baseFilter, difficulty: { $gte: lo, $lte: hi } });
 
   // 附近题目不够就逐步放宽
   if (pool.length < PROBLEM_COUNT) {
-    pool = await db.collection('problems').find(
-      { ...baseFilter, difficulty: { $gte: Math.max(1, lo - 1.5), $lte: Math.min(10, hi + 1.5) } },
-      { projection: { id: 1, difficulty: 1, _id: 0 } }
-    ).toArray();
+    pool = await fetchPool({
+      ...baseFilter,
+      difficulty: { $gte: Math.max(1, lo - 1.5), $lte: Math.min(10, hi + 1.5) },
+    });
   }
   if (pool.length < PROBLEM_COUNT) {
-    pool = await db.collection('problems').find(
-      baseFilter,
-      { projection: { id: 1, difficulty: 1, _id: 0 } }
-    ).limit(500).toArray();
+    pool = await fetchPool(baseFilter, 500);
   }
   if (pool.length === 0) return null;
 
@@ -274,7 +291,8 @@ async function handler(req, res) {
       computeRating(db, username),
     ]);
     const targetDiff = ratingToDifficulty((rA + rB) / 2);
-    const picked = await pickProblems(db, targetDiff);
+    // 排除双方任一人已经 AC 过的题：先做过的人没法再交，否则等于白送 0 分
+    const picked = await pickProblems(db, targetDiff, [invite.from, username]);
     if (!picked) {
       return res.status(500).json({ success: false, message: 'No public problems available' });
     }
@@ -373,6 +391,55 @@ async function handler(req, res) {
   }
 
   // ── 主动结算（通常由 room 自动触发） ──
+  // ── 宣布结束（双方都按了就提前结算） ──
+  // 再按一次等于撤销自己的 ready。endRequestedBy 用 $addToSet / $pull 维护。
+  if (action === 'ready-end') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    const { roomId, cancel } = req.body || {};
+    if (!roomId) return res.status(400).json({ success: false, message: 'Missing roomId', code: 'MISSING_PARAM' });
+
+    const room = await db.collection('pk_bet_rooms').findOne({ id: roomId });
+    if (!room) return res.status(404).json({ success: false, message: 'Room not found', code: 'ROOM_NOT_FOUND' });
+    if (!room.players.some(p => p.username === username)) {
+      return res.status(403).json({ success: false, message: 'Not a player', code: 'NOT_PLAYER' });
+    }
+
+    // 已经结束：直接给结果，前端据此跳转
+    if (room.status !== 'active') {
+      const existing = await db.collection('pk_bet_results').findOne({ roomId }, { projection: { _id: 0 } });
+      return res.status(200).json({ success: true, settled: true, result: existing });
+    }
+
+    // 时间本来就到了：不用等双方，直接结算
+    if (new Date() > new Date(room.endAt)) {
+      const settled = await settleRoom(db, room);
+      return res.status(200).json({ success: true, settled: true, result: settled.result });
+    }
+
+    if (cancel) {
+      await db.collection('pk_bet_rooms').updateOne({ id: roomId }, { $pull: { endRequestedBy: username } });
+    } else {
+      await db.collection('pk_bet_rooms').updateOne({ id: roomId }, { $addToSet: { endRequestedBy: username } });
+    }
+
+    const fresh = await db.collection('pk_bet_rooms').findOne({ id: roomId });
+    const ready = fresh.endRequestedBy || [];
+    const bothReady = fresh.players.every(p => ready.includes(p.username));
+
+    if (bothReady) {
+      // 提前把 endAt 收到现在，settleRoom 的 collectAttempts 就只会统计到此刻
+      const now = new Date();
+      await db.collection('pk_bet_rooms').updateOne(
+        { id: roomId },
+        { $set: { endAt: now, endedEarly: true } }
+      );
+      const settled = await settleRoom(db, { ...fresh, endAt: now, endedEarly: true });
+      return res.status(200).json({ success: true, settled: true, result: settled.result });
+    }
+
+    return res.status(200).json({ success: true, settled: false, endRequestedBy: ready });
+  }
+
   if (action === 'settle') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
     const { roomId } = req.body || {};
@@ -521,6 +588,8 @@ function publicRoom(room) {
     startAt: room.startAt,
     endAt: room.endAt,
     status: room.status,
+    endRequestedBy: room.endRequestedBy || [],
+    endedEarly: !!room.endedEarly,
   };
 }
 

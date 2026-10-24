@@ -1,187 +1,192 @@
-// assets/js/pages/pk-bet-room.js —— 下注 PK 比赛房间
+// assets/js/pages/pk-bet-room.js —— 下注 PK 比赛房间（色块版）
+//
+// 页面上不出现任何题目内容，只有三个色块。颜色即状态：
+//   灰 todo / 绿 AC / 红 WA / 黄 PS(部分分)
+// 块里显示该题当前占的时间分。点块跳到真实题目页去作答。
 Page.boot({ title: 'PK Room', requireAuth: true });
 
 Page.ready(async (user) => {
   const params = new URLSearchParams(location.search);
   const roomId = params.get('id') || params.get('roomId');
-
-  const elTimer = document.getElementById('pkbTimer');
-  const elPool = document.getElementById('pkbPool');
-  const elPlayers = document.getElementById('pkbPlayers');
-  const elTabs = document.getElementById('pkbTabs');
-  const elPanel = document.getElementById('pkbPanel');
+  const board = document.getElementById('pkbBoard');
 
   let room = null;
-  let problems = [];
   let attempts = [];
   let me = '';
-  let activeIdx = 0;
-  // 从题目页返回时回到原来的 tab
-  try {
-    const saved = sessionStorage.getItem('pkb_last_tab');
-    if (saved !== null) activeIdx = Math.max(0, Math.min(2, Number(saved) || 0));
-  } catch (e) {}
+  let offsetMs = 0;
   let tickTimer = null;
   let pollTimer = null;
-  let offsetMs = 0;          // 服务端时间 - 本地时间
-  let finished = false;
+  let busy = false;
 
   function esc(s) {
-    return (window.DSHUI && DSHUI.esc) ? DSHUI.esc(s) : String(s == null ? '' : s);
+    return (window.DSHUI && DSHUI.esc) ? DSHUI.esc(s) : String(s == null ? '' : s).replace(/[&<>"']/g, m =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
   }
 
   if (!roomId) {
-    elPanel.innerHTML = '<div style="color:#e74c3c;">Missing room id.</div>';
+    board.innerHTML = '<div class="pkb-err">Missing room id.</div>';
     return;
   }
 
-  function myAttempt(problemId) {
-    return attempts.find(a => a.username === me && a.problemId === problemId) || null;
+  function attemptOf(user, pid) {
+    return attempts.find(a => a.username === user && a.problemId === pid) || null;
   }
 
-  function opponent() {
-    if (!room) return null;
-    return room.players.find(p => p.username !== me) || null;
+  function stateOf(a) {
+    if (!a) return 'todo';
+    if (Number(a.score) >= 100) return 'ac';
+    if (Number(a.score) <= 0) return 'wa';
+    return 'ps';
   }
 
-  function renderHead() {
+  function render() {
     if (!room) return;
-    elPool.innerHTML = `Pool <b>${room.pool.toLocaleString()}</b> · fee ${room.fee.toLocaleString()} · prize <b>${room.prize.toLocaleString()}</b>`;
-    elPlayers.innerHTML = room.players.map(p => {
-      const isMe = p.username === me;
-      const n = attempts.filter(a => a.username === p.username).length;
+    const now = Date.now() + offsetMs;
+    const end = new Date(room.endAt).getTime();
+    const left = Math.max(0, Math.floor((end - now) / 1000));
+    const mm = String(Math.floor(left / 60)).padStart(2, '0');
+    const ss = String(left % 60).padStart(2, '0');
+    const cls = left <= 60 ? ' danger' : left <= 300 ? ' warn' : '';
+
+    const ready = room.endRequestedBy || [];
+    const iAmReady = ready.includes(me);
+    const opp = room.players.find(p => p.username !== me);
+    const oppReady = opp && ready.includes(opp.username);
+
+    const blocks = room.problemIds.map((pid, i) => {
+      const a = attemptOf(me, pid);
+      const st = stateOf(a);
+      const value = a ? Number(a.weighted).toLocaleString() : '—';
+      const unit = a ? 'time score' : 'not attempted';
+      const at = a ? `at ${a.timeSec}s` : '';
       return `
-        <div class="pkb-pcard ${isMe ? 'me' : ''}">
-          <div class="nm">${esc(p.displayName)}${isMe ? ' (you)' : ''}</div>
-          <div class="sub">rating ${p.rating} · stake ${p.stake.toLocaleString()}</div>
-          <div class="sub">submitted ${n}/3</div>
+        <a class="pkb-block ${st}" href="/problems/${encodeURIComponent(pid)}" target="_blank" rel="noopener"
+           title="Open ${esc(pid)}">
+          <div class="qname">Q${i + 1}</div>
+          <div class="value">${value}</div>
+          <div class="unit">${unit}</div>
+          ${at ? `<div class="at">${at}</div>` : ''}
+        </a>`;
+    }).join('');
+
+    const sides = room.players.map(p => {
+      const isMe = p.username === me;
+      const submitted = attempts.filter(a => a.username === p.username).length;
+      const pips = room.problemIds.map(pid => {
+        const st = stateOf(attemptOf(p.username, pid));
+        return `<div class="pip ${st === 'todo' ? '' : st}"></div>`;
+      }).join('');
+      return `
+        <div class="pkb-side">
+          <div class="who">${esc(p.displayName)}${isMe ? '<span class="me">YOU</span>' : ''}</div>
+          <div class="meta">rating ${p.rating} · ${submitted}/3 attempted</div>
+          <div class="pips">${pips}</div>
         </div>`;
     }).join('');
-  }
 
-  function renderTabs() {
-    elTabs.innerHTML = problems.map((p, i) => {
-      const a = myAttempt(p.id);
-      const mark = a ? (a.score > 0 ? '✓' : '✗') : '';
-      return `<div class="pkb-tab ${i === activeIdx ? 'active' : ''}" data-idx="${i}">
-        Q${i + 1} <span class="dot">${mark}</span>
-      </div>`;
-    }).join('');
+    const myStake = room.players.find(p => p.username === me)?.stake ?? 0;
 
-    elTabs.querySelectorAll('.pkb-tab').forEach(el => {
-      el.onclick = () => {
-        activeIdx = Number(el.dataset.idx);
-        renderTabs();
-        renderPanel();
-      };
-    });
-  }
-
-  function renderPanel() {
-    const p = problems[activeIdx];
-    if (!p) { elPanel.innerHTML = ''; return; }
-    const a = myAttempt(p.id);
-
-    elPanel.innerHTML = `
-      <div class="pkb-meta">Difficulty ${p.difficulty != null ? p.difficulty : '—'} · problem ${esc(p.id)}</div>
-      <div class="pkb-stmt" id="pkbStmt">${p.statement || ''}</div>
-      <div class="pkb-answer-row">
-        <a class="btn btn-primary" id="pkbOpen"
-           href="/problems/${encodeURIComponent(p.id)}" target="_blank" rel="noopener">
-          Open problem page ↗
-        </a>
+    board.innerHTML = `
+      <div class="pkb-head">
+        <div class="pkb-timer${cls}">${mm}:${ss}</div>
+        <div class="pkb-moneys">
+          stake ${Number(myStake).toLocaleString()} each<br>
+          prize pool <b>${Number(room.prize).toLocaleString()}</b>
+          <span style="opacity:.7">(fee ${Number(room.fee).toLocaleString()})</span>
+        </div>
       </div>
-      <div class="pkb-status ${a ? (a.score > 0 ? 'ok' : 'err') : ''}" id="pkbStatus">
-        ${a
-          ? (a.score > 0
-              ? `Accepted at ${a.timeSec}s — weighted ${a.weighted.toLocaleString()}`
-              : `Last attempt at ${a.timeSec}s scored ${a.score} — retry if you like`)
-          : 'Not submitted yet'}
+
+      <div class="pkb-blocks">${blocks}</div>
+
+      <div class="pkb-vs">${sides}</div>
+
+      <div class="pkb-footer">
+        <button class="pkb-endbtn${iAmReady ? ' armed' : ''}" id="pkbEndBtn">
+          ${iAmReady ? 'Ready — waiting for opponent' : 'Announce finish'}
+        </button>
+        <span class="pkb-endnote ${oppReady ? 'opp' : ''}" id="pkbEndNote">
+          ${oppReady ? 'Opponent is ready to finish.' : ''}
+        </span>
       </div>
-      <div class="pkb-note">
-        Answer on the real problem page. Every submission you make there during this 30-minute
-        window counts; only your <b>last</b> submission per problem is used, so a later wrong answer
-        replaces an earlier correct one.<br><br>
-        Score per problem = (1800 − T) × score, where T is the second (1–1800) of that last submission.
+
+      <div class="pkb-hint">
+        Click a block to open that problem in a new tab. Only your <b>last</b> submission per problem
+        inside the window counts. Both players pressing <b>Announce finish</b> ends the match early.
       </div>
     `;
 
-    if (window.renderMathInElement) {
-      try {
-        renderMathInElement(elPanel, { delimiters: [{ left: '$$', right: '$$', display: true }, { left: '$', right: '$', display: false }] });
-      } catch (e) {}
-    }
+    const btn = document.getElementById('pkbEndBtn');
+    if (btn) btn.onclick = () => toggleReady(!iAmReady);
+  }
 
-    // 点开题目页时顺手把当前 tab 记下来，方便学生回来后继续
-    const openBtn = document.getElementById('pkbOpen');
-    if (openBtn) {
-      openBtn.addEventListener('click', () => {
-        try { sessionStorage.setItem('pkb_last_tab', String(activeIdx)); } catch (e) {}
-      });
+  async function toggleReady(arm) {
+    if (busy) return;
+    busy = true;
+    const btn = document.getElementById('pkbEndBtn');
+    if (btn) btn.disabled = true;
+    try {
+      const res = await apiCall('/api/pk-bet?action=ready-end', 'POST', { roomId, cancel: !arm });
+      if (res && res.success) {
+        if (res.settled && res.result) {
+          location.href = `/pk-bet-result?id=${encodeURIComponent(res.result.id)}`;
+          return;
+        }
+        await refresh();
+      } else {
+        DSHUI.toast((res && res.message) || 'Failed', 'err');
+      }
+    } catch (e) {
+      DSHUI.toast('Network error', 'err');
+    } finally {
+      busy = false;
+      const b = document.getElementById('pkbEndBtn');
+      if (b) b.disabled = false;
     }
   }
 
   function tick() {
-    if (!room || finished) return;
+    if (!room) return;
     const now = Date.now() + offsetMs;
-    const end = new Date(room.endAt).getTime();
-    const left = Math.max(0, Math.floor((end - now) / 1000));
-    const m = Math.floor(left / 60);
-    const s = left % 60;
-    elTimer.textContent = `${m}:${String(s).padStart(2, '0')}`;
-    elTimer.className = 'pkb-timer' + (left <= 60 ? ' danger' : left <= 300 ? ' warn' : '');
-
-    if (left <= 0) {
-      clearInterval(tickTimer);
-      onTimeUp();
+    const left = Math.max(0, Math.floor((new Date(room.endAt).getTime() - now) / 1000));
+    const el = document.querySelector('.pkb-timer');
+    if (el) {
+      const mm = String(Math.floor(left / 60)).padStart(2, '0');
+      const ss = String(left % 60).padStart(2, '0');
+      el.textContent = `${mm}:${ss}`;
+      el.className = 'pkb-timer' + (left <= 60 ? ' danger' : left <= 300 ? ' warn' : '');
     }
-  }
-
-  async function onTimeUp() {
-    finished = true;
-    elTimer.textContent = '0:00';
-    elPanel.innerHTML = '<div style="padding:1.5rem;text-align:center;">Time is up — settling…</div>';
-    await refresh();
+    if (left <= 0) refresh();
   }
 
   async function refresh() {
     try {
       const res = await apiCall(`/api/pk-bet?action=room&roomId=${encodeURIComponent(roomId)}`);
       if (!res.success) {
-        elPanel.innerHTML = `<div style="color:#e74c3c;">${esc(res.message || 'Failed to load')}</div>`;
+        board.innerHTML = `<div class="pkb-err">${esc(res.message || 'Failed to load')}</div>`;
         return;
       }
-
       if (res.result) {
         location.href = `/pk-bet-result?id=${encodeURIComponent(res.result.id)}`;
         return;
       }
-
       room = res.room;
-      problems = res.problems || [];
       attempts = res.attempts || [];
       me = res.you || (getCurrentUser() || {}).username;
       offsetMs = new Date(res.serverNow).getTime() - Date.now();
 
       if (room.status !== 'active') {
-        finished = true;
-        elPanel.innerHTML = '<div style="padding:1.5rem;text-align:center;">This room is closed.</div>';
+        board.innerHTML = '<div class="pkb-err">This room is closed.</div>';
         return;
       }
-
-      renderHead();
-      renderTabs();
-      renderPanel();
-      tick();
+      render();
     } catch (e) {
-      elPanel.innerHTML = '<div style="color:#e74c3c;">Network error.</div>';
+      board.innerHTML = '<div class="pkb-err">Network error.</div>';
     }
   }
 
   await refresh();
   tickTimer = setInterval(tick, 1000);
-  // 每 10 秒同步一次（拿对手提交状态、发现结算）
-  pollTimer = setInterval(() => { if (!finished) refresh(); }, 10000);
+  pollTimer = setInterval(() => { if (!document.hidden) refresh(); }, 5000);
 
   window.addEventListener('beforeunload', () => {
     clearInterval(tickTimer);

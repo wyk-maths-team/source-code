@@ -3,9 +3,9 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='c147dbdb';</script>
+<script>window.__BUILD_V='3d384dc4';</script>
 
-<script src="/assets/js/arch-render.js?v=c147dbdb"></script>
+<script src="/assets/js/arch-render.js?v=3d384dc4"></script>
 
 <meta charset="UTF-8" />
 <script>(function(){try{
@@ -18,56 +18,130 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=c147dbdb" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=3d384dc4" />
   <style>
-    .pkb-wrap { max-width: 1080px; margin: 0 auto; padding: 1rem; }
+    .pkb-page {
+      min-height: calc(100vh - 64px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 1.2rem;
+    }
+    .pkb-board {
+      width: 100%; max-width: 860px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.6rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,.10);
+    }
+
+    /* ── 顶部：计时 + 奖池 ── */
     .pkb-head {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 1rem; flex-wrap: wrap;
-      background: var(--card-bg); border: 1px solid var(--border-color);
-      border-radius: 10px; padding: .9rem 1.1rem; margin-bottom: 1rem;
+      display: flex; align-items: flex-end; justify-content: space-between;
+      gap: 1rem; flex-wrap: wrap; margin-bottom: 1.6rem;
     }
-    .pkb-timer { font-size: 1.8rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .pkb-timer {
+      font-size: 3rem; font-weight: 800; line-height: 1;
+      font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+    }
     .pkb-timer.warn { color: #e3a008; }
-    .pkb-timer.danger { color: #e74c3c; }
-    .pkb-pool { font-size: .85rem; color: var(--text-secondary); }
-    .pkb-pool b { color: #2ecc71; font-size: 1.05rem; }
-    .pkb-players { display: flex; gap: 1rem; flex-wrap: wrap; }
-    .pkb-pcard {
-      border: 1px solid var(--border-color); border-radius: 8px;
-      padding: .6rem .9rem; min-width: 170px; font-size: .85rem;
+    .pkb-timer.danger { color: #e74c3c; animation: pkbPulse 1s ease-in-out infinite; }
+    @keyframes pkbPulse { 0%,100%{opacity:1} 50%{opacity:.55} }
+    .pkb-moneys { text-align: right; font-size: .85rem; color: var(--text-secondary); line-height: 1.7; }
+    .pkb-moneys b { color: #2ecc71; font-size: 1.05rem; }
+
+    /* ── 三个色块 ── */
+    .pkb-blocks { display: grid; grid-template-columns: repeat(3, 1fr); gap: .9rem; }
+    @media (max-width: 560px) { .pkb-blocks { grid-template-columns: 1fr; } }
+
+    .pkb-block {
+      position: relative;
+      border-radius: 12px;
+      padding: 1rem .8rem .85rem;
+      text-align: center;
+      border: 2px solid transparent;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+      min-height: 128px;
+      display: flex; flex-direction: column; justify-content: center; gap: 6px;
     }
-    .pkb-pcard.me { border-color: var(--accent); }
-    .pkb-pcard .nm { font-weight: 700; margin-bottom: 2px; }
-    .pkb-pcard .sub { color: var(--text-secondary); font-size: .78rem; }
-    .pkb-tabs { display: flex; gap: .5rem; margin-bottom: .8rem; flex-wrap: wrap; }
-    .pkb-tab {
-      padding: .5rem 1rem; border-radius: 6px; cursor: pointer;
+    .pkb-block:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.16); }
+    .pkb-block:active { transform: translateY(0); }
+
+    /* 状态：未做 / AC / WA / PS */
+    .pkb-block.todo { background: rgba(127,127,127,.10); border-color: rgba(127,127,127,.28); }
+    .pkb-block.ac   { background: rgba(46,204,113,.16); border-color: #2ecc71; }
+    .pkb-block.wa   { background: rgba(231,76,60,.14);  border-color: #e74c3c; }
+    .pkb-block.ps   { background: rgba(227,160,8,.16);  border-color: #e3a008; }
+
+    .pkb-block .qname {
+      font-size: .72rem; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--text-secondary);
+    }
+    .pkb-block.ac .qname { color: #1e8449; }
+    .pkb-block.wa .qname { color: #c0392b; }
+    .pkb-block.ps .qname { color: #b9770e; }
+    [data-theme="dark"] .pkb-block.ac .qname,
+    [data-theme="dark"] .pkb-block.wa .qname,
+    [data-theme="dark"] .pkb-block.ps .qname { color: inherit; opacity: .85; }
+
+    .pkb-block .value {
+      font-size: 1.55rem; font-weight: 800;
+      font-variant-numeric: tabular-nums; line-height: 1.1;
+    }
+    .pkb-block.todo .value { color: var(--text-secondary); font-size: 1.2rem; }
+    .pkb-block .unit {
+      font-size: .68rem; color: var(--text-secondary);
+      text-transform: uppercase; letter-spacing: .06em;
+    }
+    .pkb-block .at { font-size: .72rem; color: var(--text-secondary); }
+
+    /* ── 双方状态条 ── */
+    .pkb-vs {
+      display: flex; align-items: center; gap: 1rem;
+      margin-top: 1.5rem; padding-top: 1.2rem;
+      border-top: 1px solid var(--border-color);
+      flex-wrap: wrap;
+    }
+    .pkb-side { flex: 1 1 200px; min-width: 0; }
+    .pkb-side .who {
+      font-weight: 700; font-size: .95rem;
+      display: flex; align-items: center; gap: .45rem;
+    }
+    .pkb-side .who .me { font-size: .7rem; padding: 1px 7px; border-radius: 8px; background: var(--accent); color: #fff; }
+    .pkb-side .meta { font-size: .78rem; color: var(--text-secondary); margin-top: 3px; }
+    .pkb-side .pips { display: flex; gap: 5px; margin-top: 7px; }
+    .pkb-side .pip {
+      width: 100%; height: 7px; border-radius: 4px; background: rgba(127,127,127,.22);
+    }
+    .pkb-side .pip.ac { background: #2ecc71; }
+    .pkb-side .pip.wa { background: #e74c3c; }
+    .pkb-side .pip.ps { background: #e3a008; }
+
+    /* ── 底部：宣布结束 ── */
+    .pkb-footer {
+      display: flex; align-items: center; gap: .8rem;
+      margin-top: 1.4rem; flex-wrap: wrap;
+    }
+    .pkb-endbtn {
+      padding: .6rem 1.4rem; border-radius: 8px; font-weight: 700;
       border: 1px solid var(--border-color); background: var(--card-bg);
-      color: var(--text-primary); font-size: .85rem; font-weight: 600;
-      min-width: 92px; text-align: center;
+      color: var(--text-primary); cursor: pointer; font-size: .88rem;
     }
-    .pkb-tab.active { border-color: var(--accent); color: var(--accent); }
-    .pkb-tab .dot { font-size: .7rem; }
-    .pkb-panel {
-      background: var(--card-bg); border: 1px solid var(--border-color);
-      border-radius: 10px; padding: 1.1rem;
+    .pkb-endbtn.armed {
+      background: #e3a008; border-color: #e3a008; color: #1a1a1a;
     }
-    .pkb-stmt { line-height: 1.7; margin-bottom: 1rem; }
-    .pkb-meta { font-size: .8rem; color: var(--text-secondary); margin-bottom: .8rem; }
-    .pkb-answer-row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
-    .pkb-answer-row input {
-      flex: 1 1 240px; padding: .55rem .8rem; font-size: 1rem;
-      border: 1px solid var(--border-color); border-radius: 6px;
-      background: var(--card-bg); color: var(--text-primary); font-family: inherit;
+    .pkb-endbtn:disabled { opacity: .5; cursor: not-allowed; }
+    .pkb-endnote { font-size: .82rem; color: var(--text-secondary); }
+    .pkb-endnote.opp { color: #e3a008; font-weight: 600; }
+
+    .pkb-hint {
+      margin-top: 1rem; font-size: .76rem; color: var(--text-secondary);
+      line-height: 1.6;
     }
-    .pkb-answer-row button { padding: .55rem 1.2rem; }
-    .pkb-status { margin-top: .8rem; font-size: .85rem; }
-    .pkb-status.ok { color: #2ecc71; }
-    .pkb-status.err { color: #e74c3c; }
-    .pkb-note {
-      margin-top: 1rem; padding: .7rem .9rem; border-radius: 6px;
-      background: rgba(127,127,127,.08); font-size: .82rem; color: var(--text-secondary);
+    .pkb-err {
+      background: rgba(231,76,60,.08); border: 1px solid rgba(231,76,60,.4);
+      border-radius: 10px; padding: 1rem; color: #e74c3c; font-size: .88rem;
     }
   </style>
 </head>
@@ -76,34 +150,25 @@
     <header class="topbar" id="topbarContainer"></header>
     <aside class="sidebar" id="sidebarContainer"></aside>
     <main class="main-content" id="mainContent">
-      <div class="pkb-wrap">
-        <div class="pkb-head">
-          <div>
-            <div class="pkb-timer" id="pkbTimer">--:--</div>
-            <div class="pkb-pool" id="pkbPool">Pool —</div>
-          </div>
-          <div class="pkb-players" id="pkbPlayers"></div>
-        </div>
-
-        <div class="pkb-tabs" id="pkbTabs"></div>
-        <div class="pkb-panel" id="pkbPanel">
-          <div style="padding:1.5rem;text-align:center;color:var(--text-secondary);">Loading…</div>
+      <div class="pkb-page">
+        <div class="pkb-board" id="pkbBoard">
+          <div style="text-align:center;color:var(--text-secondary);padding:2rem;">Loading…</div>
         </div>
       </div>
     </main>
   </div>
 
-  <script src="/assets/js/core/ui.js?v=c147dbdb"></script>
-  <script src="/assets/js/core/net.js?v=c147dbdb"></script>
-  <script src="/assets/js/core/api.js?v=c147dbdb"></script>
-  <script src="/assets/js/core/page.js?v=c147dbdb"></script>
-  <script src="/assets/js/auth.js?v=c147dbdb"></script>
-  <script src="/assets/js/app.js?v=c147dbdb"></script>
-  <script src="/assets/js/topbar.js?v=c147dbdb"></script>
-  <script src="/assets/js/sidebar.js?v=c147dbdb"></script>
-  <script src="/assets/js/heartbeat.js?v=c147dbdb"></script>
-  <script src="/assets/js/pk-invite.js?v=c147dbdb"></script>
-  <script src="/assets/js/pages/pk-bet-room.js?v=c147dbdb"></script>
-  <script src="/assets/js/pk-notify.js?v=c147dbdb"></script>
+  <script src="/assets/js/core/ui.js?v=3d384dc4"></script>
+  <script src="/assets/js/core/net.js?v=3d384dc4"></script>
+  <script src="/assets/js/core/api.js?v=3d384dc4"></script>
+  <script src="/assets/js/core/page.js?v=3d384dc4"></script>
+  <script src="/assets/js/auth.js?v=3d384dc4"></script>
+  <script src="/assets/js/app.js?v=3d384dc4"></script>
+  <script src="/assets/js/topbar.js?v=3d384dc4"></script>
+  <script src="/assets/js/sidebar.js?v=3d384dc4"></script>
+  <script src="/assets/js/heartbeat.js?v=3d384dc4"></script>
+  <script src="/assets/js/pk-invite.js?v=3d384dc4"></script>
+  <script src="/assets/js/pages/pk-bet-room.js?v=3d384dc4"></script>
+  <script src="/assets/js/pk-notify.js?v=3d384dc4"></script>
 </body>
 </html>
