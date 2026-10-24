@@ -243,7 +243,7 @@
                 const {
           username, displayName, realName, totalPassed, totalProblems,
           attempted, allProblemIds, pfp,
-          totalOnlineMs, lastSeenAt
+          totalOnlineMs, lastSeenAt,theme
         } = data;
 
         const currentUser = getCurrentUser() || {};
@@ -283,7 +283,7 @@
         const percent = totalProblems ? Math.round(totalPassed / totalProblems * 100) : 0;
 
         mainContainer.innerHTML = `
-          <div class="profile-container">
+          <div class="profile-container theme-${theme || 'default'}">
             <div class="profile-header">
               <div class="profile-avatar">${avatarHtml}</div>
               <div class="profile-info">

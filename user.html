@@ -535,6 +535,56 @@
   border-color: rgba(46,204,113,.4);
 }
 [data-theme="dark"] .profile-online-row .item.online b { color: #8fdf8f; }
+/* 在 user.html 的 </style> 之前加上这些 */
+.profile-container.theme-cyberpunk {
+  background: linear-gradient(135deg, #0d0221 0%, #ff00cc 100%) !important;
+  color: #00ffff !important;
+  border: 1px solid #00ffff;
+}
+.profile-container.theme-cyberpunk h1, 
+.profile-container.theme-cyberpunk .profile-realname, 
+.profile-container.theme-cyberpunk .profile-stats, 
+.profile-container.theme-cyberpunk .section-title {
+  color: #00ffff !important;
+  text-shadow: 0 0 5px rgba(0,255,255,0.5);
+}
+
+.profile-container.theme-sakura {
+  background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%) !important;
+  color: #e91e63 !important;
+}
+.profile-container.theme-sakura h1, 
+.profile-container.theme-sakura .profile-realname, 
+.profile-container.theme-sakura .profile-stats, 
+.profile-container.theme-sakura .section-title {
+  color: #e91e63 !important;
+}
+
+.profile-container.theme-matrix {
+  background: #000000 !important;
+  color: #00ff00 !important;
+  border: 1px solid #00ff00;
+  box-shadow: 0 0 15px rgba(0,255,0,0.2);
+}
+.profile-container.theme-matrix h1, 
+.profile-container.theme-matrix .profile-realname, 
+.profile-container.theme-matrix .profile-stats, 
+.profile-container.theme-matrix .section-title {
+  color: #00ff00 !important;
+  font-family: monospace;
+}
+
+.profile-container.theme-scifi {
+  background: linear-gradient(135deg, #09101a 0%, #14313f 100%) !important;
+  color: #c6eeff !important;
+  border: 1px solid #1e4a5e;
+}
+.profile-container.theme-scifi h1, 
+.profile-container.theme-scifi .profile-realname, 
+.profile-container.theme-scifi .profile-stats, 
+.profile-container.theme-scifi .section-title {
+  color: #c6eeff !important;
+}
   </style>
 
   <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->

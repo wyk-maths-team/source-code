@@ -693,15 +693,14 @@ if (isPeriodMode) {
       const isAdminUser = decoded.role === 'admin' || decoded.role === 'root';
       const problemFilter = isAdminUser ? {} : { public: true };
 
-      const [problems, userStats, user] = await Promise.all([
-        db.collection('problems')
-          .find(problemFilter, { projection: { id: 1, difficulty: 1, _id: 0 } })   // ⭐ 加 difficulty
-          .toArray(),
+      const [problems, userStats, user, userdata] = await Promise.all([
+        db.collection('problems').find(problemFilter, { projection: { id: 1, difficulty: 1, _id: 0 } }).toArray(),
         db.collection('userstats').findOne({ username }, { projection: { states: 1, _id: 0 } }),
         db.collection('users').findOne(
           { username },
           { projection: { pfp: 1, displayName: 1, realName: 1, heartbeatCount: 1, lastSeenAt: 1, _id: 0 } }
-        )
+        ),
+        db.collection('userdata').findOne({ username }, { projection: { theme: 1, _id: 0 } }) // ⭐ 新增
       ]);
 
       problems.sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
@@ -752,6 +751,7 @@ if (isPeriodMode) {
         tierGlow: ratingResult.tier.glow,
         maxDifficulty: ratingResult.effectiveMax,
         solvedCount: ratingResult.solvedCount,
+        theme: userdata?.theme || 'default'
       });
     }
 

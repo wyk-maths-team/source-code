@@ -17,7 +17,9 @@ function genTaskId() { return 'IGT' + crypto.randomBytes(8).toString('hex'); }
 async function callDeepSeekVision(prompt, imageUrl) {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   const base = process.env.DEEPSEEK_API_BASE || 'https://api.deepseek.com';
-  
+  if (!imageUrl.startsWith('https://res.cloudinary.com/') && !imageUrl.startsWith('https://cdn.jsdelivr.net/')) {
+      return res.status(400).json({ success: false, message: 'Invalid image source.' });
+  }
   const body = {
     model: 'deepseek-flash', // 根据文档，这是 V4.1-Flash
     messages: [
