@@ -72,6 +72,16 @@ Page.ready(async (user) => {
     const list = res.invites || [];
     countEl.textContent = list.length ? `${list.length} total` : '';
 
+    // 对手已经接受 → 不停在这个列表，直接进房间；已结算则直接看结果
+    const live = list.find(i => i.status === 'accepted' && i.roomId);
+    if (live) {
+      const target = live.resultId
+        ? `/pk-bet-result?id=${encodeURIComponent(live.resultId)}`
+        : `/pk-bet-room?id=${encodeURIComponent(live.roomId)}`;
+      location.href = target;
+      return;
+    }
+
     if (list.length === 0) {
       root.innerHTML = `<div class="pkc-empty">
         You have not sent any challenges yet.<br>

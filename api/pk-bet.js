@@ -45,7 +45,11 @@ function totalTokens(t) {
   return (Number(t.daily) || 0) + (Number(t.global) || 0);
 }
 
-// 先扣每日额度，再扣永久额度。返回新的 token 对象；余额不足返回 null。
+// 先扣每日额度，再扣永久额度。
+//
+// 返回 { token, taken }，taken 记下这次各扣了多少 —— 退款必须按原路返回。
+// 否则「下注时扣 daily、取消时一律退 global」就是一个白嫖口子：
+// daily 每天重置、global 不回退，下一次取消就能把 30000 每日额度洗成永久额度。
 function deductTokens(tokenObj, amount) {
   const t = {
     daily: Number(tokenObj?.daily) || 0,
@@ -55,16 +59,27 @@ function deductTokens(tokenObj, amount) {
     dailyQuestClaimed: tokenObj?.dailyQuestClaimed,
   };
   if (t.daily + t.global < amount) return null;
-  let left = amount;
-  const fromDaily = Math.min(t.daily, left);
+
+  const fromDaily = Math.min(t.daily, amount);
+  const fromGlobal = amount - fromDaily;
   t.daily -= fromDaily;
-  left -= fromDaily;
-  if (left > 0) {
-    const fromGlobal = Math.min(t.global, left);
-    t.global -= fromGlobal;
-    left -= fromGlobal;
-  }
-  return left === 0 ? t : null;
+  t.global -= fromGlobal;
+
+  return { token: t, taken: { daily: fromDaily, global: fromGlobal } };
+}
+
+// 按原路退回：扣的是哪一类就退回哪一类
+function refundTokens(tokenObj, taken) {
+  const t = {
+    daily: Number(tokenObj?.daily) || 0,
+    global: Number(tokenObj?.global) || 0,
+    lastReset: tokenObj?.lastReset,
+    dailyLoginClaimed: tokenObj?.dailyLoginClaimed,
+    dailyQuestClaimed: tokenObj?.dailyQuestClaimed,
+  };
+  t.daily += Number(taken?.daily) || 0;
+  t.global += Number(taken?.global) || 0;
+  return t;
 }
 
 // 奖励一律进 global（每日额度是「日活奖励」，不该被比赛加成放大）
@@ -219,8 +234,8 @@ async function handler(req, res) {
 
     const me = await db.collection('users').findOne({ username }, { projection: { token: 1, displayName: 1 } });
     const have = totalTokens(me?.token);
-    const after = deductTokens(me?.token, amount);
-    if (!after) {
+    const charged = deductTokens(me?.token, amount);
+    if (!charged) {
       return res.status(400).json({
         success: false,
         message: `Not enough tokens: you need ${amount.toLocaleString()} but have ${have.toLocaleString()}`,
@@ -229,7 +244,7 @@ async function handler(req, res) {
         have,
       });
     }
-    await db.collection('users').updateOne({ username }, { $set: { token: after } });
+    await db.collection('users').updateOne({ username }, { $set: { token: charged.token } });
 
     const invite = {
       id: genId('PKB'),
@@ -238,6 +253,8 @@ async function handler(req, res) {
       to,
       toDisplay: target.displayName || to,
       stake: amount,
+      // 记下这次各扣了多少，退款时按原路返回
+      taken: charged.taken,
       status: 'pending',
       createdAt: now,
       expiresAt: new Date(now.getTime() + INVITE_TTL_MS),
@@ -274,8 +291,8 @@ async function handler(req, res) {
         have: myTokens,
       });
     }
-    const after = deductTokens(me?.token, invite.stake);
-    if (!after) {
+    const charged = deductTokens(me?.token, invite.stake);
+    if (!charged) {
       return res.status(400).json({
         success: false,
         message: `Not enough tokens to match this stake: need ${invite.stake.toLocaleString()}, you have ${myTokens.toLocaleString()}`,
@@ -297,7 +314,7 @@ async function handler(req, res) {
       return res.status(500).json({ success: false, message: 'No public problems available' });
     }
 
-    await db.collection('users').updateOne({ username }, { $set: { token: after } });
+    await db.collection('users').updateOne({ username }, { $set: { token: charged.token } });
 
     const now = new Date();
     const pool = invite.stake * 2;
@@ -565,13 +582,22 @@ async function handler(req, res) {
 
 // 把未接受的邀请退款给发起方，并把状态落定
 async function refundInvite(db, invite, status) {
+  // 先抢状态，避免并发下退两次
   const r = await db.collection('pk_bet_invitations').updateOne(
     { id: invite.id, status: 'pending' },
     { $set: { status, [status + 'At']: new Date() } }
   );
-  if (r.modifiedCount !== 1) return;   // 已被别人处理，避免双退
+  if (r.modifiedCount !== 1) return;
+
   const user = await db.collection('users').findOne({ username: invite.from }, { projection: { token: 1 } });
-  const restored = addTokens(user?.token, invite.stake);
+
+  // 按原路退回：扣了 daily 就退 daily，扣了 global 就退 global。
+  // 老记录没有 taken 字段，保守地全退 daily —— 退回 global 才是那个洗钱口子。
+  const taken = invite.taken && typeof invite.taken === 'object'
+    ? { daily: Number(invite.taken.daily) || 0, global: Number(invite.taken.global) || 0 }
+    : { daily: Number(invite.stake) || 0, global: 0 };
+
+  const restored = refundTokens(user?.token, taken);
   await db.collection('users').updateOne({ username: invite.from }, { $set: { token: restored } });
 }
 

@@ -174,6 +174,11 @@ Page.ready(async (user) => {
       me = res.you || (getCurrentUser() || {}).username;
       offsetMs = new Date(res.serverNow).getTime() - Date.now();
 
+      // 已结算：直接去结果页，不要停在「房间已关闭」
+      if (room.status === 'settled' && room.resultId) {
+        location.href = `/pk-bet-result?id=${encodeURIComponent(room.resultId)}`;
+        return;
+      }
       if (room.status !== 'active') {
         board.innerHTML = '<div class="pkb-err">This room is closed.</div>';
         return;
