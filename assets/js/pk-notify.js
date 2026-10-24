@@ -82,6 +82,7 @@
     currentInvite = invite;
 
     var from = invite.fromDisplay || invite.from || 'Someone';
+    var stake = Number(invite.stake) || 0;
     var secLeft = Math.max(0, Math.ceil((new Date(invite.expiresAt).getTime() - Date.now()) / 1000));
 
     var wrap = document.createElement('div');
@@ -107,6 +108,7 @@
           '<div style="font-size:13px;color:var(--text-secondary,#666);word-break:break-word;">' +
             esc(from) + ' wants to challenge you' +
           '</div>' +
+          (stake ? '<div style="font-size:13px;margin-top:3px;">Stake: <b>' + stake.toLocaleString() + '</b> tokens</div>' : '') +
           '<div id="pkNotifyTtl" style="font-size:12px;color:var(--text-secondary,#666);margin-top:4px;">' +
             (secLeft > 0 ? ('expires in ' + secLeft + 's') : 'expired') +
           '</div>' +
@@ -160,11 +162,11 @@
   function acceptInvite(invite, btnA, btnD) {
     btnA.disabled = btnD.disabled = true;
     btnA.textContent = 'Accepting…';
-    api('/api/pk?action=accept', 'POST', { inviteId: invite.id })
+    api('/api/pk-bet?action=accept', 'POST', { inviteId: invite.id })
       .then(function (res) {
         if (res && res.success && res.roomId) {
           rememberDismissed('');
-          location.href = '/pk/room?id=' + encodeURIComponent(res.roomId);
+          location.href = '/pk-bet-room?id=' + encodeURIComponent(res.roomId);
         } else {
           btnA.disabled = btnD.disabled = false;
           btnA.textContent = 'Accept';
@@ -180,7 +182,7 @@
 
   function declineInvite(invite, btnA, btnD) {
     btnA.disabled = btnD.disabled = true;
-    api('/api/pk?action=decline', 'POST', { inviteId: invite.id })
+    api('/api/pk-bet?action=decline', 'POST', { inviteId: invite.id })
       .catch(function () {})
       .then(function () {
         rememberDismissed(invite.id);
@@ -192,7 +194,7 @@
     if (shouldSkip()) return;
     if (!localStorage.getItem('auth_token')) return;
 
-    api('/api/pk?action=pending').then(function (res) {
+    api('/api/pk-bet?action=pending').then(function (res) {
       if (!res || !res.success) return;
       var inv = res.incoming;
 

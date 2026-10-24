@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta name="robots" content="noindex, nofollow" />
+<script>window.__BUILD_V='2427dc00';</script>
+
+<script src="/assets/js/arch-render.js?v=2427dc00"></script>
+
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PK Result - WYK Maths Team</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+
+<link rel="stylesheet" href="/assets/css/styles.css?v=2427dc00" />
+  <style>
+    .pkr-wrap { max-width: 900px; margin: 0 auto; padding: 1rem; }
+    .pkr-card {
+      background: var(--card-bg); border: 1px solid var(--border-color);
+      border-radius: 12px; padding: 1.4rem; margin-bottom: 1rem;
+    }
+    .pkr-title { font-size: 1.3rem; font-weight: 800; margin-bottom: .3rem; }
+    .pkr-sub { font-size: .85rem; color: var(--text-secondary); }
+    .pkr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+    @media (max-width: 640px) { .pkr-grid { grid-template-columns: 1fr; } }
+    .pkr-p {
+      border: 1px solid var(--border-color); border-radius: 10px; padding: 1rem;
+    }
+    .pkr-p.winner { border-color: #2ecc71; box-shadow: 0 0 0 1px #2ecc71 inset; }
+    .pkr-p .nm { font-weight: 700; font-size: 1.05rem; }
+    .pkr-p .tag { display: inline-block; font-size: .72rem; padding: 1px 8px; border-radius: 10px; margin-left: 6px; }
+    .pkr-p .tag.weak { background: rgba(227,160,8,.18); color: #e3a008; }
+    .pkr-p .tag.strong { background: rgba(231,76,60,.15); color: #e74c3c; }
+    .pkr-score { font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums; margin: .4rem 0; }
+    .pkr-detail { font-size: .82rem; color: var(--text-secondary); line-height: 1.6; }
+    .pkr-prize { font-size: 1.1rem; font-weight: 700; color: #2ecc71; margin-top: .5rem; }
+    .pkr-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: .85rem; }
+    .pkr-table th, .pkr-table td { padding: .5rem; border-bottom: 1px solid var(--border-color); text-align: left; }
+    .pkr-table th { font-weight: 700; color: var(--text-secondary); font-size: .78rem; text-transform: uppercase; }
+    .pkr-row { display: flex; gap: 1.2rem; flex-wrap: wrap; font-size: .88rem; margin-top: .6rem; }
+    .pkr-row b { color: var(--accent); }
+    .pkr-note { font-size: .78rem; color: var(--text-secondary); margin-top: 1rem; line-height: 1.6; }
+  </style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="pkr-wrap" id="pkrRoot">
+        <div class="pkr-card" style="text-align:center;color:var(--text-secondary);">Loading result…</div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/assets/js/core/ui.js?v=2427dc00"></script>
+  <script src="/assets/js/core/net.js?v=2427dc00"></script>
+  <script src="/assets/js/core/api.js?v=2427dc00"></script>
+  <script src="/assets/js/core/page.js?v=2427dc00"></script>
+  <script src="/assets/js/auth.js?v=2427dc00"></script>
+  <script src="/assets/js/app.js?v=2427dc00"></script>
+  <script src="/assets/js/topbar.js?v=2427dc00"></script>
+  <script src="/assets/js/sidebar.js?v=2427dc00"></script>
+  <script src="/assets/js/heartbeat.js?v=2427dc00"></script>
+  <script src="/assets/js/pk-invite.js?v=2427dc00"></script>
+  <script src="/assets/js/pages/pk-bet-result.js?v=2427dc00"></script>
+  <script src="/assets/js/pk-notify.js?v=2427dc00"></script>
+</body>
+</html>

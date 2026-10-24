@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta name="robots" content="noindex, nofollow" />
+<script>window.__BUILD_V='2427dc00';</script>
+
+<script src="/assets/js/arch-render.js?v=2427dc00"></script>
+
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PK Room - WYK Maths Team</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+
+<link rel="stylesheet" href="/assets/css/styles.css?v=2427dc00" />
+  <style>
+    .pkb-wrap { max-width: 1080px; margin: 0 auto; padding: 1rem; }
+    .pkb-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1rem; flex-wrap: wrap;
+      background: var(--card-bg); border: 1px solid var(--border-color);
+      border-radius: 10px; padding: .9rem 1.1rem; margin-bottom: 1rem;
+    }
+    .pkb-timer { font-size: 1.8rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .pkb-timer.warn { color: #e3a008; }
+    .pkb-timer.danger { color: #e74c3c; }
+    .pkb-pool { font-size: .85rem; color: var(--text-secondary); }
+    .pkb-pool b { color: #2ecc71; font-size: 1.05rem; }
+    .pkb-players { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .pkb-pcard {
+      border: 1px solid var(--border-color); border-radius: 8px;
+      padding: .6rem .9rem; min-width: 170px; font-size: .85rem;
+    }
+    .pkb-pcard.me { border-color: var(--accent); }
+    .pkb-pcard .nm { font-weight: 700; margin-bottom: 2px; }
+    .pkb-pcard .sub { color: var(--text-secondary); font-size: .78rem; }
+    .pkb-tabs { display: flex; gap: .5rem; margin-bottom: .8rem; flex-wrap: wrap; }
+    .pkb-tab {
+      padding: .5rem 1rem; border-radius: 6px; cursor: pointer;
+      border: 1px solid var(--border-color); background: var(--card-bg);
+      color: var(--text-primary); font-size: .85rem; font-weight: 600;
+      min-width: 92px; text-align: center;
+    }
+    .pkb-tab.active { border-color: var(--accent); color: var(--accent); }
+    .pkb-tab .dot { font-size: .7rem; }
+    .pkb-panel {
+      background: var(--card-bg); border: 1px solid var(--border-color);
+      border-radius: 10px; padding: 1.1rem;
+    }
+    .pkb-stmt { line-height: 1.7; margin-bottom: 1rem; }
+    .pkb-meta { font-size: .8rem; color: var(--text-secondary); margin-bottom: .8rem; }
+    .pkb-answer-row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+    .pkb-answer-row input {
+      flex: 1 1 240px; padding: .55rem .8rem; font-size: 1rem;
+      border: 1px solid var(--border-color); border-radius: 6px;
+      background: var(--card-bg); color: var(--text-primary); font-family: inherit;
+    }
+    .pkb-answer-row button { padding: .55rem 1.2rem; }
+    .pkb-status { margin-top: .8rem; font-size: .85rem; }
+    .pkb-status.ok { color: #2ecc71; }
+    .pkb-status.err { color: #e74c3c; }
+    .pkb-note {
+      margin-top: 1rem; padding: .7rem .9rem; border-radius: 6px;
+      background: rgba(127,127,127,.08); font-size: .82rem; color: var(--text-secondary);
+    }
+  </style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="pkb-wrap">
+        <div class="pkb-head">
+          <div>
+            <div class="pkb-timer" id="pkbTimer">--:--</div>
+            <div class="pkb-pool" id="pkbPool">Pool —</div>
+          </div>
+          <div class="pkb-players" id="pkbPlayers"></div>
+        </div>
+
+        <div class="pkb-tabs" id="pkbTabs"></div>
+        <div class="pkb-panel" id="pkbPanel">
+          <div style="padding:1.5rem;text-align:center;color:var(--text-secondary);">Loading…</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/assets/js/core/ui.js?v=2427dc00"></script>
+  <script src="/assets/js/core/net.js?v=2427dc00"></script>
+  <script src="/assets/js/core/api.js?v=2427dc00"></script>
+  <script src="/assets/js/core/page.js?v=2427dc00"></script>
+  <script src="/assets/js/auth.js?v=2427dc00"></script>
+  <script src="/assets/js/app.js?v=2427dc00"></script>
+  <script src="/assets/js/topbar.js?v=2427dc00"></script>
+  <script src="/assets/js/sidebar.js?v=2427dc00"></script>
+  <script src="/assets/js/heartbeat.js?v=2427dc00"></script>
+  <script src="/assets/js/pk-invite.js?v=2427dc00"></script>
+  <script src="/assets/js/pages/pk-bet-room.js?v=2427dc00"></script>
+  <script src="/assets/js/pk-notify.js?v=2427dc00"></script>
+</body>
+</html>

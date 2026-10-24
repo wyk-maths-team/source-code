@@ -368,16 +368,30 @@
           }
 
           pkBtn.addEventListener('click', async () => {
+            // 下注模式：先问金额，最低 10000
+            const raw = prompt(
+              `Challenge ${data.displayName || data.username} to a PK.\n\n` +
+              `Stake (min 10,000 tokens). The stake is deducted immediately and goes into the pool.\n` +
+              `If they decline or it expires, it is refunded.`,
+              '10000'
+            );
+            if (raw === null) return;
+            const stake = Math.round(Number(raw));
+            if (!Number.isFinite(stake) || stake < 10000) {
+              DSHUI.toast('Minimum stake is 10,000 tokens', 'warn');
+              return;
+            }
+
             pkBtn.disabled = true;
             const oldHtml = pkBtn.innerHTML;
             pkBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
             try {
-              const res = await apiCall('/api/pk?action=invite', 'POST', { to: data.username });
+              const res = await apiCall('/api/pk-bet?action=invite', 'POST', { to: data.username, stake });
               if (res.success) {
                 if (typeof showPKInviteShare === 'function') {
                   showPKInviteShare(res.invite);
                 }
-                // 分享卡片彈出後，按鈕可以復原（用戶可能想再分享一次）
+                DSHUI.toast(`Invited — ${stake.toLocaleString()} tokens staked`, 'ok');
                 pkBtn.disabled = false;
                 pkBtn.innerHTML = oldHtml;
               } else {
