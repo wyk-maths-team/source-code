@@ -33,31 +33,37 @@ Page.ready(async (user) => {
   const started = new Date(r.startAt);
   const ended = new Date(r.endAt);
 
+  // ⭐ 修改一：替换 Emoji 并优化玩家卡片
   const playerCards = r.players.map(p => {
     const isWinner = p.winner;
     const tag = p.role === 'weak'
-      ? '<span class="tag weak">weaker side</span>'
-      : '<span class="tag strong">stronger side</span>';
+      ? '<span class="tag weak"><i class="fas fa-shield-halved"></i> Weaker</span>'
+      : '<span class="tag strong"><i class="fas fa-fire"></i> Stronger</span>';
     const rows = (p.attempts || []).length
-      ? p.attempts.map(a => `<div>Q: ${esc(a.problemId)} — score ${a.score} at ${a.timeSec}s → ${Number(a.weighted).toLocaleString()}</div>`).join('')
-      : '<div>No submissions</div>';
+      ? p.attempts.map(a => `<div class="pkr-atk"><i class="fas fa-crosshairs" style="opacity:0.5"></i> ${esc(a.problemId)} <span class="val">${a.score} pts</span> <span class="tm">(${a.timeSec}s)</span></div>`).join('')
+      : '<div class="pkr-atk" style="opacity:0.5">No submissions</div>';
+    
+    // 使用 FontAwesome 的皇冠
+    const crown = isWinner ? '<i class="fas fa-crown" style="color: #f1c40f; text-shadow: 0 0 8px #f1c40f; margin-left: 6px;"></i>' : '';
+
     return `
-      <div class="pkr-p ${isWinner ? 'winner' : ''}">
-        <div class="nm">${esc(p.displayName)}${isWinner ? ' 🏆' : ''}${tag}</div>
-        <div class="pkr-sub">rating ${p.rating} · stake ${p.stake.toLocaleString()}</div>
+      <div class="pkr-p ${isWinner ? 'winner' : 'loser'}">
+        <div class="nm">${esc(p.displayName)} ${crown} ${tag}</div>
+        <div class="pkr-sub">Rating ${p.rating} · Stake ${p.stake.toLocaleString()}</div>
         <div class="pkr-score">${Number(p.totalScore).toLocaleString()}</div>
         <div class="pkr-detail">${rows}</div>
-        <div class="pkr-prize">+${Number(p.prize).toLocaleString()} tokens</div>
+        <div class="pkr-prize"><i class="fas fa-coins"></i> +${Number(p.prize).toLocaleString()}</div>
       </div>`;
   }).join('');
 
+  // ⭐ 修改二：表格空数据使用 FontAwesome 图标
   const scoreTable = r.problemIds.map((pid, i) => {
     const cells = r.players.map(p => {
       const a = (p.attempts || []).find(x => x.problemId === pid);
-      if (!a) return '<td style="color:var(--text-secondary)">—</td>';
-      return `<td>${a.score} @ ${a.timeSec}s → <b>${Number(a.weighted).toLocaleString()}</b></td>`;
+      if (!a) return '<td style="color:var(--text-secondary)"><i class="fas fa-minus"></i></td>';
+      return `<td><span class="t-score">${a.score}</span> <span class="t-time">@ ${a.timeSec}s</span> <br><span class="t-weighted">${Number(a.weighted).toLocaleString()}</span></td>`;
     }).join('');
-    return `<tr><td>${esc(pid)}</td><td>${r.problemDifficulties?.[i] ?? '—'}</td>${cells}</tr>`;
+    return `<tr><td class="t-pid">${esc(pid)}</td><td class="t-diff">${r.problemDifficulties?.[i] ?? '—'}</td>${cells}</tr>`;
   }).join('');
 
   root.innerHTML = `

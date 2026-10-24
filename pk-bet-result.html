@@ -20,32 +20,111 @@
 
 <link rel="stylesheet" href="/assets/css/styles.css?v=8eeaf799" />
   <style>
-    .pkr-wrap { max-width: 900px; margin: 0 auto; padding: 1rem; }
+    .pkr-wrap { max-width: 960px; margin: 0 auto; padding: 1.5rem; }
+    
+    /* 基础卡片 */
     .pkr-card {
-      background: var(--card-bg); border: 1px solid var(--border-color);
-      border-radius: 12px; padding: 1.4rem; margin-bottom: 1rem;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 2rem;
+      box-shadow: var(--shadow-md);
+      position: relative;
+      overflow: hidden;
     }
-    .pkr-title { font-size: 1.3rem; font-weight: 800; margin-bottom: .3rem; }
-    .pkr-sub { font-size: .85rem; color: var(--text-secondary); }
-    .pkr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+
+    /* 顶部装饰条 */
+    .pkr-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+      background: linear-gradient(90deg, var(--accent), #e74c3c);
+    }
+
+    .pkr-title { font-size: 1.5rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; margin-bottom: .3rem; color: var(--text-primary); }
+    .pkr-sub { font-size: .85rem; color: var(--text-secondary); font-family: monospace; }
+    
+    /* 汇总数据 */
+    .pkr-row {
+      display: flex; flex-wrap: wrap; gap: 1rem;
+      margin: 1.5rem 0; padding: 1rem;
+      background: var(--content-bg); border-radius: 2px;
+      font-size: .9rem; font-family: monospace;
+      border: 1px solid var(--border-color);
+    }
+    .pkr-row span { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+    .pkr-row b { color: var(--accent); font-size: 1.1rem; }
+
+    /* 玩家对比网格 */
+    .pkr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
     @media (max-width: 640px) { .pkr-grid { grid-template-columns: 1fr; } }
+
     .pkr-p {
-      border: 1px solid var(--border-color); border-radius: 10px; padding: 1rem;
+      border: 2px solid var(--border-color); border-radius: 2px;
+      padding: 1.2rem; position: relative;
+      background: var(--card-bg); transition: transform 0.2s;
     }
-    .pkr-p.winner { border-color: #2ecc71; box-shadow: 0 0 0 1px #2ecc71 inset; }
-    .pkr-p .nm { font-weight: 700; font-size: 1.05rem; }
-    .pkr-p .tag { display: inline-block; font-size: .72rem; padding: 1px 8px; border-radius: 10px; margin-left: 6px; }
-    .pkr-p .tag.weak { background: rgba(227,160,8,.18); color: #e3a008; }
-    .pkr-p .tag.strong { background: rgba(231,76,60,.15); color: #e74c3c; }
-    .pkr-score { font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums; margin: .4rem 0; }
-    .pkr-detail { font-size: .82rem; color: var(--text-secondary); line-height: 1.6; }
-    .pkr-prize { font-size: 1.1rem; font-weight: 700; color: #2ecc71; margin-top: .5rem; }
-    .pkr-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: .85rem; }
-    .pkr-table th, .pkr-table td { padding: .5rem; border-bottom: 1px solid var(--border-color); text-align: left; }
-    .pkr-table th { font-weight: 700; color: var(--text-secondary); font-size: .78rem; text-transform: uppercase; }
-    .pkr-row { display: flex; gap: 1.2rem; flex-wrap: wrap; font-size: .88rem; margin-top: .6rem; }
-    .pkr-row b { color: var(--accent); }
-    .pkr-note { font-size: .78rem; color: var(--text-secondary); margin-top: 1rem; line-height: 1.6; }
+    .pkr-p.winner { 
+      border-color: #f1c40f; 
+      background: linear-gradient(180deg, rgba(241,196,15,0.06) 0%, transparent 100%);
+      box-shadow: 0 0 15px rgba(241,196,15,0.15);
+    }
+    .pkr-p.loser { opacity: 0.85; filter: grayscale(0.3); }
+
+    .pkr-p .nm { font-weight: 800; font-size: 1.1rem; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--text-primary); }
+    
+    /* 强弱标签 */
+    .tag { display: inline-flex; align-items: center; gap: 4px; font-size: .7rem; padding: 2px 8px; border-radius: 2px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+    .tag.weak { background: #e3a008; color: #111; }      /* 鲜艳橙色 */
+    .tag.strong { background: #e74c3c; color: #fff; }    /* 鲜艳红色 */
+
+    .pkr-score { font-size: 2.2rem; font-weight: 900; font-variant-numeric: tabular-nums; margin: .6rem 0; color: var(--text-primary); }
+    .pkr-p.winner .pkr-score { color: #f1c40f; text-shadow: 0 0 10px rgba(241,196,15,0.4); }
+    
+    .pkr-detail { font-size: .85rem; font-family: monospace; border-top: 1px dashed var(--border-color); padding-top: 10px; margin-top: 10px; color: var(--text-secondary); }
+    .pkr-atk { display: flex; gap: 8px; margin-bottom: 4px; }
+    .pkr-atk .val { color: var(--accent); font-weight: bold; }
+    .pkr-atk .tm { color: var(--text-secondary); margin-left: auto; }
+    
+    .pkr-prize { font-size: 1.2rem; font-weight: bold; color: #2ecc71; margin-top: 1rem; display: flex; align-items: center; gap: 6px; }
+
+    /* 表格部分 */
+    .pkr-table { width: 100%; border-collapse: collapse; margin-top: 1.5rem; font-size: .9rem; border: 1px solid var(--border-color); }
+    .pkr-table th, .pkr-table td { padding: .6rem .8rem; border-bottom: 1px solid var(--border-color); text-align: left; }
+    .pkr-table th { font-weight: bold; color: var(--text-secondary); font-size: .8rem; text-transform: uppercase; background: var(--content-bg); }
+    .pkr-table tr:last-child td { border-bottom: none; }
+    
+    .t-pid { font-family: monospace; font-weight: bold; color: var(--accent); }
+    .t-diff { font-family: monospace; color: #e3a008; }
+    .t-score { font-weight: 900; font-size: 1.1rem; color: var(--text-primary); }
+    .t-time { font-family: monospace; font-size: .8rem; color: var(--text-secondary); }
+    .t-weighted { font-family: monospace; color: #2ecc71; font-size: .85rem; }
+
+    .pkr-note { font-size: .8rem; color: var(--text-secondary); margin-top: 1.5rem; line-height: 1.6; background: var(--content-bg); padding: 1rem; border-radius: 2px; border: 1px solid var(--border-color); }
+    .pkr-note code { background: var(--border-color); color: var(--text-primary); padding: 2px 4px; border-radius: 2px; }
+
+    /* ═══════════════ 暗色模式专调 ═══════════════ */
+    :root[data-theme="dark"] .pkr-p.winner {
+      background: linear-gradient(180deg, rgba(241,196,15,0.12) 0%, transparent 100%);
+      box-shadow: 0 0 20px rgba(241,196,15,0.2), inset 0 0 10px rgba(241,196,15,0.05);
+    }
+    :root[data-theme="dark"] .pkr-p.loser {
+      filter: grayscale(0.6) brightness(0.8);
+    }
+    :root[data-theme="dark"] .pkr-table th {
+      background: #1c2128; /* 比卡片底色稍亮，形成层次感 */
+    }
+    :root[data-theme="dark"] table tbody tr:hover td {
+      /* 覆盖全局的 hover 背景，让表格 hover 更像赛博朋克 */
+      background-color: rgba(255,255,255,0.03) !important; 
+    }
+
+    /* ═══════════════ Sci-Fi 模式专调 ═══════════════ */
+    :root[data-theme="scifi"] .pkr-card { border-color: rgba(0, 229, 255, 0.4); box-shadow: 0 0 20px rgba(0,229,255,0.1); }
+    :root[data-theme="scifi"] .pkr-p.winner { border-color: #f1c40f; box-shadow: 0 0 25px rgba(241,196,15,0.3); }
+    :root[data-theme="scifi"] .pkr-p.loser { border-color: rgba(255,255,255,0.1); filter: grayscale(0.8) brightness(0.6); }
+    :root[data-theme="scifi"] .pkr-table th { background: rgba(0, 229, 255, 0.08); color: #8ff0ff; }
+    :root[data-theme="scifi"] .pkr-table td { border-bottom: 1px dashed rgba(0, 229, 255, 0.2); }
+    :root[data-theme="scifi"] .t-weighted { text-shadow: 0 0 5px #2ecc71; }
+    :root[data-theme="scifi"] .pkr-prize { text-shadow: 0 0 8px #2ecc71; }
   </style>
 </head>
 <body class="index-body">
