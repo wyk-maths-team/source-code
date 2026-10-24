@@ -3,9 +3,9 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='81b44ad1';</script>
+<script>window.__BUILD_V='54da3275';</script>
 
-<script src="/assets/js/arch-render.js?v=81b44ad1"></script>
+<script src="/assets/js/arch-render.js?v=54da3275"></script>
   
 <meta charset="UTF-8" />
 <script>(function(){try{
@@ -21,24 +21,93 @@
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
   <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=81b44ad1" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=54da3275" />
   <style>
     .admin-container { background: var(--card-bg); border-radius: 4px; padding: 1.5rem; }
-    .problems-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-    .problems-table th, .problems-table td { padding: 0.5rem; border-bottom: 1px solid var(--border-color); text-align: left; }
-    .problems-table th:first-child { width: 30px; }
-    .btn { padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; margin-right: 0.5rem; }
+
+    /* ── 顶部工具条：搜索 + 新增 ── */
+    .pm-toolbar { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .pm-search { position: relative; flex: 1 1 240px; max-width: 420px; }
+    .pm-search i {
+      position: absolute; left: .7rem; top: 50%; transform: translateY(-50%);
+      color: var(--text-secondary); font-size: .85rem; pointer-events: none;
+    }
+    .pm-search input {
+      width: 100%; padding: .5rem .75rem .5rem 2rem;
+      border: 1px solid var(--border-color); border-radius: 4px;
+      background: var(--card-bg); color: var(--text-primary); font-size: .9rem;
+      font-family: inherit;
+    }
+    .pm-search input:focus { outline: none; border-color: var(--accent); }
+    .pm-count { font-size: .82rem; color: var(--text-secondary); white-space: nowrap; }
+
+    /* ── 表格：外层滚动，表头吸附，滚动时 Public 开关和操作列不会滚走 ── */
+    .pm-table-wrap {
+      max-height: calc(100vh - 300px);
+      overflow: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+    }
+    .problems-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .problems-table thead th {
+      position: sticky; top: 0; z-index: 2;
+      background: var(--card-bg);
+      border-bottom: 2px solid var(--border-color);
+      padding: .6rem .5rem; text-align: left; white-space: nowrap;
+    }
+    .problems-table td { padding: .5rem; border-bottom: 1px solid var(--border-color); text-align: left; }
+    .problems-table tbody tr:hover td { background: rgba(127,127,127,.06); }
+    .problems-table th:first-child,
+    .problems-table td:first-child { width: 36px; }
+
+    /* 答案列：限宽 + 省略号，避免长答案把表格撑变形 */
+    .problems-table .col-answer { width: 280px; max-width: 280px; }
+    .pm-answer {
+      display: block; max-width: 280px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font-family: 'Consolas', monospace; font-size: .82rem;
+      color: var(--text-secondary); cursor: help;
+    }
+    .problems-table .col-actions { width: 130px; white-space: nowrap; }
+
+    .btn { padding: .5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; margin-right: .5rem; font-family: inherit; }
     .btn-primary { background: var(--accent); color: #fff; }
     .btn-danger { background: var(--danger); color: #fff; }
     .btn-warning { background: #ffc107; color: #000; }
-    .message { margin: 1rem 0; font-size: 0.9rem; }
-    .batch-actions { margin-top: 1rem; display: none; }
+    .btn-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px; padding: 0;
+      margin-right: .35rem; font-size: .8rem; line-height: 1;
+    }
+    .message { margin: 1rem 0; font-size: .9rem; }
+    .batch-actions {
+      margin-top: 1rem; display: none;
+      position: sticky; bottom: 0;
+      background: var(--card-bg);
+      padding: .6rem 0; border-top: 1px solid var(--border-color);
+    }
     .batch-actions.visible { display: block; }
+
+    /* ── Public 开关 ── */
+    .pm-switch { position: relative; display: inline-block; width: 40px; height: 22px; vertical-align: middle; }
+    .pm-switch input { opacity: 0; width: 0; height: 0; }
+    .pm-slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background: #999; border-radius: 22px; transition: background .15s;
+    }
+    .pm-slider::before {
+      content: ''; position: absolute; height: 16px; width: 16px;
+      left: 3px; bottom: 3px; background: #fff; border-radius: 50%;
+      transition: transform .15s;
+    }
+    .pm-switch input:checked + .pm-slider { background: var(--accent); }
+    .pm-switch input:checked + .pm-slider::before { transform: translateX(18px); }
+    .pm-switch input:disabled + .pm-slider { opacity: .5; cursor: not-allowed; }
   </style>
-<script src="/assets/js/core/ui.js?v=81b44ad1"></script>
-<script src="/assets/js/core/net.js?v=81b44ad1"></script>
-<script src="/assets/js/core/api.js?v=81b44ad1"></script>
-<script src="/assets/js/core/page.js?v=81b44ad1"></script>
+<script src="/assets/js/core/ui.js?v=54da3275"></script>
+<script src="/assets/js/core/net.js?v=54da3275"></script>
+<script src="/assets/js/core/api.js?v=54da3275"></script>
+<script src="/assets/js/core/page.js?v=54da3275"></script>
 </head>
 <body class="index-body">
   <div id="appContainer">
@@ -47,22 +116,32 @@
     <main class="main-content" id="mainContent">
       <div class="admin-container">
         <h2>Manage Problems</h2>
-        <div style="margin-bottom:1rem;">
+
+        <div class="pm-toolbar">
+          <div class="pm-search">
+            <i class="fas fa-search"></i>
+            <input type="text" id="pmSearch" placeholder="Search ID / name / answer…" autocomplete="off" />
+          </div>
+          <span class="pm-count" id="pmCount"></span>
           <a href="/admin/create/problem" class="btn btn-primary">+ Add New Problem</a>
         </div>
-        <table class="problems-table">
-          <thead>
-            <tr>
-              <th><input type="checkbox" id="selectAll" /></th>
-              <th>ID</th>
-              <th>Name</th>
-              <th>Answer</th>
-              <th>Public</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="problemsList"></tbody>
-        </table>
+
+        <div class="pm-table-wrap">
+          <table class="problems-table">
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="selectAll" /></th>
+                <th>ID</th>
+                <th>Name</th>
+                <th class="col-answer">Answer</th>
+                <th>Public</th>
+                <th class="col-actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="problemsList"></tbody>
+          </table>
+        </div>
+
         <div class="batch-actions" id="batchActions">
           <button class="btn btn-danger" id="batchDeleteBtn">Delete Selected</button>
           <button class="btn btn-warning" id="batchHideBtn">Hide Selected</button>
@@ -72,14 +151,14 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=81b44ad1"></script>
-  <script src="/assets/js/app.js?v=81b44ad1"></script>
-  <script src="/assets/js/topbar.js?v=81b44ad1"></script>
+  <script src="/assets/js/auth.js?v=54da3275"></script>
+  <script src="/assets/js/app.js?v=54da3275"></script>
+  <script src="/assets/js/topbar.js?v=54da3275"></script>
   
-<script src="/assets/js/sidebar.js?v=81b44ad1"></script>
-<script src="/assets/js/heartbeat.js?v=81b44ad1"></script>
-<script src="/assets/js/pk-invite.js?v=81b44ad1"></script>
+<script src="/assets/js/sidebar.js?v=54da3275"></script>
+<script src="/assets/js/heartbeat.js?v=54da3275"></script>
+<script src="/assets/js/pk-invite.js?v=54da3275"></script>
 
-  <script src="/assets/js/pages/admin-problems.js?v=81b44ad1"></script>
+  <script src="/assets/js/pages/admin-problems.js?v=54da3275"></script>
 </body>
 </html>

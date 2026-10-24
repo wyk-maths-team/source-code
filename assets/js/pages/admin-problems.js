@@ -6,38 +6,87 @@
 
     function escapeHtml(s) { return ((window.DSHUI && window.DSHUI.esc) || function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]; }); })(s); }
 
+    let allProblems = [];
+
     async function loadProblems() {
       try {
         const data = await apiCall('/api/problem?action=adminProblems');
         if (data.success) {
-          const tbody = document.getElementById('problemsList');
-          tbody.innerHTML = data.problems.map(p => `
-            <tr>
-              <td><input type="checkbox" class="problem-checkbox" data-id="${escapeHtml(p.id)}" /></td>
-              <td><a href="/problems/${encodeURIComponent(p.id)}">${escapeHtml(p.id)}</a></td>
-              <td>${escapeHtml(p.name)}</td>
-              <td>${escapeHtml(String(p.ans))}</td>
-              <td>${p.public ? 'Yes' : 'No'}</td>
-              <td>
-                <button class="btn btn-primary" onclick="window.location.href='/admin/problems/${encodeURIComponent(p.id)}'">Edit</button>
-                <button class="btn btn-danger" onclick="deleteProblem('${escapeHtml(p.id)}')">Delete</button>
-              </td>
-            </tr>
-          `).join('');
-
-          document.getElementById('selectAll').addEventListener('change', function() {
-            document.querySelectorAll('.problem-checkbox').forEach(cb => cb.checked = this.checked);
-            toggleBatchActions();
-          });
-
-          document.querySelectorAll('.problem-checkbox').forEach(cb => {
-            cb.addEventListener('change', toggleBatchActions);
-          });
-
-          toggleBatchActions();
+          allProblems = data.problems || [];
+          renderRows();
         }
       } catch (err) { console.error(err); }
     }
+
+    function renderRows() {
+      const kw = (document.getElementById('pmSearch')?.value || '').toLowerCase().trim();
+      const filtered = !kw ? allProblems : allProblems.filter(p => {
+        const hay = [p.id, p.name, p.ans, p.difficulty, (p.tags || []).join(' ')]
+          .filter(v => v !== undefined && v !== null).join(' ').toLowerCase();
+        return hay.includes(kw);
+      });
+
+      const tbody = document.getElementById('problemsList');
+      tbody.innerHTML = filtered.map(p => `
+        <tr>
+          <td><input type="checkbox" class="problem-checkbox" data-id="${escapeHtml(p.id)}" /></td>
+          <td><a href="/problems/${encodeURIComponent(p.id)}">${escapeHtml(p.id)}</a></td>
+          <td>${escapeHtml(p.name)}</td>
+          <td class="col-answer"><span class="pm-answer" title="${escapeHtml(String(p.ans ?? ''))}">${escapeHtml(String(p.ans ?? ''))}</span></td>
+          <td>
+            <label class="pm-switch" title="${p.public ? 'Public — click to hide' : 'Hidden — click to publish'}">
+              <input type="checkbox" class="pm-pub" data-id="${escapeHtml(p.id)}" ${p.public ? 'checked' : ''} />
+              <span class="pm-slider"></span>
+            </label>
+          </td>
+          <td class="col-actions">
+            <a class="btn btn-primary btn-icon" title="Edit" href="/admin/problems/${encodeURIComponent(p.id)}"><i class="fas fa-pencil-alt"></i></a>
+            <button class="btn btn-danger btn-icon" title="Delete" onclick="deleteProblem('${escapeHtml(p.id)}')"><i class="fas fa-trash"></i></button>
+          </td>
+        </tr>
+      `).join('');
+
+      const countEl = document.getElementById('pmCount');
+      if (countEl) countEl.textContent = kw ? `${filtered.length} / ${allProblems.length}` : `${allProblems.length} problems`;
+
+      bindRowEvents();
+    }
+
+    function bindRowEvents() {
+      const selAll = document.getElementById('selectAll');
+      if (selAll) {
+        selAll.onchange = function () {
+          document.querySelectorAll('.problem-checkbox').forEach(cb => cb.checked = this.checked);
+          toggleBatchActions();
+        };
+      }
+      document.querySelectorAll('.problem-checkbox').forEach(cb => { cb.onchange = toggleBatchActions; });
+
+      // Public 开关：直接改单个题目的可见性，失败则回滚，避免 UI 与库不一致
+      document.querySelectorAll('.pm-pub').forEach(cb => {
+        cb.onchange = async function () {
+          const id = this.dataset.id;
+          const next = this.checked;
+          this.disabled = true;
+          try {
+            const r = await apiCall('/api/problem?action=adminProblems', 'PUT', { ids: [id], public: next });
+            if (!r.success) throw new Error(r.message || 'update failed');
+            const p = allProblems.find(x => x.id === id);
+            if (p) p.public = next;
+            showMessage(`"${id}" ${next ? 'published' : 'hidden'}`, 'success');
+          } catch (e) {
+            this.checked = !next;
+            showMessage('Failed to update visibility', 'error');
+          } finally {
+            this.disabled = false;
+          }
+        };
+      });
+
+      toggleBatchActions();
+    }
+
+    document.getElementById('pmSearch')?.addEventListener('input', renderRows);
 
     function toggleBatchActions() {
       const checked = document.querySelectorAll('.problem-checkbox:checked').length;
@@ -87,4 +136,3 @@
     }
 
     loadProblems();
-  

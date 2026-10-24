@@ -87,6 +87,7 @@ async function loadProblems() {
   const listEl = document.getElementById('problemList');
   listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#666;">Loading...</div>';
   
+  const CACHE_KEY = 'port_problems_cache';
   try {
     const [probRes, statRes] = await Promise.all([
       API.get(`/api/port/problems?subject=${subject}`),
@@ -99,10 +100,39 @@ async function loadProblems() {
       ...p, 
       status: stats[p.id] || 'none' 
     }));
+
+    // 全量缓存到 localStorage：换科目/断网时也能立刻查询，不必每次重拉
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify({
+        subject,
+        updatedAt: Date.now(),
+        items: allProblems
+      }));
+    } catch (e) {
+      // 配额超限（题目太多）时静默跳过，不影响主流程
+      console.warn('[port] cache write failed', e && e.message);
+    }
     
     renderList();
   } catch (err) {
-    listEl.innerHTML = '<div style="padding:20px;color:red;">Failed to load</div>';
+    // 接口失败时退回缓存，至少还能浏览/搜索上次的内容
+    let restored = false;
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (raw) {
+        const cached = JSON.parse(raw);
+        if (cached && Array.isArray(cached.items)) {
+          allProblems = cached.items;
+          renderList();
+          restored = true;
+          const note = document.createElement('div');
+          note.style.cssText = 'padding:6px 10px;font-size:11px;color:#888;';
+          note.textContent = `离线缓存（${new Date(cached.updatedAt).toLocaleString()}）`;
+          listEl.prepend(note);
+        }
+      }
+    } catch (e) { /* 缓存损坏则忽略 */ }
+    if (!restored) listEl.innerHTML = '<div style="padding:20px;color:red;">Failed to load</div>';
   }
 }
 
