@@ -56,7 +56,7 @@
       return;
     }
 
-    const shareUrl = `${location.origin}/pk/invite?id=${encodeURIComponent(invite.id)}`;
+    const shareUrl = `${location.origin}/pk-bet-invite?id=${encodeURIComponent(invite.id)}`;
     const toName   = invite.toDisplay || invite.to || 'your opponent';
     const opponentOnline = opts.opponentOnline !== false;   // 預設視為在線
 
@@ -282,7 +282,9 @@
     });
 
     overlay.querySelector('#pkShareWait').addEventListener('click', () => {
-      window.location.href = `/pk/waiting?invite=${encodeURIComponent(invite.id)}`;
+      // 发起方的落点是自己的出站挑战列表：能看倒计时，也能随时撤销退款。
+      // 原来跳 /pk/waiting —— 那是旧房间模式的等待页，对新邀请无效。
+      window.location.href = '/pk-bet-challenges';
     });
 
     // ── 非同步生成 QR

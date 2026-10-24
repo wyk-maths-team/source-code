@@ -7,7 +7,8 @@
     }
 
     const params = new URLSearchParams(location.search);
-    const inviteId = params.get('id');
+    // 兼容两种参数名：分享卡片用 ?id=，旧等待页用 ?invite=
+    const inviteId = params.get('id') || params.get('invite');
     const cardEl = document.getElementById('pkInvCard');
 
     let invite = null;
@@ -45,10 +46,14 @@
 
       if (!invite) { renderError('Invitation not found.'); return; }
 
-      // 已被接受 → 直接進房間
+      // 已被接受 → 直接進房間。
+      // 下注模式的房间 id 以 PKB 开头、房间页是 /pk-bet-room；旧房间模式是 /pk/room。
       if (invite.status === 'accepted') {
         if (invite.roomId) {
-          window.location.href = `/pk/room?id=${encodeURIComponent(invite.roomId)}`;
+          const isBet = invite.stake !== undefined || String(invite.roomId).indexOf('PKB') === 0;
+          window.location.href = isBet
+            ? `/pk-bet-room?id=${encodeURIComponent(invite.roomId)}`
+            : `/pk/room?id=${encodeURIComponent(invite.roomId)}`;
           return;
         }
         renderError('This invitation was already accepted.');
@@ -77,10 +82,15 @@
       }
 
       const fromName = invite.fromDisplay || invite.from;
+      const stakeLine = invite.stake !== undefined
+        ? `<div class="pk-inv-sub" style="margin-top:6px;">Stake: <b>${Number(invite.stake).toLocaleString()}</b> tokens each
+             · prize pool ${Number(invite.stake * 1.6).toLocaleString()} after 20% fee</div>`
+        : '';
       cardEl.innerHTML = `
         <div class="pk-inv-icon"><i class="fas fa-swords"></i></div>
         <div class="pk-inv-title">${esc(fromName)} invited you to PK</div>
         <div class="pk-inv-sub">Accept to enter the arena</div>
+        ${stakeLine}
         <div class="pk-inv-ttl" id="pkInvTtl"></div>
         <div class="pk-inv-actions">
           <button class="pk-accept"  id="pkInvAccept">Accept</button>
@@ -122,18 +132,27 @@
       const d = document.getElementById('pkInvDecline');
       a.disabled = d.disabled = true;
       a.textContent = 'Accepting…';
+
+      // 下注模式的邀请带 stake 字段，走 /api/pk-bet，成功后进 /pk-bet-room
+      const isBet = invite && invite.stake !== undefined;
+      const acceptUrl = isBet ? '/api/pk-bet?action=accept' : '/api/pk?action=accept';
+
       try {
-        const res = await apiCall('/api/pk?action=accept', 'POST', { inviteId });
+        const res = await apiCall(acceptUrl, 'POST', { inviteId });
         if (res.success && res.roomId) {
           if (ttlTimer) clearInterval(ttlTimer);
-          window.location.href = `/pk/room?id=${encodeURIComponent(res.roomId)}`;
+          window.location.href = isBet
+            ? `/pk-bet-room?id=${encodeURIComponent(res.roomId)}`
+            : `/pk/room?id=${encodeURIComponent(res.roomId)}`;
         } else {
           renderStatus(res.message || 'Failed', 'var(--danger)');
           a.disabled = d.disabled = false;
           a.textContent = 'Accept';
         }
       } catch (err) {
-        renderStatus('Network error: ' + err.message, 'var(--danger)');
+        const detail = (err && err.code ? ` [${err.code}]` : '') +
+          (err && err.need != null ? ` need ${Number(err.need).toLocaleString()}, have ${Number(err.have).toLocaleString()}` : '');
+        renderStatus(((err && err.message) || 'Network error') + detail, 'var(--danger)');
         a.disabled = d.disabled = false;
         a.textContent = 'Accept';
       }
@@ -143,7 +162,9 @@
       const a = document.getElementById('pkInvAccept');
       const d = document.getElementById('pkInvDecline');
       a.disabled = d.disabled = true;
-      try { await apiCall('/api/pk?action=decline', 'POST', { inviteId }); } catch {}
+      const isBet = invite && invite.stake !== undefined;
+      const declineUrl = isBet ? '/api/pk-bet?action=decline' : '/api/pk?action=decline';
+      try { await apiCall(declineUrl, 'POST', { inviteId }); } catch {}
       if (ttlTimer) clearInterval(ttlTimer);
       cardEl.innerHTML = `
         <div class="pk-inv-icon danger"><i class="fas fa-ban"></i></div>
@@ -155,16 +176,28 @@
     // ── 載入
     (async () => {
       if (!inviteId) { renderError('Missing invite ID.'); return; }
+
+      // 两套邀请并存：先问下注模式，再退回旧的房间模式。
+      // 旧代码只查 /api/pk，下注邀请永远查不到，页面就一直是「Invitation unavailable」。
+      let data = null;
       try {
-        const data = await apiCall(`/api/pk?action=invite-status&inviteId=${encodeURIComponent(inviteId)}`);
-        if (!data.success || !data.invite) {
-          renderError(data.message || 'Invitation not found.');
-          return;
-        }
-        invite = data.invite;
-        renderInvite();
-      } catch (err) {
-        renderError(err.message || 'Failed to load invitation.');
+        data = await apiCall(`/api/pk-bet?action=invite-status&inviteId=${encodeURIComponent(inviteId)}`);
+      } catch (e) {
+        data = null;
       }
+      if (!data || !data.success) {
+        try {
+          data = await apiCall(`/api/pk?action=invite-status&inviteId=${encodeURIComponent(inviteId)}`);
+        } catch (e) {
+          data = null;
+        }
+      }
+
+      if (!data || !data.success || !data.invite) {
+        renderError((data && data.message) || 'Invitation not found.');
+        return;
+      }
+      invite = data.invite;
+      renderInvite();
     })();
   

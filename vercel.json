@@ -609,6 +609,22 @@
       "destination": "/pk-invite.html"
     },
     {
+      "source": "/pk-bet-room",
+      "destination": "/pk-bet-room.html"
+    },
+    {
+      "source": "/pk-bet-result",
+      "destination": "/pk-bet-result.html"
+    },
+    {
+      "source": "/pk-bet-challenges",
+      "destination": "/pk-bet-challenges.html"
+    },
+    {
+      "source": "/pk-bet-invite",
+      "destination": "/pk-invite.html"
+    },
+    {
       "source": "/admin/pkproblems",
       "destination": "/admin/pkproblems.html"
     },

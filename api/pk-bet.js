@@ -465,6 +465,22 @@ async function handler(req, res) {
     return res.status(200).json({ success: true });
   }
 
+  // ── 查单个邀请（分享链接落地页用） ──
+  if (action === 'invite-status') {
+    const inviteId = req.query.inviteId;
+    if (!inviteId) return res.status(400).json({ success: false, message: 'Missing inviteId', code: 'MISSING_PARAM' });
+    const invite = await db.collection('pk_bet_invitations').findOne(
+      { id: String(inviteId) }, { projection: { _id: 0 } }
+    );
+    if (!invite) {
+      return res.status(404).json({ success: false, message: 'Invitation not found', code: 'INVITE_NOT_FOUND' });
+    }
+    if (invite.from !== username && invite.to !== username) {
+      return res.status(403).json({ success: false, message: 'This invitation is not yours', code: 'NOT_PARTICIPANT' });
+    }
+    return res.status(200).json({ success: true, invite });
+  }
+
   // ── 我发出的全部挑战（含历史） ──
   if (action === 'outgoing') {
     const now = new Date();
