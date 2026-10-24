@@ -197,8 +197,8 @@ Page.ready(async (user) => {
       // 已结算：直接去结果页，不要停在「房间已关闭」
       if (room.status === 'settled') {
         stopAll();
-        if (room.resultId) {
-          location.href = `/pk-bet-result?id=${encodeURIComponent(room.resultId)}`;
+        if (room.id) {
+          location.href = `/pk-bet-result?id=${encodeURIComponent(room.id)}`;
         } else {
           board.innerHTML = '<div class="pkb-err">Match finished, but the result is missing.</div>';
         }
