@@ -307,7 +307,7 @@ async function handler(req, res) {
       computeRating(db, invite.from),
       computeRating(db, username),
     ]);
-    const targetDiff = ratingToDifficulty((rA + rB) / 2);
+    const targetDiff = ratingToDifficulty((0.5*Math.max(rA,rB) + 1.5*Math.min(rA,rB)) / 2);
     // 排除双方任一人已经 AC 过的题：先做过的人没法再交，否则等于白送 0 分
     const picked = await pickProblems(db, targetDiff, [invite.from, username]);
     if (!picked) {
