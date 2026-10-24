@@ -50,18 +50,11 @@ function ratingToDifficulty(rating) {
   return Math.max(1, Math.min(10, Math.floor((rating - 1000) / 300) + 2));
 }
 
+// rating 走 lib/userRating.js 的物化缓存（O(1)），不再每次重算 O(n log n)
 async function computeRating(db, username) {
-  const userstats = await db.collection('userstats').findOne({ username }, { projection: { states: 1 } });
-  const states = userstats?.states || {};
-  const solvedPids = Object.entries(states).filter(([, s]) => s === 'passed').map(([pid]) => pid);
-  if (solvedPids.length === 0) return 1000;
-  const probs = await db.collection('problems')
-    .find({ id: { $in: solvedPids } }, { projection: { id: 1, difficulty: 1 } })
-    .toArray();
-  const diffMap = Object.fromEntries(probs.map(p => [p.id, p.difficulty]));
-  const { calculateUserRating } = await import('../lib/rating.js');
-  const diffs = solvedPids.map(pid => diffMap[pid]).filter(Number.isFinite);
-  return calculateUserRating({ solvedDifficulties: diffs }).rating;
+  const { getUserRating } = await import('../lib/userRating.js');
+  const r = await getUserRating(db, username);
+  return r.rating;
 }
 
 // 按目标难度在附近抽 3 道 public 题，尽量不重复

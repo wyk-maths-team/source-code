@@ -80,33 +80,73 @@ function compareNumeric(ansStr, userAnswer) {
   return { correct: Math.abs(user - ans) < 1e-6, systemError: false };
 }
 
+// 更新用户做题状态，同时增量维护成就系统需要的计数。
+//
+// 以前成就统计靠每次扫 submissions 现算（O(Sᵤ log Sᵤ)），现在在这里顺手累加：
+//   firstTryCount —— 某道题第一次尝试就 AC
+//   todayTried    —— 今天尝试过的题目（去重，跨天清空）
+//   todayAC       —— 今天 AC 过的题目（去重，跨天清空）
+// 读取端（lib/achievements.js collectStats）只看 userstats 就够，不再触碰 submissions。
 async function updateUserStats(db, username, pid, correct) {
   const col = db.collection('userstats');
-  
-  // ⭐ 先查一下之前是否已经 AC 过
-  const existing = await col.findOne(
-    { username, [`states.${pid}`]: 'passed' },
-    { projection: { _id: 1 } }
-  );
-  const wasPassed = !!existing;
+  const { getHktToday, STATS_VERSION } = await import('../lib/achievements.js');
+  const today = getHktToday();
 
-  await col.updateOne(
-    { username },
-    { $setOnInsert: { username, states: {} } },
-    { upsert: true }
-  );
-  
-  if (correct) {
-    await col.updateOne({ username }, { $set: { [`states.${pid}`]: 'passed' } });
-  } else {
-    await col.updateOne(
-      { username, [`states.${pid}`]: { $ne: 'passed' } },
-      { $set: { [`states.${pid}`]: 'failed' } }
-    );
+  let doc = await col.findOne({ username }, {
+    projection: { states: 1, firstTryCount: 1, todayDate: 1, todayTried: 1, todayAC: 1, statsVersion: 1, _id: 1 },
+  });
+
+  // 老用户还没回填：先补齐一次，否则 firstTryCount 会从 0 开始算错
+  if (doc && doc.statsVersion !== STATS_VERSION) {
+    const { collectStats } = await import('../lib/achievements.js');
+    await collectStats(db, username, { fresh: true });
+    doc = await col.findOne({ username }, {
+      projection: { states: 1, firstTryCount: 1, todayDate: 1, todayTried: 1, todayAC: 1, statsVersion: 1, _id: 1 },
+    });
   }
-  
+
+  const states = doc?.states || {};
+  const wasAttempted = Object.prototype.hasOwnProperty.call(states, pid);
+  const wasPassed = states[pid] === 'passed';
+
+  // 跨天重置
+  const sameDay = doc?.todayDate === today;
+  const todayTried = (sameDay && Array.isArray(doc.todayTried)) ? doc.todayTried.slice() : [];
+  const todayAC = (sameDay && Array.isArray(doc.todayAC)) ? doc.todayAC.slice() : [];
+
+  if (!todayTried.includes(pid)) todayTried.push(pid);
+  if (correct && !todayAC.includes(pid)) todayAC.push(pid);
+
+  const set = {
+    todayDate: today,
+    todayTried,
+    todayAC,
+    statsVersion: STATS_VERSION,
+  };
+
+  // firstTryCount 用 $inc 避免并发覆盖
+  const inc = {};
+  if (correct && !wasAttempted) inc.firstTryCount = 1;
+
+  if (correct) {
+    set[`states.${pid}`] = 'passed';
+  } else if (!wasPassed) {
+    set[`states.${pid}`] = 'failed';
+  }
+
+  const update = { $set: set, $setOnInsert: { username } };
+  if (Object.keys(inc).length) update.$inc = inc;
+
+  await col.updateOne({ username }, update, { upsert: true });
+
+  // 新 AC 会让 rating 变化：清掉内存缓存，否则接下来 60 秒内 profile 会显示旧 rating
+  if (correct && !wasPassed) {
+    const { invalidateUserRating } = await import('../lib/userRating.js');
+    invalidateUserRating(username);
+  }
+
   // ⭐ 返回是否是新 AC（之前没 passed，现在 passed 了）
-  return correct && !wasPassed; 
+  return correct && !wasPassed;
 }
 
 // ═══════════════ Judging (pure — no DB writes) ═══════════════

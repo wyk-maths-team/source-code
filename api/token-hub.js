@@ -2,7 +2,6 @@ import { connectToDatabase } from './_db.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { wrapHandler } from '../lib/errors.js';
-import { calculateUserRating } from '../lib/rating.js'; // ⭐ 引入你的核心算法
 
 const THEME_COST = 300000;
 const AVAILABLE_THEMES = ['default', 'cyberpunk', 'sakura', 'matrix', 'scifi'];
@@ -17,20 +16,16 @@ async function handler(req, res) {
 
   const user = await db.collection('users').findOne({ username }, { projection: { token: 1, displayName: 1 } });
   const userdata = await db.collection('userdata').findOne({ username }, { projection: { theme: 1 } });
-  const userstats = await db.collection('userstats').findOne({ username }, { projection: { states: 1 } });
 
   if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-  // ⭐ 实时计算真实 Rating 和 Solved Count
-  const states = userstats?.states || {};
-  const solvedPids = Object.entries(states).filter(([_, s]) => s === 'passed').map(([pid]) => pid);
-  const probs = await db.collection('problems').find({ id: { $in: solvedPids } }).project({ id: 1, difficulty: 1 }).toArray();
-  const diffMap = Object.fromEntries(probs.map(p => [p.id, p.difficulty]));
-  const solvedDifficulties = solvedPids.map(pid => diffMap[pid]).filter(Number.isFinite);
-  
-  const ratingData = calculateUserRating({ solvedDifficulties });
+  // ⭐ Rating 走 lib/userRating.js 的物化缓存
+  //   以前这里每次都要：取 states → 查全部已解题目 → 算 sort + 加权（O(n log n)）。
+  //   现在只要 solvedCount 没变就直接拿缓存，O(1)。
+  const { getUserRating } = await import('../lib/userRating.js');
+  const ratingData = await getUserRating(db, username);
   const rating = ratingData.rating;
-  const solvedCount = solvedDifficulties.length;
+  const solvedCount = ratingData.solvedCount;
 
   // 映射今日任务难度（Rating 1500->3, Rating 2500->6）
   const targetDifficulty = Math.max(1, Math.min(10, Math.floor((rating - 1000) / 300) + 2));

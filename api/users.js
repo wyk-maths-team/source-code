@@ -4,7 +4,7 @@ import { verifyToken } from '../lib/auth.js';
 import bcrypt from 'bcrypt';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';   // ⭐ 唯一来源，不再本地重复定义
-import { calculateUserRating } from '../lib/rating.js';
+import { calculateUserRating, getTier } from '../lib/rating.js';
 import { wrapHandler } from '../lib/errors.js';
 // ⭐ 排行榜內存緩存（30 秒）
 let _leaderboardCache = { data: null, expireAt: 0 };
@@ -667,19 +667,43 @@ if (isPeriodMode) {
 
       const statsMap = Object.fromEntries(statsDocs.map(s => [s.username, s]));
 
+      // ⭐ Rating：优先用 userstats 上的物化值。
+      //    以前是 U 个用户各跑一遍 sort + 加权（O(U·n log n)）；
+      //    现在 solvedCount 没变就直接读缓存，只有真正变化的少数用户才重算。
+      const RATING_MAX_AGE_MS = 7 * 24 * 3600_000;
+
       for (const u of leaderboard) {
-        const states = statsMap[u.username]?.states || {};
+        const doc = statsMap[u.username];
+        const states = doc?.states || {};
+
+        // 只在难度表里存在的已解题才算（题目被删掉的不计入）
         const solvedDiffs = [];
         for (const [pid, st] of Object.entries(states)) {
           if (st === 'passed' && diffMap[pid] !== undefined) {
             solvedDiffs.push(diffMap[pid]);
           }
         }
+        const solvedCount = solvedDiffs.length;
+
+        const cached = doc?.rating;
+        const cachedCount = doc?.ratingSolvedCount;
+        const updatedAt = doc?.ratingUpdatedAt ? new Date(doc.ratingUpdatedAt).getTime() : 0;
+        const cacheFresh = updatedAt > 0 && (Date.now() - updatedAt) < RATING_MAX_AGE_MS;
+
+        if (cached != null && cachedCount === solvedCount && cacheFresh && doc?.ratingMeta) {
+          const tier = getTier(cached);
+          u.rating = cached;
+          u.tierColor = tier.color;
+          u.tierGlow = tier.glow;
+          u.maxDifficulty = doc.ratingMeta.effectiveMax;
+          continue;
+        }
+
         const r = calculateUserRating({ solvedDifficulties: solvedDiffs });
         u.rating = r.rating;
         u.tierColor = r.tier.color;
         u.tierGlow = r.tier.glow;
-        u.maxDifficulty = r.maxPR;
+        u.maxDifficulty = r.effectiveMax;   // ← 原来是 r.maxPR，字段名不存在，永远是 undefined
       }
       const payload = { success: true, leaderboard, serverNow, heartbeatMs: HEARTBEAT_MS, timeoutMs: TIMEOUT_MS };
       _leaderboardCache = { data: payload, expireAt: Date.now() + LEADERBOARD_TTL };
@@ -691,10 +715,13 @@ if (isPeriodMode) {
       if (!username) return res.status(400).json({ success: false, message: 'Missing username' });
 
       const isAdminUser = decoded.role === 'admin' || decoded.role === 'root';
-      const problemFilter = isAdminUser ? {} : { public: true };
 
-      const [problems, userStats, user, userdata] = await Promise.all([
-        db.collection('problems').find(problemFilter, { projection: { id: 1, difficulty: 1, _id: 0 } }).toArray(),
+      // 题库元数据走 60s 缓存（lib/problemCache.js），不再每个请求拉 2400 行。
+      // 同时把「遍历全部题目」改成「遍历用户做过的题目」，两者都省一个数量级。
+      const { getPublicProblems, getAllProblems } = await import('../lib/problemCache.js');
+      const problemData = isAdminUser ? await getAllProblems(db) : await getPublicProblems(db);
+
+      const [userStats, user, userdata] = await Promise.all([
         db.collection('userstats').findOne({ username }, { projection: { states: 1, _id: 0 } }),
         db.collection('users').findOne(
           { username },
@@ -703,27 +730,25 @@ if (isPeriodMode) {
         db.collection('userdata').findOne({ username }, { projection: { theme: 1, _id: 0 } }) // ⭐ 新增
       ]);
 
-      problems.sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
-
       const states = userStats?.states || {};
       const attempted = [];
       let totalPassed = 0;
-      const solvedDifficulties = [];                          // ⭐ 收集已通過的題目難度
 
-      for (const p of problems) {
-        const state = states[p.id];
+      // 只遍历用户做过的题，不再扫全库
+      for (const pid of Object.keys(states)) {
+        if (!problemData.idSet.has(pid)) continue;           // 非 public 的题不计入（非管理员视角）
+        const state = states[pid];
         if (state === 'passed') {
           totalPassed++;
-          attempted.push({ id: p.id, state: 'passed' });
-          solvedDifficulties.push(Number(p.difficulty) || 0);  // ⭐
-        }
-        else if (state === 'failed') {
-          attempted.push({ id: p.id, state: 'failed' });
+          attempted.push({ id: pid, state: 'passed' });
+        } else if (state === 'failed') {
+          attempted.push({ id: pid, state: 'failed' });
         }
       }
 
-      // ⭐ 計算 rating
-      const ratingResult = calculateUserRating({ solvedDifficulties });
+      // ⭐ Rating 走物化缓存，不再这里重算 O(n log n)
+      const { getUserRating } = await import('../lib/userRating.js');
+      const ratingResult = await getUserRating(db, username);
 
       const HEARTBEAT_MS = Number(process.env.ONLINE_HEARTBEAT_MS) || 5 * 60 * 1000;
       const TIMEOUT_MS   = Number(process.env.ONLINE_TIMEOUT_MS)   || HEARTBEAT_MS + 2 * 60 * 1000;
@@ -739,9 +764,9 @@ if (isPeriodMode) {
         realName: user?.realName || '',
         pfp: user?.pfp || '',
         totalPassed,
-        totalProblems: problems.length,
+        totalProblems: problemData.list.length,
         attempted,
-        allProblemIds: problems.map(p => p.id),
+        allProblemIds: problemData.ids,
         online,
         totalOnlineMs,
         lastSeenAt: user?.lastSeenAt || null,
