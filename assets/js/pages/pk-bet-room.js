@@ -17,6 +17,14 @@ Page.ready(async (user) => {
   let tickTimer = null;
   let pollTimer = null;
   let busy = false;
+  let stopped = false;        // 一旦确定房间不再活跃，就停掉所有定时器
+  let endTriggered = false;   // 时间到只触发一次结算请求
+
+  function stopAll() {
+    stopped = true;
+    if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
 
   function esc(s) {
     return (window.DSHUI && DSHUI.esc) ? DSHUI.esc(s) : String(s == null ? '' : s).replace(/[&<>"']/g, m =>
@@ -128,6 +136,7 @@ Page.ready(async (user) => {
       const res = await apiCall('/api/pk-bet?action=ready-end', 'POST', { roomId, cancel: !arm });
       if (res && res.success) {
         if (res.settled && res.result) {
+          stopAll();
           location.href = `/pk-bet-result?id=${encodeURIComponent(res.result.id)}`;
           return;
         }
@@ -155,46 +164,69 @@ Page.ready(async (user) => {
       el.textContent = `${mm}:${ss}`;
       el.className = 'pkb-timer' + (left <= 60 ? ' danger' : left <= 300 ? ' warn' : '');
     }
-    if (left <= 0) refresh();
+    // 时间到只触发一次；之前每秒都调 refresh()，房间一关闭就变成无限请求
+    if (left <= 0 && !endTriggered && !stopped) {
+      endTriggered = true;
+      refresh();
+    }
   }
 
   async function refresh() {
+    if (stopped) return;
     try {
       const res = await apiCall(`/api/pk-bet?action=room&roomId=${encodeURIComponent(roomId)}`);
+
+      // 业务失败（房间不存在 / 不是参赛者 / 未登录）：重试没有意义，停掉轮询
       if (!res.success) {
+        stopAll();
         board.innerHTML = `<div class="pkb-err">${esc(res.message || 'Failed to load')}</div>`;
         return;
       }
+
       if (res.result) {
+        stopAll();
         location.href = `/pk-bet-result?id=${encodeURIComponent(res.result.id)}`;
         return;
       }
+
       room = res.room;
       attempts = res.attempts || [];
       me = res.you || (getCurrentUser() || {}).username;
       offsetMs = new Date(res.serverNow).getTime() - Date.now();
 
       // 已结算：直接去结果页，不要停在「房间已关闭」
-      if (room.status === 'settled' && room.resultId) {
-        location.href = `/pk-bet-result?id=${encodeURIComponent(room.resultId)}`;
+      if (room.status === 'settled') {
+        stopAll();
+        if (room.resultId) {
+          location.href = `/pk-bet-result?id=${encodeURIComponent(room.resultId)}`;
+        } else {
+          board.innerHTML = '<div class="pkb-err">Match finished, but the result is missing.</div>';
+        }
         return;
       }
+
       if (room.status !== 'active') {
+        stopAll();
         board.innerHTML = '<div class="pkb-err">This room is closed.</div>';
         return;
       }
+
       render();
     } catch (e) {
-      board.innerHTML = '<div class="pkb-err">Network error.</div>';
+      // 网络错误可能只是瞬断，继续轮询等它恢复
+      board.innerHTML = '<div class="pkb-err">Network error. Retrying…</div>';
     }
   }
 
   await refresh();
-  tickTimer = setInterval(tick, 1000);
-  pollTimer = setInterval(() => { if (!document.hidden) refresh(); }, 5000);
+  // 首次加载就可能已经结束（跳结果页或显示 closed），此时不要再起定时器
+  if (!stopped) {
+    tickTimer = setInterval(tick, 1000);
+    pollTimer = setInterval(() => { if (!document.hidden && !stopped) refresh(); }, 5000);
+  }
 
   window.addEventListener('beforeunload', () => {
-    clearInterval(tickTimer);
-    clearInterval(pollTimer);
+    if (tickTimer) clearInterval(tickTimer);
+    if (pollTimer) clearInterval(pollTimer);
   });
 });
