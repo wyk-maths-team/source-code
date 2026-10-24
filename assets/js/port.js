@@ -5,6 +5,14 @@ let allProblems = [];
 Page.boot({ title: 'Port', requireAuth: true });
 
 Page.ready(async (user) => {
+  // 所有 /api/port/* 端点都走 portAuth，那里面只放行 root。
+  // 页面本身原来只要求「已登录」，结果普通学生能进来、却每个请求都 403，
+  // 看到一片 Failed to load。这里提前拦掉，行为和 API 保持一致。
+  if (!user || user.role !== 'root') {
+    window.location.href = '/';
+    return;
+  }
+
   const elSteps = document.getElementById('stepsInput');
   const elSubmitBtn = document.getElementById('submitBtn');
   const elDraftStatus = document.getElementById('draftIndicator');
