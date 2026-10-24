@@ -57,6 +57,30 @@
   --shadow: 0 1px 3px rgba(0,0,0,.4);
   --shadow-lg: 0 10px 30px rgba(0,0,0,.5);
 }
+[data-theme="scifi"] {
+  --bg: #04070d;
+  --bg-elevated: #09101a;
+  --card: #09101a;
+  --border: #14313f;
+  --text: #c6eeff;
+  --text-2: #8fb8cc;
+  --text-3: #6c8fa3;
+  --accent: #00e5ff;
+  --accent-hover: #6ef7ff;
+  --danger: #ff6b6b;
+  --success: #3fb96a;
+
+  --success-bg: #0b2a24; --success-text: #7ef2c8; --success-bd: #14524a;
+  --danger-bg: #2a1118; --danger-text: #ff9db8; --danger-bd: #5a2430;
+  --warning-bg: #2e2410; --warning-text: #ffd166; --warning-bd: #5a4a1e;
+  --pending-bg: #0f2231; --pending-text: #7fa3b8; --pending-bd: #1e4a5e;
+  --system-bg: #0f2231; --system-text: #9fe8ff; --system-bd: #1e4a5e;
+
+  --nav-bg: #09101a;
+  --nav-active: #00e5ff;
+  --shadow: 0 0 8px rgba(0,229,255,.10);
+  --shadow-lg: 0 0 24px rgba(0,229,255,.16);
+}
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; }

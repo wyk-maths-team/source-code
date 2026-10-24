@@ -3,9 +3,9 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='a5217388';</script>
+<script>window.__BUILD_V='89343403';</script>
 
-<script src="/assets/js/arch-render.js?v=a5217388"></script>
+<script src="/assets/js/arch-render.js?v=89343403"></script>
 
 <meta charset="UTF-8">
 <script>(function(){try{
@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=a5217388">
+<link rel="stylesheet" href="/assets/css/styles.css?v=89343403">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
 <style>
@@ -42,6 +42,18 @@
     --op-delete-bg: #3a1a1a;
     --op-command: #c586f5;
     --op-command-bg: #2a1a3a;
+  }
+  /* 操作类型颜色沿用暗色的色相，仅把底色换成青色系深调，
+     保证与整体皮肤一致又不丢失「新增绿 / 修改橙 / 删除红」的语义 */
+  :root[data-theme="scifi"] {
+    --op-insert: #56d364;
+    --op-insert-bg: #0b2a24;
+    --op-update: #ffa726;
+    --op-update-bg: #2e2410;
+    --op-delete: #f85149;
+    --op-delete-bg: #2a1118;
+    --op-command: #c586f5;
+    --op-command-bg: #211a2e;
   }
 
   .oplog-wrap { max-width: 1080px; margin: 0 auto; }
@@ -375,10 +387,10 @@
     .oplog-filters select { flex: 1; min-width: 0; }
   }
 </style>
-<script src="/assets/js/core/ui.js?v=a5217388"></script>
-<script src="/assets/js/core/net.js?v=a5217388"></script>
-<script src="/assets/js/core/api.js?v=a5217388"></script>
-<script src="/assets/js/core/page.js?v=a5217388"></script>
+<script src="/assets/js/core/ui.js?v=89343403"></script>
+<script src="/assets/js/core/net.js?v=89343403"></script>
+<script src="/assets/js/core/api.js?v=89343403"></script>
+<script src="/assets/js/core/page.js?v=89343403"></script>
 </head>
 <body class="index-body">
   <div id="appContainer">
@@ -389,14 +401,14 @@
 
   <aside class="oplog-drawer" id="oplogDrawer"></aside>
 
-  <script src="/assets/js/auth.js?v=a5217388"></script>
-  <script src="/assets/js/app.js?v=a5217388"></script>
-  <script src="/assets/js/topbar.js?v=a5217388"></script>
+  <script src="/assets/js/auth.js?v=89343403"></script>
+  <script src="/assets/js/app.js?v=89343403"></script>
+  <script src="/assets/js/topbar.js?v=89343403"></script>
   
-<script src="/assets/js/sidebar.js?v=a5217388"></script>
-<script src="/assets/js/heartbeat.js?v=a5217388"></script>
-<script src="/assets/js/pk-invite.js?v=a5217388"></script>
+<script src="/assets/js/sidebar.js?v=89343403"></script>
+<script src="/assets/js/heartbeat.js?v=89343403"></script>
+<script src="/assets/js/pk-invite.js?v=89343403"></script>
 
-  <script src="/assets/js/pages/admin-oplog.js?v=a5217388"></script>
+  <script src="/assets/js/pages/admin-oplog.js?v=89343403"></script>
 </body>
 </html>

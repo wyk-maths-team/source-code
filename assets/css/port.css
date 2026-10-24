@@ -23,6 +23,17 @@
   --shadow-sm: 0 1px 3px rgba(0,0,0,.3);
   --shadow-md: 0 4px 12px rgba(0,0,0,.4);
 }
+  [data-theme="scifi"] {
+    --bg: #04070d;
+    --card-bg: #09101a;
+    --border: #14313f;
+    --text: #c6eeff;
+    --text-2: #6c8fa3;
+    --accent: #00e5ff;
+    --accent-hover: #6ef7ff;
+    --shadow-sm: 0 0 8px rgba(0,229,255,.10);
+    --shadow-md: 0 0 16px rgba(0,229,255,.13);
+  }
 
 * { box-sizing: border-box; }
 body {
