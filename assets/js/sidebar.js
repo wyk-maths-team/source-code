@@ -55,7 +55,7 @@
           <li><hr style="margin:8px 0; border-color:rgba(255,255,255,0.2);"></li>
         ` : ''}
         <li><a href="/settings" class="sidebar-link require-login" data-page="template"><i class="fa-solid fa-gear fa-fw"></i> Settings</a></li>
-        <li><a href="/tokens" class="sidebar-link require-login" data-page="template"><i class="fa-solid fa-coin fa-fw"></i> Tokens</a></li>
+        <li><a href="/tokens" class="sidebar-link require-login" data-page="tokens"><i class="fa-solid fa-coins fa-fw"></i></i> Tokens</a></li>
         <li><a href="/credits" class="sidebar-link" data-page="credits"><i class="fa-solid fa-heart fa-fw"></i> Credits</a></li>
         <li><a href="/guide" class="sidebar-link" data-page="guide"><i class="fa-solid fa-book-open fa-fw"></i> Guides</a></li>
         ${renderExtraNav()}
@@ -209,7 +209,7 @@
     else if (page === 'credits' && path.startsWith('/credits')) link.classList.add('active');
     else if (page === 'contest' && path.startsWith('/contest')) link.classList.add('active');
     else if (page === 'guide' && path.startsWith('/guide')) link.classList.add('active');
-    else if (path.startsWith('/tokens')) link.classList.add('active');
+    else if (page === 'token'&& path.startsWith('/tokens')) link.classList.add('active');
     else {
       // 扩展导航（EXTRA_NAV）：按 match / href 前缀自动高亮
       const extra = EXTRA_NAV.find((it) => it.page === page);
