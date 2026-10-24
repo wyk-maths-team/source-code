@@ -233,12 +233,35 @@ async function handleSubmit() {
   }
 }
 
+/**
+ * 净化 AI 返回的 HTML。
+ * marked.parse 默认不做 sanitize，AI 若在 comment 里写 <img onerror=...>
+ * 就会直接执行（浏览器里已验证可触发）。这里用 DOM 解析后剔除危险节点与属性。
+ */
+function sanitizeHtml(html) {
+  const tpl = document.createElement('template');
+  tpl.innerHTML = html;
+  tpl.content.querySelectorAll('script,style,iframe,object,embed,link,meta,form').forEach(el => el.remove());
+  tpl.content.querySelectorAll('*').forEach(el => {
+    for (const attr of [...el.attributes]) {
+      const name = attr.name.toLowerCase();
+      const val = String(attr.value || '').toLowerCase().replace(/[\s\u0000]/g, '');
+      if (name.startsWith('on')) {
+        el.removeAttribute(attr.name);
+      } else if ((name === 'href' || name === 'src' || name === 'xlink:href' || name === 'formaction') && val.startsWith('javascript:')) {
+        el.removeAttribute(attr.name);
+      }
+    }
+  });
+  return tpl.innerHTML;
+}
+
 function showResult(result) {
   const elResultPanel = document.getElementById('resultPanel');
   elResultPanel.hidden = false;
   document.getElementById('resultScore').textContent = `Score: ${result.score} / ${currentProblem.maxScore || 100}`;
   
-  const commentHtml = window.marked ? marked.parse(result.comment || '') : DSHUI.esc(result.comment || '');
+  const commentHtml = window.marked ? sanitizeHtml(marked.parse(result.comment || '')) : DSHUI.esc(result.comment || '');
   document.getElementById('resultComment').innerHTML = commentHtml;
   
   const warnEl = document.getElementById('resultWarning');

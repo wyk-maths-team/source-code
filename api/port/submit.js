@@ -140,7 +140,9 @@ async function handler(req, res) {
     // 阅卷成功：此时删草稿是安全的
     await db.collection('port_drafts').deleteOne({ username: decoded.username, problemId: String(problemId) });
 
-    return res.status(200).json({ success: true, submissionId, result: { score: finalScore, ...result } });
+    // score 必须放在 ...result 之后：否则 AI 返回的原始字符串（如 "85/100"）
+    // 会把上面算好的数值分数覆盖掉，前端就显示成「85/100 / 100」。
+    return res.status(200).json({ success: true, submissionId, result: { ...result, score: finalScore } });
 
   } catch (err) {
     console.error('[port submit]', err);
