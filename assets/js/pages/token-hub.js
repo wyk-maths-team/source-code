@@ -13,9 +13,6 @@
 
   Page.ready(async (user) => {
     await loadData();
-    
-    document.getElementById('btn-login').addEventListener('click', () => claimReward('claim_login'));
-    document.getElementById('btn-do').addEventListener('click', () => claimReward('claim_quest'));
   });
 
   async function loadData() {
@@ -24,7 +21,6 @@
       if (!res.success) throw new Error(res.message);
       state = res;
       
-      // ⭐ 更新 Preview 真实数据
       document.getElementById('pv-name').textContent = state.displayName;
       document.getElementById('pv-rating').textContent = state.rating;
       document.getElementById('pv-solved').textContent = state.solvedCount;
@@ -33,33 +29,53 @@
         window.updateTopbarTokens(state.tokens.daily, state.tokens.global);
       }
 
-      // ⭐ Login 自动完成逻辑：如果没领，直接静默调用接口领取，然后重新加载
+      // ⭐ Login 自动完成逻辑
       if (!state.quests.login.claimed) {
         await API.post('/api/token-hub', { action: 'claim_login' });
-        return loadData(); // 领完重新加载刷新状态
+        return loadData(); 
       }
 
-      // 登录任务 DOM
+      // 更新 DOM
       if (state.quests.login.claimed) {
         document.getElementById('btn-login-wrap').innerHTML = `<button class="btn-complete"><i class="fas fa-check"></i> Complete</button>`;
       }
 
-      // 做题任务 DOM
       document.getElementById('target-diff').textContent = state.quests.quest.target;
+      
       if (state.quests.quest.claimed) {
         document.getElementById('btn-do-wrap').innerHTML = `<button class="btn-complete"><i class="fas fa-check"></i> Complete</button>`;
       } else if (state.quests.quest.completed) {
         const btn = document.getElementById('btn-do');
-        btn.textContent = 'Claim Reward';
-        btn.style.background = '#2ecc71'; 
+        if (btn) { // ⭐ 加上判空，防止意外
+          btn.textContent = 'Claim Reward';
+          btn.style.background = '#2ecc71'; 
+        }
       }
 
       renderThemes();
       updatePreview(state.currentTheme);
+
+      // ⭐ 核心修复：在 DOM 更新完之后，再安全地绑定事件！
+      bindEvents();
+
     } catch (e) {
       DSHUI.toast(e.message, 'err');
     } finally {
-      Page.hideSkeleton(); // ⭐ 修复谜之加载：不管成功失败都隐藏骨架屏
+      Page.hideSkeleton(); 
+    }
+  }
+
+  // ⭐ 新增专门的绑定函数
+  function bindEvents() {
+    const btnLogin = document.getElementById('btn-login');
+    if (btnLogin) {
+      // 用 onclick 覆盖，防止多次 loadData 重复绑定导致触发多次
+      btnLogin.onclick = () => claimReward('claim_login');
+    }
+    
+    const btnDo = document.getElementById('btn-do');
+    if (btnDo) {
+      btnDo.onclick = () => claimReward('claim_quest');
     }
   }
 
