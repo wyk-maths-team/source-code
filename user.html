@@ -42,6 +42,45 @@
 <link rel="stylesheet" href="/assets/css/styles.css?v=9b83b690" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
   <style>
+    /* ── 中性色变量（由 tools/extract-colors.mjs 生成）──────────────
+       原先写死在内联样式里的浅色背景 / 深色文字 / 浅灰边框，抽取成
+       变量后暗色与科幻主题只需覆盖取值，不必逐条重写规则。
+       语义色（成功绿、错误红、警告橙）与代码高亮色刻意保留，
+       它们在深色背景下依然成立。 */
+    :root {
+      --c-surface: #ffffff;
+      --c-surface-sunken: #f8f9fa;
+      --c-surface-raised: #f0f0f0;
+      --c-surface-muted: #e9ecef;
+      --c-border: #dddddd;
+      --c-border-strong: #bbbbbb;
+      --c-text: #333333;
+      --c-text-muted: #666666;
+      --c-text-subtle: #999999;
+    }
+    :root[data-theme="dark"] {
+      --c-surface: #161b22;
+      --c-surface-sunken: #0d1117;
+      --c-surface-raised: #21262d;
+      --c-surface-muted: #21262d;
+      --c-border: #30363d;
+      --c-border-strong: #484f58;
+      --c-text: #c9d1d9;
+      --c-text-muted: #8b949e;
+      --c-text-subtle: #6e7681;
+    }
+    :root[data-theme="scifi"] {
+      --c-surface: #09101a;
+      --c-surface-sunken: #070d15;
+      --c-surface-raised: #0f2231;
+      --c-surface-muted: #101b26;
+      --c-border: #14313f;
+      --c-border-strong: #1e4a5e;
+      --c-text: #c6eeff;
+      --c-text-muted: #6c8fa3;
+      --c-text-subtle: #546f80;
+    }
+
     .profile-container {
       background: var(--card-bg);
       border-radius: 4px;
@@ -166,7 +205,7 @@
       text-align: center;
       border: 1px solid var(--border-color);
       border-radius: 3px;
-      background: #f8f9fa;
+      background: var(--c-surface-sunken);
       color: var(--text-primary);
       font-size: 0.82rem;
       font-weight: 600;

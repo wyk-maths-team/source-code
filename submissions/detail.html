@@ -26,26 +26,65 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
   <style>
-    :root{--card-bg:#fff;--border-color:#dee2e6;--text-primary:#212529;--text-secondary:#6c757d;--accent:#337ab7;--accent-hover:#23527c;--success-bg:#d4edda;--success-text:#155724;--danger-bg:#f8d7da;--danger-text:#721c24;--warning-bg:#fff3cd;--warning-text:#856404;--pending-bg:#eee;--pending-text:#666;--comment-bg:#f9f9f9}
+    /* ── 中性色变量（由 tools/extract-colors.mjs 生成）──────────────
+       原先写死在内联样式里的浅色背景 / 深色文字 / 浅灰边框，抽取成
+       变量后暗色与科幻主题只需覆盖取值，不必逐条重写规则。
+       语义色（成功绿、错误红、警告橙）与代码高亮色刻意保留，
+       它们在深色背景下依然成立。 */
+    :root {
+      --c-surface: #ffffff;
+      --c-surface-sunken: #f8f9fa;
+      --c-surface-raised: #f0f0f0;
+      --c-surface-muted: #e9ecef;
+      --c-border: #dddddd;
+      --c-border-strong: #bbbbbb;
+      --c-text: #333333;
+      --c-text-muted: #666666;
+      --c-text-subtle: #999999;
+    }
+    :root[data-theme="dark"] {
+      --c-surface: #161b22;
+      --c-surface-sunken: #0d1117;
+      --c-surface-raised: #21262d;
+      --c-surface-muted: #21262d;
+      --c-border: #30363d;
+      --c-border-strong: #484f58;
+      --c-text: #c9d1d9;
+      --c-text-muted: #8b949e;
+      --c-text-subtle: #6e7681;
+    }
+    :root[data-theme="scifi"] {
+      --c-surface: #09101a;
+      --c-surface-sunken: #070d15;
+      --c-surface-raised: #0f2231;
+      --c-surface-muted: #101b26;
+      --c-border: #14313f;
+      --c-border-strong: #1e4a5e;
+      --c-text: #c6eeff;
+      --c-text-muted: #6c8fa3;
+      --c-text-subtle: #546f80;
+    }
+
+    :root{--card-bg:#fff;--border-color:var(--c-border);--text-primary:#212529;--text-secondary:#6c757d;--accent:#337ab7;--accent-hover:#23527c;--success-bg:#d4edda;--success-text:#155724;--danger-bg:#f8d7da;--danger-text:#721c24;--warning-bg:#fff3cd;--warning-text:#856404;--pending-bg:#eee;--pending-text:#666;--comment-bg:#f9f9f9}
     [data-theme="dark"]{--card-bg:#1e1e1e;--border-color:#444;--text-primary:#e0e0e0;--text-secondary:#aaa;--comment-bg:#2a2a2a}
-    [data-theme="dark"] .badge{background:#3a3a3a;color:#ccc;border-color:#555}
+    [data-theme="dark"] .badge{background:#3a3a3a;color:var(--c-border);border-color:#555}
     [data-theme="dark"] .badge.status-accepted{background:#1b4d2e;color:#8fdf8f;border-color:#2e6b3e}
     [data-theme="dark"] .badge.status-wrong{background:#4d1b1b;color:#df8f8f;border-color:#6b2e2e}
     [data-theme="dark"] .badge.status-partial{background:#4d3e1b;color:#dfc88f;border-color:#6b562e}
-    [data-theme="dark"] .badge.status-system{background:#2d2d2d;color:#bbb;border-color:#444}
-    [data-theme="dark"] .badge.status-pending{background:#2d2d2d;color:#999;border-color:#444}
+    [data-theme="dark"] .badge.status-system{background:#2d2d2d;color:var(--c-border-strong);border-color:#444}
+    [data-theme="dark"] .badge.status-pending{background:#2d2d2d;color:var(--c-text-subtle);border-color:#444}
     [data-theme="dark"] .comment-box{background:#2a2a2a;border-left-color:var(--accent)}
-    [data-theme="dark"] .no-comment{color:#777}
+    [data-theme="dark"] .no-comment{color:var(--c-text-muted)}
     .main-content{font-size:1rem}
     .detail-container{width:100%;padding:1.5rem;background:var(--card-bg);border-radius:0;box-sizing:border-box}
     .submission-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:1rem}
     .submission-header h2{margin:0;font-size:1.5rem;color:var(--text-primary)}
     .badge-group{display:flex;gap:.5rem;flex-wrap:wrap}
-    .badge{display:inline-block;padding:.3rem .8rem;border-radius:4px;font-size:.85rem;font-weight:600;background:#f0f0f0;color:#333;border:1px solid #ddd}
+    .badge{display:inline-block;padding:.3rem .8rem;border-radius:4px;font-size:.85rem;font-weight:600;background:var(--c-surface-raised);color:var(--c-text);border:1px solid var(--c-border)}
     .badge.status-accepted{background:var(--success-bg);color:var(--success-text);border-color:#c3e6cb}
     .badge.status-wrong{background:var(--danger-bg);color:var(--danger-text);border-color:#f5c6cb}
     .badge.status-partial{background:var(--warning-bg);color:var(--warning-text);border-color:#ffeeba}
-    .badge.status-system{background:#e2e3e5;color:#383d41;border-color:#d6d8db}
+    .badge.status-system{background:var(--c-surface-muted);color:#383d41;border-color:#d6d8db}
     .badge.status-pending{background:var(--pending-bg);color:var(--pending-text);border-color:#d6d8db}
     .meta-row{display:flex;flex-wrap:wrap;gap:1.2rem;margin:1rem 0;font-size:.9rem;color:var(--text-secondary)}
     .meta-item strong{color:var(--text-primary)}
@@ -53,7 +92,7 @@
     .comment-box{background:var(--comment-bg);border-left:3px solid var(--accent);padding:.8rem 1rem;margin:1rem 0;border-radius:4px}
     .comment-box h3{margin:0 0 .5rem 0;font-size:1rem;color:var(--text-primary)}
     .comment-box p{color:var(--text-secondary)}
-    .no-comment{color:#999;font-style:italic}
+    .no-comment{color:var(--c-text-subtle);font-style:italic}
     .attempts-info{margin:.5rem 0;font-size:.9rem;color:var(--text-secondary)}
     .answer-text{margin:1rem 0;font-size:1rem;color:var(--text-primary)}
     .back-link{display:inline-block;margin-top:1rem;color:var(--accent);text-decoration:none}
@@ -100,7 +139,7 @@
       0%, 90%, 100% { opacity: 0.75; }
       95% { opacity: 0.2; }
     }
-    [data-theme="dark"] .hidden-scramble { color: #999; }
+    [data-theme="dark"] .hidden-scramble { color: var(--c-text-subtle); }
     [data-theme="dark"] .hidden-scramble .scramble-text { opacity: 0.55; }
   </style>
 

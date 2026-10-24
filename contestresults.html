@@ -24,6 +24,45 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
 <style>
+    /* ── 中性色变量（由 tools/extract-colors.mjs 生成）──────────────
+       原先写死在内联样式里的浅色背景 / 深色文字 / 浅灰边框，抽取成
+       变量后暗色与科幻主题只需覆盖取值，不必逐条重写规则。
+       语义色（成功绿、错误红、警告橙）与代码高亮色刻意保留，
+       它们在深色背景下依然成立。 */
+    :root {
+      --c-surface: #ffffff;
+      --c-surface-sunken: #f8f9fa;
+      --c-surface-raised: #f0f0f0;
+      --c-surface-muted: #e9ecef;
+      --c-border: #dddddd;
+      --c-border-strong: #bbbbbb;
+      --c-text: #333333;
+      --c-text-muted: #666666;
+      --c-text-subtle: #999999;
+    }
+    :root[data-theme="dark"] {
+      --c-surface: #161b22;
+      --c-surface-sunken: #0d1117;
+      --c-surface-raised: #21262d;
+      --c-surface-muted: #21262d;
+      --c-border: #30363d;
+      --c-border-strong: #484f58;
+      --c-text: #c9d1d9;
+      --c-text-muted: #8b949e;
+      --c-text-subtle: #6e7681;
+    }
+    :root[data-theme="scifi"] {
+      --c-surface: #09101a;
+      --c-surface-sunken: #070d15;
+      --c-surface-raised: #0f2231;
+      --c-surface-muted: #101b26;
+      --c-border: #14313f;
+      --c-border-strong: #1e4a5e;
+      --c-text: #c6eeff;
+      --c-text-muted: #6c8fa3;
+      --c-text-subtle: #546f80;
+    }
+
   .results-wrap { max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.25rem; }
 
   .rs-hero {
@@ -70,7 +109,7 @@
     transition: all .15s;
   }
   .rs-hero-btn:hover { background: rgba(255,255,255,.28); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,.15); }
-  .rs-hero-btn.primary { background: #fff; color: #2e5fa0; border-color: #fff; box-shadow: 0 4px 16px rgba(0,0,0,.2); }
+  .rs-hero-btn.primary { background: var(--c-surface); color: #2e5fa0; border-color: var(--c-surface); box-shadow: 0 4px 16px rgba(0,0,0,.2); }
   .rs-hero-btn.primary:hover { box-shadow: 0 8px 24px rgba(0,0,0,.3); }
 
   .rs-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .75rem; }
@@ -195,7 +234,7 @@
   .rs-table tbody td.cell.cell-wa > span { background: #c62828; color: #ffcdd2; font-weight: 700; }
   .rs-table tbody td.cell.cell-partial > span { background: #fbc02d; color: #4e342e; font-weight: 700; }
   .rs-table tbody td.cell.cell-empty > span { background: rgba(0,0,0,.03); color: #b8b8b8; font-weight: 400; }
-  [data-theme="dark"] .rs-table tbody td.cell.cell-empty > span { background: rgba(255,255,255,.04); color: #666; }
+  [data-theme="dark"] .rs-table tbody td.cell.cell-empty > span { background: rgba(255,255,255,.04); color: var(--c-text-muted); }
 
   .rs-rank {
     display: inline-flex; align-items: center; justify-content: center;
@@ -206,7 +245,7 @@
   }
   [data-theme="dark"] .rs-rank { background: rgba(255,255,255,.07); }
   .rs-rank.gold   { background: linear-gradient(135deg, #ffd700, #d4a017); color: #4a3a00; box-shadow: 0 2px 10px rgba(255,193,7,.5); }
-  .rs-rank.silver { background: linear-gradient(135deg, #e8e8e8, #a8a8a8); color: #333; box-shadow: 0 2px 10px rgba(180,180,180,.5); }
+  .rs-rank.silver { background: linear-gradient(135deg, #e8e8e8, #a8a8a8); color: var(--c-text); box-shadow: 0 2px 10px rgba(180,180,180,.5); }
   .rs-rank.bronze { background: linear-gradient(135deg, #e8a87c, #a86a3d); color: #fff; box-shadow: 0 2px 10px rgba(200,130,80,.5); }
 
   .rs-user {

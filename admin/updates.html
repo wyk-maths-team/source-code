@@ -25,6 +25,45 @@
 
 <link rel="stylesheet" href="/assets/css/styles.css?v=9b83b690" />
   <style>
+    /* ── 中性色变量（由 tools/extract-colors.mjs 生成）──────────────
+       原先写死在内联样式里的浅色背景 / 深色文字 / 浅灰边框，抽取成
+       变量后暗色与科幻主题只需覆盖取值，不必逐条重写规则。
+       语义色（成功绿、错误红、警告橙）与代码高亮色刻意保留，
+       它们在深色背景下依然成立。 */
+    :root {
+      --c-surface: #ffffff;
+      --c-surface-sunken: #f8f9fa;
+      --c-surface-raised: #f0f0f0;
+      --c-surface-muted: #e9ecef;
+      --c-border: #dddddd;
+      --c-border-strong: #bbbbbb;
+      --c-text: #333333;
+      --c-text-muted: #666666;
+      --c-text-subtle: #999999;
+    }
+    :root[data-theme="dark"] {
+      --c-surface: #161b22;
+      --c-surface-sunken: #0d1117;
+      --c-surface-raised: #21262d;
+      --c-surface-muted: #21262d;
+      --c-border: #30363d;
+      --c-border-strong: #484f58;
+      --c-text: #c9d1d9;
+      --c-text-muted: #8b949e;
+      --c-text-subtle: #6e7681;
+    }
+    :root[data-theme="scifi"] {
+      --c-surface: #09101a;
+      --c-surface-sunken: #070d15;
+      --c-surface-raised: #0f2231;
+      --c-surface-muted: #101b26;
+      --c-border: #14313f;
+      --c-border-strong: #1e4a5e;
+      --c-text: #c6eeff;
+      --c-text-muted: #6c8fa3;
+      --c-text-subtle: #546f80;
+    }
+
     .admin-container { background: var(--card-bg); border-radius: 4px; padding: 1.5rem; }
     .form-section { margin-bottom: 2rem; }
     .form-group { margin-bottom: 1rem; }
@@ -42,7 +81,7 @@
       display: flex; gap: 0.3rem; padding: 0.4rem 0.6rem; background: #2d2d2d; border-bottom: 1px solid #3e3e3e; flex-wrap: wrap;
     }
     .code-editor-toolbar button {
-      background: #3e3e3e; border: 1px solid #555; color: #ccc; font-family: inherit; font-size: 0.8rem;
+      background: #3e3e3e; border: 1px solid #555; color: var(--c-border); font-family: inherit; font-size: 0.8rem;
       padding: 0.2rem 0.5rem; border-radius: 3px; cursor: pointer; white-space: nowrap;
     }
     .code-editor-toolbar button:hover { background: #505050; color: #fff; }
@@ -73,7 +112,7 @@
     .btn-primary { background: var(--accent); color: #fff; }
     .btn-danger { background: var(--danger); color: #fff; }
     .btn-warning { background: #ffc107; color: #000; }
-    .btn-secondary { background: #6c757d; color: #fff; }
+    .btn-secondary { background: var(--c-text-muted); color: #fff; }
     .updates-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
     .updates-table th, .updates-table td { padding: 0.5rem; border-bottom: 1px solid var(--border-color); }
     .message { margin: 1rem 0; font-size: 0.9rem; }

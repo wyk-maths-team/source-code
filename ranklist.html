@@ -22,9 +22,48 @@
 
 <link rel="stylesheet" href="/assets/css/styles.css?v=9b83b690" />
   <style>
+    /* ── 中性色变量（由 tools/extract-colors.mjs 生成）──────────────
+       原先写死在内联样式里的浅色背景 / 深色文字 / 浅灰边框，抽取成
+       变量后暗色与科幻主题只需覆盖取值，不必逐条重写规则。
+       语义色（成功绿、错误红、警告橙）与代码高亮色刻意保留，
+       它们在深色背景下依然成立。 */
+    :root {
+      --c-surface: #ffffff;
+      --c-surface-sunken: #f8f9fa;
+      --c-surface-raised: #f0f0f0;
+      --c-surface-muted: #e9ecef;
+      --c-border: #dddddd;
+      --c-border-strong: #bbbbbb;
+      --c-text: #333333;
+      --c-text-muted: #666666;
+      --c-text-subtle: #999999;
+    }
+    :root[data-theme="dark"] {
+      --c-surface: #161b22;
+      --c-surface-sunken: #0d1117;
+      --c-surface-raised: #21262d;
+      --c-surface-muted: #21262d;
+      --c-border: #30363d;
+      --c-border-strong: #484f58;
+      --c-text: #c9d1d9;
+      --c-text-muted: #8b949e;
+      --c-text-subtle: #6e7681;
+    }
+    :root[data-theme="scifi"] {
+      --c-surface: #09101a;
+      --c-surface-sunken: #070d15;
+      --c-surface-raised: #0f2231;
+      --c-surface-muted: #101b26;
+      --c-border: #14313f;
+      --c-border-strong: #1e4a5e;
+      --c-text: #c6eeff;
+      --c-text-muted: #6c8fa3;
+      --c-text-subtle: #546f80;
+    }
+
     :root {
       --card-bg: #fff;
-      --border-color: #dee2e6;
+      --border-color: var(--c-border);
       --text-primary: #212529;
       --text-secondary: #6c757d;
       --accent: #337ab7;
@@ -99,7 +138,7 @@
       box-shadow: 0 1px 3px rgba(0,0,0,0.12);
     }
     [data-theme="dark"] .period-btn.active {
-      background: #2c2c2c;
+      background: var(--c-text);
       color: #5ea5dc;
       box-shadow: 0 1px 3px rgba(0,0,0,0.4);
     }
@@ -159,9 +198,9 @@
       border-bottom: 1px solid var(--border-color);
     }
     .submissions-table th {
-      background: #e9ecef;
+      background: var(--c-surface-muted);
       font-weight: 700;
-      color: #333;
+      color: var(--c-text);
     }
     .submissions-table tbody tr:hover {
       background: var(--table-hover-bg);
@@ -174,8 +213,8 @@
       border-bottom-color: #ffe082;
     }
     [data-theme="dark"] .submissions-table th {
-      background: #333;
-      color: #ddd;
+      background: var(--c-text);
+      color: var(--c-border);
     }
     [data-theme="dark"] .submissions-table td {
       border-bottom-color: var(--border-color);
