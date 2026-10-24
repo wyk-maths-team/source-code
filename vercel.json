@@ -557,6 +557,10 @@
       "destination": "/status.html"
     },
     {
+      "source":"/tokens",
+      "destination":"/token-hub.html"
+    },
+    {
       "source": "/port/1308250238502613513507813709509238092874092846",
       "destination": "/port.html"
     },

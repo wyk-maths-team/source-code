@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>window.__BUILD_V='c39daad7';</script>
+<script src="/assets/js/arch-render.js?v=c39daad7"></script>
+<meta charset="UTF-8" />
+<script>(function(){try{var t=localStorage.getItem('theme')||'light';if(t==='dark'||t==='scifi')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Token Hub - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=c39daad7" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+<script src="/assets/js/core/ui.js?v=c39daad7"></script>
+<script src="/assets/js/core/net.js?v=c39daad7"></script>
+<script src="/assets/js/core/api.js?v=c39daad7"></script>
+<script src="/assets/js/core/page.js?v=c39daad7"></script>
+<style>
+  .hub-container { max-width: 1000px; margin: 20px auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 768px) { .hub-container { grid-template-columns: 1fr; } }
+
+  .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; }
+  .card h2 { margin-top: 0; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  
+  /* 任务卡片 */
+  .quest-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 12px; background: var(--bg-color); }
+  .quest-info h4 { margin: 0 0 4px 0; color: var(--text-primary); font-size: 1rem; }
+  .quest-info p { margin: 0; font-size: 0.85rem; color: var(--text-secondary); }
+  .quest-reward { color: #f1c40f; font-weight: bold; font-family: monospace; }
+  
+  /* 按钮 */
+  .btn-go { background: #3498db; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+  .btn-go:hover { background: #2980b9; }
+  .btn-complete { background: rgba(46, 204, 113, 0.1); color: #2ecc71; border: 1px solid #2ecc71; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: default; }
+  .btn-ad { background: #555; color: #aaa; border: none; padding: 8px 16px; border-radius: 4px; cursor: not-allowed; }
+
+  /* 主题商店 */
+  .theme-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 16px; }
+  .theme-card { border: 2px solid var(--border-color); border-radius: 6px; padding: 12px; cursor: pointer; text-align: center; transition: 0.2s; }
+  .theme-card.active { border-color: #3498db; box-shadow: 0 0 10px rgba(52,152,219,0.3); }
+  .theme-card:hover { border-color: #3498db; }
+  .theme-preview { height: 60px; border-radius: 4px; margin-bottom: 8px; }
+  
+  /* 预览区 */
+  .preview-box { margin-top: 20px; padding: 20px; border-radius: 12px; transition: 0.3s; text-align: center; border: 1px solid var(--border-color); }
+  .preview-box h3 { margin: 0 0 10px 0; }
+  .preview-box p { margin: 0; opacity: 0.8; }
+</style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="hub-container">
+        
+        <!-- 左侧：任务区 -->
+        <div class="card">
+          <h2><i class="fas fa-bolt" style="color:#f1c40f;"></i> Daily Quests</h2>
+          
+          <div class="quest-item" id="quest-login">
+            <div class="quest-info">
+              <h4>Daily Login</h4>
+              <p>Log in today to get a reward.</p>
+              <span class="quest-reward">+10,000</span>
+            </div>
+            <div id="btn-login-wrap"><button class="btn-go" id="btn-login">Go for it</button></div>
+          </div>
+
+          <div class="quest-item" id="quest-do">
+            <div class="quest-info">
+              <h4>Daily Challenge</h4>
+              <p>AC a problem with difficulty <b>d >= <span id="target-diff">3</span></b>.</p>
+              <span class="quest-reward">+30,000</span>
+            </div>
+            <div id="btn-do-wrap"><button class="btn-go" id="btn-do">Go for it</button></div>
+          </div>
+
+          <!-- 占位符广告 -->
+          <div class="quest-item" style="opacity: 0.5;">
+            <div class="quest-info">
+              <h4>Watch an Ad (Coming Soon)</h4>
+              <p>Support the developer by watching a 30s ad.</p>
+              <span class="quest-reward">+100,000</span>
+            </div>
+            <div><button class="btn-ad"><i class="fas fa-video"></i> Disabled</button></div>
+          </div>
+        </div>
+
+        <!-- 右侧：商店区 -->
+        <div class="card">
+          <h2><i class="fas fa-palette" style="color:#9b59b6;"></i> Theme Shop</h2>
+          <p style="color:var(--text-secondary);font-size:0.9rem;">Customize your profile background. Cost: <b>300,000 tokens</b>.</p>
+          
+          <div class="theme-grid" id="theme-grid">
+            <!-- JS 动态渲染 -->
+          </div>
+
+          <div style="margin-top: 20px;">
+            <h3 style="font-size: 1rem; color: var(--text-primary);">Live Preview</h3>
+            <div class="preview-box" id="preview-box">
+              <h3>Chris's Profile</h3>
+              <p>Rating: 2590 | Solved: 150</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="/assets/js/auth.js?v=c39daad7"></script>
+  <script src="/assets/js/app.js?v=c39daad7"></script>
+  <script src="/assets/js/topbar.js?v=c39daad7"></script>
+  <script src="/assets/js/sidebar.js?v=c39daad7"></script>
+  <script src="/assets/js/heartbeat.js?v=c39daad7"></script>
+  <script src="/assets/js/pk-invite.js?v=c39daad7"></script>
+  <script src="/assets/js/pages/token-hub.js?v=c39daad7"></script>
+</body>
+</html>
