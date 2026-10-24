@@ -1,5 +1,3 @@
-    // 在 /admin/*.html 页面里
-    if(isLoggedIn())apiCall('/api/users?action=markAdminVisit', 'POST').catch(() => {});
     // ===== 权限检查 =====
     if (!isLoggedIn() || getCurrentUser()?.role !== 'root') {
       window.location.href = '/index.html';

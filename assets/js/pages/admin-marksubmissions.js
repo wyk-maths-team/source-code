@@ -1,6 +1,5 @@
 
     // 权限检查
-    if(isLoggedIn())apiCall('/api/users?action=markAdminVisit', 'POST').catch(() => {});
     if (!isLoggedIn() || (getCurrentUser()?.role !== 'admin' && getCurrentUser()?.role !== 'root')) {
       window.location.href = '/index.html';
     }

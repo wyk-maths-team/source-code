@@ -24,6 +24,8 @@ import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';
 import crypto from 'crypto';
 import { wrapHandler } from '../lib/errors.js';
+// token 的加减退统一走 lib/wallet.js，别在这里再写一份
+import { totalTokens, deductTokens, refundTokens, addTokens } from '../lib/wallet.js';
 
 const MIN_STAKE = 10000;
 const FEE_RATE = 0.2;                 // 手续费 20%
@@ -40,60 +42,8 @@ function genId(prefix, len = 8) {
   return prefix + s;
 }
 
-function totalTokens(t) {
-  if (!t) return 0;
-  return (Number(t.daily) || 0) + (Number(t.global) || 0);
-}
-
-// 先扣每日额度，再扣永久额度。
-//
-// 返回 { token, taken }，taken 记下这次各扣了多少 —— 退款必须按原路返回。
-// 否则「下注时扣 daily、取消时一律退 global」就是一个白嫖口子：
-// daily 每天重置、global 不回退，下一次取消就能把 30000 每日额度洗成永久额度。
-function deductTokens(tokenObj, amount) {
-  const t = {
-    daily: Number(tokenObj?.daily) || 0,
-    global: Number(tokenObj?.global) || 0,
-    lastReset: tokenObj?.lastReset,
-    dailyLoginClaimed: tokenObj?.dailyLoginClaimed,
-    dailyQuestClaimed: tokenObj?.dailyQuestClaimed,
-  };
-  if (t.daily + t.global < amount) return null;
-
-  const fromDaily = Math.min(t.daily, amount);
-  const fromGlobal = amount - fromDaily;
-  t.daily -= fromDaily;
-  t.global -= fromGlobal;
-
-  return { token: t, taken: { daily: fromDaily, global: fromGlobal } };
-}
-
-// 按原路退回：扣的是哪一类就退回哪一类
-function refundTokens(tokenObj, taken) {
-  const t = {
-    daily: Number(tokenObj?.daily) || 0,
-    global: Number(tokenObj?.global) || 0,
-    lastReset: tokenObj?.lastReset,
-    dailyLoginClaimed: tokenObj?.dailyLoginClaimed,
-    dailyQuestClaimed: tokenObj?.dailyQuestClaimed,
-  };
-  t.daily += Number(taken?.daily) || 0;
-  t.global += Number(taken?.global) || 0;
-  return t;
-}
-
-// 奖励一律进 global（每日额度是「日活奖励」，不该被比赛加成放大）
-function addTokens(tokenObj, amount) {
-  const t = {
-    daily: Number(tokenObj?.daily) || 0,
-    global: Number(tokenObj?.global) || 0,
-    lastReset: tokenObj?.lastReset,
-    dailyLoginClaimed: tokenObj?.dailyLoginClaimed,
-    dailyQuestClaimed: tokenObj?.dailyQuestClaimed,
-  };
-  t.global += Math.max(0, Math.round(amount));
-  return t;
-}
+// token 的加/减/退一律走 lib/wallet.js（见顶部 import）。
+// 这里不再保留本地副本 —— 之前 daily→global 的洗钱口子就是两份实现各自演化出来的。
 
 // 由 rating 推目标难度：沿用 token-hub 的映射，保持全站一把尺
 function ratingToDifficulty(rating) {
@@ -307,7 +257,7 @@ async function handler(req, res) {
       computeRating(db, invite.from),
       computeRating(db, username),
     ]);
-    const targetDiff = ratingToDifficulty((0.5*Math.max(rA,rB) + 1.5*Math.min(rA,rB)) / 2);
+    const targetDiff = Math.min(6,ratingToDifficulty((0.5*Math.max(rA,rB) + 1.5*Math.min(rA,rB)) / 2));
     // 排除双方任一人已经 AC 过的题：先做过的人没法再交，否则等于白送 0 分
     const picked = await pickProblems(db, targetDiff, [invite.from, username]);
     if (!picked) {
@@ -591,13 +541,9 @@ async function refundInvite(db, invite, status) {
 
   const user = await db.collection('users').findOne({ username: invite.from }, { projection: { token: 1 } });
 
-  // 按原路退回：扣了 daily 就退 daily，扣了 global 就退 global。
-  // 老记录没有 taken 字段，保守地全退 daily —— 退回 global 才是那个洗钱口子。
-  const taken = invite.taken && typeof invite.taken === 'object'
-    ? { daily: Number(invite.taken.daily) || 0, global: Number(invite.taken.global) || 0 }
-    : { daily: Number(invite.stake) || 0, global: 0 };
-
-  const restored = refundTokens(user?.token, taken);
+  // 按原路退回。老记录没有 taken，refundTokens 会退回 daily（绝不退 global，
+  // 那正是「每日额度洗成永久额度」的口子）。
+  const restored = refundTokens(user?.token, invite.taken, invite.stake);
   await db.collection('users').updateOne({ username: invite.from }, { $set: { token: restored } });
 }
 

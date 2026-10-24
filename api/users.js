@@ -1,4 +1,4 @@
-﻿// api/users.js
+// api/users.js
 import { connectToDatabase } from './_db.js';
 import { verifyToken } from '../lib/auth.js';
 import bcrypt from 'bcrypt';
@@ -893,7 +893,7 @@ if (isPeriodMode) {
           { projection: { achievements: 1, streakDays: 1, maxStreak: 1, activeDaysTotal: 1 } }
         ),
         db.collection('achievements_log')
-          .find({ username: targetUsername }, { projection: { achievementId: 1, unlockedAt: 1, _id: 0 } })
+          .find({ username: targetUsername }, { projection: { achievementId: 1, unlockedAt: 1, reward: 1, _id: 0 } })
           .sort({ unlockedAt: 1 })
           .toArray(),
       ]);
@@ -904,11 +904,28 @@ if (isPeriodMode) {
         logs.map(l => [l.achievementId, l.unlockedAt])
       );
 
+      // 进度 + 定义表：前端不再自己维护一份成就元数据
+      let definitions = null, progress = null, rewardsEarned = 0;
+      try {
+        const { getProgress } = await import('../lib/achievements.js');
+        const p = await getProgress(db, targetUsername);
+        if (p) {
+          definitions = p.definitions;
+          progress = p.progress;
+          rewardsEarned = p.rewardsEarned;
+        }
+      } catch (e) {
+        console.error('[achievements progress]', e);
+      }
+
       return res.status(200).json({
         success: true,
         username: targetUsername,
         achievements: user.achievements || [],
         unlockedAt: unlockedMap,
+        definitions,
+        progress,
+        rewardsEarned,
         streak: {
           current: user.streakDays || 0,
           max: user.maxStreak || 0,
@@ -938,32 +955,9 @@ if (isPeriodMode) {
       });
     }
 
-    // POST：标记访问过 admin 页面（unlock "curious"）
-    if (action === 'markAdminVisit') {
-      if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-      const { unlockAchievement } = await import('../lib/achievements.js');
-      const r = await unlockAchievement(db, decoded.username, 'curious');
-      return res.status(200).json({ success: true, unlocked: r.ok });
-    }
-    // POST: 客户端上报的成就（白名单）
-    if (action === 'markAchievement') {
-      if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-      const { id } = req.body || {};
-
-      // ⭐ 只允许客户端触发的成就
-      const CLIENT_TRIGGERABLE = new Set(['voyeur', 'curious']);
-      if (!CLIENT_TRIGGERABLE.has(id)) {
-        return res.status(400).json({ success: false, message: 'Achievement not client-triggerable' });
-      }
-
-      const { unlockAchievement } = await import('../lib/achievements.js');
-      const r = await unlockAchievement(db, decoded.username, id);
-      return res.status(200).json({
-        success: true,
-        unlocked: r.ok,
-        alreadyHave: r.alreadyHave || false,
-      });
-    }
+    // markAdminVisit / markAchievement 已移除：
+    // 前者解锁的 curious 已删除，后者白名单里的 voyeur 从未在 ACHIEVEMENTS 里定义过，
+    // 上报只会静默失败。客户端不再有任何「自己给自己发成就」的通道。
 
     return res.status(400).json({ success: false, message: 'Invalid action' });
   } catch (err) {

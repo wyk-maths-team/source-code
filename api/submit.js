@@ -1,4 +1,4 @@
-﻿// api/submit.js
+// api/submit.js
 // ═══════════════════════════════════════════════════════════
 //  Submission pipeline
 //  1. Auth & rate limit
@@ -202,11 +202,12 @@ async function finishSubmit(db, username, result, context = {}) {
       });
     }
 
-    const unlockedIds = await checkAchievements(db, username, { trigger: 'submit', ...context });
+    const { unlocked, rewarded } = await checkAchievements(db, username, { trigger: 'submit', ...context });
 
     // ⭐ 展开成完整对象返回给前端
-    if (unlockedIds.length) {
-      result.unlockedAchievements = expandAchievementInfo(unlockedIds);
+    if (unlocked.length) {
+      result.unlockedAchievements = expandAchievementInfo(unlocked);
+      result.achievementReward = rewarded;
     }
   } catch (e) {
     console.error('[achievements]', e);

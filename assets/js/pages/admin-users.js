@@ -1,7 +1,5 @@
 
-    // 权限检查
-    if(isLoggedIn())apiCall('/api/users?action=markAdminVisit', 'POST').catch(() => {});
-    if (!isLoggedIn()) window.location.href = '/index.html';
+    // 权限检查    if (!isLoggedIn()) window.location.href = '/index.html';
     const editorUser = getCurrentUser();
     if (!editorUser || (editorUser.role !== 'admin' && editorUser.role !== 'root')) {
       window.location.href = '/index.html';

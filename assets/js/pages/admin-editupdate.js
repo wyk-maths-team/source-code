@@ -1,6 +1,4 @@
 
-    if (isLoggedIn()) apiCall('/api/users?action=markAdminVisit', 'POST').catch(() => {});
-
     const user = getCurrentUser();
     if (!isLoggedIn() || (user?.role !== 'admin' && user?.role !== 'root')) {
       window.location.href = '/index.html';

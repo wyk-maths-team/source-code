@@ -10,62 +10,9 @@
         document.getElementById('mainContent').innerHTML = '<div class="error-msg">Invalid profile URL.</div>';
         return;
       }
-              // ═══════════════ 成就元数据（前端缓存）═══════════════
-      const ACHIEVEMENTS = {
-        // Milestone
-        'first-blood':  { name: 'First Blood',      desc: 'AC your first problem',   fa: 'fa-droplet',        rarity: 'common' },
-        'solved-10':    { name: 'Getting Started',  desc: 'AC 10 problems',          fa: 'fa-seedling',       rarity: 'common' },
-        'solved-25':    { name: 'Warming Up',       desc: 'AC 25 problems',          fa: 'fa-mug-hot',        rarity: 'common' },
-        'solved-50':    { name: 'Half Century',     desc: 'AC 50 problems',          fa: 'fa-person-running', rarity: 'uncommon' },
-        'solved-100':   { name: 'Centurion',        desc: 'AC 100 problems',         fa: 'fa-award',          rarity: 'rare' },
-        'solved-200':   { name: 'Double Century',   desc: 'AC 200 problems',         fa: 'fa-landmark',       rarity: 'rare' },
-        'solved-500':   { name: 'Five Hundred',     desc: 'AC 500 problems',         fa: 'fa-mountain',       rarity: 'epic' },
-        'solved-1000':  { name: 'Millennium',       desc: 'AC 1000 problems',        fa: 'fa-meteor',         rarity: 'epic' },
-        'solved-2000':  { name: 'Two Millenniums',  desc: 'AC 2000 problems',        fa: 'fa-rocket',         rarity: 'legendary' },
-
-        // Difficulty
-        'hard-3':  { name: 'Beyond Easy',      desc: 'AC a problem with difficulty ≥ 3', fa: 'fa-shield-halved',  rarity: 'common' },
-        'hard-4':  { name: 'Rising Challenge', desc: 'AC a problem with difficulty ≥ 4', fa: 'fa-shield',         rarity: 'uncommon' },
-        'hard-5':  { name: 'Midway',           desc: 'AC a problem with difficulty ≥ 5', fa: 'fa-trophy',         rarity: 'uncommon' },
-        'hard-6':  { name: 'Into the Deep',    desc: 'AC a problem with difficulty ≥ 6', fa: 'fa-fire',           rarity: 'rare' },
-        'hard-7':  { name: 'Elite Solver',     desc: 'AC a problem with difficulty ≥ 7', fa: 'fa-gem',            rarity: 'epic' },
-
-        // Streak
-        'streak-3':   { name: 'Hat Trick',        desc: 'Submit 3 days in a row',   fa: 'fa-fire-flame-curved', rarity: 'common' },
-        'streak-7':   { name: 'Week Warrior',     desc: 'Submit 7 days in a row',   fa: 'fa-bolt',              rarity: 'uncommon' },
-        'streak-30':  { name: 'Monthly Devotion', desc: 'Submit 30 days in a row',  fa: 'fa-moon',              rarity: 'rare' },
-        'streak-100': { name: 'Century Streak',   desc: 'Submit 100 days in a row', fa: 'fa-crown',             rarity: 'epic' },
-
-        // Efficiency
-        'first-try':    { name: 'One Shot',       desc: 'First try AC on a problem',    fa: 'fa-bullseye',    rarity: 'common' },
-        'first-try-10': { name: 'Sharp Shooter',  desc: '10 problems first-try AC',     fa: 'fa-crosshairs',  rarity: 'uncommon' },
-        'first-try-50': { name: 'Perfect Aim',    desc: '50 problems first-try AC',     fa: 'fa-compass',     rarity: 'rare' },
-        'daily-5':      { name: 'Daily Five',     desc: 'AC 5 problems in one day',     fa: 'fa-cloud-sun',   rarity: 'uncommon' },
-        'daily-10':     { name: 'Busy Bee',       desc: 'AC 10 problems in one day',    fa: 'fa-spa',         rarity: 'rare' },
-        'daily-15':     { name: 'Fifteen Frenzy', desc: 'AC 15 problems in one day',    fa: 'fa-hurricane',   rarity: 'epic' },
-        'daily-20':     { name: 'Daily Marathon', desc: 'AC 20 problems in one day',    fa: 'fa-medal',       rarity: 'legendary' },
-
-        // Fun
-        'night-owl':   { name: 'Night Owl',     desc: 'Submit between 00:00-04:00 HKT',    fa: 'fa-moon',    rarity: 'uncommon' },
-        'early-bird':  { name: 'Early Bird',    desc: 'Submit between 05:00-07:00 HKT',    fa: 'fa-dove',    rarity: 'uncommon' },
-        'perfect-day': { name: 'Perfect Day',   desc: 'A day with ≥5 submissions, all AC', fa: 'fa-star',    rarity: 'rare' },
-
-          // ═══ F. Hidden ═══
-        'curious':       { name: 'Curious',        desc: 'Hidden', fa: 'fa-question',       rarity: 'rare', hidden: true },
-        'voyeur':        { name: 'Voyeur',         desc: 'Hidden', fa: 'fa-user-secret',    rarity: 'rare', hidden: true },
-        'speed-demon':   { name: 'Speed Demon',    desc: 'Hidden', fa: 'fa-bolt-lightning', rarity: 'rare', hidden: true },
-        'never-give-up': { name: 'Never Give Up',  desc: 'Hidden', fa: 'fa-hand-fist',      rarity: 'epic', hidden: true },
-
-        // Accuracy
-        'accuracy-30': { name: 'Steady Hand', desc: 'Accuracy ≥ 30% (min 20 subs)', fa: 'fa-chart-simple',  rarity: 'common' },
-        'accuracy-40': { name: 'Sharp',       desc: 'Accuracy ≥ 40% (min 20 subs)', fa: 'fa-chart-line',    rarity: 'common' },
-        'accuracy-50': { name: 'Accurate',    desc: 'Accuracy ≥ 50% (min 20 subs)', fa: 'fa-chart-column',  rarity: 'uncommon' },
-        'accuracy-60': { name: 'Precise',     desc: 'Accuracy ≥ 60% (min 20 subs)', fa: 'fa-palette',       rarity: 'uncommon' },
-        'accuracy-70': { name: 'Meticulous',  desc: 'Accuracy ≥ 70% (min 20 subs)', fa: 'fa-gear',          rarity: 'rare' },
-        'accuracy-80': { name: 'Surgical',    desc: 'Accuracy ≥ 80% (min 20 subs)', fa: 'fa-microscope',    rarity: 'epic' },
-        'accuracy-90': { name: 'Flawless',    desc: 'Accuracy ≥ 90% (min 20 subs)', fa: 'fa-circle-check',  rarity: 'legendary' },
-      };
-
+              // 成就定义改为从 /api/users?action=achievements 拿（含进度），
+      // 这里不再维护第二份 —— 以前前后端各一份，字段名还不一样（icon vs fa），
+      // 加一个新成就漏改一边就是图标丢失。
       const RARITY_ORDER = { legendary: 0, epic: 1, rare: 2, uncommon: 3, common: 4 };
       function fmtDuration(ms) {
         if (!ms || ms < 0) return '0m';
@@ -98,28 +45,52 @@
       }
 
       // 渲染成就区域
+      //
+      // 定义、图标、描述、进度全部来自后端 /api/users?action=achievements，
+      // 前端只负责排版。没有 progress 的成就（hidden / 事件触发）不画进度条。
       function renderAchievements(achData) {
+        const defs = achData?.definitions || {};
+        const prog = achData?.progress || {};
         const unlocked = new Set(achData?.achievements || []);
         const unlockedAt = achData?.unlockedAt || {};
         const streak = achData?.streak || {};
+        const rewardsEarned = achData?.rewardsEarned || 0;
 
-        const allIds = Object.keys(ACHIEVEMENTS);
-        // 排序：先按稀有度，再按解锁状态，再按解锁时间倒序
+        const allIds = Object.keys(defs);
+        if (!allIds.length) {
+          return '<div class="ach-section"><div class="ach-header"><h2><i class="fa-solid fa-trophy" style="color:#FFAA00;margin-right:.4rem;"></i>Achievements</h2></div><div class="ach-empty">Achievement definitions unavailable.</div></div>';
+        }
+
+        // 排序：稀有度 → 未解锁优先 → 进度高者优先
         allIds.sort((a, b) => {
-          const ra = RARITY_ORDER[ACHIEVEMENTS[a].rarity] ?? 9;
-          const rb = RARITY_ORDER[ACHIEVEMENTS[b].rarity] ?? 9;
+          const ra = RARITY_ORDER[defs[a].rarity] ?? 9;
+          const rb = RARITY_ORDER[defs[b].rarity] ?? 9;
           if (ra !== rb) return ra - rb;
-          const ua = unlocked.has(a) ? 0 : 1;
-          const ub = unlocked.has(b) ? 0 : 1;
+          const ua = unlocked.has(a) ? 1 : 0;
+          const ub = unlocked.has(b) ? 1 : 0;
           if (ua !== ub) return ua - ub;
-          return 0;
+          return (prog[b]?.pct ?? 0) - (prog[a]?.pct ?? 0);
         });
 
         const unlockedCount = unlocked.size;
         const totalCount = allIds.length;
 
+        function progressBar(id, isUnlocked) {
+          const p = prog[id];
+          if (!p || isUnlocked) return '';
+          const pct = Math.max(0, Math.min(100, Math.round((p.pct || 0) * 100)));
+          const label = p.gated
+            ? `${p.label || `${p.current}/${p.target}`} to unlock`
+            : `${p.current} / ${p.target}`;
+          return `
+            <div class="ach-bar-wrap" title="${escapeHtml(label)}">
+              <div class="ach-bar"><div class="ach-bar-fill" style="width:${pct}%"></div></div>
+              <div class="ach-bar-label">${escapeHtml(label)}</div>
+            </div>`;
+        }
+
         const cardsHtml = allIds.map(id => {
-          const a = ACHIEVEMENTS[id];
+          const a = defs[id];
           const isUnlocked = unlocked.has(id);
           const date = unlockedAt[id] ? new Date(unlockedAt[id]).toISOString().slice(0, 10) : '';
           const rarity = a.rarity || 'common';
@@ -127,18 +98,21 @@
           // 隐藏成就：未解锁时屏蔽名称
           const displayName = (a.hidden && !isUnlocked) ? '???' : a.name;
           const displayDesc = (a.hidden && !isUnlocked) ? 'Hidden achievement' : a.desc;
-          const displayFa = (a.hidden && !isUnlocked) ? 'fa-lock' : a.fa;
+          const displayIcon = (a.hidden && !isUnlocked) ? 'fa-lock' : (a.icon || 'fa-trophy');
+          const reward = Number(a.reward) || 0;
 
           return `
             <div class="ach-card ${isUnlocked ? 'unlocked' : 'locked'} rarity-${rarity}"
                  title="${escapeHtml(displayDesc)}">
               <span class="ach-rarity-tag">${rarity}</span>
               <div class="ach-icon-wrap">
-                <i class="fa-solid ${displayFa}"></i>
+                <i class="fa-solid ${displayIcon}"></i>
               </div>
               <div class="ach-name">${escapeHtml(displayName)}</div>
               <div class="ach-desc">${escapeHtml(displayDesc)}</div>
               ${isUnlocked && date ? `<div class="ach-date">${date}</div>` : ''}
+              ${!isUnlocked && reward ? `<div class="ach-reward">+${reward.toLocaleString()}</div>` : ''}
+              ${progressBar(id, isUnlocked)}
             </div>
           `;
         }).join('');
@@ -154,6 +128,7 @@
             <div class="ach-header">
               <h2><i class="fa-solid fa-trophy" style="color:#FFAA00;margin-right:.4rem;"></i>Achievements</h2>
               <span class="ach-progress"><b>${unlockedCount}</b> / ${totalCount}</span>
+              ${rewardsEarned ? `<span class="ach-earned" title="Tokens earned from achievements">💰 ${Number(rewardsEarned).toLocaleString()}</span>` : ''}
               ${streakLine}
             </div>
             <div class="ach-grid">${cardsHtml}</div>
@@ -166,35 +141,8 @@
 
       const mainContainer = document.getElementById('mainContent');
       const TOGGLE_KEY = 'profileOnlyAttempted';
-            // ⭐ Voyeur 计数（localStorage）
-      const VIEWED_USERS_KEY = 'viewedUsers';
-      const VOYEUR_REPORTED_KEY = 'voyeurReported';
-      const VOYEUR_THRESHOLD = 10;
-
-      function recordProfileView(viewedUsername) {
-        const me = (typeof getCurrentUser === 'function') ? getCurrentUser()?.username : null;
-        if (!me || me === viewedUsername) return;             // 跳过自己
-        if (/^\d+$/.test(String(viewedUsername))) return;      // 跳过 team
-
-        try {
-          const raw = localStorage.getItem(VIEWED_USERS_KEY);
-          const set = new Set(raw ? JSON.parse(raw) : []);
-          const before = set.size;
-          set.add(viewedUsername);
-          if (set.size !== before) {
-            localStorage.setItem(VIEWED_USERS_KEY, JSON.stringify(Array.from(set)));
-          }
-
-          // 达到阈值 → 上报一次
-          if (set.size >= VOYEUR_THRESHOLD && !localStorage.getItem(VOYEUR_REPORTED_KEY)) {
-            apiCall('/api/users?action=markAchievement', 'POST', { id: 'voyeur' })
-              .then(r => {
-                if (r.success) localStorage.setItem(VOYEUR_REPORTED_KEY, '1');
-              })
-              .catch(() => {});
-          }
-        } catch (e) {}
-      }
+      // voyeur 成就已删除（它从未在 ACHIEVEMENTS 里定义过，上报只会静默失败），
+      // 连同这里的 localStorage 计数一起移除。
       function escapeHtml(s) { return ((window.DSHUI && window.DSHUI.esc) || function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]; }); })(s); }
 
       // 從 localStorage 取題目 id 清單（problems-1.js 寫入的快取）
@@ -447,7 +395,6 @@
         return;
       }
       renderProfile(data);
-      recordProfileView(profileUsername);
     })();
   })();
   
