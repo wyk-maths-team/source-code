@@ -168,3 +168,11 @@ body.hide-difficulty .col-level,body.hide-difficulty .difficulty-cell{display:no
 :root[data-theme="dark"] .tag{background:#30363d;color:#c9d1d9}
 :root[data-theme="scifi"] .tag{background:#0f2231;color:#9fe8ff;border:1px solid rgba(0,229,255,.22)}
 :root[data-theme="scifi"] .problems-table th{background:#0a1520;color:#9fe8ff;border-bottom:2px solid var(--border-color)}
+
+/* ── 分类框（problems 顶部筛选区）的主题适配 ─────────────────────
+   .cat-heading 写死 #e9ecef，dark 有覆盖但 scifi 没有；
+   .cat-badge 用 rgba(0,0,0,.08) 叠加，在深色底上几乎不可见。 */
+:root[data-theme="scifi"] .cat-heading{background:#0a1520;color:#9fe8ff;border-bottom-color:var(--border-color)}
+:root[data-theme="scifi"] .cat-badge{background:rgba(0,229,255,.12);color:#8fd4e8}
+:root[data-theme="dark"] .cat-item:hover{background:#2a2a2a}
+:root[data-theme="scifi"] .cat-item:hover{background:#0f2231}
