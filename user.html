@@ -4,9 +4,9 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='601509b4';</script>
+<script>window.__BUILD_V='7d067faa';</script>
 
-<script src="/assets/js/arch-render.js?v=601509b4"></script>
+<script src="/assets/js/arch-render.js?v=7d067faa"></script>
 <!-- <script>
 (function(){
   try {
@@ -28,7 +28,7 @@
   var t = localStorage.getItem('theme') || 'light';
   if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
 }catch(e){}})();</script>
-<script src="/assets/js/share-invite.js?v=601509b4"></script>
+<script src="/assets/js/share-invite.js?v=7d067faa"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>User Profile - WYK Maths Team</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -39,7 +39,7 @@
   <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.amcharts.com">
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=601509b4" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=7d067faa" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
   <style>
     :root {
@@ -542,41 +542,102 @@
   margin-top: .7rem;
   font-size: .85rem;
 }
-.profile-online-row .item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  background: rgba(74,144,217,.08);
-  border: 1px solid rgba(74,144,217,.18);
-  border-radius: 20px;
-  color: var(--text-secondary);
-}
-.profile-online-row .item i {
-  color: var(--accent);
-  opacity: .8;
-  font-size: .85rem;
-}
-.profile-online-row .item b {
-  color: var(--text-primary);
-  font-family: 'Consolas', monospace;
-  font-weight: 700;
-}
-.profile-online-row .item.online {
-  background: rgba(46,204,113,.1);
-  border-color: rgba(46,204,113,.3);
-}
-.profile-online-row .item.online i { color: #2ecc71; }
-.profile-online-row .item.online b { color: #2e7d32; }
-[data-theme="dark"] .profile-online-row .item {
-  background: rgba(74,144,217,.12);
-  border-color: rgba(74,144,217,.3);
-}
-[data-theme="dark"] .profile-online-row .item.online {
-  background: rgba(46,204,113,.14);
-  border-color: rgba(46,204,113,.4);
-}
-[data-theme="dark"] .profile-online-row .item.online b { color: #8fdf8f; }
+  /* ⭐ 在线时长 & 最后可见（重构版） */
+  .profile-online-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+  }
+  .profile-online-row .item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* 左右分布，对齐更工整 */
+    padding: 8px 12px;
+    background: var(--c-surface-sunken);
+    border: 1px solid var(--c-border);
+    border-radius: 6px; /* 改成跟 badge 统一的微圆角 */
+    color: var(--c-text-muted);
+    font-size: .85rem;
+    transition: border-color 0.15s, background 0.15s, transform 0.15s;
+  }
+  .profile-online-row .item:hover {
+    border-color: var(--accent);
+    background: var(--c-surface-raised);
+    transform: translateY(-1px);
+  }
+  
+  .profile-online-row .item-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .profile-online-row .item i {
+    color: var(--c-text-subtle);
+    font-size: .9rem;
+  }
+  .profile-online-row .item b {
+    color: var(--c-text);
+    font-family: 'Consolas', monospace;
+    font-weight: 700;
+    font-size: .95rem;
+  }
+
+  /* ── 在线状态的特殊修饰 ── */
+  .profile-online-row .item.online {
+    background: rgba(46,204,113,.05);
+    border-color: rgba(46,204,113,.25);
+  }
+  .profile-online-row .item.online i {
+    color: #2ecc71;
+  }
+  .profile-online-row .item.online b {
+    color: #2e7d32;
+  }
+  
+  /* ── Dark 模式 ── */
+  [data-theme="dark"] .profile-online-row .item {
+    background: var(--c-surface-sunken);
+    border-color: var(--c-border);
+  }
+  [data-theme="dark"] .profile-online-row .item:hover {
+    background: var(--c-surface-raised);
+    border-color: var(--accent);
+  }
+  [data-theme="dark"] .profile-online-row .item b {
+    color: var(--c-text);
+  }
+  [data-theme="dark"] .profile-online-row .item.online {
+    background: rgba(46,204,113,.1);
+    border-color: rgba(46,204,113,.3);
+  }
+  [data-theme="dark"] .profile-online-row .item.online b {
+    color: #8fdf8f;
+  }
+
+  /* ── Sci-Fi 模式 ── */
+  [data-theme="scifi"] .profile-online-row .item {
+    background: #0b1420;
+    border-color: #14313f;
+  }
+  [data-theme="scifi"] .profile-online-row .item:hover {
+    background: #0f2231;
+    border-color: var(--accent);
+  }
+  [data-theme="scifi"] .profile-online-row .item i {
+    color: #1e4a5e;
+  }
+  [data-theme="scifi"] .profile-online-row .item b {
+    color: #c6eeff;
+  }
+  [data-theme="scifi"] .profile-online-row .item.online {
+    background: rgba(126,242,200,.05);
+    border-color: #14524a;
+  }
+  [data-theme="scifi"] .profile-online-row .item.online i,
+  [data-theme="scifi"] .profile-online-row .item.online b {
+    color: #7ef2c8;
+  }
 
 .profile-container.theme-cyberpunk {
   background: linear-gradient(135deg, #0d0221 0%, #ff00cc 100%) !important;
@@ -638,10 +699,10 @@
   <meta name="apple-mobile-web-app-title" content="WYK Maths">
   <meta name="mobile-web-app-capable" content="yes">
 
-<script src="/assets/js/core/ui.js?v=601509b4"></script>
-<script src="/assets/js/core/net.js?v=601509b4"></script>
-<script src="/assets/js/core/api.js?v=601509b4"></script>
-<script src="/assets/js/core/page.js?v=601509b4"></script>
+<script src="/assets/js/core/ui.js?v=7d067faa"></script>
+<script src="/assets/js/core/net.js?v=7d067faa"></script>
+<script src="/assets/js/core/api.js?v=7d067faa"></script>
+<script src="/assets/js/core/page.js?v=7d067faa"></script>
 </head>
 <body class="index-body">
   <div id="appContainer">
@@ -652,14 +713,14 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=601509b4"></script>
-  <script src="/assets/js/app.js?v=601509b4"></script>
-  <script src="/assets/js/topbar.js?v=601509b4"></script>
+  <script src="/assets/js/auth.js?v=7d067faa"></script>
+  <script src="/assets/js/app.js?v=7d067faa"></script>
+  <script src="/assets/js/topbar.js?v=7d067faa"></script>
   
-<script src="/assets/js/sidebar.js?v=601509b4"></script>
-<script src="/assets/js/heartbeat.js?v=601509b4"></script>
-<script src="/assets/js/pk-invite.js?v=601509b4"></script>
-    <script src="/assets/js/pages/user.js?v=601509b4"></script>
-<script src="/assets/js/pk-notify.js?v=601509b4"></script>
+<script src="/assets/js/sidebar.js?v=7d067faa"></script>
+<script src="/assets/js/heartbeat.js?v=7d067faa"></script>
+<script src="/assets/js/pk-invite.js?v=7d067faa"></script>
+    <script src="/assets/js/pages/user.js?v=7d067faa"></script>
+<script src="/assets/js/pk-notify.js?v=7d067faa"></script>
 </body>
 </html>

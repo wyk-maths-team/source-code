@@ -255,17 +255,21 @@
                   <span>Completion: ${percent}%</span>
                 </div>
                 <div class="profile-online-row">
-                <span class="item">
-                  <i class="fas fa-clock"></i>
-                  <span>Total online</span>
-                  <b>${fmtDuration(totalOnlineMs || 0)}</b>
-                </span>
-                <span class="item">
-                  <i class="fas fa-eye"></i>
-                  <span>Last seen</span>
-                  <b>${fmtRelative(lastSeenAt)}</b>
-                </span>
-              </div>
+                  <span class="item">
+                    <span class="item-left">
+                      <i class="fas fa-clock"></i>
+                      <span>Total online</span>
+                    </span>
+                    <b>${fmtDuration(totalOnlineMs || 0)}</b>
+                  </span>
+                  <span class="item ${data.online ? 'online' : ''}">
+                    <span class="item-left">
+                      <i class="fas fa-eye"></i>
+                      <span>Last seen</span>
+                    </span>
+                    <b>${fmtRelative(lastSeenAt)}</b>
+                  </span>
+                </div>
               </div>
             </div>
 
