@@ -100,26 +100,28 @@ async function computeRating(db, username) {
 }
 
 // 按目标难度在附近抽 3 道 public 题，尽量不重复
+// CHAIN_WARNING 的题在判题链路上有问题（见主站），一律不抽
 async function pickProblems(db, targetDiff) {
   const band = 1.2;
   const lo = Math.max(1, targetDiff - band);
   const hi = Math.min(10, targetDiff + band);
+  const baseFilter = { public: true, tags: { $ne: 'CHAIN_WARNING' } };
 
   let pool = await db.collection('problems').find(
-    { public: true, difficulty: { $gte: lo, $lte: hi } },
+    { ...baseFilter, difficulty: { $gte: lo, $lte: hi } },
     { projection: { id: 1, difficulty: 1, _id: 0 } }
   ).toArray();
 
   // 附近题目不够就逐步放宽
   if (pool.length < PROBLEM_COUNT) {
     pool = await db.collection('problems').find(
-      { public: true, difficulty: { $gte: Math.max(1, lo - 1.5), $lte: Math.min(10, hi + 1.5) } },
+      { ...baseFilter, difficulty: { $gte: Math.max(1, lo - 1.5), $lte: Math.min(10, hi + 1.5) } },
       { projection: { id: 1, difficulty: 1, _id: 0 } }
     ).toArray();
   }
   if (pool.length < PROBLEM_COUNT) {
     pool = await db.collection('problems').find(
-      { public: true },
+      baseFilter,
       { projection: { id: 1, difficulty: 1, _id: 0 } }
     ).limit(500).toArray();
   }
@@ -311,64 +313,14 @@ async function handler(req, res) {
     return res.status(200).json({ success: true, roomId });
   }
 
-  // ── 交卷 ──
-  // 前端传 answer，由后端判分（0 或 100），避免用户自己填分数。
-  // 每题可重复提交，只保留最后一次。
+  // ── 房间内独立提交已废弃 ──
+  // 学生现在直接在 /problems/:id 正常作答，PK 只统计窗口期内的提交记录。
   if (action === 'submit') {
-    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-    const { roomId, problemId, answer } = req.body || {};
-    if (!roomId || !problemId) return res.status(400).json({ success: false, message: 'Missing roomId or problemId' });
-    if (answer === undefined || answer === null || String(answer).trim() === '') {
-      return res.status(400).json({ success: false, message: 'Empty answer' });
-    }
-
-    const room = await db.collection('pk_bet_rooms').findOne({ id: roomId });
-    if (!room) return res.status(404).json({ success: false, message: 'Room not found' });
-    if (!room.players.some(p => p.username === username)) {
-      return res.status(403).json({ success: false, message: 'Not a player' });
-    }
-    if (room.status !== 'active') return res.status(409).json({ success: false, message: 'Room closed' });
-    if (!room.problemIds.includes(problemId)) {
-      return res.status(400).json({ success: false, message: 'Not in this room' });
-    }
-
-    const now = new Date();
-    if (now > new Date(room.endAt)) {
-      return res.status(410).json({ success: false, message: 'Time is up' });
-    }
-
-    // 判分：只做数值比对（PK 题库都是可数值化的题）
-    const problem = await db.collection('problems').findOne(
-      { id: problemId }, { projection: { ans: 1, _id: 0 } }
-    );
-    if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
-
-    const refAns = Number(problem.ans);
-    const userAns = Number(String(answer).trim());
-    const correct = Number.isFinite(refAns) && Number.isFinite(userAns) && Math.abs(userAns - refAns) < 1e-6;
-    const sc = correct ? 100 : 0;
-
-    // 开赛瞬间记 0，第一秒是 1
-    let timeSec = Math.floor((now - new Date(room.startAt)) / 1000) + 1;
-    timeSec = Math.max(1, Math.min(DURATION_SEC, timeSec));
-
-    const weighted = Math.round((DURATION_SEC - timeSec) * sc);
-
-    await db.collection('pk_bet_attempts').updateOne(
-      { roomId, username, problemId },
-      {
-        $set: {
-          roomId, username, problemId,
-          score: sc,
-          timeSec,
-          submittedAt: now,
-          weighted,
-        },
-      },
-      { upsert: true }
-    );
-
-    return res.status(200).json({ success: true, correct, timeSec, score: sc, weighted });
+    return res.status(410).json({
+      success: false,
+      code: 'SUBMIT_REMOVED',
+      message: 'In-room submission was removed. Answer on /problems/:id — submissions made during the window count automatically.',
+    });
   }
 
   // ── 房间状态（含是否该结算） ──
@@ -387,13 +339,13 @@ async function handler(req, res) {
       return res.status(200).json({ success: true, room: settled.room, result: settled.result, you: username });
     }
 
-    const attempts = await db.collection('pk_bet_attempts')
-      .find({ roomId }, { projection: { _id: 0 } }).toArray();
+    // 进度直接读主站提交记录（见 collectAttempts）
+    const attempts = await collectAttempts(db, room);
 
     // 题面随房间一起下发；ans 绝不下发，否则前端能直接看到答案
     const probs = await db.collection('problems').find(
       { id: { $in: room.problemIds } },
-      { projection: { id: 1, statement: 1, difficulty: 1, _id: 0 } }
+      { projection: { id: 1, statement: 1, difficulty: 1, name: 1, _id: 0 } }
     ).toArray();
     const probMap = Object.fromEntries(probs.map(p => [p.id, p]));
     const problems = room.problemIds.map(id => probMap[id] || { id, statement: '(missing)', difficulty: null });
@@ -572,6 +524,44 @@ function publicRoom(room) {
   };
 }
 
+// 从主站 submissions 收集 PK 期间内、每 (玩家, 题) 的最后一次提交。
+// 房间不再维护自己的提交记录 —— 学生就是在普通的 /problems/:id 页面上作答，
+// 我们只把落在 [startAt, endAt] 区间里的提交算进比分。
+async function collectAttempts(db, room) {
+  const subs = await db.collection('submissions').find({
+    username: { $in: room.players.map(p => p.username) },
+    problemId: { $in: room.problemIds },
+    timestamp: { $gte: new Date(room.startAt), $lte: new Date(room.endAt) },
+    systemError: { $ne: true },
+  }, { projection: { username: 1, problemId: 1, timestamp: 1, correct: 1, score: 1, _id: 0 } }).toArray();
+
+  const latest = new Map();
+  for (const s of subs) {
+    const key = s.username + '|' + s.problemId;
+    const prev = latest.get(key);
+    if (!prev || new Date(s.timestamp) > new Date(prev.timestamp)) latest.set(key, s);
+  }
+
+  const out = [];
+  for (const [key, s] of latest) {
+    const idx = key.indexOf('|');
+    const user = key.slice(0, idx);
+    const pid = key.slice(idx + 1);
+    let timeSec = Math.floor((new Date(s.timestamp) - new Date(room.startAt)) / 1000) + 1;
+    timeSec = Math.max(1, Math.min(DURATION_SEC, timeSec));
+    const score = Number.isFinite(Number(s.score)) ? Number(s.score) : (s.correct ? 100 : 0);
+    out.push({
+      username: user,
+      problemId: pid,
+      score,
+      timeSec,
+      weighted: Math.round((DURATION_SEC - timeSec) * score),
+      submittedAt: s.timestamp,
+    });
+  }
+  return out;
+}
+
 // 结算：算分、算奖、发币、写永久结果
 async function settleRoom(db, room) {
   // 幂等：先抢占 status
@@ -584,7 +574,7 @@ async function settleRoom(db, room) {
     return { room: room, result: existing };
   }
 
-  const attempts = await db.collection('pk_bet_attempts').find({ roomId: room.id }).toArray();
+  const attempts = await collectAttempts(db, room);
   const [pA, pB] = room.players;
 
   function scoreOf(u) {

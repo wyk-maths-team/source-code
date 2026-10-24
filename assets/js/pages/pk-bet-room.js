@@ -16,6 +16,11 @@ Page.ready(async (user) => {
   let attempts = [];
   let me = '';
   let activeIdx = 0;
+  // 从题目页返回时回到原来的 tab
+  try {
+    const saved = sessionStorage.getItem('pkb_last_tab');
+    if (saved !== null) activeIdx = Math.max(0, Math.min(2, Number(saved) || 0));
+  } catch (e) {}
   let tickTimer = null;
   let pollTimer = null;
   let offsetMs = 0;          // 服务端时间 - 本地时间
@@ -76,22 +81,28 @@ Page.ready(async (user) => {
     const p = problems[activeIdx];
     if (!p) { elPanel.innerHTML = ''; return; }
     const a = myAttempt(p.id);
-    const prev = a ? String(a.score) : '';
 
     elPanel.innerHTML = `
       <div class="pkb-meta">Difficulty ${p.difficulty != null ? p.difficulty : '—'} · problem ${esc(p.id)}</div>
       <div class="pkb-stmt" id="pkbStmt">${p.statement || ''}</div>
       <div class="pkb-answer-row">
-        <input id="pkbAns" type="text" placeholder="Your answer" autocomplete="off"
-               value="${a ? 'submitted (score ' + a.score + ')' : ''}" ${a && a.score > 0 ? 'disabled' : ''} />
-        <button class="btn btn-primary" id="pkbSubmit" ${finished ? 'disabled' : ''}>Submit</button>
+        <a class="btn btn-primary" id="pkbOpen"
+           href="/problems/${encodeURIComponent(p.id)}" target="_blank" rel="noopener">
+          Open problem page ↗
+        </a>
       </div>
       <div class="pkb-status ${a ? (a.score > 0 ? 'ok' : 'err') : ''}" id="pkbStatus">
-        ${a ? (a.score > 0 ? `Accepted at ${a.timeSec}s — weighted ${a.weighted.toLocaleString()}` : `Wrong answer at ${a.timeSec}s — you may retry`) : ''}
+        ${a
+          ? (a.score > 0
+              ? `Accepted at ${a.timeSec}s — weighted ${a.weighted.toLocaleString()}`
+              : `Last attempt at ${a.timeSec}s scored ${a.score} — retry if you like`)
+          : 'Not submitted yet'}
       </div>
       <div class="pkb-note">
-        Score per problem = (1800 − T) × 100, where T is the second (1–1800) you last submitted.
-        Submitting again replaces your previous attempt, so a later wrong answer loses the earlier one.
+        Answer on the real problem page. Every submission you make there during this 30-minute
+        window counts; only your <b>last</b> submission per problem is used, so a later wrong answer
+        replaces an earlier correct one.<br><br>
+        Score per problem = (1800 − T) × score, where T is the second (1–1800) of that last submission.
       </div>
     `;
 
@@ -101,37 +112,12 @@ Page.ready(async (user) => {
       } catch (e) {}
     }
 
-    const btn = document.getElementById('pkbSubmit');
-    const input = document.getElementById('pkbAns');
-    if (btn) btn.onclick = () => doSubmit(input);
-  }
-
-  async function doSubmit(input) {
-    const p = problems[activeIdx];
-    if (!p || !input) return;
-    const val = input.value.trim();
-    if (!val) { DSHUI.toast('Write something first', 'warn'); return; }
-
-    const btn = document.getElementById('pkbSubmit');
-    btn.disabled = true;
-    btn.textContent = 'Checking…';
-
-    try {
-      const res = await apiCall('/api/pk-bet?action=submit', 'POST', {
-        roomId, problemId: p.id, answer: val,
+    // 点开题目页时顺手把当前 tab 记下来，方便学生回来后继续
+    const openBtn = document.getElementById('pkbOpen');
+    if (openBtn) {
+      openBtn.addEventListener('click', () => {
+        try { sessionStorage.setItem('pkb_last_tab', String(activeIdx)); } catch (e) {}
       });
-      if (res.success) {
-        DSHUI.toast(res.correct ? 'Correct!' : 'Wrong answer', res.correct ? 'ok' : 'err');
-        await refresh();
-      } else {
-        DSHUI.toast(res.message || 'Failed', 'err');
-        btn.disabled = false;
-        btn.textContent = 'Submit';
-      }
-    } catch (e) {
-      DSHUI.toast('Network error', 'err');
-      btn.disabled = false;
-      btn.textContent = 'Submit';
     }
   }
 
