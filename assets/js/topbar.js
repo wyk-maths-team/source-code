@@ -126,11 +126,11 @@
       // 更新外层简略版
       displayEl.innerHTML = `
         <span style="color:${dailyCls}; font-weight:bold;" title="Daily Tokens: ${daily.toLocaleString()}">
-          <i class="fa-solid fa-bolt" style="color:#e3a008;"></i> ${formatTokens(daily)}
+          <img src="/assets/img/ml.png" alt="Global" style="width: 18px; height: 18px; object-fit: contain; margin-bottom: 1px;"> ${formatTokens(daily)}
         </span>
         <span style="margin:0 4px; opacity:0.4;">|</span>
         <span style="color:${globalCls}; font-weight:bold; display: inline-flex; align-items: center; gap: 4px;" title="Global Tokens: ${global.toLocaleString()}">
-          <img src="/assets/img/ys.png" alt="Global" style="width: 15px; height: 15px; object-fit: contain; margin-bottom: 1px;"> ${formatTokens(global)}
+          <img src="/assets/img/ys.png" alt="Global" style="width: 18px; height: 18px; object-fit: contain; margin-bottom: 1px;"> ${formatTokens(global)}
         </span>
       `;
       
@@ -260,11 +260,14 @@
         <div id="tokenDisplay" class="token-display-box" title="Click for details"></div>
         <div id="tokenDropdown" class="token-dropdown">
           <div class="token-detail-row">
-            <span><i class="fa-solid fa-bolt" style="color:#e3a008;"></i> Daily free:</span>
+            <span><img src="/assets/img/ml.png" alt="Global" style="width: 20px; height: 20px; object-fit: contain;"> Daily free:</span>
             <strong id="tokenDailyExact">0</strong>
           </div>
           <div class="token-detail-row">
-            <span><i class="fa-solid fa-coins" style="color:#ffd700;"></i> Global:</span>
+            <span style="display: flex; align-items: center; gap: 6px;">
+              <img src="/assets/img/ys.png" alt="Global" style="width: 20px; height: 20px; object-fit: contain;">
+              Global:
+            </span>
             <strong id="tokenGlobalExact">0</strong>
           </div>
         </div>
