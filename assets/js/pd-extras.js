@@ -81,6 +81,96 @@ function toggleTimer() {
   document.getElementById('timerCloseBtn').addEventListener('click', () => { pauseTimer(); saveTimer(); div.remove(); });
 }
 
+// ============ Draw + Draw 锁 ============
+// 绘图工具是一个全屏遮罩（assets/js/draw.js），打开时要锁住页面滚动，
+// 否则手机上用手指画的时候会把底下的题目一起滚走。
+const DRAW_LOCK_CLASS = 'draw-mode-active';
+let _drawLocked = false;
+let _drawpadObserver = null;
+let _drawToggling = false;
+
+function _preventScroll(e) { if (!_drawLocked) return; e.preventDefault(); }
+function _preventKeyboardScroll(e) {
+  if (!_drawLocked) return;
+  const blocked = new Set([
+    'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+    'PageUp', 'PageDown', 'Home', 'End', ' ', 'Spacebar',
+  ]);
+  if (blocked.has(e.key)) e.preventDefault();
+}
+
+function setDrawLock(locked) {
+  if (locked === _drawLocked) return;
+  _drawLocked = locked;
+
+  if (locked) {
+    document.documentElement.classList.add(DRAW_LOCK_CLASS);
+    document.body.classList.add(DRAW_LOCK_CLASS);
+    document.addEventListener('wheel',     _preventScroll, { passive: false, capture: true });
+    document.addEventListener('touchmove', _preventScroll, { passive: false, capture: true });
+    document.addEventListener('keydown',   _preventKeyboardScroll, { capture: true });
+  } else {
+    document.documentElement.classList.remove(DRAW_LOCK_CLASS);
+    document.body.classList.remove(DRAW_LOCK_CLASS);
+    document.removeEventListener('wheel',     _preventScroll, { capture: true });
+    document.removeEventListener('touchmove', _preventScroll, { capture: true });
+    document.removeEventListener('keydown',   _preventKeyboardScroll, { capture: true });
+  }
+}
+
+function observeDrawpadState() {
+  const wrapper = document.getElementById('drawpadWrapper');
+  if (!wrapper) return;
+
+  if (_drawpadObserver) {
+    try { _drawpadObserver.disconnect(); } catch {}
+    _drawpadObserver = null;
+  }
+
+  const check = () => {
+    const st = wrapper.style.display;
+    setDrawLock(st !== 'none' && st !== '');
+  };
+
+  _drawpadObserver = new MutationObserver(check);
+  _drawpadObserver.observe(wrapper, {
+    attributes: true,
+    attributeFilter: ['style', 'class', 'hidden'],
+  });
+  check();
+}
+
+async function loadDrawTool() {
+  if (window.DrawTool) return window.DrawTool;
+  await loadScript('/assets/js/draw.js' + (window.__BUILD_V ? '?v=' + window.__BUILD_V : ''));
+  if (!window.DrawTool) throw new Error('DrawTool not found in draw.js');
+  return window.DrawTool;
+}
+
+async function toggleDrawMode() {
+  if (_drawToggling) return;   // 防并发（连点会开两次）
+  _drawToggling = true;
+
+  const btn = document.getElementById('drawToggleBtn');
+  const orig = btn ? btn.innerHTML : '';
+  if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+  try {
+    const DrawTool = await loadDrawTool();
+    DrawTool.toggle();
+  } catch (e) {
+    console.error('[draw]', e);
+    alert('Failed to load drawing tool: ' + e.message);
+  } finally {
+    if (btn && orig) btn.innerHTML = orig;
+    _drawToggling = false;
+  }
+}
+
+// 打开/关闭遮罩时同步滚动锁
+document.addEventListener('drawtool:open',  () => setDrawLock(true));
+document.addEventListener('drawtool:close', () => setDrawLock(false));
+
 // ============ Workbench ============
 const WB_HINTS = { none: { icon: 'fa-hand-pointer', text: '' }, text: { icon: 'fa-bolt', text: '' }, photo: { icon: 'fa-camera', text: '' }, steps: { icon: 'fa-pen-fancy', text: '' } };
 const WB_DRAFTS_KEY = 'pd_workbench_drafts';
@@ -758,6 +848,9 @@ window.__PD_EXTRAS__ = {
 
     document.getElementById('backToListBtn')?.addEventListener('click', () => history.back());
     document.getElementById('submissionsBtn')?.addEventListener('click', () => window.location.href = `/submissions/problem/${problemId}`);
+
+    // 全屏绘图遮罩（画笔 / 橡皮 / 多指）
+    document.getElementById('drawToggleBtn')?.addEventListener('click', toggleDrawMode);
 
     bindAnswerInteractions();
     bindSubmitEvent();

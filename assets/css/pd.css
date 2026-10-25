@@ -207,3 +207,9 @@ to{transform:rotate(360deg)}
 .wb-submit.cooling::before{background:rgb(calc(232 - 186 * var(--cool-pct,0)),calc(232 - 28 * var(--cool-pct,0)),calc(232 - 119 * var(--cool-pct,0)))}
 .wb-submit.cooling > *{position:relative;z-index:1}
 .wb-submit.cooling:hover{transform:none!important;box-shadow:none!important}
+
+/* ── 全屏绘图遮罩 ──
+   打开时锁住整页滚动，否则在手机上用手指画会把底下的题目一起滚走。
+   遮罩本身由 assets/js/draw.js 动态创建。 */
+html.draw-mode-active,body.draw-mode-active{overflow:hidden!important;overscroll-behavior:none}
+body.draw-mode-active{touch-action:none}

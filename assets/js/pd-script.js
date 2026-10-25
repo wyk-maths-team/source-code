@@ -392,6 +392,9 @@
             <div class="wb-footer-actions">
               <button type="button" class="wb-btn-secondary" id="submissionsBtn">Submissions</button>
               <button type="button" class="wb-btn-secondary" id="timerToggleBtn">Timer</button>
+              <button type="button" class="wb-btn-secondary" id="drawToggleBtn" title="Draw on page (full-screen overlay)">
+                <i class="fas fa-pen-fancy"></i> Draw
+              </button>
               <button type="button" class="wb-submit" id="checkAnswerBtn" disabled>
                 <i class="fas fa-paper-plane"></i>
                 <span id="wbSubmitLabel">Submit</span>
