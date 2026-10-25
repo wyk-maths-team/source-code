@@ -19,9 +19,6 @@ function genSubid() { return 'SGS' + Date.now().toString(36) + crypto.randomByte
 
 function cleanStatementForAI(raw) {
   let s = String(raw || '');
-  s = s.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ');
-  s = s.replace(/<!--[\s\S]*?-->/g, ' ').replace(/<img[^>]*\balt=["']([^"']+)["'][^>]*>/gi, ' [FIGURE: $1] ');
-  s = s.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/[ \t]+/g, ' ');
   return s.trim();
 }
 
