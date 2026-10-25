@@ -110,6 +110,23 @@
     return sign + absNum;
   }
 
+  // Token 图标。
+  // 默认用 FontAwesome 的闪电 / 金币；只有用户在 Settings 里主动打开
+  // 「Genshin icons」才换成 ml.png / ys.png。
+  // 默认不用图片，是因为那两张图带有特定作品的指向，不希望默认强加给所有人。
+  function tokenIcon(which, size) {
+    let genshin = false;
+    try { genshin = localStorage.getItem('genshinIcons') === 'true'; } catch (e) { genshin = false; }
+
+    if (genshin) {
+      const src = which === 'daily' ? '/assets/img/ml.png' : '/assets/img/ys.png';
+      return `<img src="${src}" alt="" style="width:${size}px;height:${size}px;object-fit:contain;">`;
+    }
+
+    const cls = which === 'daily' ? 'fa-bolt' : 'fa-coins';
+    return `<i class="fas ${cls}" style="color:#f1c40f;"></i>`;
+  }
+
   // ⭐ 暴露全局更新方法，供其他地方直接调用
   window.updateTopbarTokens = function(daily, global) {
     if (!loggedIn) return;
@@ -125,12 +142,12 @@
       
       // 更新外层简略版
       displayEl.innerHTML = `
-        <span style="color:${dailyCls}; font-weight:bold;" title="Daily Tokens: ${daily.toLocaleString()}">
-          <img src="/assets/img/ml.png" alt="Global" style="width: 18px; height: 18px; object-fit: contain; margin-bottom: 1px;"> ${formatTokens(daily)}
+        <span style="color:${dailyCls}; font-weight:bold; display: inline-flex; align-items: center; gap: 4px;" title="Daily Tokens: ${daily.toLocaleString()}">
+          ${tokenIcon('daily', 16)} ${formatTokens(daily)}
         </span>
         <span style="margin:0 4px; opacity:0.4;">|</span>
         <span style="color:${globalCls}; font-weight:bold; display: inline-flex; align-items: center; gap: 4px;" title="Global Tokens: ${global.toLocaleString()}">
-          <img src="/assets/img/ys.png" alt="Global" style="width: 18px; height: 18px; object-fit: contain; margin-bottom: 1px;"> ${formatTokens(global)}
+          ${tokenIcon('global', 16)} ${formatTokens(global)}
         </span>
       `;
       
@@ -260,12 +277,12 @@
         <div id="tokenDisplay" class="token-display-box" title="Click for details"></div>
         <div id="tokenDropdown" class="token-dropdown">
           <div class="token-detail-row">
-            <span><img src="/assets/img/ml.png" alt="Global" style="width: 20px; height: 20px; object-fit: contain;"> Daily free:</span>
+            <span>${tokenIcon('daily', 20)} Daily free:</span>
             <strong id="tokenDailyExact">0</strong>
           </div>
           <div class="token-detail-row">
             <span style="display: flex; align-items: center; gap: 6px;">
-              <img src="/assets/img/ys.png" alt="Global" style="width: 20px; height: 20px; object-fit: contain;">
+              ${tokenIcon('global', 20)}
               Global:
             </span>
             <strong id="tokenGlobalExact">0</strong>

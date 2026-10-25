@@ -27,6 +27,7 @@
       $('compactToggle').checked = localStorage.getItem('compactMode') === 'true';
       $('animationToggle').checked = localStorage.getItem('animations') !== 'false';
       $('ui3dToggle').checked = localStorage.getItem('ui3d') === 'true';
+      $('genshinIconsToggle').checked = localStorage.getItem('genshinIcons') === 'true';
       $('randomAnimToggle').checked = localStorage.getItem('randomAnimation') !== 'false';
       $('hideDifficultyToggle').checked = localStorage.getItem('hideDifficulty') === 'true';
       $('showTagsToggle').checked = localStorage.getItem('showTags') !== 'false';
@@ -65,6 +66,7 @@
       const compact = $('compactToggle').checked;
       const animations = $('animationToggle').checked;
       const ui3d = $('ui3dToggle').checked;
+      const genshinIcons = $('genshinIconsToggle').checked;
       const randomAnim = $('randomAnimToggle').checked;
       const hideDifficulty = $('hideDifficultyToggle').checked;
       const showTags = $('showTagsToggle').checked;
@@ -75,6 +77,7 @@
       localStorage.setItem('compactMode', compact);
       localStorage.setItem('animations', animations);
       localStorage.setItem('ui3d', ui3d);
+      localStorage.setItem('genshinIcons', genshinIcons);
       localStorage.setItem('randomAnimation', randomAnim);
       localStorage.setItem('hideDifficulty', hideDifficulty);
       localStorage.setItem('showTags', showTags);
@@ -96,6 +99,11 @@
       $('ui3dToggle').addEventListener('change', (e) => {
         this.applyUi3d(e.target.checked);
         localStorage.setItem('ui3d', e.target.checked);
+      });
+      // 顶栏的 token 图标在渲染时就决定了，改完刷新一次才能换过来
+      $('genshinIconsToggle').addEventListener('change', (e) => {
+        localStorage.setItem('genshinIcons', e.target.checked);
+        location.reload();
       });
       $('saveSettingsBtn').addEventListener('click', () => this.save());
 
