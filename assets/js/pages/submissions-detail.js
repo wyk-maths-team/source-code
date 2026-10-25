@@ -27,6 +27,12 @@ const SCRAMBLE_LENGTH = 32;
 const SCRAMBLE_CHARS = '░▒▓';
 let scrambleTimer = null;
 
+// 由 loadDetail 从后端返回值填充：
+//   CAN_REPORT —— 不是本人提交、且提交者不是 root（后端也会再挡一次）
+//   IS_ADMIN   —— 当前登录者是 admin 或 root
+let CAN_REPORT = false;
+let IS_ADMIN = false;
+
 function randomScramble() {
   let s = '';
   for (let i = 0; i < SCRAMBLE_LENGTH; i++) s += SCRAMBLE_CHARS.charAt(Math.floor(Math.random() * SCRAMBLE_CHARS.length));
@@ -75,6 +81,12 @@ function renderDetail(sub, problemName, attempts) {
         <span class="badge ${status.cls}">${escapeHtml(status.text)}</span>
         <button onclick="flagSubmission('red', '${escapeHtml(sub.username)}', '${escapeHtml(sub.problemId)}')" style="margin-left:10px; background:#d93025; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Red Flag</button>
         <button onclick="flagSubmission('yellow', '${escapeHtml(sub.username)}', '${escapeHtml(sub.problemId)}')" style="margin-left:5px; background:#e3a008; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Yellow Flag</button>
+        ${CAN_REPORT ? `<button onclick="reportSubmission('${escapeHtml(sub.subid)}')" title="Report this submission"
+          style="margin-left:5px; background:#7d5bb0; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">
+          <i class="fas fa-flag"></i> Report</button>` : ''}
+        ${IS_ADMIN ? `<button onclick="deleteSubmission('${escapeHtml(sub.subid)}')" title="Delete this submission"
+          style="margin-left:5px; background:#444; color:#fff; border:none; padding:4px 9px; border-radius:4px; cursor:pointer;">
+          <i class="fas fa-trash"></i></button>` : ''}
       </div>
     </div>
     <div class="meta-row">
@@ -96,6 +108,9 @@ async function loadDetail() {
   try {
     const data = await apiCall(`/api/submissions?action=detail&subid=${encodeURIComponent(subid)}`);
     if (!data.success) throw new Error(data.message || 'Failed to load');
+    // 权限标志由后端决定，前端只负责渲染
+    CAN_REPORT = !!data.canReport;
+    IS_ADMIN = !!data.isAdmin;
     container.innerHTML = renderDetail(data.submission, data.problemName, data.attempts);
     startScramble();
 
@@ -129,6 +144,38 @@ window.flagSubmission = async (flagType, targetUsername, problemId) => {
     const urlParams = new URLSearchParams({ username: targetUsername, problemid: problemId, subid: subid, flag: flagType });
     window.location.href = `/admin/send-message?${urlParams.toString()}`;
   } catch (e) { alert(e.message); }
+};
+
+// 举报这条提交。后端会再挡一次「不能举报自己 / 不能举报 root」。
+window.reportSubmission = async (targetSubid) => {
+  const reason = prompt('Why are you reporting this submission?\n(e.g. judge seems wrong, answer leaked, suspicious content)');
+  if (reason === null) return;                       // 取消
+  try {
+    const res = await apiCall('/api/submissions?action=report', 'POST', {
+      subid: targetSubid || subid,
+      reason: String(reason).slice(0, 1000),
+    });
+    if (!res.success) throw new Error(res.message || 'Failed to report');
+    if (window.DSHUI && DSHUI.toast) DSHUI.toast('Report submitted', 'ok');
+    else alert('Report submitted. Thank you!');
+  } catch (e) {
+    if (window.DSHUI && DSHUI.toast) DSHUI.toast(e.message, 'err');
+    else alert(e.message);
+  }
+};
+
+// 删除这条提交（管理员）。后端同时会把该用户在这题的状态重算。
+window.deleteSubmission = async (targetSubid) => {
+  if (!confirm('Delete this submission permanently?\nThis cannot be undone.')) return;
+  try {
+    const res = await apiCall('/api/submissions?action=delete', 'POST', { subid: targetSubid || subid });
+    if (!res.success) throw new Error(res.message || 'Failed to delete');
+    if (window.DSHUI && DSHUI.toast) DSHUI.toast('Submission deleted', 'ok');
+    setTimeout(() => { window.location.href = '/submissions'; }, 600);
+  } catch (e) {
+    if (window.DSHUI && DSHUI.toast) DSHUI.toast(e.message, 'err');
+    else alert(e.message);
+  }
 };
 
 loadDetail();

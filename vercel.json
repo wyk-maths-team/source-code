@@ -421,6 +421,10 @@
       "destination": "/admin/tokens.html"
     },
     {
+      "source": "/admin/user-states",
+      "destination": "/admin/user-states.html"
+    },
+    {
       "source": "/admin/problems/:id",
       "destination": "/admin/editproblem.html"
     },

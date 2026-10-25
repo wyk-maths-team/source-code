@@ -67,7 +67,15 @@ async function handler(req, res) {
         realName: realName || '',
         role: finalRole,
         banned: false,
-        createdAt: new Date()
+        createdAt: new Date(),
+        // 新账号的初始余额：daily 30,000（每日重置）+ global 100,000（永久）
+        token: {
+          daily: 30000,
+          global: 100000,
+          lastReset: new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10),
+          dailyLoginClaimed: false,
+          dailyQuestClaimed: false,
+        },
       };
       await db.collection('users').insertOne(newUser);
       await db.collection('userstats').updateOne(

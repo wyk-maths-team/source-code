@@ -5,6 +5,7 @@ import { applyRateLimit } from '../lib/rateLimit.js';
 import { runCustomLogic } from '../lib/logic-runner.js';
 import { ObjectId } from 'mongodb';
 import { wrapHandler } from '../lib/errors.js';
+import { auditLog } from '../lib/audit.js';
 // ⭐ 移除 executeCustomLogic 死函數（原使用 vm，但 import 被註釋 → 一旦被呼叫就 ReferenceError）
 
 // =============== 快取 ===============
@@ -189,7 +190,24 @@ async function handler(req, res) {
     if (canSeeContent) result.comment = sub.comment || '';
     else result.commentHidden = true;
 
-    return res.status(200).json({ success: true, submission: result, problemName, attempts, canSeeContent, isOwner });
+    // 谁能举报这条提交：不是本人、且提交者不是 root
+    // （管理员举报自己或 root 的提交没有意义，直接在前端隐藏、后端拒绝）
+    const ownerDoc = await db.collection('users').findOne(
+      { username: result.username },
+      { projection: { role: 1 } }
+    );
+    const canReport = result.username !== decoded.username && ownerDoc?.role !== 'root';
+
+    return res.status(200).json({
+      success: true,
+      submission: result,
+      problemName,
+      attempts,
+      canSeeContent,
+      isOwner,
+      canReport,
+      isAdmin,
+    });
   }
   // ---------- 管理员：标记违规 (Flag) ----------
   if (req.query.action === 'flag') {
@@ -227,7 +245,98 @@ async function handler(req, res) {
     return res.status(200).json({ success: true });
   }
 
-  // ---------- 管理員模式 ----------
+  // ---------- 举报一条提交 ----------
+  // 前端只在「不是本人、且提交者不是 root」时显示按钮，这里再挡一次。
+  if (req.query.action === 'report') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+    const { subid, reason } = req.body || {};
+    if (!subid) return res.status(400).json({ success: false, message: 'Missing subid', code: 'MISSING_PARAM' });
+
+    const sub = await db.collection('submissions').findOne({ subid });
+    if (!sub) return res.status(404).json({ success: false, message: 'Submission not found', code: 'SUBMISSION_NOT_FOUND' });
+
+    // 加固 1：不能举报自己的提交
+    if (sub.username === decoded.username) {
+      return res.status(403).json({
+        success: false, code: 'CANNOT_REPORT_SELF',
+        message: "You cannot report your own submission",
+      });
+    }
+
+    // 加固 2：不能举报 root 的提交
+    const owner = await db.collection('users').findOne(
+      { username: sub.username }, { projection: { role: 1 } }
+    );
+    if (owner?.role === 'root') {
+      return res.status(403).json({
+        success: false, code: 'CANNOT_REPORT_ROOT',
+        message: "You cannot report a submission made by root",
+      });
+    }
+
+    // 同一个人对同一条提交只记一次
+    const dup = await db.collection('submission_reports').findOne({ subid, by: decoded.username });
+    if (dup) {
+      return res.status(409).json({
+        success: false, code: 'ALREADY_REPORTED',
+        message: 'You already reported this submission',
+      });
+    }
+
+    await db.collection('submission_reports').insertOne({
+      subid,
+      problemId: sub.problemId,
+      submissionOwner: sub.username,
+      by: decoded.username,
+      reason: String(reason || '').slice(0, 1000),
+      createdAt: new Date(),
+      resolved: false,
+    });
+
+    await auditLog(db, 'submission_report', {
+      subid, problemId: sub.problemId, submissionOwner: sub.username,
+    }, decoded.username, 'info').catch(() => {});
+
+    return res.status(201).json({ success: true, message: 'Report submitted' });
+  }
+
+  // ---------- 管理员：删除一条提交 ----------
+  if (req.query.action === 'delete') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    if (!isAdmin) return res.status(403).json({ success: false, message: 'Admin only', code: 'NOT_ADMIN' });
+
+    const { subid } = req.body || {};
+    if (!subid) return res.status(400).json({ success: false, message: 'Missing subid', code: 'MISSING_PARAM' });
+
+    const sub = await db.collection('submissions').findOne({ subid });
+    if (!sub) return res.status(404).json({ success: false, message: 'Submission not found', code: 'SUBMISSION_NOT_FOUND' });
+
+    await db.collection('submissions').deleteOne({ subid });
+
+    // 删完之后状态要重新判断：如果这题还有其他 AC，保持 passed；否则退回未做
+    const stillAC = await db.collection('submissions').countDocuments({
+      username: sub.username,
+      problemId: sub.problemId,
+      $or: [
+        { type: 'image', marked: true, score: 100 },
+        { type: { $ne: 'image' }, correct: true, systemError: { $ne: true } },
+      ],
+    });
+
+    if (stillAC === 0) {
+      await db.collection('userstats').updateOne(
+        { username: sub.username },
+        { $unset: { [`states.${sub.problemId}`]: '' } }
+      );
+    }
+
+    await auditLog(db, 'submission_delete', {
+      subid, owner: sub.username, problemId: sub.problemId,
+    }, decoded.username, 'warn').catch(() => {});
+
+    return res.status(200).json({ success: true });
+  }
   if (req.query.admin === '1') {
     if (!isAdmin) return res.status(403).json({ success: false, message: 'Admin only' });
 
