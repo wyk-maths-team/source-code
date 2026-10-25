@@ -535,6 +535,74 @@ function waitForKaTeX({ timeoutMs = 10_000 } = {}) {
 }
 
 /**
+ * 宽公式自适应。
+ *
+ * .katex-display 带 overflow-x:auto，遇到 \dfrac 这类高宽公式会在公式内部
+ * 挤出一条横向滚动条 —— 看起来像「题目里嵌了个小窗口」，很难读。
+ *
+ * 这里按容器可用宽度等比缩小字号。KaTeX 内部尺寸全部用 em，
+ * 所以缩字号就是整体缩图，而且布局高度会跟着正确变化（不像 transform
+ * 那样需要补偿高度）。
+ *
+ * 只缩到 45% 为止：再小就看不清了，此时保留原本的横向滚动作为兜底。
+ * （实测能塞进容器通常只需 0.5–0.8，原先 0.6 的下限会留下残余滚动条。）
+ */
+function fitWideFormulas(container) {
+  if (!container || !container.isConnected) return;
+  if (!container.clientWidth) return;
+
+  const MIN_RATIO = 0.45;   // 再小就看不清了，让横向滚动兜底
+
+  container.querySelectorAll('.katex-display').forEach(el => {
+    el.style.fontSize = '';                    // 复位，量到自然宽度
+    const baseSize = parseFloat(getComputedStyle(el).fontSize) || 16;
+
+    // 纯迭代收敛。
+    //
+    // 三个坑：
+    //  · 可用宽度要用 el.clientWidth，不能用 container.clientWidth ——
+    //    容器的 padding 会算进 clientWidth，导致永远差那几像素。
+    //  · scrollWidth = 内容宽 × 缩放比 + 固定偏移（取整、内边距），
+    //    所以按比例一次估算收敛不了，得反复用实测值重算。
+    //  · 5 轮足够；触到下限就固定成最小字号退出，留给滚动条兜底。
+    for (let pass = 0; pass < 5; pass++) {
+      const avail = el.clientWidth;
+      const natural = el.scrollWidth;
+      if (!avail || !natural) break;
+      if (natural <= avail + 1) break;            // 已经放得下
+
+      const cur = parseFloat(getComputedStyle(el).fontSize) || baseSize;
+      const next = cur * (avail / natural);
+
+      if (next >= cur * 0.999) break;             // 没有实质变化，别再试
+      if (next < baseSize * MIN_RATIO) {          // 触底：缩到最小后放弃
+        el.style.fontSize = (baseSize * MIN_RATIO).toFixed(2) + 'px';
+        break;
+      }
+
+      el.style.fontSize = next.toFixed(2) + 'px';
+    }
+  });
+}
+
+/**
+ * 监听 statement 宽度变化（拖动 split divider、窗口缩放、旋转屏幕）。
+ * 宽度一变就重新算一次，否则缩放过一次之后就僵住了。
+ */
+let _fitObserver = null;
+function observeStatementWidth(stmt) {
+  if (_fitObserver) { try { _fitObserver.disconnect(); } catch {} _fitObserver = null; }
+  if (typeof ResizeObserver !== 'function') return;
+
+  let raf = 0;
+  _fitObserver = new ResizeObserver(() => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => fitWideFormulas(stmt));
+  });
+  _fitObserver.observe(stmt);
+}
+
+/**
  * 渲染 statement 內容並套用 KaTeX
  * @param {string} statement  題目 HTML
  * @returns {Promise<boolean>} 是否成功渲染 KaTeX
@@ -566,6 +634,9 @@ async function renderStatement(statement) {
         { left: '\\(', right: '\\)', display: false },
       ],
     });
+    // KaTeX 刚塞完节点，量一次宽度做自适应；之后宽度变化由 observer 负责
+    fitWideFormulas(stmt);
+    observeStatementWidth(stmt);
     return true;
   } catch (e) {
     console.error('[math] renderMathInElement failed:', e);

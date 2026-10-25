@@ -55,7 +55,9 @@
 .report-modal-actions button{padding:.4rem 1rem;border-radius:4px;border:1px solid var(--border-color);cursor:pointer;font-weight:500;font-size:.9rem}
 .report-modal-actions .btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
 .report-modal-actions .btn-secondary{background:var(--card-bg);color:var(--text-primary)}
-.katex-display{overflow-x:auto;overflow-y:hidden;padding:.4em 0}
+.katex-display{overflow-x:auto;overflow-y:hidden;padding:.4em 0;max-width:100%}
+/* 宽公式（\dfrac 之类）由 pd-script.js 的 fitWideFormulas() 等比缩小字号；
+   overflow-x 只作为缩到下限（60%）仍放不下时的兜底。 */
 #statementContent{min-width:0;overflow-x:hidden}
 
 
