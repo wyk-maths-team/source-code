@@ -129,8 +129,8 @@
           <i class="fa-solid fa-bolt" style="color:#e3a008;"></i> ${formatTokens(daily)}
         </span>
         <span style="margin:0 4px; opacity:0.4;">|</span>
-        <span style="color:${globalCls}; font-weight:bold;" title="Global Tokens: ${global.toLocaleString()}">
-          <i class="fa-solid fa-coins" style="color:#ffd700;"></i> ${formatTokens(global)}
+        <span style="color:${globalCls}; font-weight:bold; display: inline-flex; align-items: center; gap: 4px;" title="Global Tokens: ${global.toLocaleString()}">
+          <img src="/assets/img/ys.png" alt="Global" style="width: 15px; height: 15px; object-fit: contain; margin-bottom: 1px;"> ${formatTokens(global)}
         </span>
       `;
       
