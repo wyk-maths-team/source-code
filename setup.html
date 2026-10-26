@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>window.__BUILD_V='e079367a';</script>
+
+<script src="/assets/js/arch-render.js?v=e079367a"></script>
+<!-- <script>
+(function(){
+  try {
+    if (window.top !== window.self) return;
+    // if (sessionStorage.getItem('desktopPreferred')) return;   // 用戶手動選桌面版
+    var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (!isMobile) return;
+    if (location.pathname.indexOf('/mobile') === 0) return;
+    // if (location.pathname.indexOf('/os') === 0) return;
+    if (location.pathname.indexOf('/admin') === 0) return;
+    location.replace('/mobile/' + location.search + location.hash);
+  } catch(e){}
+})();
+</script> -->
+
+  
+
+<meta charset="UTF-8">
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Set Up Password - WYK Maths Team</title><link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+
+<link rel="stylesheet" href="/assets/css/styles.css?v=e079367a" />
+  <style>
+    body { font-family: sans-serif; background: var(--card-bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+    .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 2rem; width: 100%; max-width: 400px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    input { width: 100%; padding: 0.6rem; margin: 0.5rem 0 1rem; border: 1px solid var(--border-color); border-radius: 4px; }
+    button { width: 100%; padding: 0.7rem; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; }
+    .error { color: var(--danger); display: none; }
+  </style>
+  <!-- ⭐ PWA（必須靜態寫入 <head>
+
+<script src="/assets/js/arch-render.js?v=e079367a"></script>，不能靠 JS 動態注入） -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WYK Maths">
+  <meta name="mobile-web-app-capable" content="yes">
+
+<script src="/assets/js/core/ui.js?v=e079367a"></script>
+<script src="/assets/js/core/net.js?v=e079367a"></script>
+<script src="/assets/js/core/api.js?v=e079367a"></script>
+<script src="/assets/js/core/page.js?v=e079367a"></script>
+</head>
+<body>
+  <div class="card">
+    <h2>Set Your Password</h2>
+    <p>Your username: <strong id="setupUsername"></strong></p>
+    <form id="setupForm">
+      <label>Password</label>
+      <input type="password" id="password" required minlength="6" autocomplete="new-password">
+      <label>Confirm Password</label>
+      <input type="password" id="confirmPassword" required minlength="6">
+      <div class="error" id="setupError"></div>
+      <button type="submit">Create Account</button>
+    </form>
+  </div>
+  <script src="/assets/js/pages/setup.js?v=e079367a"></script>
+<script src="/assets/js/pk-notify.js?v=e079367a"></script>
+</body>
+</html>

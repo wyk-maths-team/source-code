@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta name="robots" content="noindex, nofollow" />
+<script>window.__BUILD_V='e079367a';</script>
+
+<script src="/assets/js/arch-render.js?v=e079367a"></script>
+<!-- <script>
+(function(){
+  try {
+    if (window.top !== window.self) return;
+    // if (sessionStorage.getItem('desktopPreferred')) return;   // 用戶手動選桌面版
+    var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (!isMobile) return;
+    if (location.pathname.indexOf('/mobile') === 0) return;
+    // if (location.pathname.indexOf('/os') === 0) return;
+    if (location.pathname.indexOf('/admin') === 0) return;
+    location.replace('/mobile/' + location.search + location.hash);
+  } catch(e){}
+})();
+</script> -->
+
+    
+
+<meta charset="UTF-8">
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notes & Resources - WYK Maths Team</title>
+    <link rel="stylesheet" href="/assets/css/styles.css?v=e079367a">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        .browser-container {
+            background: var(--card-bg);
+            border-radius: 4px;
+            padding: 1.2rem;
+            box-shadow: var(--shadow-sm);
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .breadcrumb {
+            padding: 0.5rem 0;
+            font-weight: 600;
+            color: var(--accent);
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1rem;
+        }
+        .breadcrumb span { cursor: pointer; }
+        .breadcrumb span:hover { text-decoration: underline; }
+        .item-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .item-list li {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 0.8rem;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .item-list li:hover { background: var(--hover-bg, #f0f0f0); }
+        .item-icon { margin-right: 0.8rem; font-size: 1.1rem; width: 24px; text-align: center; display: inline-flex; align-items: center; justify-content: center; }
+        .item-name { flex: 1; }
+        .item-size { color: var(--text-secondary); font-size: 0.85rem; margin-left: 1rem; }
+        .back-btn { cursor: pointer; margin-right: 1rem; }
+        .loading-msg { text-align: center; padding: 2rem; color: var(--text-secondary); }
+        [data-theme="dark"] .item-list li:hover { background: #2a2a2a; }
+    </style>
+
+  <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WYK Maths">
+  <meta name="mobile-web-app-capable" content="yes">
+
+<script src="/assets/js/core/ui.js?v=e079367a"></script>
+<script src="/assets/js/core/net.js?v=e079367a"></script>
+<script src="/assets/js/core/api.js?v=e079367a"></script>
+<script src="/assets/js/core/page.js?v=e079367a"></script>
+</head>
+<body class="index-body">
+    <div id="appContainer">
+        <header class="topbar" id="topbarContainer"></header>
+        <aside class="sidebar" id="sidebarContainer"></aside>
+        <main class="main-content" id="mainContent">
+            <div class="browser-container" id="browserRoot">
+                <h2>Notes & Resources</h2>
+                <div class="breadcrumb" id="breadcrumb">Root</div>
+                <ul class="item-list" id="fileList"><li class="loading-msg">Loading directory...</li></ul>
+            </div>
+        </main>
+        <!-- <button class="sidebar-toggle" id="sidebarToggle">☰</button> -->
+    </div>
+
+    <script src="/assets/js/auth.js?v=e079367a"></script>
+    <script src="/assets/js/app.js?v=e079367a"></script>
+    <script src="/assets/js/topbar.js?v=e079367a"></script>
+    <script src="/assets/js/topbar.js?v=e079367a"></script>
+<script src="/assets/js/sidebar.js?v=e079367a"></script>
+<script src="/assets/js/heartbeat.js?v=e079367a"></script>
+<script src="/assets/js/pk-invite.js?v=e079367a"></script>
+    <script src="/assets/js/pages/resources.js?v=e079367a"></script>
+<script src="/assets/js/pk-notify.js?v=e079367a"></script>
+</body>
+</html>

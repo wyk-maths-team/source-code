@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta name="robots" content="noindex, nofollow" />
+<script>window.__BUILD_V='e079367a';</script>
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow, noarchive"> 
+<title>Waiting - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=e079367a" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<style>
+  .pk-wait-wrap {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .pk-wait-card {
+    background: var(--card-bg); border: 2px solid var(--border-color);
+    border-radius: 16px; padding: 40px 32px;
+    max-width: 420px; width: 100%; text-align: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,.15);
+  }
+  .pk-wait-icon {
+    width: 80px; height: 80px; margin: 0 auto 20px;
+    background: radial-gradient(circle, #4a90d9, #2e5fa0);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 2.2rem; color: #fff;
+    animation: pkPulse 2s ease-in-out infinite;
+  }
+  @keyframes pkPulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74,144,217,.5); }
+    50%      { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(74,144,217,0); }
+  }
+  .pk-wait-title { font-size: 1.3rem; font-weight: 800; margin-bottom: 8px; }
+  .pk-wait-sub { color: var(--text-secondary); font-size: .9rem; margin-bottom: 20px; }
+  .pk-wait-count {
+    font-size: 3rem; font-weight: 900; font-family: 'Consolas', monospace;
+    color: var(--accent); margin: 20px 0;
+  }
+  .pk-wait-bar {
+    height: 6px; background: rgba(0,0,0,.06); border-radius: 3px;
+    overflow: hidden; margin-bottom: 20px;
+  }
+  [data-theme="dark"] .pk-wait-bar { background: rgba(255,255,255,.08); }
+  .pk-wait-bar-fill {
+    height: 100%; background: linear-gradient(90deg, var(--accent), #6ba7e3);
+    transition: width 1s linear;
+  }
+  .pk-cancel-btn {
+    padding: 10px 24px; border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: none; color: var(--text-primary);
+    font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .pk-cancel-btn:hover { border-color: var(--danger); color: var(--danger); }
+</style>
+<script src="/assets/js/core/ui.js?v=e079367a"></script>
+<script src="/assets/js/core/net.js?v=e079367a"></script>
+<script src="/assets/js/core/api.js?v=e079367a"></script>
+<script src="/assets/js/core/page.js?v=e079367a"></script>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="pk-wait-wrap">
+        <div class="pk-wait-card">
+          <div class="pk-wait-icon"><i class="fas fa-hourglass-half"></i></div>
+          <div class="pk-wait-title">Waiting for confirmation</div>
+          <div class="pk-wait-sub" id="pkWaitSub">Invitation sent</div>
+          <div class="pk-wait-count" id="pkWaitCount">10:00</div>
+          <div class="pk-wait-bar"><div class="pk-wait-bar-fill" id="pkWaitBar" style="width:0%"></div></div>
+          <button class="pk-cancel-btn" id="pkCancelBtn">
+            <i class="fas fa-times"></i> Cancel
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/assets/js/auth.js?v=e079367a"></script>
+  <script src="/assets/js/app.js?v=e079367a"></script>
+  <script src="/assets/js/topbar.js?v=e079367a"></script>
+  <script src="/assets/js/sidebar.js?v=e079367a"></script>
+
+  <script src="/assets/js/pages/pk-waiting.js?v=e079367a"></script>
+<script src="/assets/js/pk-notify.js?v=e079367a"></script>
+</body>
+</html>

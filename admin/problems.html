@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta name="robots" content="noindex, nofollow" />
+<script>window.__BUILD_V='e079367a';</script>
+
+<script src="/assets/js/arch-render.js?v=e079367a"></script>
+  
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow, noarchive"> 
+  <title>Manage Problems - WYK Maths Team</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+
+<link rel="stylesheet" href="/assets/css/styles.css?v=e079367a" />
+  <style>
+    .admin-container { background: var(--card-bg); border-radius: 4px; padding: 1.5rem; }
+
+    /* ── 顶部工具条：搜索 + 新增 ── */
+    .pm-toolbar { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .pm-search { position: relative; flex: 1 1 240px; max-width: 420px; }
+    .pm-search i {
+      position: absolute; left: .7rem; top: 50%; transform: translateY(-50%);
+      color: var(--text-secondary); font-size: .85rem; pointer-events: none;
+    }
+    .pm-search input {
+      width: 100%; padding: .5rem .75rem .5rem 2rem;
+      border: 1px solid var(--border-color); border-radius: 4px;
+      background: var(--card-bg); color: var(--text-primary); font-size: .9rem;
+      font-family: inherit;
+    }
+    .pm-search input:focus { outline: none; border-color: var(--accent); }
+    .pm-count { font-size: .82rem; color: var(--text-secondary); white-space: nowrap; }
+
+    /* ── 表格：外层滚动，表头吸附，滚动时 Public 开关和操作列不会滚走 ── */
+    .pm-table-wrap {
+      max-height: calc(100vh - 300px);
+      overflow: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+    }
+    .problems-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .problems-table thead th {
+      position: sticky; top: 0; z-index: 2;
+      background: var(--card-bg);
+      border-bottom: 2px solid var(--border-color);
+      padding: .6rem .5rem; text-align: left; white-space: nowrap;
+    }
+    .problems-table td { padding: .5rem; border-bottom: 1px solid var(--border-color); text-align: left; }
+    .problems-table tbody tr:hover td { background: rgba(127,127,127,.06); }
+    .problems-table th:first-child,
+    .problems-table td:first-child { width: 36px; }
+
+    /* 答案列：限宽 + 省略号，避免长答案把表格撑变形 */
+    .problems-table .col-answer { width: 280px; max-width: 280px; }
+    .pm-answer {
+      display: block; max-width: 280px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font-family: 'Consolas', monospace; font-size: .82rem;
+      color: var(--text-secondary); cursor: help;
+    }
+    .problems-table .col-actions { width: 130px; white-space: nowrap; }
+
+    .btn { padding: .5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; margin-right: .5rem; font-family: inherit; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-warning { background: #ffc107; color: #000; }
+    .btn-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px; padding: 0;
+      margin-right: .35rem; font-size: .8rem; line-height: 1;
+    }
+    .message { margin: 1rem 0; font-size: .9rem; }
+    .batch-actions {
+      margin-top: 1rem; display: none;
+      position: sticky; bottom: 0;
+      background: var(--card-bg);
+      padding: .6rem .2rem; border-top: 1px solid var(--border-color);
+      align-items: center; gap: .5rem;
+    }
+    .batch-actions.visible { display: flex; }
+    .pm-sel-count { font-size: .85rem; color: var(--text-secondary); margin-right: .5rem; }
+
+    /* ── Public 开关 ── */
+    .pm-switch { position: relative; display: inline-block; width: 40px; height: 22px; vertical-align: middle; }
+    .pm-switch input { opacity: 0; width: 0; height: 0; }
+    .pm-slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background: #999; border-radius: 22px; transition: background .15s;
+    }
+    .pm-slider::before {
+      content: ''; position: absolute; height: 16px; width: 16px;
+      left: 3px; bottom: 3px; background: #fff; border-radius: 50%;
+      transition: transform .15s;
+    }
+    .pm-switch input:checked + .pm-slider { background: var(--accent); }
+    .pm-switch input:checked + .pm-slider::before { transform: translateX(18px); }
+    .pm-switch input:disabled + .pm-slider { opacity: .5; cursor: not-allowed; }
+    /* 虚拟滚动依赖固定行高：行高不一致会导致滚动错位 */
+    .problems-table tbody td { height: 41px; box-sizing: border-box; }
+    .problems-table tbody tr.pm-spacer td { padding: 0; border: 0; }
+  </style>
+<script src="/assets/js/core/ui.js?v=e079367a"></script>
+<script src="/assets/js/core/net.js?v=e079367a"></script>
+<script src="/assets/js/core/api.js?v=e079367a"></script>
+<script src="/assets/js/core/page.js?v=e079367a"></script>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="admin-container">
+        <h2>Manage Problems</h2>
+
+        <div class="pm-toolbar">
+          <div class="pm-search">
+            <i class="fas fa-search"></i>
+            <input type="text" id="pmSearch" placeholder="Search ID / name / answer…" autocomplete="off" />
+          </div>
+          <span class="pm-count" id="pmCount"></span>
+          <a href="/admin/create/problem" class="btn btn-primary">+ Add New Problem</a>
+        </div>
+
+        <div class="pm-table-wrap">
+          <table class="problems-table">
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="selectAll" /></th>
+                <th>ID</th>
+                <th>Name</th>
+                <th class="col-answer">Answer</th>
+                <th>Public</th>
+                <th class="col-actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="problemsList"></tbody>
+          </table>
+        </div>
+
+        <div class="batch-actions" id="batchActions">
+          <span class="pm-sel-count" id="selCount"></span>
+          <button class="btn btn-primary" id="batchPublicBtn">Set public</button>
+          <button class="btn btn-warning" id="batchPrivateBtn">Set private</button>
+          <button class="btn btn-danger" id="batchDeleteBtn">Delete</button>
+        </div>
+        <div id="message" class="message"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/assets/js/auth.js?v=e079367a"></script>
+  <script src="/assets/js/app.js?v=e079367a"></script>
+  <script src="/assets/js/topbar.js?v=e079367a"></script>
+  
+<script src="/assets/js/sidebar.js?v=e079367a"></script>
+<script src="/assets/js/heartbeat.js?v=e079367a"></script>
+<script src="/assets/js/pk-invite.js?v=e079367a"></script>
+
+  <script src="/assets/js/pages/admin-problems.js?v=e079367a"></script>
+<script src="/assets/js/pk-notify.js?v=e079367a"></script>
+</body>
+</html>

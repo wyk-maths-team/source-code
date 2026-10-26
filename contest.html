@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta name="robots" content="noindex, nofollow" />
+<script>window.__BUILD_V='e079367a';</script>
+
+<script src="/assets/js/arch-render.js?v=e079367a"></script>
+<!-- <script>
+(function(){
+  try {
+    if (window.top !== window.self) return;
+    // if (sessionStorage.getItem('desktopPreferred')) return;   // 用戶手動選桌面版
+    var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (!isMobile) return;
+    if (location.pathname.indexOf('/mobile') === 0) return;
+    // if (location.pathname.indexOf('/os') === 0) return;
+    if (location.pathname.indexOf('/admin') === 0) return;
+    location.replace('/mobile/' + location.search + location.hash);
+  } catch(e){}
+})();
+</script> -->
+
+
+<meta charset="UTF-8">
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Contests - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+
+<link rel="stylesheet" href="/assets/css/styles.css?v=e079367a" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+
+<style>
+  /* ═══════════════ Contest List ═══════════════ */
+  .ct-wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  /* ── Hero ── */
+  .ct-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    padding: 2rem 2.2rem 1.8rem;
+    background: linear-gradient(135deg, #4a90d9 0%, #2e5fa0 55%, #1a1a2e 100%);
+    color: #fff;
+    box-shadow: 0 12px 40px rgba(74,144,217,.22), 0 0 0 1px rgba(255,255,255,.08) inset;
+  }
+  .ct-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 12% 25%, rgba(255,255,255,.85), transparent),
+      radial-gradient(1px 1px at 35% 65%, rgba(255,255,255,.6), transparent),
+      radial-gradient(2px 2px at 58% 20%, rgba(255,255,255,.9), transparent),
+      radial-gradient(1px 1px at 78% 78%, rgba(255,255,255,.7), transparent),
+      radial-gradient(2px 2px at 90% 35%, rgba(255,255,255,.85), transparent);
+    background-size: 400px 400px;
+    opacity: .55;
+    pointer-events: none;
+    animation: ctDrift 60s linear infinite;
+  }
+  @keyframes ctDrift {
+    from { background-position: 0 0; }
+    to   { background-position: 400px 300px; }
+  }
+  .ct-hero::after {
+    content: '';
+    position: absolute;
+    top: -80px; right: -80px;
+    width: 340px; height: 340px;
+    background: radial-gradient(circle, rgba(255,255,255,.22) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .ct-hero-inner { position: relative; z-index: 1; }
+  .ct-hero-name {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -.5px;
+    margin: 0 0 .35rem;
+    color: #fff;
+    line-height: 1.2;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .ct-hero-name i {
+    font-size: 1.6rem;
+    color: #ffd54f;
+    filter: drop-shadow(0 2px 8px rgba(255,213,79,.5));
+  }
+  .ct-hero-sub {
+    font-size: .92rem;
+    opacity: .88;
+    margin: 0;
+  }
+
+  /* ── Tabs ── */
+  .ct-tabs {
+    display: flex;
+    gap: .4rem;
+    flex-wrap: wrap;
+    background: var(--card-bg);
+    padding: .5rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+  }
+  .ct-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: .5rem 1.1rem;
+    border-radius: 8px;
+    font-size: .88rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .ct-tab:hover:not(.active) {
+    background: rgba(74,144,217,.08);
+    color: var(--text-primary);
+  }
+  .ct-tab.active {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(74,144,217,.3);
+  }
+  .ct-tab i { font-size: .82rem; }
+  .ct-tab .count {
+    font-size: .72rem;
+    background: rgba(0,0,0,.08);
+    color: inherit;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-family: 'Fira Code', 'Consolas', monospace;
+    margin-left: 2px;
+    min-width: 22px;
+    text-align: center;
+  }
+  .ct-tab.active .count { background: rgba(255,255,255,.28); }
+  [data-theme="dark"] .ct-tab .count { background: rgba(255,255,255,.1); }
+
+  /* ── Grid ── */
+  .ct-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1rem;
+  }
+
+  /* ── Card ── */
+  .ct-card {
+    position: relative;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 1.2rem 1.3rem 1.1rem;
+    cursor: pointer;
+    transition: transform .18s cubic-bezier(.2,0,0,1),
+                box-shadow .18s ease,
+                border-color .18s ease;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: .85rem;
+    text-decoration: none;
+    color: var(--text-primary);
+    min-height: 200px;
+  }
+  .ct-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: var(--border-color);
+    transition: opacity .18s;
+  }
+  .ct-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+    box-shadow: 0 12px 32px rgba(74,144,217,.18);
+  }
+  .ct-card.upcoming::before { background: linear-gradient(90deg, #ffc107, #ff9800); }
+  .ct-card.ongoing::before  { background: linear-gradient(90deg, #4caf50, #2e7d32); }
+  .ct-card.ended::before    { background: linear-gradient(90deg, #9e9e9e, #616161); }
+
+  .ct-card.ongoing {
+    border-color: rgba(76,175,80,.35);
+  }
+  .ct-card.ongoing:hover {
+    border-color: #4caf50;
+    box-shadow: 0 12px 32px rgba(76,175,80,.22);
+  }
+
+  /* ── Card top row ── */
+  .ct-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: .5rem;
+  }
+  .ct-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .4px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .ct-badge.upcoming { background: rgba(255,193,7,.16);  color: #b28500; }
+  .ct-badge.ongoing  { background: rgba(76,175,80,.16);  color: #2e7d32; }
+  .ct-badge.ended    { background: rgba(0,0,0,.06);      color: var(--text-secondary); }
+  [data-theme="dark"] .ct-badge.upcoming { color: #ffd54f; }
+  [data-theme="dark"] .ct-badge.ongoing  { color: #8fdf8f; }
+  [data-theme="dark"] .ct-badge.ended    { background: rgba(255,255,255,.08); }
+
+  .ct-badge .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+  .ct-badge.ongoing .dot {
+    animation: ctPulse 1.6s ease-in-out infinite;
+  }
+  @keyframes ctPulse {
+    0%   { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+    70%  { box-shadow: 0 0 0 6px transparent; opacity: .75; }
+    100% { box-shadow: 0 0 0 0 transparent; opacity: 1; }
+  }
+
+  .ct-card-id {
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: .78rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    opacity: .75;
+  }
+
+  /* ── Card name ── */
+  .ct-card-name {
+    font-size: 1.08rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.35;
+    margin: 0;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    word-break: break-word;
+  }
+
+  /* ── Card meta ── */
+  .ct-card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: .45rem;
+    font-size: .84rem;
+    color: var(--text-secondary);
+    margin-top: auto;
+  }
+  .ct-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .ct-meta-item i {
+    width: 14px;
+    text-align: center;
+    color: var(--accent);
+    font-size: .82rem;
+    flex-shrink: 0;
+    opacity: .8;
+  }
+  .ct-meta-item span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── Countdown footer ── */
+  .ct-countdown {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    padding-top: .7rem;
+    border-top: 1px dashed var(--border-color);
+    font-size: .82rem;
+  }
+  .ct-countdown-label {
+    color: var(--text-secondary);
+    font-weight: 600;
+    letter-spacing: .3px;
+    text-transform: uppercase;
+    font-size: .72rem;
+  }
+  .ct-countdown-val {
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-weight: 800;
+    font-size: .95rem;
+    color: var(--text-primary);
+    letter-spacing: .5px;
+  }
+  .ct-card.ongoing .ct-countdown-val { color: #2e7d32; }
+  .ct-card.upcoming .ct-countdown-val { color: #b28500; }
+  .ct-card.ended .ct-countdown-val { color: var(--text-secondary); opacity: .7; }
+  [data-theme="dark"] .ct-card.ongoing .ct-countdown-val { color: #8fdf8f; }
+  [data-theme="dark"] .ct-card.upcoming .ct-countdown-val { color: #ffd54f; }
+
+  /* ── Empty / Loading ── */
+  .ct-loading, .ct-empty {
+    text-align: center;
+    padding: 4rem 1.5rem;
+    color: var(--text-secondary);
+    font-size: .95rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    box-shadow: var(--shadow-sm);
+  }
+  .ct-loading i, .ct-empty i {
+    font-size: 2.6rem;
+    color: var(--accent);
+    opacity: .55;
+    display: block;
+    margin-bottom: 1rem;
+  }
+  .ct-empty-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: .3rem;
+  }
+  .ct-spinner {
+    display: inline-block;
+    width: 22px; height: 22px;
+    border: 3px solid rgba(74,144,217,.25);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: ctSpin .7s linear infinite;
+  }
+  @keyframes ctSpin { to { transform: rotate(360deg); } }
+
+  /* ── Pagination ── */
+  .ct-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding-top: .5rem;
+  }
+  .ct-page-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font-size: .85rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all .15s;
+    text-decoration: none;
+  }
+  .ct-page-btn:hover:not(:disabled):not(.active) {
+    background: rgba(74,144,217,.1);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .ct-page-btn.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    cursor: default;
+    font-weight: 700;
+  }
+  .ct-page-btn:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+  }
+  .ct-page-btn.ellipsis {
+    border-color: transparent;
+    background: transparent;
+    cursor: default;
+    opacity: .55;
+  }
+  .ct-page-info {
+    font-size: .82rem;
+    color: var(--text-secondary);
+    margin: 0 .5rem;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 700px) {
+    .ct-hero { padding: 1.5rem 1.3rem 1.3rem; border-radius: 12px; }
+    .ct-hero-name { font-size: 1.5rem; }
+    .ct-hero-name i { font-size: 1.25rem; }
+    .ct-grid { grid-template-columns: 1fr; gap: .75rem; }
+    .ct-card { padding: 1rem 1.05rem .9rem; min-height: 180px; }
+    .ct-tabs { padding: .35rem; gap: .3rem; }
+    .ct-tab { padding: .45rem .85rem; font-size: .82rem; }
+    .ct-tab .count { font-size: .68rem; padding: 1px 6px; min-width: 20px; }
+    .ct-card-name { font-size: 1rem; }
+    .ct-loading, .ct-empty { padding: 3rem 1rem; }
+  }
+
+  @media (max-width: 420px) {
+    .ct-tab span:not(.count) { display: none; }
+    .ct-tab { padding: .45rem .7rem; }
+    .ct-tab .count { margin-left: 0; }
+  }
+</style>
+
+<!-- ⭐ PWA -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1a1a2e">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WYK Maths">
+<meta name="mobile-web-app-capable" content="yes">
+<script src="/assets/js/core/ui.js?v=e079367a"></script>
+<script src="/assets/js/core/net.js?v=e079367a"></script>
+<script src="/assets/js/core/api.js?v=e079367a"></script>
+<script src="/assets/js/core/page.js?v=e079367a"></script>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="ct-loading">
+        <i class="fas fa-trophy"></i>
+        <div><span class="ct-spinner"></span> Loading contests…</div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/assets/js/auth.js?v=e079367a"></script>
+  <script src="/assets/js/app.js?v=e079367a"></script>
+  <script src="/assets/js/topbar.js?v=e079367a"></script>
+  
+<script src="/assets/js/sidebar.js?v=e079367a"></script>
+<script src="/assets/js/heartbeat.js?v=e079367a"></script>
+<script src="/assets/js/pk-invite.js?v=e079367a"></script>
+
+  <script src="/assets/js/pages/contest.js?v=e079367a"></script>
+<script src="/assets/js/pk-notify.js?v=e079367a"></script>
+</body>
+</html>

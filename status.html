@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta name="robots" content="noindex, nofollow" />
+<script>window.__BUILD_V='e079367a';</script>
+
+<script src="/assets/js/arch-render.js?v=e079367a"></script>
+<!-- <script>
+(function(){
+  try {
+    if (window.top !== window.self) return;
+    // if (sessionStorage.getItem('desktopPreferred')) return;   // 用戶手動選桌面版
+    var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (!isMobile) return;
+    if (location.pathname.indexOf('/mobile') === 0) return;
+    // if (location.pathname.indexOf('/os') === 0) return;
+    if (location.pathname.indexOf('/admin') === 0) return;
+    location.replace('/mobile/' + location.search + location.hash);
+  } catch(e){}
+})();
+</script> -->
+
+  
+
+<meta charset="UTF-8">
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>Judge Status - WYK Maths Team</title><link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+
+<link rel="stylesheet" href="/assets/css/styles.css?v=e079367a" />
+  <style>
+    /* ── 中性色变量（由 tools/extract-colors.mjs 生成）──────────────
+       原先写死在内联样式里的浅色背景 / 深色文字 / 浅灰边框，抽取成
+       变量后暗色与科幻主题只需覆盖取值，不必逐条重写规则。
+       语义色（成功绿、错误红、警告橙）与代码高亮色刻意保留，
+       它们在深色背景下依然成立。 */
+    :root {
+      --c-surface: #ffffff;
+      --c-surface-sunken: #f8f9fa;
+      --c-surface-raised: #f0f0f0;
+      --c-surface-muted: #e9ecef;
+      --c-border: #dddddd;
+      --c-border-strong: #bbbbbb;
+      --c-text: #333333;
+      --c-text-muted: #666666;
+      --c-text-subtle: #999999;
+    }
+    :root[data-theme="dark"] {
+      --c-surface: #161b22;
+      --c-surface-sunken: #0d1117;
+      --c-surface-raised: #21262d;
+      --c-surface-muted: #21262d;
+      --c-border: #30363d;
+      --c-border-strong: #484f58;
+      --c-text: #c9d1d9;
+      --c-text-muted: #8b949e;
+      --c-text-subtle: #6e7681;
+    }
+    :root[data-theme="scifi"] {
+      --c-surface: #09101a;
+      --c-surface-sunken: #070d15;
+      --c-surface-raised: #0f2231;
+      --c-surface-muted: #101b26;
+      --c-border: #14313f;
+      --c-border-strong: #1e4a5e;
+      --c-text: #c6eeff;
+      --c-text-muted: #6c8fa3;
+      --c-text-subtle: #546f80;
+    }
+
+    .status-container {
+      background: var(--card-bg);
+      border-radius: 4px;
+      padding: 1.5rem;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .status-label { font-weight: 600; }
+    .status-value { font-family: monospace; }
+    .progress-bar {
+      height: 24px;
+      background: var(--c-surface-muted);
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 0.5rem 0;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.5s;
+      text-align: center;
+      color: white;
+      line-height: 24px;
+      font-size: 0.8rem;
+    }
+    .collection-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    .collection-table th, .collection-table td {
+      padding: 0.4rem;
+      border: 1px solid var(--border-color);
+      font-size: 0.9rem;
+    }
+    .collection-table th { background: var(--c-surface-raised); }
+    .loading-msg { text-align: center; padding: 2rem; }
+    /* ═══════════ Vercel Dashboard ═══════════ */
+.vc-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid var(--border-color);
+}
+.vc-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 1rem;
+  font-size: 1.15rem;
+}
+.vc-section h3 .vc-badge {
+  font-size: .7rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(0,0,0,.06);
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+[data-theme="dark"] .vc-section h3 .vc-badge { background: rgba(255,255,255,.08); }
+
+.vc-loading {
+  text-align: center;
+  padding: 1.5rem;
+  color: var(--text-secondary);
+  font-size: .9rem;
+}
+.vc-error {
+  padding: 1rem 1.2rem;
+  border-radius: 8px;
+  background: rgba(220,50,50,.08);
+  border: 1px solid rgba(220,50,50,.3);
+  color: var(--danger);
+  font-size: .88rem;
+  margin-bottom: 1rem;
+}
+
+.vc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 1rem;
+}
+
+.vc-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 14px 16px;
+  transition: border-color .15s, transform .12s, box-shadow .15s;
+  position: relative;
+  overflow: hidden;
+}
+.vc-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(74,144,217,.12);
+}
+.vc-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--accent);
+  opacity: .8;
+}
+.vc-card.warn::before { background: #f0ad4e; }
+.vc-card.danger::before { background: var(--danger); }
+
+.vc-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.vc-card-label {
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.vc-card-label i {
+  color: var(--accent);
+  opacity: .7;
+  font-size: .9rem;
+}
+.vc-card.warn .vc-card-label i { color: #f0ad4e; }
+.vc-card.danger .vc-card-label i { color: var(--danger); }
+
+.vc-card-cost {
+  font-family: 'Consolas', monospace;
+  font-size: .88rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.vc-card.warn .vc-card-cost { color: #f0ad4e; }
+.vc-card.danger .vc-card-cost { color: var(--danger); }
+.vc-card-cost.none { color: var(--text-secondary); opacity: .5; }
+
+.vc-card-value {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-family: 'Consolas', monospace;
+  margin-bottom: 2px;
+  letter-spacing: -.5px;
+}
+.vc-card-value small {
+  font-size: .75rem;
+  font-weight: 500;
+  opacity: .6;
+  margin-left: 4px;
+}
+.vc-card-limit {
+  font-size: .75rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.vc-bar {
+  height: 5px;
+  background: rgba(0,0,0,.06);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+[data-theme="dark"] .vc-bar { background: rgba(255,255,255,.08); }
+.vc-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #6ba7e3);
+  border-radius: 3px;
+  transition: width .5s ease;
+}
+.vc-card.warn .vc-bar-fill { background: linear-gradient(90deg, #f0ad4e, #f7c46c); }
+.vc-card.danger .vc-bar-fill { background: linear-gradient(90deg, var(--danger), #f77b6c); }
+
+.vc-card-pct {
+  display: flex;
+  justify-content: space-between;
+  font-size: .72rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  font-family: 'Consolas', monospace;
+}
+
+.vc-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, rgba(74,144,217,.08), rgba(74,144,217,.02));
+  border: 1px solid rgba(74,144,217,.25);
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-bottom: 1rem;
+}
+.vc-summary-label {
+  font-size: .85rem;
+  color: var(--text-secondary);
+}
+.vc-summary-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--accent);
+  font-family: 'Consolas', monospace;
+}
+
+.vc-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: .75rem;
+  color: var(--text-secondary);
+  margin-top: .5rem;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.vc-footer button {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  padding: 3px 10px;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: .75rem;
+}
+.vc-footer button:hover { border-color: var(--accent); color: var(--accent); }
+  </style>
+
+  <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WYK Maths">
+  <meta name="mobile-web-app-capable" content="yes">
+
+<script src="/assets/js/core/ui.js?v=e079367a"></script>
+<script src="/assets/js/core/net.js?v=e079367a"></script>
+<script src="/assets/js/core/api.js?v=e079367a"></script>
+<script src="/assets/js/core/page.js?v=e079367a"></script>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="loading-msg">Loading status...</div>
+    </main>
+    <!-- <button class="sidebar-toggle" id="sidebarToggle">☰</button> -->
+  </div>
+
+  <script src="/assets/js/auth.js?v=e079367a"></script>
+  <script src="/assets/js/app.js?v=e079367a"></script>
+  <script src="/assets/js/topbar.js?v=e079367a"></script>
+  
+<script src="/assets/js/sidebar.js?v=e079367a"></script>
+<script src="/assets/js/heartbeat.js?v=e079367a"></script>
+<script src="/assets/js/pk-invite.js?v=e079367a"></script>
+
+  <script src="/assets/js/pages/status.js?v=e079367a"></script>
+<script src="/assets/js/pk-notify.js?v=e079367a"></script>
+</body>
+</html>

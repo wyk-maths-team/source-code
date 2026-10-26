@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta name="robots" content="noindex, nofollow" />
+<script>window.__BUILD_V='e079367a';</script>
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+<meta name="requires-auth" content="true" />
+<title>Send System Message - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="stylesheet" href="/assets/css/styles.css?v=e079367a" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+
+<script src="/assets/js/core/ui.js?v=e079367a"></script>
+<script src="/assets/js/core/net.js?v=e079367a"></script>
+<script src="/assets/js/core/api.js?v=e079367a"></script>
+<script src="/assets/js/core/page.js?v=e079367a"></script>
+
+<style>
+  .msg-form { max-width: 600px; margin: 20px auto; background: var(--card-bg); padding: 24px; border-radius: 12px; border: 1px solid var(--border-color); }
+  .msg-form h2 { margin-top: 0; color: var(--text-primary); display: flex; align-items: center; gap: 10px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; margin-bottom: 6px; font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); }
+  .form-group select, .form-group input, .form-group textarea {
+    width: 100%; padding: 10px; border-radius: 6px;
+    border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-primary);
+    font-family: inherit; box-sizing: border-box; font-size: 0.95rem;
+  }
+  .form-group textarea { resize: vertical; min-height: 100px; }
+  .btn-submit {
+    width: 100%; padding: 12px; background: var(--accent); color: white;
+    border: none; border-radius: 6px; font-size: 1rem; font-weight: 600;
+    cursor: pointer; transition: opacity 0.2s;
+  }
+  .btn-submit:hover { opacity: 0.9; }
+  .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+  .preview-box {
+    margin-top: 20px; padding: 16px; border-radius: 8px;
+    background: rgba(74,144,217,0.08); border-left: 4px solid var(--accent);
+    font-size: 0.95rem; line-height: 1.5; color: var(--text-primary);
+  }
+</style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="msg-form" id="adminMsgForm" style="display:none;">
+        <h2><i class="fas fa-paper-plane"></i> Send System Message</h2>
+        
+        <div class="form-group">
+          <label>Search User</label>
+          <input type="text" id="userSearch" placeholder="Type to filter by username..." autocomplete="off" style="margin-bottom: 8px;">
+          
+          <label>Target User</label>
+          <select id="targetUser"><option value="">Loading users...</option></select>
+        </div>
+
+        <div class="form-group">
+          <label>Message Template</label>
+          <select id="templateType">
+            <option value="reviewed">Your [] was reviewed. Your submission was rejudged. Thank you.</option>
+            <option value="toc">Your [] was removed. Please follow the rules. Thank you.</option>
+            <option value="custom">Custom Message</option>
+          </select>
+        </div>
+
+        <div id="dynamicVars"></div>
+
+        <div class="preview-box" id="previewBox">Message preview will appear here...</div>
+
+        <button class="btn-submit" id="sendBtn" style="margin-top: 20px;">Send Message</button>
+      </div>
+    </main>
+  </div>
+
+  <script src="/assets/js/auth.js?v=e079367a"></script>
+  <script src="/assets/js/app.js?v=e079367a"></script>
+  <script src="/assets/js/topbar.js?v=e079367a"></script>
+  <script src="/assets/js/sidebar.js?v=e079367a"></script>
+  <script src="/assets/js/heartbeat.js?v=e079367a"></script>
+  <script src="/assets/js/pk-invite.js?v=e079367a"></script>
+
+  <script>
+    Page.boot({ title: 'Send Message', requireAuth: true, skeleton: true });
+    Page.ready(async (user) => {
+      if (user.role !== 'admin' && user.role !== 'root') {
+        document.getElementById('mainContent').innerHTML = '<h2 style="text-align:center;padding:40px;">403 Forbidden</h2>';
+        Page.hideSkeleton(); return;
+      }
+
+      const form = document.getElementById('adminMsgForm');
+      const targetUserSelect = document.getElementById('targetUser');
+      const userSearchInput = document.getElementById('userSearch');
+      const templateType = document.getElementById('templateType');
+      const dynamicVars = document.getElementById('dynamicVars');
+      const previewBox = document.getElementById('previewBox');
+      const sendBtn = document.getElementById('sendBtn');
+
+      let allUsers = []; // 存储所有用户
+            // 检查 URL 参数
+      const urlParams = new URLSearchParams(window.location.search);
+      const prefillUser = urlParams.get('username');
+      const prefillProblemId = urlParams.get('problemid') || ''; // 如果没传，暂用硬编码或空
+      const prefillSubid = urlParams.get('subid') || '';
+      const prefillFlag = urlParams.get('flag');
+      // ⭐ 渲染用户下拉列表
+      function renderUserOptions(filterText = '') {
+        const query = filterText.toLowerCase().trim();
+        // 1. 过滤
+        const filtered = allUsers.filter(u => 
+          u.username.toLowerCase().includes(query) || 
+          (u.displayName && u.displayName.toLowerCase().includes(query))
+        );
+        
+        // 2. 排序（按 username 字母顺序）
+        filtered.sort((a, b) => a.username.localeCompare(b.username));
+
+        // 3. 渲染
+        if (filtered.length === 0) {
+          targetUserSelect.innerHTML = '<option value="">No users found</option>';
+        } else {
+          // 记住当前选中的值
+          const currentVal = targetUserSelect.value;
+          targetUserSelect.innerHTML = '<option value="">-- Select User --</option>' + 
+            filtered.map(u => `<option value="${DSHUI.esc(u.username)}">${DSHUI.esc(u.username)} (${DSHUI.esc(u.displayName || '')})</option>`).join('');
+          
+          // 尝试恢复选中状态
+          if (filtered.some(u => u.username === currentVal)) {
+            targetUserSelect.value = currentVal;
+          }
+        }
+      }
+
+      // 1. 拉取用户列表
+      try {
+        userSearchInput.disabled = true;
+        const usersData = await API.get('/api/users?action=adminList');
+        allUsers = usersData.users || [];
+        
+        renderUserOptions(); // 初始渲染
+        userSearchInput.disabled = false;
+        if (prefillUser) {
+          targetUserSelect.value = prefillUser;
+          // 如果列表里没有这个用户，尝试直接塞进去一个 option
+          if (targetUserSelect.value !== prefillUser) {
+             targetUserSelect.innerHTML += `<option value="${DSHUI.esc(prefillUser)}" selected>${DSHUI.esc(prefillUser)} (Auto)</option>`;
+          }
+        }
+        if (prefillFlag) {
+          // 自动切到 Custom Message
+          templateType.value = 'custom';
+          renderTemplateVars();
+          setTimeout(() => {
+            const textarea = document.getElementById('varCustomText');
+            if (textarea) {
+               if (prefillFlag === 'red') {
+                 textarea.value = `[RED CARD WARNING] Your account has been flagged for severe violation (obscene/inappropriate content) regarding submission ${prefillSubid}. Your progress on this problem has been reset. This is a final warning before account suspension. Thank you.`;
+               } else {
+                 textarea.value = `[YELLOW CARD WARNING] Your submission ${prefillSubid} has been flagged for inappropriate content or AI usage. Your progress on this problem has been reset. Please follow the rules. Thank you.`;
+               }
+               updatePreview();
+            }
+          }, 50); // 等待 DOM 渲染
+        }
+      } catch (e) {
+        targetUserSelect.innerHTML = '<option value="">Failed to load users</option>';
+        DSHUI.toast('Failed to load user list', 'err');
+      }
+
+      // 2. 监听搜索输入
+      userSearchInput.addEventListener('input', (e) => {
+        renderUserOptions(e.target.value);
+      });
+
+      form.style.display = 'block';
+      Page.hideSkeleton();
+
+      // ⭐ 3. 统一的预览更新函数
+      function updatePreview() {
+        const t = templateType.value;
+        let text = '';
+        
+        if (t === 'reviewed') {
+          const pid = document.getElementById('varProblemId')?.value.trim() || '[Problem ID]';
+          text = `Your problem report on ${pid} was reviewed. Your submission was rejudged. Thank you.`;
+        } else if (t === 'toc') {
+          text = `Your profile picture violates the ToS and was removed. Please follow the rules. Thank you.`;
+        } else if (t === 'custom') {
+          text = document.getElementById('varCustomText')?.value || '[Custom Message]';
+        }
+        previewBox.textContent = text;
+      }
+
+      // ⭐ 4. 动态渲染参数输入框
+      function renderTemplateVars() {
+        const t = templateType.value;
+        dynamicVars.innerHTML = '';
+        
+        if (t === 'reviewed') {
+          const group = document.createElement('div');
+          group.className = 'form-group';
+          group.innerHTML = `<label>Problem ID</label><input type="text" id="varProblemId" placeholder="e.g. HA0001">`;
+          dynamicVars.appendChild(group);
+          document.getElementById('varProblemId').addEventListener('input', updatePreview);
+        } else if (t === 'custom') {
+          const group = document.createElement('div');
+          group.className = 'form-group';
+          group.innerHTML = `<label>Custom Text</label><textarea id="varCustomText" placeholder="Enter message here..."></textarea>`;
+          dynamicVars.appendChild(group);
+          document.getElementById('varCustomText').addEventListener('input', updatePreview);
+        }
+        updatePreview();
+      }
+
+      // 初始化模板
+      templateType.addEventListener('change', renderTemplateVars);
+      renderTemplateVars();
+
+      // ⭐ 5. 发送消息
+      sendBtn.addEventListener('click', async () => {
+        const target = targetUserSelect.value;
+        if (!target) return DSHUI.toast('Please select a target user', 'warn');
+        
+        const template = templateType.value;
+        const variables = {};
+        if (template === 'reviewed') {
+          variables.problemId = document.getElementById('varProblemId')?.value.trim() || '';
+          if (!variables.problemId) return DSHUI.toast('Please enter Problem ID', 'warn');
+        }
+        if (template === 'custom') {
+          variables.customText = document.getElementById('varCustomText')?.value.trim() || '';
+          if (!variables.customText) return DSHUI.toast('Please enter message text', 'warn');
+        }
+
+        sendBtn.disabled = true;
+        sendBtn.textContent = 'Sending...';
+
+        try {
+          await API.post('/api/admin?action=sendMessage', { 
+            targetUser: target, 
+            template, 
+            variables 
+          });
+          
+          DSHUI.toast('Message sent successfully!', 'ok');
+          
+          if (template === 'custom') document.getElementById('varCustomText').value = '';
+          if (template === 'reviewed') document.getElementById('varProblemId').value = '';
+          updatePreview();
+          
+        } catch (err) {
+          DSHUI.toast(err.message || 'Failed to send', 'err');
+        } finally {
+          sendBtn.disabled = false;
+          sendBtn.textContent = 'Send Message';
+        }
+      });
+    });
+  </script>
+<script src="/assets/js/pk-notify.js?v=e079367a"></script>
+</body>
+</html>

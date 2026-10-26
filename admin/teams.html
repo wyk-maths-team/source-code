@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta name="robots" content="noindex, nofollow" />
+<script>window.__BUILD_V='e079367a';</script>
+
+<script src="/assets/js/arch-render.js?v=e079367a"></script>
+
+<meta charset="UTF-8">
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manage Teams - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/css/styles.css?v=e079367a">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<style>
+    /* ── 中性色变量（由 tools/extract-colors.mjs 生成）──────────────
+       原先写死在内联样式里的浅色背景 / 深色文字 / 浅灰边框，抽取成
+       变量后暗色与科幻主题只需覆盖取值，不必逐条重写规则。
+       语义色（成功绿、错误红、警告橙）与代码高亮色刻意保留，
+       它们在深色背景下依然成立。 */
+    :root {
+      --c-surface: #ffffff;
+      --c-surface-sunken: #f8f9fa;
+      --c-surface-raised: #f0f0f0;
+      --c-surface-muted: #e9ecef;
+      --c-border: #dddddd;
+      --c-border-strong: #bbbbbb;
+      --c-text: #333333;
+      --c-text-muted: #666666;
+      --c-text-subtle: #999999;
+    }
+    :root[data-theme="dark"] {
+      --c-surface: #161b22;
+      --c-surface-sunken: #0d1117;
+      --c-surface-raised: #21262d;
+      --c-surface-muted: #21262d;
+      --c-border: #30363d;
+      --c-border-strong: #484f58;
+      --c-text: #c9d1d9;
+      --c-text-muted: #8b949e;
+      --c-text-subtle: #6e7681;
+    }
+    :root[data-theme="scifi"] {
+      --c-surface: #09101a;
+      --c-surface-sunken: #070d15;
+      --c-surface-raised: #0f2231;
+      --c-surface-muted: #101b26;
+      --c-border: #14313f;
+      --c-border-strong: #1e4a5e;
+      --c-text: #c6eeff;
+      --c-text-muted: #6c8fa3;
+      --c-text-subtle: #546f80;
+    }
+
+  .admin-container { background: var(--card-bg); border-radius: 4px; padding: 1.5rem; max-width: 1100px; margin: 0 auto; }
+  .filter-bar { display: flex; gap: .6rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .filter-bar input, .filter-bar select { padding: .4rem .7rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--card-bg); color: var(--text-primary); font-size: .9rem; }
+  .teams-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+  .teams-table th, .teams-table td { padding: .6rem .5rem; border-bottom: 1px solid var(--border-color); text-align: left; }
+  .teams-table th { background: var(--c-surface-muted); font-weight: 700; font-size: .8rem; text-transform: uppercase; letter-spacing: .3px; color: var(--c-text); }
+  [data-theme="dark"] .teams-table th { background: #2d2d2d; color: var(--c-border); }
+  .teams-table tr:hover td { background: rgba(0,0,0,.02); }
+  [data-theme="dark"] .teams-table tr:hover td { background: rgba(255,255,255,.04); }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: .72rem; font-weight: 700; }
+  .badge.team { background: rgba(74,144,217,.15); color: #2a6cb0; }
+  .badge.locked { background: rgba(220,53,69,.15); color: #c82333; }
+  .badge.mode1 { background: rgba(251,191,36,.2); color: #b28500; }
+  .badge.mode2 { background: rgba(74,222,128,.15); color: #2e7d32; }
+  .btn { padding: .35rem .8rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--card-bg); color: var(--text-primary); cursor: pointer; font-size: .82rem; font-weight: 600; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.danger { color: var(--danger); border-color: var(--danger); }
+  .btn.danger:hover { background: var(--danger); color: #fff; }
+  .team-id-code { font-family: 'Consolas', monospace; color: var(--accent); font-weight: 700; }
+  .loading-msg { text-align: center; padding: 2rem; color: var(--text-secondary); }
+  .empty-msg { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); }
+</style>
+<script src="/assets/js/core/ui.js?v=e079367a"></script>
+<script src="/assets/js/core/net.js?v=e079367a"></script>
+<script src="/assets/js/core/api.js?v=e079367a"></script>
+<script src="/assets/js/core/page.js?v=e079367a"></script>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="admin-container">
+        <h2><i class="fas fa-users-gear"></i> Manage Teams</h2>
+
+        <div class="filter-bar">
+          <select id="filterContest"><option value="">All Contests</option></select>
+          <input type="text" id="filterSearch" placeholder="Search team name / captain...">
+          <button class="btn" id="reloadBtn"><i class="fas fa-sync-alt"></i> Reload</button>
+        </div>
+
+        <div id="teamsList"><div class="loading-msg"><i class="fas fa-spinner fa-spin"></i> Loading...</div></div>
+        <div id="message" style="margin-top:1rem;font-size:.9rem;"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/assets/js/auth.js?v=e079367a"></script>
+  <script src="/assets/js/app.js?v=e079367a"></script>
+  <script src="/assets/js/topbar.js?v=e079367a"></script>
+  
+<script src="/assets/js/sidebar.js?v=e079367a"></script>
+<script src="/assets/js/heartbeat.js?v=e079367a"></script>
+<script src="/assets/js/pk-invite.js?v=e079367a"></script>
+
+  <script src="/assets/js/pages/admin-teams.js?v=e079367a"></script>
+<script src="/assets/js/pk-notify.js?v=e079367a"></script>
+</body>
+</html>

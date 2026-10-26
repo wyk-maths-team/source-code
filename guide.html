@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>window.__BUILD_V='e079367a';</script>
+
+<script src="/assets/js/arch-render.js?v=e079367a"></script>
+
+<meta charset="UTF-8">
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>User Guide - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+
+<link rel="stylesheet" href="/assets/css/styles.css?v=e079367a" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
+<style>
+  /* ═══════════════ Guide Layout ═══════════════ */
+  .guide-wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  /* ── Hero ── */
+  .guide-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 14px;
+    padding: 2rem 2.2rem 1.8rem;
+    background: linear-gradient(135deg, #4a90d9 0%, #2e5fa0 60%, #1a1a2e 100%);
+    color: #fff;
+    box-shadow: 0 10px 30px rgba(74,144,217,.2);
+  }
+  .guide-hero::after {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 240px; height: 240px;
+    background: radial-gradient(circle, rgba(255,255,255,.2) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .guide-hero h1 {
+    margin: 0 0 .4rem;
+    font-size: 1.9rem;
+    font-weight: 800;
+    letter-spacing: -.4px;
+    position: relative;
+    z-index: 1;
+  }
+  .guide-hero p {
+    margin: 0;
+    opacity: .9;
+    font-size: .95rem;
+    position: relative;
+    z-index: 1;
+  }
+  .guide-hero .last-updated {
+    margin-top: .8rem;
+    font-size: .78rem;
+    opacity: .7;
+    font-family: 'Consolas', monospace;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── TOC ── */
+  .guide-toc {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem 1.3rem;
+    box-shadow: var(--shadow-sm);
+  }
+  .guide-toc h2 {
+    margin: 0 0 .6rem;
+    font-size: .95rem;
+    color: var(--text-secondary);
+    font-weight: 700;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+  }
+  .guide-toc ol {
+    margin: 0;
+    padding-left: 1.4rem;
+    columns: 2;
+    column-gap: 2rem;
+    font-size: .9rem;
+    line-height: 1.9;
+  }
+  .guide-toc a {
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: color .15s;
+  }
+  .guide-toc a:hover { color: var(--accent); }
+  @media (max-width: 600px) {
+    .guide-toc ol { columns: 1; }
+  }
+
+  /* ── Section ── */
+  .guide-section {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.4rem 1.6rem;
+    box-shadow: var(--shadow-sm);
+    scroll-margin-top: 80px;
+  }
+  .guide-section h2 {
+    margin: 0 0 1rem;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: .7rem;
+    border-bottom: 2px solid var(--border-color);
+  }
+  .guide-section h2 .ico {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    background: var(--accent);
+    color: #fff;
+    font-size: .9rem;
+    flex-shrink: 0;
+  }
+  .guide-section h3 {
+    margin: 1.3rem 0 .5rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .guide-section h3:first-of-type { margin-top: 0; }
+  .guide-section p,
+  .guide-section li {
+    color: var(--text-secondary);
+    line-height: 1.75;
+    font-size: .92rem;
+  }
+  .guide-section ul {
+    padding-left: 1.4rem;
+    margin: .4rem 0;
+  }
+  .guide-section li { margin-bottom: .35rem; }
+  .guide-section li::marker { color: var(--accent); }
+
+  /* ── Callouts ── */
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: rgba(74,144,217,.06);
+    padding: .7rem 1rem;
+    border-radius: 6px;
+    margin: .8rem 0;
+    font-size: .88rem;
+    color: var(--text-secondary);
+  }
+  .callout.warn {
+    border-left-color: #f0ad4e;
+    background: rgba(240,173,78,.08);
+  }
+  .callout.danger {
+    border-left-color: #e74c3c;
+    background: rgba(231,76,60,.08);
+  }
+  .callout.ok {
+    border-left-color: #2ecc71;
+    background: rgba(46,204,113,.08);
+  }
+  .callout strong { color: var(--text-primary); }
+
+  /* ── Badges ── */
+  .badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: .72rem;
+    font-weight: 700;
+    font-family: 'Consolas', monospace;
+    letter-spacing: .3px;
+    vertical-align: middle;
+    margin: 0 2px;
+  }
+  .badge.num    { background: rgba(74,144,217,.15); color: #2e5fa0; }
+  .badge.logic  { background: rgba(170,0,170,.15);  color: #AA00AA; }
+  .badge.mcq    { background: rgba(0,128,0,.15);    color: #008000; }
+  .badge.image  { background: rgba(231,76,60,.15);  color: #c0392b; }
+  .badge.paper  { background: rgba(240,173,78,.15); color: #b37700; }
+  .badge.ai     { background: rgba(170,0,170,.15);  color: #AA00AA; }
+  .badge.r1     { background: rgba(170,0,170,.18);  color: #AA00AA; }
+  .badge.v3     { background: rgba(240,173,78,.18); color: #b37700; }
+  [data-theme="dark"] .badge.num   { color: #8ec3ff; }
+  [data-theme="dark"] .badge.mcq   { color: #8fdf8f; }
+  [data-theme="dark"] .badge.image { color: #ff8a8a; }
+  [data-theme="dark"] .badge.paper { color: #ffc850; }
+  [data-theme="dark"] .badge.logic,
+  [data-theme="dark"] .badge.ai,
+  [data-theme="dark"] .badge.r1    { color: #e09ce0; }
+  [data-theme="dark"] .badge.v3    { color: #ffc850; }
+
+  /* ── Table ── */
+  .guide-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: .8rem 0;
+    font-size: .86rem;
+  }
+  .guide-table th,
+  .guide-table td {
+    padding: .55rem .8rem;
+    border: 1px solid var(--border-color);
+    text-align: left;
+    color: var(--text-secondary);
+  }
+  .guide-table th {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: .82rem;
+    letter-spacing: .3px;
+  }
+  .guide-table code {
+    background: rgba(74,144,217,.1);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: 'Consolas', monospace;
+    font-size: .82rem;
+    color: var(--accent);
+  }
+
+  /* ── Step list ── */
+  .steps {
+    counter-reset: step;
+    list-style: none;
+    padding-left: 0;
+  }
+  .steps li {
+    counter-increment: step;
+    position: relative;
+    padding-left: 2.2rem;
+    margin-bottom: .6rem;
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1.6rem;
+    height: 1.6rem;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .78rem;
+    font-weight: 800;
+    font-family: 'Consolas', monospace;
+  }
+
+  /* ── Footer ── */
+  .guide-footer {
+    text-align: center;
+    padding: 1.5rem 0 2rem;
+    color: var(--text-secondary);
+    font-size: .85rem;
+  }
+  .guide-footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  @media (max-width: 640px) {
+    .guide-hero { padding: 1.5rem 1.3rem; border-radius: 12px; }
+    .guide-hero h1 { font-size: 1.4rem; }
+    .guide-section { padding: 1.1rem 1.15rem; border-radius: 10px; }
+    .guide-section h2 { font-size: 1.05rem; }
+    .guide-table { font-size: .78rem; }
+    .guide-table th, .guide-table td { padding: .4rem .55rem; }
+  }
+</style>
+
+<!-- PWA manifest (must be written statically; JS injection does not work) -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1a1a2e">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WYK Maths">
+<meta name="mobile-web-app-capable" content="yes">
+
+<script src="/assets/js/core/ui.js?v=e079367a"></script>
+<script src="/assets/js/core/net.js?v=e079367a"></script>
+<script src="/assets/js/core/api.js?v=e079367a"></script>
+<script src="/assets/js/core/page.js?v=e079367a"></script>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="guide-wrap">
+
+        <!-- ═══════════ Hero ═══════════ -->
+        <section class="guide-hero">
+          <h1><i class="fas fa-book-open" style="margin-right:10px;opacity:.9;"></i>User Guide</h1>
+          <p>Everything you need to know to solve, compete, and climb the leaderboard.</p>
+          <div class="last-updated">Last updated: 2026-10-25</div>
+        </section>
+
+        <!-- ═══════════ TOC ═══════════ -->
+        <!-- <nav class="guide-toc">
+          <h2><i class="fas fa-list"></i> Contents</h2>
+          <ol>
+            <li><a href="#registration">Registration</a></li>
+            <li><a href="#submission">Problems &amp; Submission</a></li>
+            <li><a href="#types">Problem Types</a></li>
+            <li><a href="#judging">Judging &amp; Verdicts</a></li>
+            <li><a href="#tokens">Tokens</a></li>
+            <li><a href="#contests">Contests</a></li>
+            <li><a href="#pk">Player-vs-Player (PK)</a></li>
+            <li><a href="#achievements">Achievements</a></li>
+            <li><a href="#progress">Progress &amp; Statistics</a></li>
+            <li><a href="#settings">Settings &amp; Account</a></li>
+            <li><a href="#port">Port</a></li>
+            <li><a href="#notes">Important Notes</a></li>
+          </ol>
+        </nav>
+
+        <!-- ═══════════ 1. Registration ═══════════ -->
+        <section class="guide-section" id="registration">
+          <h2><span class="ico"><i class="fas fa-user-plus"></i></span>1. Registration</h2>
+
+          <ul>
+            <li><strong>WYK Students:</strong> Please log in using your school account, i.e. <code>sXXXXX@cloud.wyk.edu.hk</code></li>
+            <li><strong>Others:</strong> Please contact an admin for an account</li>
+          </ul>
+
+          <div class="callout">
+            <strong>How sign-in works.</strong> The school button authenticates through Microsoft OAuth and only accepts accounts on the
+            <code>cloud.wyk.edu.hk</code> domain. Accounts for everyone else are created manually by an administrator — there is no self-service sign-up.
+          </div>
+
+          <h3>What this platform is</h3>
+          <p>WYK Maths Team is an online judge for MO Exercise.<br> It is a full submission pipeline: you submit an answer or a solution process, the system judges it, and the result feeds into contests, the leaderboard, achievements and your personal progress chart.</p>
+
+          <table class="guide-table">
+            <thead><tr><th style="width:20%">Layer</th><th>What it runs on</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Hosting</strong></td><td>Vercel serverless functions on a global edge network</td></tr>
+              <tr><td><strong>Database</strong></td><td>MongoDB Atlas — problems, submissions, contests, user state</td></tr>
+              <tr><td><strong>Images</strong></td><td>Cloudinary for problem figures; GitHub CDN for avatars and reports</td></tr>
+              <tr><td><strong>AI grading</strong></td><td>DeepSeek models, used by the Photo and Steps modes only</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <!-- ═══════════ 2. Submission ═══════════ -->
+        <section class="guide-section" id="submission">
+          <h2><span class="ico"><i class="fas fa-paper-plane"></i></span>2. Problems &amp; Submission</h2>
+
+          <p>All the problems are in the <a href="/problems"><b>Problems</b></a> tab. Click into a problem to see its statement and submit.</p>
+          <p>There are <strong>3 submit modes</strong>:</p>
+
+          <h3><i class="fas fa-keyboard" style="color:var(--accent);"></i> Text submit</h3>
+          <ul>
+            <li>The content in the preview is what you are going to submit.</li>
+            <li>The input zone supports calculation: typing <code>1/2</code> gives <code>0.5</code> in the preview, <code>sqrt(25)</code> gives <code>5</code>, <code>sin(pi/6)</code> becomes <code>0.5</code>. You may refer to MathJS for more symbols.</li>
+            <li>Some problems will specify their own instructions — you may have to input strings like <code>X+1</code>.</li>
+            <li>The judging result of this section is instant. A verdict [Accepted, Wrong Answer, Partial Score, System Error] appears after submission.</li>
+          </ul>
+          <ol class="steps">
+            <li><strong>Accepted</strong> — your answer differs from the model answer by less than <code>10<sup>-6</sup></code>.</li>
+            <li><strong>Wrong Answer</strong> — your answer is incorrect.</li>
+            <li><strong>Partial Score</strong> — only part of your answer is correct. Click the verdict for details.</li>
+            <li><strong>System Error</strong> — either your answer is not a number while the model answer is, or the model answer is not a number while yours is. In this case please <strong>report</strong> the problem.</li>
+          </ol>
+          <div class="callout warn">
+            Answers are capped at <strong>500 characters</strong>. Submissions are rate-limited to <strong>10 per minute</strong> per account — this is a guard against accidental double-clicks, not a penalty.
+          </div>
+
+          <h3><i class="fas fa-camera" style="color:var(--accent);"></i> Image submit <span class="badge ai">AI</span></h3>
+          <ul>
+            <li>You can upload <strong>at most 1 image</strong> of your work, and it is sent to the AI for marking.</li>
+            <li>You may replace or remove the image before submitting.</li>
+            <li>You will receive your comments after roughly <strong>10–30 seconds</strong> of waiting. The hard server timeout is much longer (about 8 minutes), so a slow queue delays rather than fails.</li>
+            <li>Similar to text, there are 3 possible results. If the image is unreadable the submission stays <em>Pending</em> rather than being scored.</li>
+          </ul>
+
+          <h3><i class="fas fa-wand-magic-sparkles" style="color:var(--accent);"></i> Steps submit <span class="badge ai">AI</span></h3>
+          <ul>
+            <li>You write your steps (LaTeX is not necessary) and submit them to the AI.</li>
+            <li>The character limit is <strong>10000</strong>.</li>
+            <li>Similar to text, there are 3 possible results.</li>
+            <li>Steps grading <strong>costs tokens</strong> — the price scales with difficulty. See <a href="#tokens">Section 5</a>.</li>
+          </ul>
+          <div class="callout warn">
+            If you receive an AI error, retry. If the problem persists, report it to an admin — the grader is allowed to fail on malformed input, but repeated failures on the same problem usually mean the problem itself is inconsistent.
+          </div>
+
+          <div class="callout danger">
+            <strong>Rules for this section</strong>
+            <ol>
+              <li>You should not submit pure AI-generated solutions. Only when your solution is too messy for the AI to read clearly may you ask AI to clean it up.</li>
+            </ol>
+          </div>
+        </section>
+
+        <!-- ═══════════ 3. Types ═══════════ -->
+        <section class="guide-section" id="types">
+          <h2><span class="ico"><i class="fas fa-cubes"></i></span>3. Problem Types</h2>
+          <p>Every problem has a unique <code>ID</code>.</p>
+
+          <h3>3.1 Numeric </h3>
+          <ul>
+            <li>The reference answer is a number. Comparison uses an absolute tolerance of <code>10<sup>-6</sup></code>.</li>
+            <li>Accepted formats: <code>29</code>, <code>3.14159</code>, <code>-0.25</code>. Entering <code>1/2</code> or <code>pi</code> is fine <em>because the input zone evaluates it first</em> — the submitted value is the computed number.</li>
+            <li>Most problems fall into this category.</li>
+          </ul>
+
+          <h3>3.2 Custom logic </h3>
+          <ul>
+            <li>The problem carries a small judging function, used when the answer cannot be reduced to a single number: sets, ordered pairs, symbolic expressions, or several equivalent forms.</li>
+            <li>These problems usually have modified submit zones, or special instructions in statement</li>
+          </ul>
+
+          <h3>3.3 Difficulty</h3>
+          <p>Difficulty is a continuous number shown in the problem header as <code>Lv.N</code>.</p>
+          <ul>
+            <li><code>Lv.1.00</code> – <code>Lv.9.00+</code>. Roughly: 1–2 is routine, 3–4 is standard competition level, 5+ is hard Olympiad.</li>
+            <li><code>Lv.&#8734;</code> means no difficulty has been assigned — usually system test problems.</li>
+            <li>You can hide the indicator in <a href="#settings">Settings</a> if you prefer to solve without knowing.</li>
+          </ul>
+
+          <h3>3.4 Tags, bookmarks and similar problems</h3>
+          <ul>
+            <li>Every problem can carry arbitrary tags (<em>Algebra</em>, <em>Geometry</em>, <em>NumberTheory</em>, <em>Combinatorics</em>, plus finer ones). Use the tag filter in the problem list to narrow down.</li>
+            <li>Click <em>Similar</em> on a problem to see up to 15 problems sharing the most tags, ranked by tag overlap first and difficulty proximity second.</li>
+            <li>Star any problem to bookmark it. Your bookmarks are listed under <code>/problems/bookmarked</code>.</li>
+          </ul>
+        </section>
+
+        <!-- ═══════════ 4. Judging ═══════════ -->
+        <section class="guide-section" id="judging">
+          <h2><span class="ico"><i class="fas fa-gavel"></i></span>4. Judging &amp; Verdicts</h2>
+
+          <table class="guide-table">
+            <thead><tr><th style="width:26%">Verdict</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td><strong style="color:#2e7d32;">Accepted</strong></td><td>Full credit. The problem's state becomes <em>passed</em> permanently.</td></tr>
+              <tr><td><strong style="color:#b28500;">Partial Score</strong></td><td>Only from custom-logic or AI-graded problems. Any score between 1 and 99; click the verdict for the breakdown.</td></tr>
+              <tr><td><strong style="color:#c0392b;">Wrong Answer</strong></td><td>Incorrect. The problem state becomes <em>failed</em>, which a later Accepted overwrites.</td></tr>
+              <tr><td><strong>Pending</strong></td><td>An image submission waiting to be marked.</td></tr>
+              <tr><td><strong style="color:#8e44ad;">System Error</strong></td><td>A configuration issue on our side (non-numeric answer key, judge timeout). Note that invalid format of your answer may result in System Error. If the answer is obviously a number, report the problem. Thank you.</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Problem state</h3>
+          <ul>
+            <li><em>passed</em> — once you earn full credit this is permanent. Later wrong attempts cannot undo it.</li>
+            <div class="callout danger">
+              <strong>Note: If your submission was flagged by an admin for abuse, your solve stats on this problem will be cleared. The submission itself will also be marked Wrong Answer. You will receive a System Notice after being flagged.</strong>
+            </div>
+            <li><em>failed</em> — set on the first wrong attempt, overwritten by a later pass.</li>
+            <li><em>not_started</em> — you have never submitted.</li>
+          </ul>
+
+          <div class="callout">
+            <strong>Why a verdict and not just "right/wrong"?</strong> Because the three submit modes have genuinely different failure modes.<br>
+            A numeric judge can only be right or wrong; an AI grader can credit partial reasoning and provide ways to solve.<br>
+            Collapsing all of these into "Wrong Answer" would make the result page useless for learning.
+          </div>
+        </section>
+
+        <!-- ═══════════ 5. Tokens ═══════════ -->
+        <section class="guide-section" id="tokens">
+          <h2><span class="ico"><i class="fas fa-coins"></i></span>5. Tokens</h2>
+          <p>Tokens are the platform currency. They gate the special features (AI grading, themes) and they are what PK matches are played for.</p>
+
+          <h3>5.1 Two balances</h3>
+          <table class="guide-table">
+            <thead><tr><th style="width:18%">Bucket</th><th style="width:22%">Starts at</th><th>Behaviour</th></tr></thead>
+            <tbody>
+              <tr><td><strong>daily</strong></td><td>30,000</td><td>Refills to 30,000 every day (Hong Kong time). Spending draws from here first. Unspent daily does <em>not</em> accumulate.</td></tr>
+              <tr><td><strong>global</strong></td><td>100,000</td><td>Permanent. Only touched when daily is exhausted. Rewards and prize money are paid into this bucket.</td></tr>
+            </tbody>
+          </table>
+
+          <h3>5.2 Earning</h3>
+          <ul>
+            <li><strong>Daily login</strong> — 10,000 tokens, once per day.</li>
+            <li><strong>Daily quest</strong> — 30,000 tokens for solving at least one problem at or above your target difficulty, once per day. Your target difficulty is derived from your rating.</li>
+            <li><strong>Achievements</strong> — a one-off reward when unlocked, ranging from 5,000 (common) to 250,000 (legendary). See <a href="#achievements">Section 8</a>.</li>
+            <li><strong>PK matches</strong> — the winner's share of the prize pool.</li>
+          </ul>
+
+          <h3>5.3 Spending</h3>
+          <ul>
+            <li><strong>Steps grading</strong> — charged at <code>difficulty &#215; 3,000</code>. A Lv.4 problem costs 12,000; a Lv.8 problem costs 24,000.<br>Note: the result cost varies, this number is the least number of tokens you need to submit to that problem.</li>
+            <li><strong>Themes</strong> — 300,000 tokens for each change.</li>
+            <li><strong>PK stake</strong> — minimum 10,000 per match. See <a href="#pk">Section 7</a>.</li>
+          </ul>
+
+          <div class="callout warn">
+            <strong>Daily tokens will be used before consuming Global tokens.
+          </div>
+        </section>
+
+        <!-- ═══════════ 6. Contests ═══════════ -->
+        <section class="guide-section" id="contests">
+          <h2><span class="ico"><i class="fas fa-trophy"></i></span>6. Contests</h2>
+
+          <h3>6.1 Enrolment</h3>
+          <ul>
+            <li>You can join <strong>anytime during the contest</strong>.</li>
+            <li>You may withdraw yourself before the start; withdrawal is disabled afterwards.</li>
+          </ul>
+
+          <h3>6.2 Scoring</h3>
+          <ul>
+            <li><strong>Numeric problems:</strong> full marks on first Accepted. Each wrong attempt before that applies a <strong>10% penalty</strong>: 100 &#8594; 90 &#8594; 81 &#8594; 72.9 &#8594; &#8230;</li>
+            <li><strong>Partial-score problems:</strong> your best score is kept.</li>
+          </ul>
+
+          <h3>6.3 Tie-breaking</h3>
+          <ul>
+            <li>Primary: total score, descending.</li>
+            <li>Secondary: the timestamp of your <strong>last accepted submission</strong> — earlier wins.</li>
+          </ul>
+
+
+
+          <h3>6.4 During and after</h3>
+          <ul>
+            <li>The contest page shows your score and state per problem, updated live.</li>
+            <li>Wrong attempts are tracked per problem and drive the penalty above.</li>
+            <li>Once the contest ends, full standings and per-problem statistics appear on the results page.</li>
+          </ul>
+        </section>
+
+        <!-- ═══════════ 7. PK ═══════════ -->
+        <section class="guide-section" id="pk">
+          <h2><span class="ico"><i class="fas fa-swords"></i></span>7. Player-vs-Player (PK)</h2>
+          <p>A PK match is a head-to-head race over <strong>3 problems</strong> in <strong>30 minutes</strong>, with both players staking tokens. It is not about solving everything — it is about solving <em>early</em>.</p>
+
+          <h3>7.1 Sending a challenge</h3>
+          <ol class="steps">
+            <li>Open another user's profile and press <strong>Invite</strong>.</li>
+            <li>Enter a stake. The minimum is <strong>10,000</strong>, and the amount is deducted immediately and held in the pool.</li>
+            <li>If they decline, cancel, or the invitation expires after <strong>10 minutes</strong>, the stake is refunded exactly as it was taken.</li>
+            <li>You can watch and cancel your outgoing challenges at <code>/pk-bet-challenges</code>.</li>
+          </ol>
+
+          <h3>7.2 Accepting</h3>
+          <ul>
+            <li>An incoming challenge appears as a notification in the corner of any page you are on, showing the stake.</li>
+            <li>Accepting deducts the same stake from you. You need to cover it in full.</li>
+            <li>Both players must be able to pay; otherwise the match cannot start.</li>
+          </ul>
+
+          <h3>7.3 The match</h3>
+          <table class="guide-table">
+            <thead><tr><th style="width:34%">Rule</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td>Duration</td><td>30 minutes</td></tr>
+              <tr><td>Problems</td><td>3, public, chosen near the difficulty implied by your average rating</td></tr>
+              <tr><td>Excluded problems</td><td>Any problem either player has already solved</td></tr>
+              <tr><td>Fee</td><td>20% of the pool is taken before settlement</td></tr>
+              <tr><td>Each problem's score</td><td><code>(1800 &#8722; T) &#215; S</code>, where T is the second you last submitted (1–1800) and S is your score on it</td></tr>
+              <tr><td>Which attempt counts</td><td>Your <strong>last</strong> submission per problem — a later wrong answer replaces an earlier correct one</td></tr>
+              <tr><td>Winner</td><td>Higher total across the three problems</td></tr>
+            </tbody>
+          </table>
+
+          <div class="callout">
+            <strong>Answer on the real problem page.</strong> The room shows only colour blocks, no statements. Click a block to open <code>/problems/&lt;id&gt;</code> in a new tab and answer there as usual; every submission you make during the window is counted automatically.
+          </div>
+
+          <p>Block colours:</p>
+          <ul>
+            <li><span style="color:#e74c3c;font-weight:700;">Red</span> — attempted, scored 0. You may retry.</li>
+            <li><span style="color:#e3a008;font-weight:700;">Amber</span> — partial credit.</li>
+            <li><span style="color:#2ecc71;font-weight:700;">Green</span> — full credit on that problem.</li>
+            <li><span style="color:#888;font-weight:700;">Grey</span> — not attempted yet.</li>
+          </ul>
+
+          <h3>7.4 Finishing early</h3>
+          <ul>
+            <li>Either player may press <strong>Announce finish</strong>. The other player sees that you are ready.</li>
+            <li>When <strong>both</strong> have pressed it, the match ends immediately and settles on the submissions made so far.</li>
+            <li>Pressing again withdraws your readiness.</li>
+          </ul>
+
+          <h3>7.5 Settlement</h3>
+          <p>The pool is paid out by score share, with a subsidy for the player who is behind in tokens:</p>
+          <ul>
+            <li>The <strong>weaker</strong> side (lower total score) receives <code>prize &#215; share &#215; F</code>.</li>
+            <li>The <strong>stronger</strong> side receives the remainder, always non-negative.</li>
+            <li><code>F</code> is between 1 and 1.25, rising as the token gap between the two players widens. With equal balances F = 1 and the split is a plain score share.</li>
+          </ul>
+          <p>Every match produces a permanent result page at <code>/pk-bet-result?id=…</code> showing both players' per-problem attempts, times, weights and payouts. It does not expire.</p>
+        </section>
+
+        <!-- ═══════════ 8. Achievements ═══════════ -->
+        <section class="guide-section" id="achievements">
+          <h2><span class="ico"><i class="fas fa-medal"></i></span>8. Achievements</h2>
+          <p>There are <strong>37</strong> achievements in seven groups. They unlock automatically as you use the platform, and each one pays tokens.</p>
+
+          <table class="guide-table">
+            <thead><tr><th style="width:22%">Group</th><th>What it rewards</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Milestone</strong></td><td>Total solved count: 1, 10, 25, 50, 100, 200, 500, 1000, 2000</td></tr>
+              <tr><td><strong>Difficulty</strong></td><td>Solving a problem at or above difficulty 3, 4, 5, 6, 7</td></tr>
+              <tr><td><strong>Streak</strong></td><td>Submitting on consecutive days: 3, 7, 30, 100</td></tr>
+              <tr><td><strong>Efficiency</strong></td><td>First-try solves (1, 10, 50) and problems solved in a single day (5, 10, 15, 20)</td></tr>
+              <tr><td><strong>Accuracy</strong></td><td>Solve ratio of 30% to 90%, requiring at least 20 problems attempted</td></tr>
+              <tr><td><strong>Fun</strong></td><td>Submitting at unusual hours, a day where everything you tried succeeded</td></tr>
+              <tr><td><strong>Hidden</strong></td><td>Two undisclosed achievements — the card shows <code>???</code> until you find them</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Rewards by rarity</h3>
+          <p>
+            <span class="badge" style="background:rgba(128,128,128,.2);color:#666;">common 5,000</span>
+            <span class="badge" style="background:rgba(0,128,0,.15);color:#008000;">uncommon 15,000</span>
+            <span class="badge" style="background:rgba(0,0,255,.12);color:#0000FF;">rare 40,000</span>
+            <span class="badge" style="background:rgba(170,0,170,.15);color:#AA00AA;">epic 100,000</span>
+            <span class="badge" style="background:rgba(255,170,0,.2);color:#B37700;">legendary 250,000</span>
+          </p>
+          <p>Rewards go into your <strong>global</strong> balance, not daily. Unlocking everything is worth about 2,000,000 tokens.</p>
+
+          <div class="callout ok">
+            <strong>You can see how close you are.</strong> Locked achievements show a progress bar (<code>63 / 100</code>). The accuracy group shows gate progress instead (<code>8/20 tried</code>) until you have attempted enough problems for the ratio to be meaningful.
+          </div>
+
+          <div class="callout">
+            <strong>Counting is by distinct problem, not by submission.</strong> Submitting the same problem fifty times counts as one problem.
+          </div>
+        </section>
+
+        <!-- ═══════════ 9. Progress ═══════════ -->
+        <section class="guide-section" id="progress">
+          <h2><span class="ico"><i class="fas fa-chart-line"></i></span>9. Progress &amp; Statistics</h2>
+
+          <h3>Rating</h3>
+          <p>Your rating is derived from the difficulties of the problems you have solved. It is not a simple average — harder problems weigh more, the very hardest are softly capped so one lucky solve cannot inflate you, and the whole figure is scaled by a confidence factor that rises with your solved count. A brand-new account sits at 1000.</p>
+          <p>The rating determines your <strong>tier</strong> (the colour around your name), your <strong>target difficulty</strong> for the daily quest, and the difficulty band from which PK problems are drawn.</p>
+
+          <h3>Where to look</h3>
+          <ul>
+            <li><strong>Home</strong> — solved count, total problems, completion percentage.</li>
+            <li><strong>Profile</strong> (<code>/users/&lt;username&gt;</code>) — a grid of every problem you have attempted, colour-coded by state, plus your achievements.</li>
+            <li><strong>Leaderboard</strong> (<code>/ranklist</code>) — ranked by problems passed, with an online dot. Supports all-time and rolling daily / weekly / monthly views.</li>
+            <li><strong>Charts</strong> (<code>/charts</code>) — cumulative solves over time for every active user. Hover for a per-date breakdown.</li>
+            <li><strong>Submissions</strong> (<code>/submissions</code>) — every submission with filters by user, problem and result.</li>
+          </ul>
+        </section>
+
+        <!-- ═══════════ 10. Settings ═══════════ -->
+        <section class="guide-section" id="settings">
+          <h2><span class="ico"><i class="fas fa-gear"></i></span>10. Settings &amp; Account</h2>
+          <p>Everything here is stored per-browser in <code>localStorage</code>, so it does not follow you between devices.</p>
+
+          <table class="guide-table">
+            <thead><tr><th style="width:30%">Setting</th><th>Effect</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Theme</strong></td><td>Light, dark, or the sci-fi skin.</td></tr>
+              <tr><td><strong>Font size</strong></td><td>Scales the whole interface.</td></tr>
+              <tr><td><strong>3D buttons</strong></td><td>Adds depth and a press animation to every button.</td></tr>
+              <tr><td><strong>Animations</strong></td><td>Master switch for transitions. Also honours your system's reduced-motion preference.</td></tr>
+              <tr><td><strong>Compact mode</strong></td><td>Tighter spacing, more content on screen.</td></tr>
+              <tr><td><strong>Hide difficulty</strong></td><td>Removes the <code>Lv.N</code> badge if you would rather not know.</td></tr>
+              <tr><td><strong>Show tags</strong></td><td>Toggles tag display in the problem list.</td></tr>
+              <tr><td><strong>Accept PK requests</strong></td><td>Whether incoming challenges notify you.</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Account</h3>
+          <ul>
+            <li><strong>Display name</strong> and <strong>avatar</strong> are what other users see. Your real name is shown on your profile regardless.</li>
+            <!-- <li><strong>Password</strong> changes are available only for accounts that do not sign in through Microsoft.</li> -->
+            <li><strong>Messages</strong> (<code>/messages</code>) is the internal inbox for admin notices.</li>
+          </ul>
+
+          <!-- <div class="callout">
+            <strong>Team accounts</strong> are shared logins used for team contests. They appear in contest standings but are excluded from the individual leaderboard, and they cannot be challenged to a PK.
+          </div> -->
+        </section>
+
+
+
+        <!-- ═══════════ 12. Notes ═══════════ -->
+        <section class="guide-section" id="notes">
+          <h2><span class="ico"><i class="fas fa-circle-info"></i></span>12. Important Notes</h2>
+
+          <h3>Privacy &amp; data</h3>
+          <ul>
+            <li>Your submission content — answer text, uploaded images, solution steps — is stored on the server.</li>
+            <li>Other users cannot see your answers until they have solved the problem themselves, unless they are an admin.</li>
+            <li>Real names are always shown.</li>
+          </ul>
+
+          <h3>Content quality</h3>
+          <ul>
+            <li>Many problems were imported from OCR pipelines and may contain formatting glitches or truncated statements. Problems whose judging chain is known to be broken are excluded from PK draws.</li>
+            <li>If a problem looks wrong, use the <strong>Report</strong> button on the problem page. The report reaches the admin queue with your username attached.</li>
+            <li>Problem IDs can change or disappear. Do not rely on them as permanent identifiers.</li>
+          </ul>
+
+          <h3>Performance</h3>
+          <ul>
+            <li>During peak hours, database operations may be slower.</li>
+            <li>The AI modes depend on external model providers. A long queue delays your result rather than losing it.</li>
+          </ul>
+
+          <h3>Integrity</h3>
+          <ul>
+            <li>Every action — submission, deletion, admin change — is written to an audit log.</li>
+            <li>Contest results are public and can be reviewed by admins afterwards.</li>
+            <li>The AI grader is hardened against prompt injection: asking it to reveal the reference answer does not work.</li>
+            <li>Token balances are audited. Attempting to exploit a balance edge case will be reversed and may cost you access.</li>
+          </ul>
+
+          <h3>Credits</h3>
+          <ul>
+            <li>PDF resources are contributed by <strong>Mr Patrick Chung</strong> or sourced from publicly available materials.</li>
+            <li>The judging engine and core logic are original developments.</li>
+            <li>The interface draws inspiration from established online judge systems.</li>
+          </ul>
+        </section>
+
+        <div class="guide-footer">
+          <p><a href="/">← Back to Home</a></p>
+          <p style="margin-top:.6rem;opacity:.7;">WYK Maths Team</p>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="/assets/js/auth.js?v=e079367a"></script>
+  <script src="/assets/js/app.js?v=e079367a"></script>
+  <script src="/assets/js/topbar.js?v=e079367a"></script>
+  <script src="/assets/js/sidebar.js?v=e079367a"></script>
+  <script src="/assets/js/heartbeat.js?v=e079367a"></script>
+  <script src="/assets/js/pk-invite.js?v=e079367a"></script>
+<script src="/assets/js/pk-notify.js?v=e079367a"></script>
+</body>
+</html>

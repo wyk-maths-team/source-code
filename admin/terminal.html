@@ -1,0 +1,183 @@
+<!-- File: C:\moj\admin\terminal.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta name="robots" content="noindex, nofollow" />
+<script>window.__BUILD_V='e079367a';</script>
+
+<script src="/assets/js/arch-render.js?v=e079367a"></script>
+  
+
+<meta charset="UTF-8">
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+  <title>Admin Terminal - WYK Maths Team</title><link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+
+<link rel="stylesheet" href="/assets/css/styles.css?v=e079367a" />
+  <style>
+    /* ── 中性色变量（由 tools/extract-colors.mjs 生成）──────────────
+       原先写死在内联样式里的浅色背景 / 深色文字 / 浅灰边框，抽取成
+       变量后暗色与科幻主题只需覆盖取值，不必逐条重写规则。
+       语义色（成功绿、错误红、警告橙）与代码高亮色刻意保留，
+       它们在深色背景下依然成立。 */
+    :root {
+      --c-surface: #ffffff;
+      --c-surface-sunken: #f8f9fa;
+      --c-surface-raised: #f0f0f0;
+      --c-surface-muted: #e9ecef;
+      --c-border: #dddddd;
+      --c-border-strong: #bbbbbb;
+      --c-text: #333333;
+      --c-text-muted: #666666;
+      --c-text-subtle: #999999;
+    }
+    :root[data-theme="dark"] {
+      --c-surface: #161b22;
+      --c-surface-sunken: #0d1117;
+      --c-surface-raised: #21262d;
+      --c-surface-muted: #21262d;
+      --c-border: #30363d;
+      --c-border-strong: #484f58;
+      --c-text: #c9d1d9;
+      --c-text-muted: #8b949e;
+      --c-text-subtle: #6e7681;
+    }
+    :root[data-theme="scifi"] {
+      --c-surface: #09101a;
+      --c-surface-sunken: #070d15;
+      --c-surface-raised: #0f2231;
+      --c-surface-muted: #101b26;
+      --c-border: #14313f;
+      --c-border-strong: #1e4a5e;
+      --c-text: #c6eeff;
+      --c-text-muted: #6c8fa3;
+      --c-text-subtle: #546f80;
+    }
+
+    .terminal-container {
+      background: var(--card-bg); border-radius: 4px; padding: 1.5rem; max-width: 900px; margin: 0 auto;
+    }
+    .output {
+      background: #1e1e1e; color: #d4d4d4; font-family: monospace; padding: 1rem; margin-top: 1rem;
+      border-radius: 4px; max-height: 400px; overflow: auto; white-space: pre-wrap;
+    }
+    .input-group { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: flex-start; }
+    /* 代码编辑器风格的文本框 */
+    .code-input {
+      flex: 1;
+      padding: 0.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      font-family: 'Fira Code', 'Cascadia Code', 'Consolas', 'Monaco', monospace;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      resize: vertical;
+      min-height: 40px;
+    }
+    .btn { padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: var(--c-text-muted); color: #fff; }
+    .btn-success { background: #2e7d32; color: #fff; }
+    .help-box {
+      background: var(--card-bg); border: 1px solid var(--border-color); padding: 1rem; margin-bottom: 1rem;
+      border-radius: 4px; display: none;
+    }
+    .help-box pre { margin: 0; white-space: pre-wrap; }
+    .button-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .sql-result-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 0.8rem;
+}
+.sql-result-table th, .sql-result-table td {
+  border: 1px solid var(--border-color);
+  padding: 0.3rem 0.6rem;
+  font-size: 0.85rem;
+  text-align: left;
+}
+.sql-result-table th {
+  background: #2d2d2d;
+  color: var(--c-surface-raised);
+}
+.sql-statement pre {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 0.5rem;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+  </style>
+<script src="/assets/js/core/ui.js?v=e079367a"></script>
+<script src="/assets/js/core/net.js?v=e079367a"></script>
+<script src="/assets/js/core/api.js?v=e079367a"></script>
+<script src="/assets/js/core/page.js?v=e079367a"></script>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="terminal-container">
+        <h2>SQL Terminal</h2>
+        <div class="button-row">
+          <button class="btn btn-secondary" id="helpBtn">Show Commands</button>
+          <button class="btn btn-success" id="syncBtn">Sync Version</button>
+        </div>
+        <div class="help-box" id="helpBox">
+          <pre>
+<strong>Allowed commands:</strong>
+1. <strong>SELECT</strong> * FROM collection [WHERE conditions] [ORDER BY field ASC/DESC] [LIMIT n]
+2. <strong>INSERT INTO</strong> collection (field1, field2, ...) VALUES (val1, val2, ...), (val3, val4, ...)
+3. <strong>UPDATE</strong> collection SET field1=value1, field2=value2 [WHERE conditions]
+4. <strong>DELETE</strong> FROM collection WHERE conditions
+5. <strong>ALTER TABLE</strong> collection DROP COLUMN field
+6. <strong>SHOW TABLES</strong> - list all allowed collections</pre>
+        </div>
+
+        <div class="input-group">
+          <textarea id="sqlInput" class="code-input" rows="3" placeholder="SELECT * FROM problems LIMIT 10"></textarea>
+          <button class="btn btn-primary" id="executeBtn">Execute</button>
+        </div>
+        <div class="output" id="output"></div>
+
+        <hr style="margin:1.5rem 0;border:none;border-top:1px solid var(--border-color);">
+        <h2>Difficulty Adjust</h2>
+        <div class="input-group" style="flex-wrap:wrap;">
+          <input id="diffProblemId" class="code-input" placeholder="problem id" style="flex:0 0 140px;min-height:40px;">
+          <input id="diffValue" class="code-input" type="number" step="0.01" min="1" max="10" placeholder="difficulty (1-10)" style="flex:0 0 170px;min-height:40px;">
+          <label style="display:flex;align-items:center;gap:0.4rem;white-space:nowrap;color:var(--text-secondary);">
+            <input type="checkbox" id="diffLock"> Lock
+          </label>
+          <button class="btn btn-primary" id="setDifficultyBtn">Set Difficulty</button>
+          <button class="btn btn-success" id="runAdjustBtn">Run Auto Adjust</button>
+        </div>
+        <div class="output" id="diffOutput" style="max-height:300px;font-size:0.8rem;">Manual override + trigger the nightly difficulty sweep on demand.</div>
+      </div>
+    </main>
+    <!-- <button class="sidebar-toggle" id="sidebarToggle">☰</button> -->
+  </div>
+
+  <script src="/assets/js/auth.js?v=e079367a"></script>
+  <script src="/assets/js/app.js?v=e079367a"></script>
+  <script src="/assets/js/topbar.js?v=e079367a"></script>
+  
+<script src="/assets/js/sidebar.js?v=e079367a"></script>
+<script src="/assets/js/heartbeat.js?v=e079367a"></script>
+<script src="/assets/js/pk-invite.js?v=e079367a"></script>
+
+  <script src="/assets/js/pages/admin-terminal.js?v=e079367a"></script>
+<script src="/assets/js/pk-notify.js?v=e079367a"></script>
+</body>
+</html>

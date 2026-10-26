@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="/assets/js/arch-render.js"></script>
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+<!-- content="false" 表示公开页（不需要登录）；null/true 则沿用 auth.js 的白名单判断 -->
+<meta name="requires-auth" content="{{REQUIRES_AUTH}}" />
+<title>{{TITLE}} - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+
+<link rel="stylesheet" href="/assets/css/styles.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+
+<!-- ═══ core：统一错误提示 / 请求封装 / 页面启动器 ═══ -->
+<!-- 顺序不能变：ui -> net -> api -> page -->
+<script src="/assets/js/core/ui.js"></script>
+<script src="/assets/js/core/net.js"></script>
+<script src="/assets/js/core/api.js"></script>
+<script src="/assets/js/core/page.js"></script>
+
+<!-- PWA（必须静态写入 head，不能靠 JS 注入） -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1a1a2e">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WYK Maths">
+<meta name="mobile-web-app-capable" content="yes">
+
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+
+    <main class="main-content" id="mainContent">
+      <!--
+        页面内容写在这里，或由 {{PAGE_JS}} 渲染进来。
+        约定：只操作 #mainContent 内部，不要动 topbar/sidebar。
+      -->
+    </main>
+  </div>
+
+  <!-- ═══ 共享脚本 ═══ -->
+  <script src="/assets/js/auth.js"></script>
+  <script src="/assets/js/app.js"></script>
+  <script src="/assets/js/topbar.js"></script>
+  <script src="/assets/js/sidebar.js"></script>
+  <script src="/assets/js/heartbeat.js"></script>
+  <script src="/assets/js/pk-invite.js"></script>
+
+  <!-- ═══ 本页脚本 ═══ -->
+  <script src="{{PAGE_JS}}"></script>
+</body>
+</html>

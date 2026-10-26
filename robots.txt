@@ -1,0 +1,41 @@
+# WYK Maths Team — crawler policy
+#
+# Only the pages that are usable without signing in may be indexed.
+# Everything else is behind a session and must not appear in any search
+# result, preview card, or AI answer.
+
+User-agent: *
+Disallow: /
+
+# Public pages
+Allow: /$
+Allow: /index.html
+Allow: /404
+Allow: /404.html
+Allow: /credits
+Allow: /credits.html
+Allow: /guide
+Allow: /guide.html
+Allow: /login
+Allow: /login.html
+Allow: /leaderboard
+Allow: /ranklist.html
+Allow: /auth/
+
+# Explicitly denied, listed for clarity even though Disallow: / covers them
+Disallow: /admin
+Disallow: /admin/
+Disallow: /problems
+Disallow: /submissions
+Disallow: /user
+Disallow: /users/
+Disallow: /settings
+Disallow: /status
+Disallow: /charts
+Disallow: /calendar
+Disallow: /contest
+Disallow: /pk/
+Disallow: /resources
+Disallow: /api/
+Disallow: /port/
+Disallow: /os

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta name="robots" content="noindex, nofollow" />
+<script>window.__BUILD_V='e079367a';</script>
+<script src="/assets/js/arch-render.js?v=e079367a"></script>
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow, noarchive"> 
+<title>Manage Reports - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+
+<link rel="stylesheet" href="/assets/css/styles.css?v=e079367a" />
+
+<style>
+    /* ── 中性色变量（由 tools/extract-colors.mjs 生成）──────────────
+       原先写死在内联样式里的浅色背景 / 深色文字 / 浅灰边框，抽取成
+       变量后暗色与科幻主题只需覆盖取值，不必逐条重写规则。
+       语义色（成功绿、错误红、警告橙）与代码高亮色刻意保留，
+       它们在深色背景下依然成立。 */
+    :root {
+      --c-surface: #ffffff;
+      --c-surface-sunken: #f8f9fa;
+      --c-surface-raised: #f0f0f0;
+      --c-surface-muted: #e9ecef;
+      --c-border: #dddddd;
+      --c-border-strong: #bbbbbb;
+      --c-text: #333333;
+      --c-text-muted: #666666;
+      --c-text-subtle: #999999;
+    }
+    :root[data-theme="dark"] {
+      --c-surface: #161b22;
+      --c-surface-sunken: #0d1117;
+      --c-surface-raised: #21262d;
+      --c-surface-muted: #21262d;
+      --c-border: #30363d;
+      --c-border-strong: #484f58;
+      --c-text: #c9d1d9;
+      --c-text-muted: #8b949e;
+      --c-text-subtle: #6e7681;
+    }
+    :root[data-theme="scifi"] {
+      --c-surface: #09101a;
+      --c-surface-sunken: #070d15;
+      --c-surface-raised: #0f2231;
+      --c-surface-muted: #101b26;
+      --c-border: #14313f;
+      --c-border-strong: #1e4a5e;
+      --c-text: #c6eeff;
+      --c-text-muted: #6c8fa3;
+      --c-text-subtle: #546f80;
+    }
+
+  .admin-container { background: var(--card-bg); border-radius: 4px; padding: 1.5rem; }
+  table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+  th, td { padding: 0.5rem; border-bottom: 1px solid var(--border-color); text-align: left; vertical-align: middle; }
+  th { background: var(--c-surface-muted); font-weight: 700; }
+  [data-theme="dark"] th { background: #2d2d2d; }
+
+  tr.report-pending { background: #f8d7da; }
+  tr.report-pending:hover { background: #f5c6cb; }
+  tr.report-resolved { background: #d4edda; }
+  tr.report-resolved:hover { background: #c3e6cb; }
+  [data-theme="dark"] tr.report-pending { background: #4d1b1b; }
+  [data-theme="dark"] tr.report-pending:hover { background: #5a2222; }
+  [data-theme="dark"] tr.report-resolved { background: #1b4d2e; }
+  [data-theme="dark"] tr.report-resolved:hover { background: #235c38; }
+
+  .btn-sm {
+    padding: 0.25rem 0.55rem;
+    font-size: 0.8rem;
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    cursor: pointer;
+    background: transparent;
+    font-family: inherit;
+  }
+  .btn-sm:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-danger { color: var(--danger); border-color: var(--danger); }
+  .btn-primary { color: var(--accent); border-color: var(--accent); }
+  .message { margin: 1rem 0; min-height: 1.2em; }
+  .message.err  { color: var(--danger); }
+  .message.ok   { color: #2e7d32; }
+
+  .resolve-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #28a745;
+  }
+  .resolve-checkbox:disabled { opacity: .5; cursor: wait; }
+
+  .reason-cell {
+    max-width: 320px;
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: pre-wrap;
+    font-size: 0.88rem;
+  }
+  .reason-cell.empty { color: var(--text-secondary); font-style: italic; }
+  th.col-center, td.col-center { text-align: center; width: 60px; }
+</style>
+<script src="/assets/js/core/ui.js?v=e079367a"></script>
+<script src="/assets/js/core/net.js?v=e079367a"></script>
+<script src="/assets/js/core/api.js?v=e079367a"></script>
+<script src="/assets/js/core/page.js?v=e079367a"></script>
+</head>
+<body class="index-body">
+<div id="appContainer">
+  <header class="topbar" id="topbarContainer"></header>
+  <aside class="sidebar" id="sidebarContainer"></aside>
+  <main class="main-content" id="mainContent">
+    <div class="admin-container">
+      <h2>Reports</h2>
+      <div id="reportsList"></div>
+      <div id="message" class="message"></div>
+    </div>
+  </main>
+</div>
+
+<script src="/assets/js/auth.js?v=e079367a"></script>
+<script src="/assets/js/app.js?v=e079367a"></script>
+<script src="/assets/js/topbar.js?v=e079367a"></script>
+<script src="/assets/js/sidebar.js?v=e079367a"></script>
+<script src="/assets/js/heartbeat.js?v=e079367a"></script>
+<script src="/assets/js/pk-invite.js?v=e079367a"></script>
+
+<script src="/assets/js/pages/admin-reports.js?v=e079367a"></script>
+<script src="/assets/js/pk-notify.js?v=e079367a"></script>
+</body>
+</html>

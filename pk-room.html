@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta name="robots" content="noindex, nofollow" />
+<script>window.__BUILD_V='e079367a';</script>
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow, noarchive"> 
+<title>Competition - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=e079367a" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<!-- ⭐ 新增 KaTeX -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/auto-render.min.js"></script>
+<style>
+    /* ── 中性色变量（由 tools/extract-colors.mjs 生成）──────────────
+       原先写死在内联样式里的浅色背景 / 深色文字 / 浅灰边框，抽取成
+       变量后暗色与科幻主题只需覆盖取值，不必逐条重写规则。
+       语义色（成功绿、错误红、警告橙）与代码高亮色刻意保留，
+       它们在深色背景下依然成立。 */
+    :root {
+      --c-surface: #ffffff;
+      --c-surface-sunken: #f8f9fa;
+      --c-surface-raised: #f0f0f0;
+      --c-surface-muted: #e9ecef;
+      --c-border: #dddddd;
+      --c-border-strong: #bbbbbb;
+      --c-text: #333333;
+      --c-text-muted: #666666;
+      --c-text-subtle: #999999;
+    }
+    :root[data-theme="dark"] {
+      --c-surface: #161b22;
+      --c-surface-sunken: #0d1117;
+      --c-surface-raised: #21262d;
+      --c-surface-muted: #21262d;
+      --c-border: #30363d;
+      --c-border-strong: #484f58;
+      --c-text: #c9d1d9;
+      --c-text-muted: #8b949e;
+      --c-text-subtle: #6e7681;
+    }
+    :root[data-theme="scifi"] {
+      --c-surface: #09101a;
+      --c-surface-sunken: #070d15;
+      --c-surface-raised: #0f2231;
+      --c-surface-muted: #101b26;
+      --c-border: #14313f;
+      --c-border-strong: #1e4a5e;
+      --c-text: #c6eeff;
+      --c-text-muted: #6c8fa3;
+      --c-text-subtle: #546f80;
+    }
+
+  .pk-room-wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
+
+  /* ═══════════ Header ═══════════ */
+  .pk-room-header {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-radius: 12px; padding: 14px 20px; margin-bottom: 16px;
+    flex-wrap: wrap; gap: 12px;
+  }
+  .pk-room-vs { display: flex; align-items: center; gap: 16px; font-size: 1.1rem; font-weight: 800; }
+  .pk-room-player { display: flex; align-items: center; gap: 8px; }
+  .pk-room-player.me    { color: #e74c3c; }
+  .pk-room-player.other { color: #3498db; }
+  .pk-room-player .pcount {
+    font-size: .78rem; font-weight: 600; opacity: .75;
+    padding: 2px 8px; border-radius: 10px;
+    background: rgba(255,255,255,.08);
+  }
+  .pk-room-timer {
+    font-size: 1.6rem; font-family: 'Consolas', monospace; font-weight: 800;
+    color: var(--accent);
+  }
+  .pk-room-year {
+    font-size: .82rem; color: var(--text-secondary);
+    font-family: 'Consolas', monospace;
+  }
+
+  /* ═══════════ Map ═══════════ */
+  .pk-map {
+    position: relative;
+    background: linear-gradient(180deg, #0a1628 0%, #0d1e35 100%);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    overflow: hidden;
+    height: 720px;
+    user-select: none;
+  }
+  [data-theme="light"] .pk-map {
+    background: linear-gradient(180deg, #e8f0fa 0%, #d0e2f5 100%);
+  }
+
+  /* 星点背景 */
+  .pk-map::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(120,180,255,.12) 0%, transparent 2px),
+      radial-gradient(circle at 70% 60%, rgba(120,180,255,.10) 0%, transparent 1.5px),
+      radial-gradient(circle at 45% 15%, rgba(120,180,255,.08) 0%, transparent 1.5px),
+      radial-gradient(circle at 85% 80%, rgba(120,180,255,.14) 0%, transparent 2px),
+      radial-gradient(circle at 10% 75%, rgba(120,180,255,.10) 0%, transparent 2px);
+    background-size: 300px 300px;
+    pointer-events: none;
+  }
+
+  /* SVG 连线层 */
+  .pk-map-svg {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  .pk-map-svg line {
+    stroke: rgba(120,180,255,.25);
+    stroke-width: 2;
+    transition: stroke .3s;
+  }
+  .pk-map-svg line.active { stroke: rgba(120,180,255,.55); }
+
+  /* ═══════════ Island ═══════════ */
+  .island {
+    position: absolute;
+    width: 130px; height: 130px;
+    transform: translate(-50%, -50%);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: transform .25s cubic-bezier(.34,1.56,.64,1), filter .2s;
+    z-index: 2;
+  }
+  .island:hover:not(.locked) { transform: translate(-50%, -50%) scale(1.08); }
+  .island.locked {
+    cursor: not-allowed;
+    opacity: .6;
+  }
+
+  .island-circle {
+    width: 110px; height: 110px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #1e3a5f, #0a1628);
+    border: 3px solid rgba(120,180,255,.35);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    box-shadow:
+      0 8px 24px rgba(0,0,0,.4),
+      inset 0 2px 8px rgba(120,180,255,.15);
+    position: relative;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  [data-theme="light"] .island-circle {
+    background: radial-gradient(circle at 30% 30%, #f4f8fe, #c8ddf5);
+    border-color: rgba(74,144,217,.4);
+    box-shadow:
+      0 8px 24px rgba(74,144,217,.2),
+      inset 0 2px 8px rgba(74,144,217,.1);
+  }
+
+  .island.locked .island-circle {
+    border-color: rgba(120,120,120,.35);
+    background: radial-gradient(circle at 30% 30%, #2a2a35, #1a1a25);
+    box-shadow:
+      0 8px 24px rgba(0,0,0,.4),
+      inset 0 2px 8px rgba(100,100,100,.15);
+  }
+  [data-theme="light"] .island.locked .island-circle {
+    background: radial-gradient(circle at 30% 30%, #e8e8ec, #d0d0d4);
+  }
+  /* 区域被占时的边缘光 */
+  .island.owned-host  .island-circle {
+    border-color: #e74c3c;
+    box-shadow:
+      0 8px 24px rgba(0,0,0,.4),
+      0 0 24px rgba(231,76,60,.5),
+      inset 0 2px 8px rgba(231,76,60,.2);
+  }
+  .island.owned-guest .island-circle {
+    border-color: #3498db;
+    box-shadow:
+      0 8px 24px rgba(0,0,0,.4),
+      0 0 24px rgba(52,152,219,.5),
+      inset 0 2px 8px rgba(52,152,219,.2);
+  }
+  .island.contested .island-circle {
+    border-color: #f0ad4e;
+    box-shadow:
+      0 8px 24px rgba(0,0,0,.4),
+      0 0 24px rgba(240,173,78,.5),
+      inset 0 2px 8px rgba(240,173,78,.2);
+  }
+
+  .island-num {
+    font-size: 1.5rem; font-weight: 900;
+    font-family: 'Consolas', monospace;
+    color: #fff; line-height: 1;
+    text-shadow: 0 2px 4px rgba(0,0,0,.5);
+  }
+  [data-theme="light"] .island-num {
+    color: #1a3a5c;
+    text-shadow: 0 1px 2px rgba(255,255,255,.5);
+  }
+  .island-part {
+    font-size: .62rem; font-weight: 700;
+    letter-spacing: 1px;
+    opacity: .6;
+    margin-top: 2px;
+    color: #8fbbff;
+  }
+  [data-theme="light"] .island-part { color: #4a6a8a; }
+  .island.locked .island-num,
+  .island.locked .island-part {
+    color: var(--c-text-muted);
+    text-shadow: none;
+  }
+  /* 5 格状态点 */
+  .island-slots {
+    display: flex; gap: 3px;
+    margin-top: 8px;
+  }
+  .island-slots .s {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(120,180,255,.25);
+    border: 1px solid rgba(120,180,255,.4);
+  }
+  .island-slots .s.host  { background: #e74c3c; border-color: #e74c3c; }
+  .island-slots .s.guest { background: #3498db; border-color: #3498db; }
+
+  /* 锁定图标 */
+  .island-lock {
+    position: absolute;
+    top: -4px; right: -4px;
+    width: 26px; height: 26px;
+    background: rgba(60,60,60,.9);
+    border: 2px solid rgba(120,120,120,.5);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .72rem;
+    color: #aaa;
+  }
+
+  /* 占据统计小字 */
+  .island-count {
+    position: absolute;
+    bottom: -8px; left: 50%; transform: translateX(-50%);
+    font-size: .7rem; font-family: 'Consolas', monospace;
+    font-weight: 700;
+    padding: 2px 8px; border-radius: 10px;
+    background: rgba(0,0,0,.6);
+    color: #fff;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity .15s;
+  }
+  .island:hover .island-count { opacity: 1; }
+  .island.has-claims .island-count { opacity: .9; }
+  .island-count .c-me    { color: #ff7a6e; }  /* 紅 = 我 */
+  .island-count .c-other { color: #6bb3f0; }  /* 藍 = 對手 */
+
+  /* 你已解锁 → 边缘发光脉冲 */
+  @keyframes islandPulse {
+    0%, 100% { box-shadow: 0 8px 24px rgba(0,0,0,.4), 0 0 0 0 rgba(120,180,255,.4); }
+    50%      { box-shadow: 0 8px 24px rgba(0,0,0,.4), 0 0 0 12px rgba(120,180,255,0); }
+  }
+  .island:not(.locked):not(.owned-host):not(.owned-guest):not(.contested) .island-circle {
+    animation: islandPulse 2.5s ease-in-out infinite;
+  }
+
+  /* ═══════════ Expand panel ═══════════ */
+  .island-panel {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.75);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 999;
+    display: none;
+    align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .island-panel.show { display: flex; }
+
+  .island-panel-card {
+    background: var(--card-bg);
+    border: 2px solid var(--accent);
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 720px; width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    animation: panelIn .3s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes panelIn {
+    from { opacity: 0; transform: scale(.92); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  .panel-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 20px;
+  }
+  .panel-header h2 {
+    margin: 0; font-size: 1.3rem; font-weight: 800;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .panel-header h2 .badge {
+    font-size: .72rem; padding: 2px 10px;
+    background: var(--accent); color: #fff;
+    border-radius: 10px; font-weight: 700;
+  }
+  .panel-close {
+    background: none; border: none;
+    width: 36px; height: 36px; border-radius: 50%;
+    font-size: 1.1rem; cursor: pointer;
+    color: var(--text-secondary);
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s;
+  }
+  .panel-close:hover { background: var(--hover-bg); color: var(--text-primary); }
+
+  .slot-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+  }
+  .slot {
+    aspect-ratio: 1;
+    border-radius: 10px;
+    border: 2px solid var(--border-color);
+    background: var(--card-bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all .15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .slot:hover:not(.owned) {
+    border-color: var(--accent);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(74,144,217,.25);
+  }
+  .slot.owned { cursor: default; }
+  .slot.owned-host {
+    border-color: #e74c3c;
+    background: rgba(231,76,60,.1);
+  }
+  .slot.owned-guest {
+    border-color: #3498db;
+    background: rgba(52,152,219,.1);
+  }
+  .slot-problem {
+    font-family: 'Consolas', monospace;
+    font-size: .78rem; font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .slot-label {
+    font-size: .62rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+  .slot.owned-host .slot-label { color: #e74c3c; font-weight: 700; }
+  .slot.owned-guest .slot-label { color: #3498db; font-weight: 700; }
+  .slot-icon {
+    font-size: 1.4rem;
+    margin-bottom: 4px;
+    opacity: .5;
+  }
+  .slot.owned-host .slot-icon { color: #e74c3c; opacity: 1; }
+  .slot.owned-guest .slot-icon { color: #3498db; opacity: 1; }
+
+  @media (max-width: 700px) {
+    .pk-map { height: 560px; }
+    .island { width: 90px; height: 90px; }
+    .island-circle { width: 76px; height: 76px; border-width: 2px; }
+    .island-num { font-size: 1.2rem; }
+    .island-part { font-size: .55rem; }
+    .island-slots .s { width: 6px; height: 6px; }
+    .slot-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  /* ═══════════ Problem Modal ═══════════ */
+.pk-problem-modal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.78);
+  backdrop-filter: blur(6px);
+  z-index: 1000;
+  display: none; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.pk-problem-modal.show { display: flex; }
+
+.pk-problem-card {
+  background: var(--card-bg);
+  border: 2px solid var(--accent);
+  border-radius: 16px;
+  padding: 26px 28px;
+  max-width: 720px; width: 100%;
+  max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+}
+.pk-problem-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px; gap: 10px;
+}
+.pk-problem-head h2 {
+  margin: 0; font-size: 1.15rem; font-weight: 800;
+  display: flex; align-items: center; gap: 8px;
+  font-family: 'Consolas', monospace;
+}
+.pk-problem-timer {
+  font-family: 'Consolas', monospace;
+  font-weight: 800; font-size: 1.3rem;
+  color: var(--accent);
+  transition: color .3s;
+}
+.pk-problem-timer.warn { color: #f0ad4e; }
+.pk-problem-timer.danger { color: #e74c3c; animation: pkBlink .8s infinite; }
+@keyframes pkBlink { 50% { opacity: .5; } }
+
+.pk-problem-statement {
+  padding: 16px 18px;
+  background: rgba(74,144,217,.05);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  font-size: .95rem; line-height: 1.65;
+  margin-bottom: 18px;
+  max-height: 40vh; overflow-y: auto;
+}
+
+/* ⭐ 有圖時：左右兩欄 */
+.pk-problem-statement.has-image {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+.pk-problem-statement .pkp-text-col {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.pk-problem-statement .pkp-img-col {
+  flex: 0 0 auto;
+  max-width: 42%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.pk-problem-statement .pkp-img-col img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  display: block;
+}
+
+/* 手機窄螢幕：改成上下堆疊 */
+@media (max-width: 600px) {
+  .pk-problem-statement.has-image { flex-direction: column; }
+  .pk-problem-statement .pkp-img-col { max-width: 100%; }
+}
+
+.pk-choice-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+.pk-choice {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px;
+  border: 2px solid var(--border-color);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all .15s;
+  font-size: .92rem;
+}
+.pk-choice:hover { border-color: var(--accent); background: rgba(74,144,217,.06); }
+.pk-choice.selected {
+  border-color: var(--accent);
+  background: rgba(74,144,217,.12);
+  font-weight: 600;
+}
+.pk-choice-letter {
+  width: 32px; height: 32px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--border-color);
+  border-radius: 50%;
+  font-weight: 800; font-family: 'Consolas', monospace;
+  font-size: .9rem;
+  transition: background .15s;
+}
+.pk-choice.selected .pk-choice-letter {
+  background: var(--accent); color: #fff;
+}
+.pk-choice-text { flex: 1; }
+
+.pk-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.pk-actions button {
+  padding: 10px 24px; border-radius: 8px;
+  border: none; font-weight: 700; font-size: .92rem;
+  cursor: pointer; font-family: inherit;
+}
+.pk-submit { background: var(--accent); color: #fff; }
+.pk-submit:hover:not(:disabled) { filter: brightness(1.1); }
+.pk-submit:disabled { opacity: .5; cursor: not-allowed; }
+.pk-cancel {
+  background: none; color: var(--text-secondary);
+  border: 1px solid var(--border-color) !important;
+}
+.pk-msg { margin-top: 12px; font-size: .88rem; min-height: 1.2em; }
+.pk-problem-modal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.78);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 1000;
+  display: none; align-items: center; justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.pk-problem-modal.opened {
+  opacity: 1;
+}
+.pk-problem-modal.closing {
+  opacity: 0;
+  transition-duration: 0.3s;
+}
+
+.pk-problem-card {
+  background: var(--card-bg);
+  border: 2px solid var(--accent);
+  border-radius: 16px;
+  padding: 26px 28px;
+  max-width: 720px; width: 100%;
+  max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  transform: scale(0.82);
+  opacity: 0;
+  transition:
+    transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 0.4s ease;
+}
+.pk-problem-modal.opened .pk-problem-card {
+  transform: scale(1);
+  opacity: 1;
+}
+.pk-problem-modal.closing .pk-problem-card {
+  transform: scale(0.82);
+  opacity: 0;
+  transition-duration: 0.3s;
+}
+.spectator-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  margin-bottom: 12px;
+  background: linear-gradient(90deg, rgba(240,173,78,.12), rgba(240,173,78,.04));
+  border: 1px solid rgba(240,173,78,.4);
+  border-radius: 10px;
+  color: #b37700;
+  font-size: .88rem;
+  font-weight: 600;
+}
+[data-theme="dark"] .spectator-banner {
+  background: linear-gradient(90deg, rgba(240,173,78,.15), rgba(240,173,78,.05));
+  color: #ffc850;
+}
+.spectator-banner i { font-size: 1rem; }
+.pk-share-watch {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .95rem;
+  transition: all .15s;
+}
+.pk-share-watch:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: scale(1.08);
+}
+.pk-share-watch.copied {
+  background: #2ecc71;
+  border-color: #2ecc71;
+  color: #fff;
+}
+</style>
+<script src="/assets/js/core/ui.js?v=e079367a"></script>
+<script src="/assets/js/core/net.js?v=e079367a"></script>
+<script src="/assets/js/core/api.js?v=e079367a"></script>
+<script src="/assets/js/core/page.js?v=e079367a"></script>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="pk-room-wrap">
+        <div class="spectator-banner" id="spectatorBanner" hidden>
+          <i class="fas fa-eye"></i>
+          <span>Spectator mode is on</span>
+        </div>
+        <div class="pk-room-header">
+          <div class="pk-room-vs">
+            <div class="pk-room-player me">
+              <i class="fas fa-user"></i>
+              <span id="pkMeName">…</span>
+              <span class="pcount" id="pkMeCount">0</span>
+            </div>
+            <div style="color:var(--text-secondary);font-size:.9rem;">VS</div>
+            <div class="pk-room-player other">
+              <i class="fas fa-user"></i>
+              <span id="pkOtherName">…</span>
+              <span class="pcount" id="pkOtherCount">0</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:16px;align-items:center;">
+            <button type="button" class="pk-share-watch" id="shareWatchBtn" title="Copy Link">
+              <i class="fas fa-eye"></i>
+            </button>
+            <div class="pk-room-year" id="pkYear"></div>
+            <div class="pk-room-timer" id="pkRoomTimer">30:00</div>
+          </div>
+        </div>
+
+        <div class="pk-map" id="pkMap">
+          <svg class="pk-map-svg" id="pkMapSvg"></svg>
+          <!-- 岛屿用 JS 动态插入 -->
+        </div>
+      </div>
+
+      <!-- 岛屿展开面板 -->
+      <div class="island-panel" id="islandPanel">
+        <div class="island-panel-card">
+          <div class="panel-header">
+            <h2>
+              <span id="panelTitle">Island 1</span>
+              <span class="badge" id="panelBadge">PART A</span>
+            </h2>
+            <button class="panel-close" id="panelClose">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="slot-grid" id="slotGrid"></div>
+        </div>
+      </div>
+      <div class="pk-problem-modal" id="pkProblemModal">
+  <div class="pk-problem-card">
+    <div class="pk-problem-head">
+      <h2><i class="fas fa-scroll" style="opacity:.5"></i> <span id="pkpId">—</span></h2>
+      <div class="pk-problem-timer" id="pkpTimer">4:00</div>
+    </div>
+    <div class="pk-problem-statement" id="pkpStatement">Loading…</div>
+    <div class="pk-choice-list" id="pkpChoices"></div>
+    <div class="pk-actions">
+      <button type="button" class="pk-cancel" id="pkpCancel">Cancel</button>
+      <button type="button" class="pk-submit" id="pkpSubmit" disabled>Submit</button>
+    </div>
+    <div class="pk-msg" id="pkpMsg"></div>
+  </div>
+</div>
+    </main>
+  </div>
+
+  <script src="/assets/js/auth.js?v=e079367a"></script>
+  <script src="/assets/js/app.js?v=e079367a"></script>
+  <script src="/assets/js/topbar.js?v=e079367a"></script>
+  <script src="/assets/js/sidebar.js?v=e079367a"></script>
+
+  <script src="/assets/js/pages/pk-room.js?v=e079367a"></script>
+<script src="/assets/js/pk-notify.js?v=e079367a"></script>
+</body>
+</html>

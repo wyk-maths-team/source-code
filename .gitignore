@@ -1,0 +1,83 @@
+.vercel
+.env*
+# --------------- Secrets / Private ---------------
+private/
+.env
+.env.*
+!.env.example
+node_modules/
+
+# --------------- 已从历史清除的敏感文件 ---------------
+# 这些文件曾在早期提交里误入版本库：
+#   hunt.mjs        —— 内含硬编码的 MongoDB 生产连接串（凭据已轮换）
+#   offenders.*     —— 学生违规记录，属个人资料，不得入库
+#   _problems_*.json、all-scripts.txt、_difficulty_changes.md
+#                   —— 题库全量与题目脚本导出，泄露未公开题目
+# 均已用 git filter-repo 从全部历史中移除，此处永久拦截，防止再次提交。
+hunt.mjs
+offenders.json
+offenders.md
+_problems_*.json
+all-scripts.txt
+_difficulty_changes.md
+
+# 临时导出目录（题目脚本等，内容等同于题库）
+temp/
+
+# --------------- 已迁移的独立子项目 ---------------
+# bio/ 是 Bio Infoday 活动的独立站点，与数学平台无共用逻辑，
+# 且其接口连接着同一个生产数据库。迁移完成后已从本仓库与全部历史中移除，
+# 源码留存于 private/bio-system/（不入库）。
+bio/
+api/bio/
+assets/js/pages/bio-infoday-*.js
+assets/css/pages/bio-infoday-*.css
+
+# --------------- 已移除的内部文档 ---------------
+# 内部交接文档、开发规范与协作指南已迁出仓库（留存于 private/readmes/）。
+# 仓库对外只保留根目录 README.md 一个说明文件。
+README/
+_template/README.md
+grader/README.md
+
+# --------------- 仅留存本地、不入库的文档 ---------------
+# dev/API.md 逐条记录了全部接口（含管理员动作），公开会暴露完整攻击面。
+# dev/PAGEDETAIL.md 只讲页面实现，不含接口清单，可以公开。
+dev/API.md
+
+# --------------- Build / Dependencies ---------------
+
+# .vercel
+# .next/
+# dist/
+# build/
+# *.log
+# npm-debug.log*
+
+# --------------- Editor / OS ---------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# --------------- Backup / Temp ---------------
+*.bak
+*.old
+*.orig
+*~
+temp.html
+*temp.html
+wasted.html
+.backup/
+.acl-recovery/
+
+
+# --------------- Local testing ---------------
+testcases/
+*.in
+*.out
+*.ans
+dse-data/
+tools/
+minecraft

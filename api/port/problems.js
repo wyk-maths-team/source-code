@@ -1,0 +1,102 @@
+// api/port/problems.js
+// GET  /api/port/problems?subject=m2&chapter=3&page=1&limit=50
+// GET  /api/port/problems?id=M2-001
+// POST /api/port/problems?action=update  (Root Only)
+import { connectToDatabase } from '../_pdb.js';
+import { portAuth } from './_auth.js';
+import { wrapHandler } from '../../lib/errors.js';
+
+const SUBJECTS = ['chin', 'eng', 'maths', 'phy', 'chem', 'bio', 'm2'];
+
+async function handler(req, res) {
+  // 鉴权（包含 Rate Limit 和 Root 校验）
+  const decoded = await portAuth(req, res);
+  if (!decoded) return;
+
+  const db = await connectToDatabase();
+  const col = db.collection('port_problems');
+
+  // ==========================================
+  // ⭐ POST: 更新题目（仅 Root 可操作）
+  // ==========================================
+  if (req.method === 'POST' && req.query.action === 'update') {
+    // ⭐ 接收 ans，同时也兼容 answer
+    const { id, maxScore, statement, ans, answer } = req.body || {};
+    if (!id) return res.status(400).json({ success: false, message: 'Missing problem ID' });
+
+    const updateData = {};
+    if (maxScore !== undefined) updateData.maxScore = Number(maxScore) || 100;
+    if (statement !== undefined) updateData.statement = String(statement);
+    
+    // ⭐ 统一保存到 ans
+    const finalAns = ans !== undefined ? ans : answer;
+    if (finalAns !== undefined) updateData.ans = String(finalAns);
+    
+    updateData.updatedAt = new Date();
+
+    const result = await col.updateOne({ id: String(id) }, { $set: updateData });
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ success: false, message: 'Problem not found' });
+    }
+    return res.status(200).json({ success: true, message: 'Problem updated successfully' });
+  }
+
+  // ==========================================
+  // ⭐ GET: 查询题目（列表或单题）
+  // ==========================================
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { id, subject, chapter, page = '1', limit = '500' } = req.query;
+
+  // ── 單題 ──
+  if (id) {
+    const doc = await col.findOne({ id: String(id) }, { projection: { _id: 0 } });
+    if (!doc) return res.status(404).json({ success: false, message: 'Not found' });
+    return res.status(200).json({ success: true, problem: doc });
+  }
+
+  // ── 列表 ──
+  const filter = {};
+  if (subject) {
+    if (!SUBJECTS.includes(subject)) {
+      return res.status(400).json({ success: false, message: 'Invalid subject' });
+    }
+    filter.subject = subject;
+  }
+  if (chapter !== undefined && chapter !== '') {
+    const c = Number(chapter);
+    if (Number.isFinite(c)) filter.chapter = c;
+  }
+
+  const pageNum = Math.max(1, parseInt(page) || 1);
+  const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 500));
+
+  const [total, items, chapterAgg] = await Promise.all([
+    col.countDocuments(filter),
+    col.find(filter, { projection: { _id: 0 } })
+      .sort({ chapter: 1, id: 1 })
+      .skip((pageNum - 1) * limitNum)
+      .limit(limitNum)
+      .toArray(),
+    // 該科目下的所有 chapter 值
+    subject
+      ? col.distinct('chapter', { subject })
+      : Promise.resolve([]),
+  ]);
+
+  return res.status(200).json({
+    success: true,
+    items,
+    total,
+    page: pageNum,
+    limit: limitNum,
+    totalPages: Math.ceil(total / limitNum),
+    chapters: chapterAgg.filter(c => Number.isFinite(c)).sort((a, b) => a - b),
+  });
+}
+
+// 统一错误兜底
+export default wrapHandler(handler);

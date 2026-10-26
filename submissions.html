@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta name="robots" content="noindex, nofollow" />
+<script>window.__BUILD_V='e079367a';</script>
+
+<script src="/assets/js/arch-render.js?v=e079367a"></script>
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow, noarchive"> 
+  <title>Submissions - WYK Maths Team</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+
+<link rel="stylesheet" href="/assets/css/styles.css?v=e079367a" />
+  <link rel="stylesheet" href="/assets/css/submissions.css?v=e079367a" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+  <style>
+    .submissions-table thead th {
+      vertical-align: top;
+      text-align: left;
+    }
+    .submissions-table thead th.col-datetime,
+    .submissions-table thead th.col-answer {
+      vertical-align: middle;
+    }
+
+    .adv-filter-form {
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-weight: normal;
+      font-size: 0.8rem;
+    }
+    .adv-filter-form input,
+    .adv-filter-form select {
+      padding: 6px 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 3px;
+      font-size: 0.85rem;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      width: 100%;
+      box-sizing: border-box;
+      min-height: 32px;
+    }
+    .adv-filter-buttons {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .adv-filter-buttons button {
+      padding: 4px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 3px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      white-space: nowrap;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      transition: opacity 0.15s;
+      line-height: 1.2;
+    }
+    .adv-filter-buttons button:hover { opacity: 0.85; }
+    .adv-filter-buttons .btn-apply {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .adv-filter-buttons .btn-self {
+      background: #f0ad4e;
+      color: #fff;
+      border-color: #f0ad4e;
+    }
+    .btn-remove {
+      background: #dc3545;
+      color: #fff;
+      border: 1px solid #dc3545;
+      border-radius: 3px;
+      padding: 3px 7px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-remove:hover { opacity: 0.85; }
+
+    .filter-current {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: normal;
+      font-size: 0.85rem;
+      padding: 4px 0;
+      margin-top: 4px;
+    }
+    .filter-current b {
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .header-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .header-actions h2 {
+      margin: 0;
+      font-size: 1.4rem;
+      color: var(--text-primary);
+    }
+    .header-actions .btn {
+      padding: 0.4rem 1rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      text-decoration: none;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    #refreshSubmissionsBtn {
+      width: 38px;
+      height: 38px;
+      padding: 0 !important;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      font-size: 1.1rem;
+      line-height: 1;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      vertical-align: middle;
+    }
+    #refreshSubmissionsBtn:hover:not(:disabled) {
+      background: var(--accent-hover);
+      transform: scale(1.05);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+    #refreshSubmissionsBtn:active:not(:disabled) {
+      transform: scale(0.92);
+    }
+    #refreshSubmissionsBtn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    .pagination-nav { min-height: 44px; }
+    /* Date/Time 列居中 */
+.submissions-table th.col-datetime,
+.submissions-table td.col-datetime {
+  text-align: center;
+}
+
+/* 过滤头部信息卡 */
+.filter-header {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.filter-header h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.filter-header h2 a {
+  color: inherit;
+  text-decoration: none;
+}
+.filter-header h2 a:hover {
+  color: var(--accent);
+}
+.filter-header .profile-40 {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border-color);
+}
+.filter-header .filter-meta {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+.filter-header .meta-btn {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 4px 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.filter-header .meta-btn.info {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  text-decoration: none;
+}
+.filter-header .meta-btn.info:hover {
+  opacity: 0.9;
+}
+.filter-header .meta-btn.purple {
+  background: #7d5bb0;
+  color: #fff;
+  border-color: #7d5bb0;
+  text-decoration: none;
+}
+/* ═══════════════ Loading Overlay ═══════════════ */
+.table-responsive {
+  position: relative;
+}
+
+.submissions-table tbody {
+  transition: opacity .16s ease;
+}
+
+.table-loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, .72);
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease;
+  border-radius: 4px;
+}
+
+:root[data-theme="dark"] .table-loading-overlay {
+  background: rgba(13, 17, 23, .72);
+}
+
+.table-loading-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.table-loading-overlay i {
+  font-size: 1.8rem;
+  color: var(--accent);
+}
+
+/* ═══════════════ Loading Cell（初次 / 過濾變化） ═══════════════ */
+.loading-cell {
+  padding: 60px 20px !important;
+  text-align: center;
+  border-bottom: none !important;
+}
+
+.loading-cell .loading-icon {
+  font-size: 2.2rem;
+  color: var(--accent);
+  display: inline-block;
+}
+
+.loading-cell .loading-text {
+  margin-top: 14px;
+  color: var(--text-secondary);
+  font-size: .88rem;
+  font-weight: 500;
+}
+/* ═══════════════ 分頁切換遮罩 ═══════════════ */
+:root {
+  --page-overlay-bg: rgba(255, 255, 255, 0.6);
+}
+:root[data-theme="dark"] {
+  --page-overlay-bg: rgba(13, 17, 23, 0.6);
+}
+:root[data-theme="scifi"] {
+  --page-overlay-bg: rgba(4, 7, 13, 0.66);
+}
+
+.table-responsive {
+  position: relative;
+}
+
+.table-responsive::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--page-overlay-bg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 10;
+  border-radius: 4px;
+}
+
+.table-responsive.loading::after {
+  opacity: 1;
+}
+/* ═══════════════ Skeleton Rows ═══════════════ */
+.skeleton-row td {
+  padding: 12px 10px;
+}
+
+.skeleton-line {
+  display: inline-block;
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #eee 25%, #f5f5f5 50%, #eee 75%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s infinite;
+  vertical-align: middle;
+}
+
+@keyframes skeletonShimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+:root[data-theme="dark"] .skeleton-line {
+  background: linear-gradient(90deg, #2a2a2a 25%, #3a3a3a 50%, #2a2a2a 75%);
+  background-size: 200% 100%;
+}
+/* ⭐ 長答案折疊 */
+.answer-toggle {
+  cursor: pointer;
+  display: inline-block;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background .12s;
+  max-width: 100%;
+  word-break: break-all;
+}
+.answer-toggle:hover {
+  background: rgba(74, 144, 217, .12);
+}
+.answer-toggle::after {
+  content: ' ▸';
+  color: var(--text-secondary);
+  opacity: .6;
+  font-size: .85em;
+}
+.answer-toggle[data-expanded="true"]::after {
+  content: ' ▾';
+}
+.answer-toggle[data-expanded="true"] {
+  background: rgba(74, 144, 217, .08);
+}
+.answer-toggle[data-expanded="true"] .answer-preview { display: none; }
+.answer-toggle[data-expanded="false"] .answer-full { display: none; }
+  </style>
+
+  <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WYK Maths">
+  <meta name="mobile-web-app-capable" content="yes">
+
+<script src="/assets/js/core/ui.js?v=e079367a"></script>
+<script src="/assets/js/core/net.js?v=e079367a"></script>
+<script src="/assets/js/core/api.js?v=e079367a"></script>
+<script src="/assets/js/core/page.js?v=e079367a"></script>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent"></main>
+  </div>
+
+  <script src="/assets/js/auth.js?v=e079367a"></script>
+  <script src="/assets/js/app.js?v=e079367a"></script>
+  <script src="/assets/js/topbar.js?v=e079367a"></script>
+  
+<script src="/assets/js/sidebar.js?v=e079367a"></script>
+<script src="/assets/js/heartbeat.js?v=e079367a"></script>
+<script src="/assets/js/pk-invite.js?v=e079367a"></script>
+
+  <script src="/assets/js/pages/submissions.js?v=e079367a"></script>
+<script src="/assets/js/tour.js?v=e079367a"></script>
+<script src="/assets/js/pk-notify.js?v=e079367a"></script>
+</body>
+</html>

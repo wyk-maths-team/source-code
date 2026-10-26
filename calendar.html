@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta name="robots" content="noindex, nofollow" />
+<script>window.__BUILD_V='e079367a';</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calendar — WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=e079367a" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+<style>
+  /* ═══ 主容器 ═══ */
+  #calendarApp {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 80px);
+    max-width: 1000px;
+    margin: 0 auto;
+    background: var(--card-bg);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* ═══ 顶栏 ═══ */
+  .cal-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--card-bg);
+    flex-shrink: 0;
+  }
+  .cal-month-label {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -.2px;
+  }
+  .cal-topbar-actions { display: flex; gap: 8px; align-items: center; }
+  .cal-today-btn {
+    padding: 6px 14px;
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: .82rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .cal-today-btn:hover { background: var(--hover-bg); }
+  .cal-add-btn {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(74,144,217,.3);
+    transition: transform .15s, box-shadow .15s;
+  }
+  .cal-add-btn:hover {
+    transform: scale(1.08);
+    box-shadow: 0 4px 14px rgba(74,144,217,.4);
+  }
+
+  /* ═══ 可滚动区域 ═══ */
+  .cal-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0 12px 40px;
+    scroll-behavior: auto;   /* 不要 smooth，避免无限滚动时抖动 */
+  }
+
+  /* ═══ 月份区块 ═══ */
+  .cal-month { margin-bottom: 28px; }
+  .cal-month-header {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    padding: 16px 12px 8px;
+    letter-spacing: -.4px;
+    position: sticky;
+    top: 0;
+    background: var(--card-bg);
+    z-index: 5;
+  }
+  .cal-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    font-size: .72rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: 0 4px 6px;
+    position: sticky;
+    top: 48px;
+    background: var(--card-bg);
+    z-index: 4;
+  }
+  .cal-weekdays > div {
+    text-align: center;
+    padding: 4px 0;
+  }
+
+  /* ═══ 日期格子 ═══ */
+  .cal-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: minmax(90px, auto);   /* ⭐ 关键：自动撑高 */
+    gap: 4px;
+    padding: 0 4px;
+  }
+  .cal-day {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 6px 6px 4px;
+    display: flex;
+    flex-direction: column;
+    background: var(--card-bg);
+    min-height: 90px;
+    transition: border-color .15s;
+    position: relative;
+  }
+  .cal-day:hover { border-color: var(--accent); }
+  .cal-day.other-month { opacity: .4; }
+  .cal-day.today {
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .cal-day-num {
+    font-size: .78rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  .cal-day.today .cal-day-num { color: var(--accent); }
+
+  /* ═══ 任务卡片 ═══ */
+  .cal-tasks {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .cal-task {
+    font-size: .72rem;
+    padding: 3px 6px;
+    background: rgba(74,144,217,.14);
+    border-left: 2px solid var(--accent);
+    border-radius: 3px;
+    color: var(--accent);
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: background .12s;
+    user-select: none;
+  }
+  .cal-task:hover { background: rgba(74,144,217,.28); }
+  .cal-task.done {
+    text-decoration: line-through;
+    opacity: .55;
+    border-left-color: #888;
+    color: #888;
+  }
+
+  /* ═══ 空白区（点击新建）═══ */
+  .cal-day-empty {
+    flex: 1;
+    min-height: 24px;   /* 保证每天都有可点击的空白 */
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background .12s;
+  }
+  .cal-day-empty:hover { background: rgba(74,144,217,.07); }
+
+  /* ═══ 创建/编辑模态框 ═══ */
+  .cal-modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+  }
+  .cal-modal-overlay.open { display: flex; }
+  .cal-modal {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 480px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.4);
+    animation: calModalIn .2s ease;
+  }
+  @keyframes calModalIn {
+    from { opacity: 0; transform: scale(.95); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  .cal-modal-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .cal-modal-head h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .cal-modal-close {
+    background: none; border: none;
+    font-size: 1.4rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    line-height: 1;
+  }
+  .cal-modal-close:hover { background: var(--hover-bg); color: var(--text-primary); }
+
+  .cal-modal-body {
+    padding: 16px 18px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .cal-modal-body label {
+    font-size: .74rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    margin-top: 10px;
+  }
+  .cal-modal-body label:first-child { margin-top: 0; }
+  .cal-modal-body input,
+  .cal-modal-body textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: .92rem;
+    box-sizing: border-box;
+    resize: vertical;
+  }
+  .cal-modal-body input:focus,
+  .cal-modal-body textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(74,144,217,.15);
+  }
+
+  .cal-modal-foot {
+    display: flex; justify-content: flex-end; gap: 8px;
+    padding: 12px 18px;
+    border-top: 1px solid var(--border-color);
+  }
+  .cal-modal-foot button {
+    padding: 8px 18px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    font: inherit;
+    font-size: .88rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .cal-btn-primary { background: var(--accent); color: #fff; }
+  .cal-btn-primary:hover { filter: brightness(1.1); }
+  .cal-btn-secondary {
+    background: var(--card-bg);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+  }
+  .cal-btn-secondary:hover { background: var(--hover-bg); }
+  .cal-btn-danger {
+    background: #e74c3c; color: #fff;
+    margin-right: auto;   /* 推到左边 */
+  }
+  .cal-btn-danger:hover { filter: brightness(1.1); }
+
+  /* ═══ Tooltip ═══ */
+  .cal-tooltip {
+    position: fixed;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px 14px;
+    max-width: 260px;
+    box-shadow: 0 8px 28px rgba(0,0,0,.22);
+    z-index: 999;
+    animation: calTipIn .12s ease;
+  }
+  @keyframes calTipIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .cal-tooltip-head {
+    display: flex; justify-content: space-between;
+    align-items: flex-start; gap: 8px;
+    margin-bottom: 6px;
+  }
+  .cal-tooltip-title {
+    font-size: .9rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.3;
+    word-break: break-word;
+  }
+  .cal-tooltip-close {
+    background: none; border: none;
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0; line-height: 1;
+  }
+  .cal-tooltip-details {
+    font-size: .82rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .cal-tooltip-details:empty::after {
+    content: '(no details)';
+    font-style: italic;
+    opacity: .6;
+  }
+  .cal-tooltip-actions {
+    display: flex; gap: 6px;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-color);
+  }
+  .cal-tooltip-actions button {
+    flex: 1;
+    padding: 5px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: .78rem;
+    cursor: pointer;
+  }
+  .cal-tooltip-actions button:hover { background: var(--hover-bg); }
+
+  /* ═══ 响应式 ═══ */
+  @media (max-width: 640px) {
+    #calendarApp { height: calc(100vh - 60px); border-radius: 0; }
+    .cal-days { grid-auto-rows: minmax(70px, auto); }
+    .cal-day { min-height: 70px; padding: 4px; }
+    .cal-task { font-size: .66rem; padding: 2px 4px; }
+    .cal-day-num { font-size: .72rem; }
+    .cal-month-header { font-size: 1.1rem; }
+  }
+</style>
+<script src="/assets/js/core/ui.js?v=e079367a"></script>
+<script src="/assets/js/core/net.js?v=e079367a"></script>
+<script src="/assets/js/core/api.js?v=e079367a"></script>
+<script src="/assets/js/core/page.js?v=e079367a"></script>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+
+      <div id="calendarApp">
+        <div class="cal-topbar">
+          <div class="cal-month-label" id="calMonthLabel">—</div>
+          <div class="cal-topbar-actions">
+            <button class="cal-today-btn" id="calTodayBtn">Today</button>
+            <button class="cal-add-btn" id="calAddBtn" title="New task">+</button>
+          </div>
+        </div>
+        <div class="cal-scroll" id="calScroll"></div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- 模态框 -->
+  <div class="cal-modal-overlay" id="calModal">
+    <div class="cal-modal">
+      <div class="cal-modal-head">
+        <h3 id="calModalTitle">New Task</h3>
+        <button class="cal-modal-close" id="calModalClose">×</button>
+      </div>
+      <div class="cal-modal-body">
+        <label for="calModalDate">Date</label>
+        <input type="date" id="calModalDate">
+        <label for="calModalTitleInput">Title</label>
+        <input type="text" id="calModalTitleInput" maxlength="100" placeholder="What's this about?">
+        <label for="calModalDetails">Details</label>
+        <textarea id="calModalDetails" maxlength="2000" rows="5" placeholder="Optional details..."></textarea>
+      </div>
+      <div class="cal-modal-foot">
+        <button class="cal-btn-danger" id="calModalDelete" style="display:none">Delete</button>
+        <button class="cal-btn-secondary" id="calModalCancel">Cancel</button>
+        <button class="cal-btn-primary" id="calModalSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tooltip -->
+  <div class="cal-tooltip" id="calTooltip" hidden>
+    <div class="cal-tooltip-head">
+      <span class="cal-tooltip-title" id="calTooltipTitle"></span>
+      <button class="cal-tooltip-close" id="calTooltipClose">×</button>
+    </div>
+    <div class="cal-tooltip-details" id="calTooltipDetails"></div>
+    <div class="cal-tooltip-actions">
+      <button id="calTooltipEdit">Edit</button>
+      <button id="calTooltipDone">Toggle done</button>
+    </div>
+  </div>
+
+  <!-- 依赖 -->
+  <script src="/assets/js/auth.js?v=e079367a"></script>
+  <script src="/assets/js/app.js?v=e079367a"></script>
+  <script src="/assets/js/topbar.js?v=e079367a"></script>
+  <script src="/assets/js/sidebar.js?v=e079367a"></script>
+  <script src="/assets/js/heartbeat.js?v=e079367a"></script>
+  <script src="/assets/js/pk-invite.js?v=e079367a"></script>
+
+<script src="/assets/js/pages/calendar.js?v=e079367a"></script>
+<script src="/assets/js/pk-notify.js?v=e079367a"></script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>window.__BUILD_V='e079367a';</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>WYK Maths Team</title>
+  <meta name="theme-color" content="#0d1117" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="WYK Maths" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="/mobile/manifest.json" />
+
+  <!-- Prevent white flash: apply saved theme before paint -->
+  <script>(function(){try{var t=localStorage.getItem('theme')||'light';if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);var f=localStorage.getItem('fontSize');if(f)document.documentElement.style.fontSize=f+'px';}catch(e){}})();</script>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" />
+  <link rel="stylesheet" href="/mobile/styles.css" />
+<script src="/assets/js/core/ui.js?v=e079367a"></script>
+<script src="/assets/js/core/net.js?v=e079367a"></script>
+<script src="/assets/js/core/api.js?v=e079367a"></script>
+<script src="/assets/js/core/page.js?v=e079367a"></script>
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <button id="backBtn" class="topbar-btn" aria-label="Back" hidden>
+        <i class="fas fa-chevron-left"></i>
+      </button>
+      <div id="topbarTitle" class="topbar-title">WYK Maths</div>
+      <div id="topbarRight" class="topbar-right">
+        <span id="offlineBadge" class="offline-badge" hidden title="Offline">
+          <i class="fas fa-cloud-slash"></i>
+        </span>
+        <span id="draftBadge" class="draft-badge" hidden title="Drafts">
+          <i class="fas fa-inbox"></i><b id="draftCount">0</b>
+        </span>
+      </div>
+    </header>
+
+    <main id="view" class="view"></main>
+
+    <nav id="bottomNav" class="bottom-nav">
+      <button class="nav-item" data-route="home" aria-label="Home" title="Home">
+        <i class="fas fa-house"></i>
+      </button>
+      <button class="nav-item" data-route="problems" aria-label="Problems" title="Problems">
+        <i class="fas fa-list-check"></i>
+      </button>
+      <button class="nav-item" data-route="submissions" aria-label="Submissions" title="Submissions">
+        <i class="fas fa-paper-plane"></i>
+      </button>
+      <button class="nav-item" data-route="leaderboard" aria-label="Leaderboard" title="Leaderboard">
+        <i class="fas fa-ranking-star"></i>
+      </button>
+      <button class="nav-item" data-route="contests" aria-label="Contests" title="Contests">
+        <i class="fas fa-trophy"></i>
+      </button>
+      <button class="nav-item" data-route="me" aria-label="Me" title="Me">
+        <i class="fas fa-user"></i>
+      </button>
+    </nav>
+  </div>
+
+  <div id="toastRoot"></div>
+  <div id="modalRoot"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
+  <script src="/mobile/script.js"></script>
+<script src="/assets/js/pk-notify.js?v=e079367a"></script>
+</body>
+</html>

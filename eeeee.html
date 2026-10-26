@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta name="robots" content="noindex, nofollow" />
+<script>window.__BUILD_V='e079367a';</script>
+
+<script src="/assets/js/arch-render.js?v=e079367a"></script>
+
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Extra Settings - WYK Maths Team</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+
+<link rel="stylesheet" href="/assets/css/styles.css?v=e079367a" />
+  <style>
+    /* ── 中性色变量（由 tools/extract-colors.mjs 生成）──────────────
+       原先写死在内联样式里的浅色背景 / 深色文字 / 浅灰边框，抽取成
+       变量后暗色与科幻主题只需覆盖取值，不必逐条重写规则。
+       语义色（成功绿、错误红、警告橙）与代码高亮色刻意保留，
+       它们在深色背景下依然成立。 */
+    :root {
+      --c-surface: #ffffff;
+      --c-surface-sunken: #f8f9fa;
+      --c-surface-raised: #f0f0f0;
+      --c-surface-muted: #e9ecef;
+      --c-border: #dddddd;
+      --c-border-strong: #bbbbbb;
+      --c-text: #333333;
+      --c-text-muted: #666666;
+      --c-text-subtle: #999999;
+    }
+    :root[data-theme="dark"] {
+      --c-surface: #161b22;
+      --c-surface-sunken: #0d1117;
+      --c-surface-raised: #21262d;
+      --c-surface-muted: #21262d;
+      --c-border: #30363d;
+      --c-border-strong: #484f58;
+      --c-text: #c9d1d9;
+      --c-text-muted: #8b949e;
+      --c-text-subtle: #6e7681;
+    }
+    :root[data-theme="scifi"] {
+      --c-surface: #09101a;
+      --c-surface-sunken: #070d15;
+      --c-surface-raised: #0f2231;
+      --c-surface-muted: #101b26;
+      --c-border: #14313f;
+      --c-border-strong: #1e4a5e;
+      --c-text: #c6eeff;
+      --c-text-muted: #6c8fa3;
+      --c-text-subtle: #546f80;
+    }
+
+    .container {
+      background: var(--card-bg);
+      border-radius: 4px;
+      padding: 1.5rem;
+      max-width: 600px;
+      margin: 2rem auto;
+    }
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border-color);
+      gap: 12px;
+    }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-label { font-weight: 500; flex-shrink: 0; }
+    .setting-hint {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+      font-weight: 400;
+    }
+    .setting-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .btn { padding: 0.4rem 1rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--card-bg); cursor: pointer; font-size: 0.9rem; }
+    .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .toggle-switch { position: relative; display: inline-block; width: 50px; height: 24px; flex-shrink: 0; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--c-border); transition: .3s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .3s; border-radius: 50%; }
+    input:checked + .slider { background-color: var(--accent); }
+    input:checked + .slider:before { transform: translateX(26px); }
+    .message { margin-top: 1rem; font-size: 0.9rem; }
+    .back-link { display: inline-block; margin-top: 1.5rem; color: var(--accent); text-decoration: none; }
+    .back-link:hover { text-decoration: underline; }
+
+    /* ⭐ 新增：图片类型下拉框 */
+    .neko-select {
+      padding: 0.4rem 0.6rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      cursor: pointer;
+      min-width: 120px;
+      font-family: inherit;
+    }
+    .neko-select:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+    .neko-custom-input {
+      padding: 0.4rem 0.6rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--card-bg);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      width: 120px;
+      font-family: inherit;
+      display: none;
+    }
+    .neko-custom-input.visible { display: block; }
+  </style>
+  <!-- ⭐ PWA（必須靜態寫入 <head>，不能靠 JS 動態注入） -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WYK Maths">
+  <meta name="mobile-web-app-capable" content="yes">
+
+<script src="/assets/js/core/ui.js?v=e079367a"></script>
+<script src="/assets/js/core/net.js?v=e079367a"></script>
+<script src="/assets/js/core/api.js?v=e079367a"></script>
+<script src="/assets/js/core/page.js?v=e079367a"></script>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="container">
+        <h2>Extra Settings</h2>
+
+        <!-- ⭐ 原有开关 -->
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Show image on accepted submissions</div>
+            <div class="setting-hint">Display a random image/GIF when you solve a problem</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="showNekosToggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <!-- ⭐ 新增：图片类型选择 -->
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Image category</div>
+            <div class="setting-hint">Which type of image/GIF to show</div>
+          </div>
+          <div class="setting-control">
+            <select class="neko-select" id="nekoCategorySelect">
+              <option value="neko">Neko (Catgirl)</option>
+              <option value="hug">Hug</option>
+              <option value="pat">Pat</option>
+              <option value="kiss">Kiss</option>
+              <option value="wink">Wink</option>
+              <option value="wave">Wave</option>
+              <option value="highfive">Highfive</option>
+              <option value="poke">Poke</option>
+              <option value="dance">Dance</option>
+              <option value="smile">Smile</option>
+              <option value="happy">Happy</option>
+              <option value="cuddle">Cuddle</option>
+              <option value="baka">Baka</option>
+              <option value="blush">Blush</option>
+              <option value="cry">Cry</option>
+              <option value="laugh">Laugh</option>
+              <option value="sleep">Sleep</option>
+              <option value="smug">Smug</option>
+              <option value="think">Think</option>
+              <option value="thumbsup">Thumbs Up</option>
+              <option value="tickle">Tickle</option>
+              <option value="wave">Wave</option>
+              <option value="yawn">Yawn</option>
+              <option value="__custom__">Custom…</option>
+            </select>
+            <input type="text" class="neko-custom-input" id="nekoCustomInput"
+                   placeholder="e.g. kick" maxlength="30" />
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="saveBtn">Save</button>
+        <span id="saveMessage" class="message"></span>
+        <div>
+          <a href="/settings" class="back-link">← Back to Settings</a>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/assets/js/auth.js?v=e079367a"></script>
+  <script src="/assets/js/app.js?v=e079367a"></script>
+  <script src="/assets/js/topbar.js?v=e079367a"></script>
+  <script src="/assets/js/sidebar.js?v=e079367a"></script>
+  <script src="/assets/js/heartbeat.js?v=e079367a"></script>
+  <script src="/assets/js/pk-invite.js?v=e079367a"></script>
+
+  <script src="/assets/js/pages/eeeee.js?v=e079367a"></script>
+<script src="/assets/js/pk-notify.js?v=e079367a"></script>
+</body>
+</html>

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta name="robots" content="noindex, nofollow" />
+<script>window.__BUILD_V='e079367a';</script>
+
+<script src="/assets/js/arch-render.js?v=e079367a"></script>
+  
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow, noarchive"> 
+  <title>New Update - WYK Maths Team</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+
+<link rel="stylesheet" href="/assets/css/styles.css?v=e079367a" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+  <style>
+    /* ── 中性色变量（由 tools/extract-colors.mjs 生成）──────────────
+       原先写死在内联样式里的浅色背景 / 深色文字 / 浅灰边框，抽取成
+       变量后暗色与科幻主题只需覆盖取值，不必逐条重写规则。
+       语义色（成功绿、错误红、警告橙）与代码高亮色刻意保留，
+       它们在深色背景下依然成立。 */
+    :root {
+      --c-surface: #ffffff;
+      --c-surface-sunken: #f8f9fa;
+      --c-surface-raised: #f0f0f0;
+      --c-surface-muted: #e9ecef;
+      --c-border: #dddddd;
+      --c-border-strong: #bbbbbb;
+      --c-text: #333333;
+      --c-text-muted: #666666;
+      --c-text-subtle: #999999;
+    }
+    :root[data-theme="dark"] {
+      --c-surface: #161b22;
+      --c-surface-sunken: #0d1117;
+      --c-surface-raised: #21262d;
+      --c-surface-muted: #21262d;
+      --c-border: #30363d;
+      --c-border-strong: #484f58;
+      --c-text: #c9d1d9;
+      --c-text-muted: #8b949e;
+      --c-text-subtle: #6e7681;
+    }
+    :root[data-theme="scifi"] {
+      --c-surface: #09101a;
+      --c-surface-sunken: #070d15;
+      --c-surface-raised: #0f2231;
+      --c-surface-muted: #101b26;
+      --c-border: #14313f;
+      --c-border-strong: #1e4a5e;
+      --c-text: #c6eeff;
+      --c-text-muted: #6c8fa3;
+      --c-text-subtle: #546f80;
+    }
+
+    .admin-container { background: var(--card-bg); border-radius: 4px; padding: 1.5rem; max-width: 800px; margin: 0 auto; }
+    .form-group { margin-bottom: 1.2rem; }
+    .form-group label { display: block; font-weight: 600; margin-bottom: 0.3rem; }
+    .form-group input[type="text"],
+    .form-group select { width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; }
+    .code-editor-wrapper {
+      position: relative; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden;
+      background: #1e1e1e; font-family: 'Fira Code', 'Consolas', monospace;
+    }
+    .code-editor-toolbar { display: flex; gap: 0.3rem; padding: 0.4rem 0.6rem; background: #2d2d2d; border-bottom: 1px solid #3e3e3e; flex-wrap: wrap; }
+    .code-editor-toolbar button {
+      background: #3e3e3e; border: 1px solid #555; color: var(--c-border); font-family: inherit; font-size: 0.8rem;
+      padding: 0.2rem 0.5rem; border-radius: 3px; cursor: pointer; white-space: nowrap;
+    }
+    .code-editor-toolbar button:hover { background: #505050; color: #fff; }
+    .editor-area { position: relative; min-height: 200px; }
+    .editor-area pre {
+      margin: 0; padding: 1rem 1rem 1rem 4rem; background: transparent; color: #d4d4d4;
+      font-family: inherit; font-size: 0.9rem; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word;
+      overflow: auto; pointer-events: none; min-height: 200px; border: none; outline: none;
+    }
+    .editor-area textarea {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%; padding: 1rem 1rem 1rem 4rem;
+      background: transparent; color: transparent; caret-color: #fff; border: none; outline: none;
+      font-family: inherit; font-size: 0.9rem; line-height: 1.6; resize: vertical; tab-size: 2;
+      white-space: pre-wrap; word-wrap: break-word; overflow: auto;
+    }
+    .editor-area textarea::selection { background: rgba(100, 150, 255, 0.4); }
+    .line-numbers {
+      position: absolute; left: 0; top: 0; bottom: 0; width: 3rem; background: #2d2d2d; color: #858585;
+      font-family: inherit; font-size: 0.9rem; line-height: 1.6; padding: 1rem 0.5rem; text-align: right;
+      user-select: none; pointer-events: none; overflow: hidden; white-space: pre; z-index: 2;
+    }
+    .hl-tag { color: #569cd6; } .hl-attr { color: #9cdcfe; } .hl-value { color: #ce9178; }
+    .hl-latex { color: #d7ba7d; } .hl-brace { color: #ffd700; } .hl-text { color: #d4d4d4; }
+    .btn { padding: 0.5rem 1.5rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; margin-right: 0.5rem; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: var(--c-text-muted); color: #fff; }
+    .message { margin-top: 1rem; font-size: 0.9rem; }
+  </style>
+<script src="/assets/js/core/ui.js?v=e079367a"></script>
+<script src="/assets/js/core/net.js?v=e079367a"></script>
+<script src="/assets/js/core/api.js?v=e079367a"></script>
+<script src="/assets/js/core/page.js?v=e079367a"></script>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="admin-container">
+        <h2>Create New Update</h2>
+        <form id="newUpdateForm">
+          <div class="form-group">
+            <label>Badge Style:
+              <select id="newBadge" required>
+                <option value="info">Info</option>
+                <option value="new">New</option>
+                <option value="warning">Warning</option>
+              </select>
+            </label>
+          </div>
+          <div class="form-group">
+            <label>Badge Text: <input type="text" id="newBadgeText" required /></label>
+          </div>
+          <div class="form-group">
+            <label>Title (optional): <input type="text" id="newTitle" /></label>
+          </div>
+          <div class="form-group">
+            <label>Content (HTML / LaTeX):</label>
+            <div class="code-editor-wrapper" id="newContentWrapper">
+              <div class="code-editor-toolbar" id="newContentToolbar">
+                <button type="button" data-insert="$...$">$...$</button>
+                <button type="button" data-insert="$$...$$">$$...$$</button>
+                <button type="button" data-insert="\\begin{}...\\end{}">\\begin{}...\\end{}</button>
+                <button type="button" data-insert="\\frac{}{}">\\frac{}{}</button>
+                <button type="button" data-insert="\\sqrt{}">\\sqrt{}</button>
+                <button type="button" data-insert="\\sum_{}^{}">\\sum_{}^{}</button>
+                <button type="button" data-insert="\\int_{}^{}">\\int_{}^{}</button>
+                <button type="button" data-insert="\\text{}">\\text{}</button>
+                <button type="button" data-insert="<...>">&lt;...&gt;</button>
+                <button type="button" data-insert="<... />">&lt;... /&gt;</button>
+              </div>
+              <div class="editor-area">
+                <div class="line-numbers" id="newContentLineNumbers"></div>
+                <pre id="newContentHighlight"></pre>
+                <textarea id="newContent" rows="6" required></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="newLocked"> Locked (only root can delete/edit)
+            </label>
+          </div>
+          <div style="margin-top:1.5rem;">
+            <button type="submit" class="btn btn-primary">Create Update</button>
+            <a href="/admin/updates" class="btn btn-secondary">Back to List</a>
+          </div>
+        </form>
+        <div id="message" class="message"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/assets/js/auth.js?v=e079367a"></script>
+  <script src="/assets/js/app.js?v=e079367a"></script>
+  <script src="/assets/js/topbar.js?v=e079367a"></script>
+  
+<script src="/assets/js/sidebar.js?v=e079367a"></script>
+<script src="/assets/js/heartbeat.js?v=e079367a"></script>
+<script src="/assets/js/pk-invite.js?v=e079367a"></script>
+
+  <script src="/assets/js/pages/admin-newupdate.js?v=e079367a"></script>
+<script src="/assets/js/pk-notify.js?v=e079367a"></script>
+</body>
+</html>

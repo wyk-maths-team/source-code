@@ -1,0 +1,804 @@
+// topbar.js
+(function() {
+  console.log('topbar.js executing...');
+
+  function getCurrentUserName() {
+    try {
+      if (typeof getCurrentUser === 'function') {
+        const user = getCurrentUser();
+        return user?.displayName || user?.username || 'guest';
+      }
+    } catch(e) { console.error('getCurrentUser error:', e); }
+    return 'guest';
+  }
+
+  const container = document.getElementById('topbarContainer');
+  if (!container) {
+    console.error('topbarContainer not found!');
+    return;
+  }
+
+  const username = getCurrentUserName();
+  const loggedIn = (typeof isLoggedIn === 'function') && isLoggedIn();
+
+  let realUsername = 'guest';
+  if (typeof getCurrentUser === 'function') {
+    const user = getCurrentUser();
+    realUsername = user?.username || 'guest';
+  }
+
+  // 判断移动端
+  const isMobile = window.innerWidth <= 768;
+
+  // 移动端截断用户名
+  let displayUsername = username;
+  if (isMobile && username.length > 7) {
+    displayUsername = username.substring(0, 4) + '...';
+  }
+  
+  
+
+  // ---------- 头像缓存 ----------
+  let avatarCache = null;
+  function getCachedAvatar() {
+    if (avatarCache !== null) return avatarCache;
+    const cached = sessionStorage.getItem('userAvatar_' + realUsername);
+    if (cached) {
+      try {
+        const data = JSON.parse(cached);
+        if (Date.now() - data.timestamp < 3600 * 1000) {
+          avatarCache = data.url;
+          return avatarCache;
+        }
+      } catch(e) {}
+    }
+    return null;
+  }
+  function setCachedAvatar(url) {
+    avatarCache = url;
+    try {
+      sessionStorage.setItem('userAvatar_' + realUsername, JSON.stringify({ url, timestamp: Date.now() }));
+    } catch(e) {}
+  }
+
+  // ---------- 加载头像 ----------
+  async function loadUserAvatar() {
+    const avatarImg = document.getElementById('userAvatar');
+    if (!avatarImg) return;
+
+    const cached = getCachedAvatar();
+    if (cached) {
+      avatarImg.src = cached;
+      avatarImg.style.display = 'inline-block';
+      return;
+    }
+
+    if (!loggedIn || !realUsername) return;
+
+    try {
+      const data = await apiCall(`/api/users?action=pfp&username=${encodeURIComponent(realUsername)}`);
+      if (data.success && data.pfp) {
+        avatarImg.src = data.pfp;
+        avatarImg.style.display = 'inline-block';
+        setCachedAvatar(data.pfp);
+      } else {
+        avatarImg.style.display = 'none';
+      }
+    } catch (err) {
+      console.warn('Failed to load avatar:', err);
+      avatarImg.style.display = 'none';
+    }
+  }
+
+  // ⭐ 格式化数字（100K, 23M）
+  function formatTokens(n) {
+    if (n === undefined || n === null) return '0';
+    const num = Number(n);
+    if (isNaN(num)) return '0';
+    const absNum = Math.abs(num);
+    const sign = num < 0 ? '-' : '';
+    
+    if (absNum >= 1_000_000) {
+      return sign + (absNum / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+    }
+    if (absNum >= 10_000) {
+      return sign + (absNum / 1_000).toFixed(0) + 'K';
+    }
+    if (absNum >= 1_000) {
+      return sign + (absNum / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
+    }
+    return sign + absNum;
+  }
+
+  // Token 图标。
+  // 默认用 FontAwesome 的闪电 / 金币；只有用户在 Settings 里主动打开
+  // 「Genshin icons」才换成 ml.png / ys.png。
+  // 默认不用图片，是因为那两张图带有特定作品的指向，不希望默认强加给所有人。
+  function tokenIcon(which, size) {
+    let genshin = false;
+    try { genshin = localStorage.getItem('genshinIcons') === 'true'; } catch (e) { genshin = false; }
+
+    if (genshin) {
+      const src = which === 'daily' ? '/assets/img/ml.png' : '/assets/img/ys.png';
+      return `<img src="${src}" alt="" style="width:${size}px;height:${size}px;object-fit:contain;">`;
+    }
+
+    const cls = which === 'daily' ? 'fa-bolt' : 'fa-coins';
+    return `<i class="fas ${cls}" style="color:#f1c40f;"></i>`;
+  }
+
+  // ⭐ 暴露全局更新方法，供其他地方直接调用
+  window.updateTopbarTokens = function(daily, global) {
+    if (!loggedIn) return;
+    const displayEl = document.getElementById('tokenDisplay');
+    const dailyExactEl = document.getElementById('tokenDailyExact');
+    const globalExactEl = document.getElementById('tokenGlobalExact');
+    
+    if (displayEl) {
+      const dailyCls = daily < 3000 ? '#d93025' : '#fff';
+      const globalCls = global < 0 ? '#d93025' : '#00ff00';
+      
+      const oldHtml = displayEl.innerHTML;
+      
+      // 更新外层简略版
+      displayEl.innerHTML = `
+        <span style="color:${dailyCls}; font-weight:bold; display: inline-flex; align-items: center; gap: 4px;" title="Daily Tokens: ${daily.toLocaleString()}">
+          ${tokenIcon('daily', 16)} ${formatTokens(daily)}
+        </span>
+        <span style="margin:0 4px; opacity:0.4;">|</span>
+        <span style="color:${globalCls}; font-weight:bold; display: inline-flex; align-items: center; gap: 4px;" title="Global Tokens: ${global.toLocaleString()}">
+          ${tokenIcon('global', 16)} ${formatTokens(global)}
+        </span>
+      `;
+      
+      // 更新下拉菜单里的精确数字（带千分位）
+      if (dailyExactEl) {
+        dailyExactEl.textContent = daily.toLocaleString();
+        dailyExactEl.style.color = daily < 3000 ? '#d93025' : '#fff';
+      }
+      if (globalExactEl) {
+        globalExactEl.textContent = global.toLocaleString();
+        globalExactEl.style.color = global < 0 ? '#d93025' : '#00ff00';
+      }
+      
+      if (oldHtml !== '' && oldHtml !== displayEl.innerHTML) {
+        displayEl.classList.remove('topbar-token-pop');
+        void displayEl.offsetWidth; 
+        displayEl.classList.add('topbar-token-pop');
+      }
+    }
+  };
+
+  // 原有的拉取方法保留，页面加载时调用
+  async function loadTokens() {
+    if (!loggedIn) return;
+    try {
+      const res = await apiCall('/api/token');
+      if (res.success) {
+        window.updateTopbarTokens(res.daily, res.global);
+      }
+    } catch(e) {}
+  }
+
+  // ---------- 下拉切换（User） ----------
+  function toggleDropdown(e) {
+    if (e) e.stopPropagation();
+    if (!loggedIn) {
+      const currentPath = window.location.pathname + window.location.search;
+      window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
+      return;
+    }
+    const dropdown = document.getElementById('userDropdown');
+    if (!dropdown) return;
+    const isVisible = dropdown.style.display === 'block';
+    dropdown.style.display = isVisible ? 'none' : 'block';
+  }
+
+  function closeDropdown(e) {
+    const dropdown = document.getElementById('userDropdown');
+    const menu = document.getElementById('userMenu');
+    if (!dropdown || !menu) return;
+    if (menu.contains(e.target)) return;
+    dropdown.style.display = 'none';
+  }
+
+  // ---------- 登出 ----------
+  function performLogout() {
+    if (typeof logout === 'function') logout();
+    localStorage.removeItem('sidebarOpen');
+    window.location.href = '/index.html';
+  }
+
+  // ---------- 移动端侧边栏切换 ----------
+  function toggleSidebarMobile(e) {
+    e.stopPropagation();
+    if (typeof window.toggleSidebar === 'function') {
+      window.toggleSidebar();
+    } else {
+      const sidebar = document.getElementById('sidebarContainer');
+      if (!sidebar) return;
+      sidebar.classList.toggle('open');
+      const isOpen = sidebar.classList.contains('open');
+      if (isOpen) {
+        sidebar.style.transform = 'translateY(0)';
+        document.body.classList.remove('sidebar-closed');
+        if (window.innerWidth <= 768) localStorage.setItem('sidebarOpen', 'true');
+      } else {
+        sidebar.style.transform = 'translateY(-100%)';
+        document.body.classList.add('sidebar-closed');
+        if (window.innerWidth <= 768) localStorage.setItem('sidebarOpen', 'false');
+      }
+    }
+  }
+
+  // ---------- 桌面端侧边栏隐藏/显示 ----------
+  const SIDEBAR_HIDDEN_KEY = 'sidebarHiddenDesktop';
+
+  function applyDesktopSidebarState(hidden) {
+    if (hidden) {
+      document.body.classList.add('sidebar-hidden-desktop');
+    } else {
+      document.body.classList.remove('sidebar-hidden-desktop');
+    }
+    // 更新按钮图标
+    const iconEl = document.querySelector('#fullscreenToggleBtn i');
+    if (iconEl) {
+      iconEl.className = hidden
+        ? 'fa-solid fa-angles-right'
+        : 'fa-solid fa-angles-left';
+    }
+  }
+
+  function toggleDesktopSidebar(e) {
+    if (e) e.stopPropagation();
+    if (window.innerWidth <= 768) return; // 移动端不处理
+    const isHidden = document.body.classList.contains('sidebar-hidden-desktop');
+    const newHidden = !isHidden;
+    applyDesktopSidebarState(newHidden);
+    try { localStorage.setItem(SIDEBAR_HIDDEN_KEY, newHidden ? '1' : '0'); } catch (e) {}
+  }
+
+  // ---------- 构建 Topbar HTML ----------
+  let topbarHTML = `
+    <div class="topbar-left">
+      <span class="brand-name">
+        <a href="/" style="display:flex; align-items:center; gap:8px; text-decoration:none; color:#ffffff; font-weight:800; letter-spacing:1px;">
+          <img src="/favicon.svg" alt="Home" style="display:block; width:28px; height:28px; border-radius:50%; flex-shrink:0;" id="brandIcon">
+          ${isMobile?'':`<span class="brand-text">WYK Maths Team</span>`}
+        </a>
+      </span>
+    </div>
+    <div class="topbar-right">
+  `;
+  
+  if (loggedIn) {
+    topbarHTML += `
+      <div class="token-menu" id="tokenMenu">
+        <div id="tokenDisplay" class="token-display-box" title="Click for details"></div>
+        <div id="tokenDropdown" class="token-dropdown">
+          <div class="token-detail-row">
+            <span>${tokenIcon('daily', 20)} Daily free:</span>
+            <strong id="tokenDailyExact">0</strong>
+          </div>
+          <div class="token-detail-row">
+            <span style="display: flex; align-items: center; gap: 6px;">
+              ${tokenIcon('global', 20)}
+              Global:
+            </span>
+            <strong id="tokenGlobalExact">0</strong>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  if (loggedIn) {
+    topbarHTML += `
+      <div class="user-menu" id="userMenu">
+        <div class="user-box" id="userBox">
+          <div class="user-box-left">
+            <img id="userAvatar" src="" alt="avatar" class="user-box-avatar">
+            <span id="currentUsername" class="user-box-name">${escapeHtml(displayUsername)}</span>
+          </div>
+          <div class="user-box-right" id="userBoxArrow">
+            <i class="fa fa-caret-down"></i>
+          </div>
+        </div>
+        <div id="userDropdown" class="user-dropdown">
+          <a href="/users/${encodeURIComponent(realUsername)}" class="dropdown-item">
+            <i class="fa fa-user fa-fw"></i> Profile
+          </a>
+          <a href="/settings" class="dropdown-item">
+            <i class="fa fa-pencil fa-fw"></i> Settings
+          </a>
+          <button class="logout-btn" id="logoutBtnHeader">
+            <i class="fa fa-sign-out fa-fw"></i> Logout
+          </button>
+        </div>
+      </div>
+    `;
+  } else {
+    topbarHTML += `
+      <div class="user-menu" id="userMenu">
+        <a href="/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}" class="login-btn-header">
+          <i class="fa fa-sign-in-alt fa-fw"></i> Login
+        </a>
+      </div>
+    `;
+  }
+  
+  // 移動端漢堡按鈕
+  if (isMobile) {
+    topbarHTML += `
+      <button class="topbar-sidebar-toggle" id="mobileSidebarToggle" title="Menu">
+        ☰
+      </button>
+    `;
+  }
+  
+  // ⭐ WYK OS 啟動按鈕
+  if (!isMobile) {
+    topbarHTML += `
+      <button class="os-launch-btn" id="osLaunchBtn" title="Enter WYK OS">
+        <i class="fas fa-desktop"></i>
+      </button>
+    `;
+  }
+
+  // 桌面端全屏側邊欄切換按鈕
+  topbarHTML += `
+      <button class="topbar-fullscreen-toggle" id="fullscreenToggleBtn" title="Toggle sidebar">
+        <i class="fa-solid fa-angles-left"></i>
+      </button>
+      <div class="clock">
+        <span class="clock-time" id="clockTime">00:00:00</span>
+      </div>
+    </div>
+  `;
+
+  // ⭐ 核心：先渲染 HTML
+  container.innerHTML = topbarHTML;
+
+  // ==========================================
+  // ⭐ 核心：渲染完之后再绑定事件
+  // ==========================================
+
+  // 1. 绑定 Token 下拉事件
+  const tokenDisplayBtn = document.getElementById('tokenDisplay');
+  const tokenDropdownMenu = document.getElementById('tokenDropdown');
+  const tokenMenuContainer = document.getElementById('tokenMenu');
+
+  if (tokenDisplayBtn && tokenDropdownMenu) {
+    tokenDisplayBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isVisible = tokenDropdownMenu.style.display === 'block';
+      tokenDropdownMenu.style.display = isVisible ? 'none' : 'block';
+    });
+
+    // 点击其他区域关闭
+    document.addEventListener('click', (e) => {
+      if (tokenMenuContainer && !tokenMenuContainer.contains(e.target)) {
+        tokenDropdownMenu.style.display = 'none';
+      }
+    });
+  }
+
+  // 2. 绑定其他事件
+  const mobileToggle = document.getElementById('mobileSidebarToggle');
+  if (mobileToggle) {
+    mobileToggle.addEventListener('click', toggleSidebarMobile);
+  }
+
+  const fullscreenBtn = document.getElementById('fullscreenToggleBtn');
+  if (fullscreenBtn) {
+    fullscreenBtn.addEventListener('click', toggleDesktopSidebar);
+  }
+
+  const osLaunchBtn = document.getElementById('osLaunchBtn');
+  if (osLaunchBtn) {
+    osLaunchBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      window.location.href = '/os';
+    });
+  }
+
+  const userBox = document.getElementById('userBox');
+  if (userBox) {
+    userBox.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleDropdown(e);
+    });
+  }
+
+  const logoutBtn = document.getElementById('logoutBtnHeader');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      performLogout();
+    });
+  }
+
+  // 暴露全局
+  window.toggleDropdown = toggleDropdown;
+  window.performLogout = performLogout;
+
+  // 点击页面其他区域关闭 User 下拉
+  document.addEventListener('click', closeDropdown);
+
+  // 加载头像和 Token
+  if (loggedIn && realUsername) {
+    setTimeout(loadUserAvatar, 100);
+  }
+  if(loggedIn){
+    setTimeout(loadTokens, 200);
+  }
+
+  // 恢复桌面端侧边栏状态
+  try {
+    if (window.innerWidth > 768 && localStorage.getItem(SIDEBAR_HIDDEN_KEY) === '1') {
+      applyDesktopSidebarState(true);
+    }
+  } catch (e) { /* ignore */ }
+
+  // 时钟
+  function updateClock() {
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const timeStr = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    const el = document.getElementById('clockTime');
+    if (el) el.textContent = timeStr;
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+  }
+
+  // ---------- 样式 ----------
+  const style = document.createElement('style');
+  style.textContent = `
+    /* ===== 基础布局：topbar 高度满格 ===== */
+    .topbar { overflow-y: visible !important; z-index: 9998 !important; padding: 0 0 0 24px !important; }
+    .topbar-right {
+      display: flex;
+      align-items: stretch;
+      gap: 12px;
+      height: 100%;
+      padding-right: 24px;
+    }
+    .topbar-right > .clock,
+    .topbar-right > .topbar-fullscreen-toggle,
+    .topbar-right > .login-btn-header {
+      align-self: center;
+    }
+
+    /* ===== 用户框：两个长方形 ===== */
+    .user-menu {
+      position: relative;
+      z-index: 9999 !important;
+      align-self: stretch;
+      display: flex;
+      align-items: stretch;
+      height: 100%;
+    }
+    .user-box {
+      display: flex;
+      align-items: stretch;
+      height: 100%;
+      cursor: pointer;
+      background: rgba(255,255,255,0.06);
+      overflow: hidden;
+      user-select: none;
+      transition: background 0.15s ease;
+    }
+    .user-box:hover { background: rgba(255,255,255,0.1); }
+    .user-box-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 14px;
+      transition: background 0.15s ease;
+      min-width: 0;
+    }
+    .user-box-left:hover { background: rgba(255,255,255,0.08); }
+    .user-box-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      object-fit: cover;
+      display: none;
+      flex-shrink: 0;
+    }
+    .user-box-name {
+      font-weight: 500;
+      font-size: 0.9rem;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 180px;
+    }
+    .user-box-right {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      background: rgba(255,255,255,0.08);
+      border-left: 1px solid rgba(255,255,255,0.12);
+      transition: background 0.15s ease;
+      color: #ffffff;
+      font-size: 0.8rem;
+    }
+    .user-box-right:hover { background: rgba(255,255,255,0.18); }
+    .user-box.open .user-box-right i,
+    .user-menu.open .user-box-right i { transform: rotate(180deg); }
+    .user-box-right i { transition: transform 0.2s ease; }
+
+    /* ===== 下拉菜单 ===== */
+    .user-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      /* 走主题变量：这段样式在运行时注入，优先级高于 styles.css 的同名规则，
+         写死 #fff 会让暗色与科幻主题下的下拉变成刺眼的纯白 */
+      background: var(--card-bg, #fff);
+      border-radius: var(--radius-sm, 6px);
+      box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,0.15));
+      min-width: 160px;
+      overflow: hidden;
+      z-index: 99999;
+    }
+    .user-dropdown .dropdown-item,
+    .user-dropdown .logout-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 11px 18px;
+      background: var(--card-bg, #fff);
+      color: var(--text-primary, #212529);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.15s;
+    }
+    .user-dropdown .dropdown-item:hover { background: #f0f2f5; }
+    .user-dropdown .logout-btn { color: var(--danger, #dc3545); }
+    .user-dropdown .logout-btn:hover { background: #fef2f2; }
+
+    /* ===== 全屏按钮 ===== */
+    .topbar-fullscreen-toggle {
+      background: rgba(255,255,255,0.08);
+      border: none;
+      color: var(--topbar-text, #e0e0e0);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+      transition: background 0.2s;
+    }
+    .topbar-fullscreen-toggle:hover {
+      background: rgba(255,255,255,0.18);
+      color: #fff;
+    }
+
+    /* ===== 登录按钮 ===== */
+    .login-btn-header {
+      display: inline-block;
+      padding: 6px 16px;
+      background: var(--accent, #4a90d9);
+      color: #fff;
+      border-radius: 20px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+    }
+    .login-btn-header:hover { background: var(--accent-hover, #3a7bc8) !important; }
+
+    /* ===== 深色模式 ===== */
+    [data-theme="dark"] .user-dropdown { background: #1e1e1e; border: 1px solid #444; }
+    [data-theme="dark"] .user-dropdown .dropdown-item,
+    [data-theme="dark"] .user-dropdown .logout-btn { background: #1e1e1e; color: #e0e0e0; }
+    [data-theme="dark"] .user-dropdown .dropdown-item:hover,
+    [data-theme="dark"] .user-dropdown .logout-btn:hover { background: #2a2a2a; }
+    [data-theme="scifi"] .user-dropdown .dropdown-item:hover,
+    [data-theme="scifi"] .user-dropdown .logout-btn:hover { background: #0f2231; }
+    [data-theme="scifi"] .user-dropdown .logout-btn:hover { background: #2a1118; }
+    [data-theme="dark"] .user-dropdown .logout-btn { color: #f85149; }
+    [data-theme="dark"] .user-dropdown .logout-btn:hover { background: #3a1a1a; }
+        /* ⭐ WYK OS 按鈕 */
+    .os-launch-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border: 1px solid rgba(100, 150, 220, 0.4);
+      border-radius: 20px;
+      background: linear-gradient(135deg, rgba(74, 144, 217, 0.25) 0%, rgba(46, 95, 160, 0.2) 100%);
+      color: #d6e4ff;
+      font-size: 0.82rem;
+      font-weight: 700;
+      font-family: inherit;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+    .os-launch-btn:hover {
+      background: linear-gradient(135deg, rgba(74, 144, 217, 0.5) 0%, rgba(46, 95, 160, 0.4) 100%);
+      border-color: var(--accent, #4a90d9);
+      color: #fff;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(74,144,217,.35), inset 0 1px 0 rgba(255,255,255,0.15);
+    }
+    .os-launch-btn:active { transform: translateY(0); }
+    .os-launch-btn i { font-size: 0.9rem; }
+
+    @media (max-width: 768px) {
+      .os-launch-btn { display: none !important; }
+    }
+    /* ===== 桌面端侧边栏隐藏状态 ===== */
+    @media (min-width: 769px) {
+      .sidebar {
+        transition: transform 0.3s ease !important;
+      }
+      body.sidebar-hidden-desktop .sidebar {
+        transform: translateX(-100%) !important;
+      }
+      body.sidebar-hidden-desktop {
+        padding-left: 0 !important;
+      }
+    }
+        /* ===== Token 跳动特效 ===== */
+    @keyframes tokenPop {
+      0% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 1; text-shadow: 0 0 10px rgba(255,255,255,0.6); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .topbar-token-pop {
+      animation: tokenPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+          /* ===== Token 下拉菜单 ===== */
+    .token-menu {
+      position: relative;
+      display: flex;
+      align-items: center;
+      margin-right: 15px;
+    }
+    .token-display-box {
+      display: flex;
+      align-items: center;
+      font-family: monospace;
+      font-size: 14px;
+      background: rgba(255,255,255,0.08);
+      padding: 4px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+      user-select: none;
+    }
+    .token-display-box:hover { background: rgba(255,255,255,0.15); }
+    .token-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      background: #1e1e1e;
+      border: 1px solid #444;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      min-width: 180px;
+      z-index: 99999;
+      padding: 6px 0;
+    }
+    .token-detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 16px;
+      font-size: 13px;
+      color: #ccc;
+    }
+    .token-detail-row strong {
+      font-family: monospace;
+      font-size: 14px;
+      color: #fff;
+    }
+    /* ===== 移动端 ===== */
+    @media (max-width: 768px) {
+      .topbar { padding: 0 12px !important; }
+      .topbar-right { padding-right: 0; gap: 8px; align-items: center; }
+      .clock { display: none !important; }
+      .topbar-fullscreen-toggle { display: none !important; }
+      .brand-name a { font-size: 14px !important; }
+      .brand-text { font-size: 14px !important; }
+      .user-box-avatar { width: 22px !important; height: 22px !important; }
+      .user-box-name { font-size: 0.8rem; max-width: 90px; }
+      .user-box-left { padding: 0 10px; }
+      .user-box-right { width: 32px; font-size: 0.7rem; }
+      .login-btn-header { font-size: 0.8rem; padding: 4px 12px; }
+      .user-dropdown { right: 0; left: auto; min-width: 130px; }
+    }
+  `;
+  document.head.appendChild(style);
+
+  if (!document.querySelector('link[href*="font-awesome"]')) {
+    const faLink = document.createElement('link');
+    faLink.rel = 'stylesheet';
+    faLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css';
+    document.head.appendChild(faLink);
+  }
+})();
+
+// ============ 顶部进度条 ============
+(function () {
+  const bar = document.createElement('div');
+  bar.id = 'top-progress';
+  bar.style.cssText = `
+    position: fixed; top: 0; left: 0; height: 3px; width: 0;
+    background: linear-gradient(90deg, #4a90d9, #58a6ff);
+    z-index: 99999; transition: width 0.2s ease, opacity 0.3s ease;
+    box-shadow: 0 0 8px rgba(88,166,255,0.8); opacity: 0;
+    pointer-events: none;
+  `;
+  document.documentElement.appendChild(bar);
+
+  let timer = null;
+  let width = 0;
+
+  window.__startProgress = () => {
+    clearInterval(timer);
+    width = 0;
+    bar.style.opacity = '1';
+    bar.style.width = '0%';
+    timer = setInterval(() => {
+      const inc = (90 - width) * 0.1;
+      width = Math.min(90, width + inc);
+      bar.style.width = width + '%';
+    }, 200);
+  };
+
+  window.__doneProgress = () => {
+    clearInterval(timer);
+    bar.style.width = '100%';
+    setTimeout(() => {
+      bar.style.opacity = '0';
+      setTimeout(() => { bar.style.width = '0%'; }, 300);
+    }, 200);
+  };
+
+  const origFetch = window.fetch;
+  window.fetch = function (...args) {
+    const url = typeof args[0] === 'string' ? args[0] : args[0]?.url;
+    const isPageNav = url && url.startsWith(location.origin) && !url.includes('/api/');
+    if (isPageNav) {
+      window.__startProgress();
+      return origFetch.apply(this, args).finally(() => window.__doneProgress());
+    }
+    return origFetch.apply(this, args);
+  };
+
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('a');
+    if (!a) return;
+    const href = a.getAttribute('href');
+    if (!href || a.target === '_blank' || a.hasAttribute('download')) return;
+    try {
+      const url = new URL(href, location.href);
+      if (url.origin === location.origin && url.pathname !== location.pathname) {
+        window.__startProgress();
+      }
+    } catch {}
+  });
+})();

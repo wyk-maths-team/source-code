@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta name="robots" content="noindex, nofollow" />
+<script>window.__BUILD_V='e079367a';</script>
+
+<script src="/assets/js/arch-render.js?v=e079367a"></script>
+<!-- <script>
+(function(){
+  try {
+    if (window.top !== window.self) return;
+    // if (sessionStorage.getItem('desktopPreferred')) return;   // 用戶手動選桌面版
+    var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (!isMobile) return;
+    if (location.pathname.indexOf('/mobile') === 0) return;
+    // if (location.pathname.indexOf('/os') === 0) return;
+    if (location.pathname.indexOf('/admin') === 0) return;
+    location.replace('/mobile/' + location.search + location.hash);
+  } catch(e){}
+})();
+</script> -->
+
+  
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Template</title><link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.amcharts.com">
+
+<link rel="stylesheet" href="/assets/css/styles.css?v=e079367a" />
+  <style>
+    .dsp{
+      background:var(--card-bg);
+
+    }
+    .button-submit{
+      background:#2ed736;
+      border-radius: 1rem;
+      
+    }
+  </style>
+  <!-- ⭐ PWA（必須靜態寫入 <head>
+
+<script src="/assets/js/arch-render.js?v=e079367a"></script>，不能靠 JS 動態注入） -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WYK Maths">
+  <meta name="mobile-web-app-capable" content="yes">
+
+<script src="/assets/js/core/ui.js?v=e079367a"></script>
+<script src="/assets/js/core/net.js?v=e079367a"></script>
+<script src="/assets/js/core/api.js?v=e079367a"></script>
+<script src="/assets/js/core/page.js?v=e079367a"></script>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="dsp">
+        <h2>Test title</h2>
+        <button class="button-submit">Submit</button>
+      </div>
+    </main>
+    <!-- <button class="sidebar-toggle" id="sidebarToggle">☰</button> -->
+  </div>
+  <script src="/assets/js/auth.js?v=e079367a"></script><script src="/assets/js/app.js?v=e079367a"></script><script src="/assets/js/topbar.js?v=e079367a"></script><script src="/assets/js/topbar.js?v=e079367a"></script>
+<script src="/assets/js/sidebar.js?v=e079367a"></script>
+<script src="/assets/js/heartbeat.js?v=e079367a"></script>
+<script src="/assets/js/pk-invite.js?v=e079367a"></script>
+  <script>
+  </script>
+<script src="/assets/js/pk-notify.js?v=e079367a"></script>
+</body>
+</html>

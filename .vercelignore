@@ -1,0 +1,15 @@
+node_modules
+.git
+*.log
+*.txt
+
+path_header_log.txt
+ess.txt
+node_modules/
+.env
+.env.local
+.git
+grader
+dse-data/
+tools/
+minecraft

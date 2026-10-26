@@ -1,0 +1,549 @@
+
+:root{
+  --window-header:linear-gradient(180deg,#2d3561 0%,#1a1a2e 100%);
+  --window-header-text:#e0e6f0;
+  --taskbar-bg:rgba(15,15,30,.92);
+  --accent:#4a90d9;--accent-hover:#3a7bc8;
+}
+html, body {
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: auto;
+  touch-action: manipulation;
+}
+#os-root {
+  touch-action: pan-x pan-y;          /* ✅ 禁止 pinch-zoom，保留滾動 */
+  overscroll-behavior: none;
+}
+
+/* 鎖屏同樣禁止 */
+#os-lock {
+  touch-action: none;                 /* 鎖屏不可滾動也不可縮放 */
+}
+/* 全屏時更嚴格 */
+:fullscreen #os-root,
+:-webkit-full-screen #os-root {
+  touch-action: none;
+}
+/* 允許視窗內容（iframe）自己滾動 */
+.os-win-body,
+.os-win-body iframe {
+  touch-action: pan-y pan-x;
+  overscroll-behavior: contain;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI','Inter',system-ui,sans-serif;user-select:none;background:#050510;color:#c9d5e8}
+#os-root{
+  position:fixed;inset:0;
+  display:flex;flex-direction:column;
+  background:radial-gradient(ellipse at top,#1a1a2e 0%,#0a0a15 70%),linear-gradient(180deg,#141425 0%,#050510 100%);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-sizing: border-box;
+}
+#os-root::before{content:"";position:absolute;inset:0;background-image:radial-gradient(1px 1px at 10% 20%,#fff,transparent),radial-gradient(1px 1px at 25% 40%,#aac4ff,transparent),radial-gradient(1px 1px at 40% 15%,#fff,transparent),radial-gradient(1px 1px at 55% 60%,#aac4ff,transparent),radial-gradient(1px 1px at 70% 25%,#fff,transparent),radial-gradient(1px 1px at 85% 55%,#aac4ff,transparent),radial-gradient(2px 2px at 15% 80%,#fff,transparent),radial-gradient(2px 2px at 45% 75%,#aac4ff,transparent),radial-gradient(2px 2px at 75% 85%,#fff,transparent),radial-gradient(2px 2px at 90% 10%,#aac4ff,transparent);background-size:600px 400px;animation:starDrift 90s linear infinite;pointer-events:none;opacity:.75}
+@keyframes starDrift{from{background-position:0 0}to{background-position:600px 400px}}
+
+/* ── 桌面 ── */
+#os-desktop{position:relative;flex:1;overflow:hidden;z-index:1;min-height:0}
+#os-wallpaper{
+  position:fixed;inset:0;               /* ⭐ absolute → fixed，延伸到狀態欄下 */
+  background-size:cover;background-position:center;background-repeat:no-repeat;
+  pointer-events:none;z-index:0;transition:opacity .3s;
+}
+#os-icons{position:absolute;inset:0;padding:16px;display:grid;grid-template-columns:repeat(auto-fill,96px);grid-auto-rows:96px;gap:8px;align-content:start;justify-content:start;z-index:1}
+#os-windows{position:absolute;inset:0;z-index:2;pointer-events:none}
+
+/* ── 圖標 ── */
+.os-icon{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;width:96px;height:96px;padding:8px 4px;border-radius:6px;cursor:pointer;user-select:none;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.85);transition:background .15s,border-color .15s;border:1px solid transparent}
+.os-icon:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2)}
+.os-icon.selected{background:rgba(74,144,217,.35);border-color:var(--accent)}
+.os-icon>i{font-size:38px;color:#fff;filter:drop-shadow(0 2px 4px rgba(0,0,0,.7));margin-bottom:6px;flex-shrink:0}
+.os-icon>span{font-size:11.5px;text-align:center;word-break:break-word;line-height:1.25;max-height:2.5em;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+
+/* ── 視窗 ── */
+.os-window{position:absolute;display:flex;flex-direction:column;min-width:280px;min-height:180px;background:#fff;border:1px solid rgba(100,150,220,.5);border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,.55),0 4px 12px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.1);overflow:hidden;z-index:10;transition:box-shadow .15s,opacity .2s,transform .2s;pointer-events:auto}
+.os-window.focused{border-color:var(--accent);box-shadow:0 24px 70px rgba(0,0,0,.65),0 4px 14px rgba(0,0,0,.45),0 0 0 1px rgba(74,144,217,.5),inset 0 1px 0 rgba(255,255,255,.15)}
+.os-window.minimized{transform:scale(.3) translateY(200px);opacity:0;pointer-events:none}
+.os-window.opening{animation:windowOpen .28s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes windowOpen{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+.os-window.closing{animation:windowClose .18s ease forwards}
+@keyframes windowClose{to{transform:scale(.9);opacity:0}}
+.os-win-header{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--window-header);color:var(--window-header-text);font-size:13px;font-weight:600;cursor:move;user-select:none;flex-shrink:0;border-bottom:1px solid rgba(0,0,0,.35)}
+.os-win-header .os-win-title{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:8px;pointer-events:none;min-width:0}
+.os-win-header .os-win-title i{color:#8bb4ff;font-size:14px;flex-shrink:0}
+.os-win-header .os-win-title span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* ⭐ 上一頁 / 下一頁 */
+.os-win-nav {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+.os-win-btn.nav-back:hover    { background: #3498db; color: #fff; }
+.os-win-btn.nav-forward:hover { background: #3498db; color: #fff; }
+.os-win-btn.nav-back:disabled,
+.os-win-btn.nav-forward:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  background: rgba(255,255,255,.04);
+}
+.os-win-btn.nav-back:disabled:hover,
+.os-win-btn.nav-forward:disabled:hover { background: rgba(255,255,255,.04); color: inherit; }
+.os-win-controls{display:flex;gap:4px;flex-shrink:0}
+.os-win-btn{width:26px;height:22px;border:none;background:rgba(255,255,255,.08);color:var(--window-header-text);border-radius:4px;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;padding:0}
+.os-win-btn:hover{background:rgba(255,255,255,.22)}
+.os-win-btn.close:hover{background:#e74c3c;color:#fff}
+.os-win-btn.refresh:hover{background:var(--accent);color:#fff}
+.os-win-btn.maximize:hover{background:#2ecc71;color:#fff}
+.os-win-btn.minimize:hover{background:#f39c12;color:#fff}
+.os-win-btn.copy:hover{background:#9b59b6;color:#fff}
+.os-win-btn.snapshot:hover{background:#e67e22;color:#fff}
+/* ⭐ 視窗縮放顯示 */
+.os-win-zoom-val {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  padding: 0 8px;
+  height: 22px;
+  font-size: 10.5px;
+  font-family: 'Consolas', monospace;
+  font-weight: 700;
+  color: #8bb4ff;
+  background: rgba(255,255,255,.04);
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  transition: background .15s, color .15s;
+  flex-shrink: 0;
+}
+.os-win-zoom-val:hover {
+  background: rgba(74,144,217,.25);
+  color: #fff;
+}
+.os-win-btn.zoom-in:hover  { background: #27ae60; color: #fff; }
+.os-win-btn.zoom-out:hover { background: #c0392b; color: #fff; }
+.os-win-body{flex:1;position:relative;background:#fff;overflow:hidden;min-height:0}
+.os-win-body iframe{width:100%;height:100%;border:none;display:block;background:#fff}
+.os-resize{position:absolute;z-index:5}
+.os-resize.n{top:-3px;left:10px;right:10px;height:6px;cursor:ns-resize}
+.os-resize.s{bottom:-3px;left:10px;right:10px;height:6px;cursor:ns-resize}
+.os-resize.w{left:-3px;top:10px;bottom:10px;width:6px;cursor:ew-resize}
+.os-resize.e{right:-3px;top:10px;bottom:10px;width:6px;cursor:ew-resize}
+.os-resize.nw{top:-3px;left:-3px;width:14px;height:14px;cursor:nwse-resize}
+.os-resize.ne{top:-3px;right:-3px;width:14px;height:14px;cursor:nesw-resize}
+.os-resize.sw{bottom:-3px;left:-3px;width:14px;height:14px;cursor:nesw-resize}
+.os-resize.se{bottom:-3px;right:-3px;width:14px;height:14px;cursor:nwse-resize}
+.os-resize.se::after{content:"";position:absolute;right:2px;bottom:2px;width:8px;height:8px;background:linear-gradient(135deg,transparent 50%,rgba(100,150,220,.6) 50%);border-radius:0 0 6px 0}
+
+/* ── 任務欄 ── */
+#os-taskbar{height:48px;flex-shrink:0;background:var(--taskbar-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid rgba(100,150,220,.3);display:flex;align-items:center;padding:0 12px;gap:8px;z-index:1000}
+#os-taskbar-start{display:flex;align-items:center;gap:6px;padding:6px 14px;background:linear-gradient(135deg,var(--accent) 0%,#2e5fa0 100%);color:#fff;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 2px 8px rgba(74,144,217,.4);transition:filter .15s;flex-shrink:0}
+#os-taskbar-start:hover{filter:brightness(1.15)}
+#os-taskbar-start i{font-size:16px}
+#os-taskbar-tasks{flex:1;display:flex;gap:4px;overflow-x:auto;padding:0 4px;min-width:0}
+#os-taskbar-tasks::-webkit-scrollbar{height:4px}
+#os-taskbar-tasks::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:2px}
+.os-task-item{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:6px;background:rgba(255,255,255,.06);color:#c9d5e8;font-size:12px;cursor:pointer;border:1px solid transparent;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .15s,border-color .15s;flex-shrink:0}
+.os-task-item:hover{background:rgba(255,255,255,.12)}
+.os-task-item.active{background:rgba(74,144,217,.25);border-color:var(--accent);color:#fff}
+.os-task-item i{font-size:12px;color:#8bb4ff;flex-shrink:0}
+.os-task-item.minimized{opacity:.55;font-style:italic}
+#os-taskbar-tray{display:flex;align-items:center;gap:8px;padding-left:8px;border-left:1px solid rgba(100,150,220,.3);flex-shrink:0}
+.os-tray-btn{width:32px;height:32px;border:none;background:rgba(255,255,255,.06);color:#c9d5e8;border-radius:6px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.os-tray-btn:hover{background:rgba(255,255,255,.15)}
+.os-tray-btn.active{background:rgba(74,144,217,.35);color:#fff}
+#os-user-chip{display:flex;align-items:center;gap:6px;padding:4px 10px;background:rgba(74,144,217,.18);border:1px solid rgba(100,150,220,.4);border-radius:14px;font-size:12px;font-weight:600;color:#d6e4ff;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#os-user-chip i{font-size:11px;color:#8bb4ff}
+#os-clock{color:#c9d5e8;font-size:12px;font-family:'Consolas','Monaco',monospace;font-weight:600;padding:0 4px;min-width:72px;text-align:right}
+
+/* ── Modal ── */
+.os-modal{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:5000;padding:24px}
+.os-modal.show{display:flex}
+.os-modal-card{background:#141a2c;border:1px solid rgba(100,150,220,.5);border-radius:12px;max-width:640px;width:100%;max-height:86vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.8)}
+.os-modal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(100,150,220,.25);background:linear-gradient(180deg,rgba(74,144,217,.15) 0%,transparent 100%)}
+.os-modal-header h3{font-size:15px;font-weight:700;color:#d6e4ff;display:flex;align-items:center;gap:8px}
+.os-modal-header h3 i{color:#8bb4ff}
+.os-modal-close{background:none;border:none;color:#8bb4ff;font-size:18px;cursor:pointer;padding:2px 8px;border-radius:4px}
+.os-modal-close:hover{background:rgba(231,76,60,.4);color:#fff}
+.os-modal-body{padding:18px;overflow-y:auto;flex:1}
+
+/* ── 設置面板 ── */
+.os-setting-row{display:flex;flex-direction:column;gap:8px;padding:14px 0;border-bottom:1px solid rgba(100,150,220,.18)}
+.os-setting-row:last-child{border-bottom:none}
+.os-setting-row>label{font-size:13px;font-weight:700;color:#d6e4ff;display:flex;align-items:center;gap:6px}
+.os-setting-row>label i{color:#8bb4ff}
+.os-setting-actions{display:flex;gap:8px;flex-wrap:wrap}
+.os-btn{padding:7px 14px;border:1px solid rgba(100,150,220,.4);border-radius:6px;background:rgba(74,144,217,.2);color:#d6e4ff;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s;font-family:inherit}
+.os-btn:hover{background:rgba(74,144,217,.4)}
+.os-btn:disabled{opacity:.5;cursor:not-allowed}
+.os-btn-danger{background:rgba(231,76,60,.2);border-color:rgba(231,76,60,.5);color:#ffb3b3}
+.os-btn-danger:hover{background:rgba(231,76,60,.4);color:#fff}
+.os-hint{font-size:11px;color:#7a8aa8;margin-top:2px}
+#os-wallpaper-preview{max-width:100%;max-height:180px;border-radius:8px;border:1px solid rgba(100,150,220,.3);margin-top:8px;display:none}
+#os-wallpaper-preview.show{display:block}
+.os-input{width:100%;padding:8px 10px;border:1px solid rgba(100,150,220,.4);border-radius:6px;background:rgba(0,0,0,.25);color:#d6e4ff;font-size:13px;font-family:inherit;outline:none}
+.os-input:focus{border-color:var(--accent)}
+.os-label{font-size:12px;color:#8bb4ff;font-weight:600;margin-bottom:4px;display:block}
+.os-radio-row{display:flex;gap:12px;margin-bottom:10px}
+.os-radio-row label{display:flex;align-items:center;gap:6px;font-size:13px;color:#d6e4ff;cursor:pointer;font-weight:600}
+.os-radio-row input[type="radio"]{accent-color:var(--accent)}
+.os-icon-picker-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;max-height:180px;overflow-y:auto;padding:8px;background:rgba(0,0,0,.2);border-radius:6px;margin-top:6px}
+.os-icon-picker-item{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:5px;cursor:pointer;color:#d6e4ff;font-size:16px;background:rgba(74,144,217,.12);transition:background .15s}
+.os-icon-picker-item:hover{background:rgba(74,144,217,.4)}
+.os-icon-picker-item.selected{background:var(--accent);color:#fff}
+
+/* ── Task View（縮圖版）── */
+.os-taskview-card{max-width:1200px;max-height:88vh}
+.os-taskview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;padding:20px;overflow-y:auto}
+.os-tv-item{background:rgba(20,30,55,.7);border:1px solid rgba(100,150,220,.3);border-radius:10px;cursor:pointer;transition:all .15s;overflow:hidden;display:flex;flex-direction:column}
+.os-tv-item:hover{border-color:var(--accent);transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.6)}
+.os-tv-item.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(74,144,217,.5),0 12px 32px rgba(0,0,0,.6)}
+.os-tv-name{display:flex;align-items:center;gap:8px;padding:10px 12px;font-size:13px;font-weight:700;color:#d6e4ff;background:rgba(74,144,217,.18);border-bottom:1px solid rgba(100,150,220,.25);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.os-tv-name span{overflow:hidden;text-overflow:ellipsis}
+.os-tv-name i{color:#8bb4ff;flex-shrink:0;font-size:14px}
+.os-tv-thumb{aspect-ratio:16 / 10;background:#f0f2f5;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.os-tv-thumb img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
+.os-tv-thumb .spinner{color:#4a90d9;font-size:24px}
+.os-tv-thumb-fallback{color:#8bb4ff;font-size:56px;opacity:.4}
+.os-taskview-empty{text-align:center;padding:60px 20px;color:#6a7890;font-size:14px;grid-column:1/-1}
+.os-taskview-empty i{font-size:48px;opacity:.4;display:block;margin-bottom:12px}
+
+/* ── Start ── */
+#os-start-menu{position:absolute;bottom:56px;left:12px;background:rgba(15,20,40,.97);backdrop-filter:blur(20px);border:1px solid rgba(100,150,220,.4);border-radius:10px;padding:14px;display:none;z-index:2000;min-width:360px;max-height:78vh;overflow-y:auto;box-shadow:0 12px 48px rgba(0,0,0,.75)}
+#os-start-menu.show{display:block}
+.os-start-user{display:flex;align-items:center;gap:12px;padding:12px;background:rgba(74,144,217,.15);border-radius:8px;margin-bottom:14px;border:1px solid rgba(100,150,220,.3)}
+.os-start-user i{font-size:36px;color:#8bb4ff;flex-shrink:0}
+.os-start-user-info{min-width:0;flex:1}
+.os-start-user-name{font-weight:700;color:#fff;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.os-start-user-sub{font-size:11px;color:#8bb4ff;font-family:'Consolas',monospace;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.os-start-section{margin-bottom:14px}
+.os-start-section:last-child{margin-bottom:0}
+.os-start-section h4{color:#8bb4ff;font-size:11px;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px;padding-left:6px;font-weight:700}
+.os-start-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:3px}
+.os-start-item{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:6px;color:#c9d5e8;cursor:pointer;font-size:12.5px;transition:background .15s}
+.os-start-item:hover{background:rgba(74,144,217,.28);color:#fff}
+.os-start-item i{color:#8bb4ff;font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.os-start-item.danger i{color:#ff8b8b}
+.os-start-item.danger:hover{background:rgba(231,76,60,.28)}
+
+/* ── 右鍵選單 ── */
+#os-context-menu{position:fixed;min-width:200px;background:rgba(20,26,44,.98);border:1px solid rgba(100,150,220,.5);border-radius:8px;padding:6px;z-index:9000;box-shadow:0 12px 40px rgba(0,0,0,.75);display:none;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+#os-context-menu.show{display:block}
+.os-ctx-item{display:flex;align-items:center;gap:10px;padding:8px 12px;color:#d6e4ff;border-radius:5px;font-size:12.5px;cursor:pointer;transition:background .12s}
+.os-ctx-item:hover{background:rgba(74,144,217,.32);color:#fff}
+.os-ctx-item i{color:#8bb4ff;width:16px;text-align:center;flex-shrink:0}
+.os-ctx-item.danger i{color:#ff8b8b}
+.os-ctx-item.danger:hover{background:rgba(231,76,60,.3)}
+.os-ctx-sep{height:1px;margin:4px 8px;background:rgba(100,150,220,.25)}
+.os-ctx-header{padding:6px 12px 4px;font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:#7a8aa8;font-weight:700}
+
+/* ── 瀏覽器 UI ── */
+.os-browser{display:flex;flex-direction:column;height:100%;background:#fff}
+.os-browser-toolbar{display:flex;align-items:center;gap:4px;padding:6px 8px;background:#f0f2f5;border-bottom:1px solid #d0d7e0;flex-shrink:0}
+.os-browser-btn{width:30px;height:30px;border:none;background:transparent;color:#333;border-radius:4px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.os-browser-btn:hover{background:rgba(0,0,0,.08)}
+.os-browser-btn.primary{background:#4a90d9;color:#fff}
+.os-browser-btn.primary:hover{background:#3a7bc8}
+.os-browser-url{flex:1;padding:6px 10px;border:1px solid #d0d7e0;border-radius:15px;font-size:13px;background:#fff;color:#333;outline:none;font-family:inherit;min-width:0}
+.os-browser-url:focus{border-color:#4a90d9}
+.os-browser-frame{flex:1;border:none;width:100%;background:#fff;min-height:0}
+
+/* ── 手機 ── */
+@media (max-width:768px){
+  .os-start-grid{grid-template-columns:1fr}
+  #os-start-menu{min-width:calc(100vw - 24px);max-width:calc(100vw - 24px)}
+  #os-clock{min-width:60px;font-size:11px}
+  #os-taskbar-start span{display:none}
+  #os-user-chip span{display:none}
+  #os-user-chip{padding:4px 6px}
+  .os-win-btn{width:24px;height:20px}
+  .os-win-header{padding:6px 8px;font-size:12px}
+  .os-taskview-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;padding:12px}
+  #os-icons{grid-template-columns:repeat(auto-fill,80px);grid-auto-rows:80px;padding:10px}
+  .os-icon{width:80px;height:80px}
+  .os-icon>i{font-size:32px}
+  .os-icon>span{font-size:10.5px}
+}
+.os-icon.lp-pressing {
+  transform: scale(0.92);
+  transition: transform 0.55s ease-out;
+  background: rgba(74,144,217,.2);
+  border-color: rgba(74,144,217,.5);
+}
+/* ── 詳情規則開關 ── */
+.os-rules-list{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+.os-rule-toggle{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:6px;color:#d6e4ff;font-size:12.5px;cursor:pointer;transition:background .15s;user-select:none}
+.os-rule-toggle:hover{background:rgba(74,144,217,.18)}
+.os-rule-toggle>i{color:#8bb4ff;width:16px;text-align:center;flex-shrink:0;font-size:13px}
+.os-rule-toggle .os-rule-info{flex:1;min-width:0}
+.os-rule-toggle .os-rule-name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.os-rule-toggle .os-rule-desc{font-size:11px;color:#7a8aa8;font-family:'Consolas',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
+.os-rule-toggle input[type="checkbox"]{margin-left:auto;accent-color:var(--accent);width:16px;height:16px;cursor:pointer;flex-shrink:0}
+.os-rule-toggle.off{opacity:.55}
+/* ══════════ OS 鎖屏 / 登入 ══════════ */
+.os-lock {
+  position: fixed; inset: 0;
+  z-index: 999999;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at top, #1a1a2e 0%, #0a0a15 70%),
+              linear-gradient(180deg, #141425 0%, #050510 100%);
+  color: #c9d5e8;
+  font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+  transition: opacity .4s ease;
+  user-select: none;
+  overflow: hidden;
+}
+.os-lock::before {
+  content: ""; position: absolute; inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 10% 20%, #fff, transparent),
+    radial-gradient(1px 1px at 25% 40%, #aac4ff, transparent),
+    radial-gradient(1px 1px at 40% 15%, #fff, transparent),
+    radial-gradient(1px 1px at 55% 60%, #aac4ff, transparent),
+    radial-gradient(1px 1px at 70% 25%, #fff, transparent),
+    radial-gradient(1px 1px at 85% 55%, #aac4ff, transparent),
+    radial-gradient(2px 2px at 15% 80%, #fff, transparent),
+    radial-gradient(2px 2px at 45% 75%, #aac4ff, transparent),
+    radial-gradient(2px 2px at 75% 85%, #fff, transparent),
+    radial-gradient(2px 2px at 90% 10%, #aac4ff, transparent);
+  background-size: 600px 400px;
+  animation: starDrift 90s linear infinite;
+  pointer-events: none; opacity: .75;
+}
+
+.os-lock-clock-screen {
+  position: relative; z-index: 1;
+  text-align: center;
+  cursor: pointer;
+  animation: osFadeIn .5s ease;
+}
+.os-lock-time {
+  font-size: 7rem; font-weight: 200;
+  letter-spacing: -2px; line-height: 1;
+  color: #fff;
+  text-shadow: 0 2px 20px rgba(100, 150, 220, .5);
+}
+/* ⭐ 秒針小字 */
+.os-lock-sec {
+  font-size: 0.28em;
+  font-weight: 300;
+  color: #8bb4ff;
+  margin-left: 4px;
+  vertical-align: top;
+  opacity: 0.8;
+  letter-spacing: 0;
+  position: relative;
+  top: 0.2em;
+}
+.os-lock-date {
+  font-size: 1.4rem; font-weight: 400;
+  margin-top: 10px; color: #a8b8d8;
+  letter-spacing: .5px;
+}
+.os-lock-hint {
+  margin-top: 60px;
+  font-size: .95rem; color: #7a8aa8;
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 10px 24px; border-radius: 24px;
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid rgba(100, 150, 220, .15);
+  animation: osHintPulse 2.4s ease-in-out infinite;
+}
+.os-lock-hint i { font-size: 1.1rem; color: #8bb4ff; }
+/* ⭐ 無縫解鎖：View Transitions API */
+.os-lock {
+  view-transition-name: os-lock-screen;
+}
+
+/* 鎖屏退場：放大 + 模糊 + 淡出 */
+::view-transition-old(os-lock-screen) {
+  animation: os-lock-fade-out 0.55s cubic-bezier(.4, 0, .2, 1) forwards;
+}
+::view-transition-new(os-lock-screen) {
+  animation: none;
+}
+
+/* 根層（桌面）進場：柔和淡入 */
+::view-transition-old(root) {
+  animation: none;
+}
+::view-transition-new(root) {
+  animation: os-root-fade-in 0.45s ease-out 0.08s both;
+}
+
+@keyframes os-lock-fade-out {
+  0%   { opacity: 1; transform: scale(1);    filter: blur(0);    }
+  100% { opacity: 0; transform: scale(1.08); filter: blur(10px); }
+}
+@keyframes os-root-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* 登入卡片 */
+.os-login-screen {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 400px; padding: 24px;
+  animation: osFadeIn .5s ease;
+}
+.os-login-card {
+  background: rgba(20, 26, 44, .85);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(100, 150, 220, .35);
+  border-radius: 14px;
+  padding: 36px 32px 28px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .08);
+}
+.os-login-avatar {
+  width: 78px; height: 78px; margin: 0 auto 16px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(74, 144, 217, .3) 0%, rgba(46, 95, 160, .4) 100%);
+  border: 2px solid rgba(100, 150, 220, .5);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.6rem; color: #8bb4ff;
+  box-shadow: 0 8px 24px rgba(74, 144, 217, .2);
+}
+.os-login-title {
+  text-align: center; font-size: 1.5rem; font-weight: 700;
+  margin: 0 0 4px; color: #fff; letter-spacing: 1px;
+}
+.os-login-sub {
+  text-align: center; font-size: .9rem;
+  color: #8b9bc0; margin: 0 0 24px;
+}
+.os-login-field { position: relative; margin-bottom: 12px; }
+.os-login-field > i {
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  color: #6a7a9a; font-size: .95rem; pointer-events: none;
+  transition: color .2s;
+}
+.os-login-field input {
+  width: 100%;
+  padding: 13px 42px 13px 42px;
+  background: rgba(0, 0, 0, .3);
+  border: 1px solid rgba(100, 150, 220, .3);
+  border-radius: 8px;
+  color: #e0e8f5; font-size: .95rem; font-family: inherit;
+  outline: none; transition: all .2s;
+}
+.os-login-field input::placeholder { color: #5a6a8a; }
+.os-login-field input:focus {
+  border-color: var(--accent);
+  background: rgba(0, 0, 0, .4);
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, .15);
+}
+.os-login-eye {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: none; border: none;
+  color: #6a7a9a; font-size: .9rem; cursor: pointer;
+  padding: 6px 10px; border-radius: 6px;
+  transition: background .15s, color .15s;
+}
+.os-login-eye:hover { background: rgba(255, 255, 255, .08); color: #8bb4ff; }
+
+.os-login-error {
+  font-size: .85rem; color: #ff8b8b;
+  min-height: 18px; margin: 6px 0 4px;
+  text-align: center;
+}
+
+.os-login-submit {
+  width: 100%;
+  padding: 13px;
+  background: linear-gradient(135deg, var(--accent) 0%, #2e5fa0 100%);
+  color: #fff; border: none; border-radius: 8px;
+  font-size: .95rem; font-weight: 700; font-family: inherit;
+  letter-spacing: .5px; cursor: pointer;
+  transition: all .2s;
+  box-shadow: 0 4px 12px rgba(74, 144, 217, .3);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.os-login-submit:hover {
+  filter: brightness(1.12); transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(74, 144, 217, .4);
+}
+.os-login-submit:active { transform: translateY(0); }
+.os-login-submit:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+
+.os-login-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 18px 0;
+  color: #5a6a8a; font-size: .72rem; letter-spacing: 1.5px;
+}
+.os-login-divider::before,
+.os-login-divider::after {
+  content: ""; flex: 1; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(100, 150, 220, .3), transparent);
+}
+.os-login-divider span { padding: 0 4px; }
+
+.os-login-ms {
+  width: 100%;
+  padding: 12px;
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid rgba(100, 150, 220, .3);
+  border-radius: 8px;
+  color: #d6e4ff; font-size: .9rem; font-weight: 600;
+  font-family: inherit; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  transition: all .2s;
+}
+.os-login-ms:hover { background: rgba(255, 255, 255, .12); border-color: var(--accent); }
+.os-login-ms i { font-size: 1.1rem; }
+
+.os-login-footer {
+  text-align: center; margin-top: 18px;
+  font-size: .78rem; color: #6a7a9a;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.os-login-footer i { color: #5a6a8a; }
+
+@media (max-width: 520px) {
+  .os-lock-time { font-size: 5rem; }
+  .os-lock-date { font-size: 1.1rem; }
+  .os-lock-hint { margin-top: 40px; font-size: .85rem; padding: 8px 18px; }
+  .os-login-card { padding: 28px 22px 22px; }
+  .os-login-avatar { width: 64px; height: 64px; font-size: 2rem; margin-bottom: 12px; }
+  .os-login-title { font-size: 1.25rem; }
+}
+/* ⭐ Settings 內的 toggle 樣式 */
+.os-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 13px;
+  color: #d6e4ff;
+}
+.os-toggle-row input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+/* ══════════ 禁止選中文字（OS 整體）══════════ */
+#os-root,
+#os-root * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;   /* iOS 長按不彈出"拷貝/查詢"菜單 */
+  -webkit-tap-highlight-color: transparent;  /* 點擊不顯示高亮 */
+}
+
+/* ══════════ 例外：允許輸入框選中 ══════════ */
+#os-root input,
+#os-root textarea,
+#os-root [contenteditable="true"],
+#os-root .os-selectable,
+#os-root .os-win-body iframe {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}

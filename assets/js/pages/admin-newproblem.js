@@ -1,0 +1,479 @@
+    const user = getCurrentUser();
+    if (!isLoggedIn() || (user?.role !== 'admin' && user?.role !== 'root')) {
+      window.location.href = '/index.html';
+    }
+
+    const mainContainer = document.getElementById('mainContent');
+
+    function escapeHtml(s) { return ((window.DSHUI && window.DSHUI.esc) || function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]; }); })(s); }
+
+    function highlightHTML(code) {
+      let escaped = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const latexBlocks = [];
+      escaped = escaped.replace(/(\$+)([\s\S]*?)\1/g, (match) => {
+        latexBlocks.push(match);
+        return `%%LATEX${latexBlocks.length-1}%%`;
+      });
+      escaped = escaped.replace(/(&lt;\/?)([\w-]+)([\s\S]*?)(\/?&gt;)/g, (match, open, tagName, attrs, close) => {
+        let result = `<span class="hl-tag">${open}</span><span class="hl-tag">${tagName}</span>`;
+        if (attrs) {
+          attrs = attrs.replace(/([\w-]+)(=)(\"[^\"]*\"|'[^']*'|\S+)?/g, (m, attr, eq, val) => {
+            let html = `<span class="hl-attr">${attr}</span>`;
+            if (eq) html += eq;
+            if (val) html += `<span class="hl-value">${val}</span>`;
+            return html;
+          });
+        }
+        result += attrs + `<span class="hl-tag">${close}</span>`;
+        return result;
+      });
+      escaped = escaped.replace(/([{}])/g, '<span class="hl-brace">$1</span>');
+      escaped = escaped.replace(/%%LATEX(\d+)%%/g, (m, idx) => {
+        const latex = latexBlocks[parseInt(idx)];
+        return `<span class="hl-latex">${latex}</span>`;
+      });
+      return escaped;
+    }
+
+    function updateHighlight(textarea, pre) { pre.innerHTML = highlightHTML(textarea.value) + '\n'; }
+    function updateLineNumbers(textarea, lineNumbersDiv) {
+      const lines = textarea.value.split('\n').length;
+      let nums = ''; for (let i = 1; i <= lines; i++) nums += i + '\n';
+      lineNumbersDiv.textContent = nums;
+    }
+    function insertTextAtCursor(textarea, text) { textarea.focus(); document.execCommand('insertText', false, text); }
+
+    const pairs = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'" };
+    const selfClosing = new Set(['br','hr','img','input','meta','link','area','base','col','embed','source','track','wbr']);
+
+    function initCodeEditor(textarea, lineNumbersDiv, highlightPre, toolbar) {
+      if (!textarea) return;
+      updateLineNumbers(textarea, lineNumbersDiv); updateHighlight(textarea, highlightPre);
+      textarea.addEventListener('input', () => { updateLineNumbers(textarea, lineNumbersDiv); updateHighlight(textarea, highlightPre); });
+      textarea.addEventListener('scroll', () => { lineNumbersDiv.scrollTop = textarea.scrollTop; highlightPre.scrollTop = textarea.scrollTop; });
+      textarea.addEventListener('keydown', function(e) {
+        const key = e.key, start = this.selectionStart, end = this.selectionEnd;
+        if (Object.prototype.hasOwnProperty.call(pairs, key)) {
+          e.preventDefault();
+          if (start !== end) {
+            const selected = this.value.substring(start, end);
+            insertTextAtCursor(this, key + selected + pairs[key]);
+            this.selectionStart = start + key.length;
+            this.selectionEnd = start + key.length + selected.length;
+          } else {
+            insertTextAtCursor(this, key + pairs[key]);
+            this.selectionStart = this.selectionEnd = start + 1;
+          }
+          return;
+        }
+        if (key === 'Backspace' && start === end && start > 0) {
+          const leftChar = this.value[start-1], rightChar = this.value[start];
+          if (pairs[leftChar] === rightChar) { e.preventDefault(); this.setSelectionRange(start-1, start+1); insertTextAtCursor(this, ''); }
+        }
+      });
+      if (toolbar) {
+        toolbar.addEventListener('click', function(e) {
+          const btn = e.target.closest('button');
+          if (!btn) return;
+          const template = btn.getAttribute('data-insert');
+          if (!template) return;
+          e.preventDefault();
+          let text = template;
+          let cursorOffset = text.indexOf('...');
+          if (cursorOffset === -1) cursorOffset = text.indexOf('{}');
+          if (cursorOffset === -1) cursorOffset = text.length;
+          text = text.replace('...', '').replace('{}', '');
+          insertTextAtCursor(textarea, text);
+          if (template.includes('{}')) {
+            const idx = text.indexOf('{}');
+            if (idx !== -1) textarea.selectionStart = textarea.selectionEnd = textarea.selectionEnd - (text.length - idx - 1);
+          } else if (template.includes('...')) {
+            textarea.selectionStart = textarea.selectionEnd = textarea.selectionEnd - (text.length - cursorOffset);
+          }
+        });
+      }
+    }
+
+    function renderForm() {
+      const html = `
+        <div class="admin-container">
+          <h2>Create New Problem</h2>
+          <form id="newForm">
+            <div class="form-group">
+              <label>ID (string, e.g. "A1", "P100"): <input type="text" id="newId" required /></label>
+              <small style="color:#666;">Must be unique. Only letters/numbers/underscores are recommended.</small>
+            </div>
+            <div class="form-group"><label>Name: <input type="text" id="newName" required /></label></div>
+            <div class="form-group">
+              <label>Statement (HTML / LaTeX):</label>
+              <div class="code-editor-wrapper">
+                <div class="code-editor-toolbar" id="newToolbar">
+                  <button type="button" data-insert="$...$">$...$</button>
+                  <button type="button" data-insert="$$...$$">$$...$$</button>
+                  <button type="button" data-insert="\\begin{}...\\end{}">\\begin{}...\\end{}</button>
+                  <button type="button" data-insert="\\frac{}{}">\\frac{}{}</button>
+                  <button type="button" data-insert="\\sqrt{}">\\sqrt{}</button>
+                  <button type="button" data-insert="\\sum_{}^{}">\\sum_{}^{}</button>
+                  <button type="button" data-insert="\\int_{}^{}">\\int_{}^{}</button>
+                  <button type="button" data-insert="\\text{}">\\text{}</button>
+                </div>
+                <div class="editor-area">
+                  <div class="line-numbers" id="lineNumbers"></div>
+                  <pre id="newHighlight"></pre>
+                  <textarea id="newStatement" rows="10" required></textarea>
+                </div>
+              </div>
+              <div class="img-up-panel" id="imgUpPanel" style="margin-top:1rem;">
+                <div class="img-up-bar">
+                  <input type="file" id="imgUpInput" accept="image/*" style="display:none">
+                  <button type="button" class="btn btn-primary" id="imgUpPickBtn">
+                    <i class="fas fa-upload"></i> Upload Image
+                  </button>
+                  <span class="img-up-hint" style="margin-left:0;">px(Empty=66.67%)</span>
+                </div>
+                <textarea class="img-up-paste-input" id="imgUpPasteInput" readonly
+                  placeholder="Click here and paste images"></textarea>
+                <div class="img-up-progress" id="imgUpProgress" style="display:none;">
+                  <span class="spinner"></span>
+                  <span id="imgUpProgressText">Uploading...</span>
+                </div>
+                <div class="img-up-result" id="imgUpResult" style="display:none;">
+                  <img id="imgUpPreview" class="img-up-preview" alt="preview">
+                  <div class="img-up-meta">
+                    <div class="img-up-field">
+                      <span class="lbl">URL</span>
+                      <input type="text" id="imgUpUrl" readonly>
+                      <button type="button" class="img-up-copy" id="imgUpCopyUrl"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                    <div class="img-up-field">
+                      <span class="lbl">HTML</span>
+                      <input type="text" id="imgUpHtml" readonly>
+                      <button type="button" class="img-up-copy" id="imgUpCopyHtml"><i class="fas fa-copy"></i> Copy</button>
+                    </div>
+                    <div class="img-up-field">
+                      <span class="lbl">Width</span>
+                      <input type="number" id="imgUpWidth" min="40" max="1600" step="10" placeholder="auto">
+                      <span class="img-up-hint" style="margin-left:0;">px（空白 = 自適應 100%）</span>
+                    </div>
+                    <div class="img-up-actions">
+                      <button type="button" class="btn btn-primary" id="imgUpInsertBtn">
+                        <i class="fas fa-arrow-down"></i> Insert into Statement
+                      </button>
+                      <button type="button" class="btn btn-secondary" id="imgUpClearBtn">
+                        <i class="fas fa-times"></i> Clear
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="form-group"><label>Answer: <input type="text" id="newAns" required /></label></div>
+            <div class="form-group">
+              <label>Logic (JavaScript function body, returns {score, comment}):</label>
+              <textarea id="newLogic" rows="4" style="width:100%; padding:0.5rem; border:1px solid var(--border-color); border-radius:4px; font-family:monospace;"></textarea>
+              <small style="color:#666;">Example: <code>(ans, uans) => { let score = (uans === ans) ? 100 : 0; return { score, comment: uans === ans ? 'Correct' : 'Wrong' }; }</code></small>
+            </div>
+            <div class="form-group"><label>Difficulty (0 = ∞): <input type="number" id="newDifficulty" step="0.01" value="0" /></label></div>
+            <div class="form-group"><label>Tags (comma-separated): <input type="text" id="newTags" /></label></div>
+            <div class="form-group"><label><input type="checkbox" id="newPublic" checked> Public (visible to students)</label></div>
+            <div class="form-group">
+              <label>
+                <input type="checkbox" id="newFS">
+                Force Steps mode (reject text submissions)
+              </label>
+              <small style="color:#666;display:block;margin-top:.3rem;">
+                For proof problems: Text submit banned.
+              </small>
+            </div>
+            <div style="margin-top:1.5rem;">
+              <button type="submit" class="btn btn-primary">Create Problem</button>
+              <a href="/admin/problems" class="btn btn-secondary">Back to List</a>
+            </div>
+          </form>
+          <div id="message" class="message"></div>
+        </div>
+      `;
+
+      mainContainer.innerHTML = html;
+
+      const textarea = document.getElementById('newStatement');
+      const lineNumbers = document.getElementById('lineNumbers');
+      const highlightPre = document.getElementById('newHighlight');
+      const toolbar = document.getElementById('newToolbar');
+      initCodeEditor(textarea, lineNumbers, highlightPre, toolbar);
+
+      // 圖片上傳
+      (function initImageUpload() {//IIFE
+        const panel       = document.getElementById('imgUpPanel');
+        const pickBtn     = document.getElementById('imgUpPickBtn');
+        const fileInput   = document.getElementById('imgUpInput');
+        const pasteInput  = document.getElementById('imgUpPasteInput');
+        const progress    = document.getElementById('imgUpProgress');
+        const progressTxt = document.getElementById('imgUpProgressText');
+        const resultEl    = document.getElementById('imgUpResult');
+        const previewEl   = document.getElementById('imgUpPreview');
+        const urlEl       = document.getElementById('imgUpUrl');
+        const htmlEl      = document.getElementById('imgUpHtml');
+        const copyUrlBtn  = document.getElementById('imgUpCopyUrl');
+        const copyHtmlBtn = document.getElementById('imgUpCopyHtml');
+        const widthEl     = document.getElementById('imgUpWidth');
+        const insertBtn   = document.getElementById('imgUpInsertBtn');
+        const clearBtn    = document.getElementById('imgUpClearBtn');
+        if (!panel) return;
+
+        let currentUrl = '';
+        let isUploading = false;
+
+        // ⭐ Statement 光標位置追蹤
+        const stmtTA = document.getElementById('newStatement');
+        let stmtPos = { start: null, end: null };
+        function recordStmtPos() {
+          if (!stmtTA) return;
+          stmtPos.start = stmtTA.selectionStart;
+          stmtPos.end   = stmtTA.selectionEnd;
+        }
+        if (stmtTA) {
+          ['keyup','click','select','input','blur','mouseup'].forEach(ev =>
+            stmtTA.addEventListener(ev, recordStmtPos));
+        }
+
+        // ⭐ width 留空 → 66.67%（auto 的 2/3）
+        function buildImgHtml(url) {
+          const w = (widthEl.value || '').trim();
+          const style = w
+            ? `max-width:${w}px;width:100%;height:auto;display:block;margin:.6rem auto;`
+            : `max-width:66.67%;width:100%;height:auto;display:block;margin:.6rem auto;`;
+          return `<img src="${url}" alt="problem image" loading="lazy" style="${style}" />`;
+        }
+        function refreshFields() {
+          if (!currentUrl) return;
+          urlEl.value = currentUrl;
+          htmlEl.value = buildImgHtml(currentUrl);
+        }
+
+        function readAndCompress(file, maxWidth = 1920, quality = 0.85) {
+          return new Promise((resolve, reject) => {
+            if (!file.type.startsWith('image/')) return reject(new Error('Not an image'));
+            if (file.size > 2 * 1024 * 1024) return reject(new Error('Image too large (max 2 MB)'));
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const img = new Image();
+              img.onload = () => {
+                let w = img.width, h = img.height;
+                if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+                const canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+              };
+              img.onerror = () => reject(new Error('Cannot decode image'));
+              img.src = e.target.result;
+            };
+            reader.onerror = () => reject(new Error('Cannot read file'));
+            reader.readAsDataURL(file);
+          });
+        }
+
+        // ⭐ 把圖片插到 Statement 的記錄光標處（無光標則 append 到末尾）
+        function insertImageIntoStatement(url) {
+          if (!stmtTA) return;
+          const html = buildImgHtml(url);
+          let start = stmtPos.start;
+          let end   = stmtPos.end;
+          if (start === null || start > stmtTA.value.length) {
+            start = stmtTA.value.length;
+            end   = start;
+          }
+          const before = stmtTA.value.substring(0, start);
+          const after  = stmtTA.value.substring(end);
+          const needsNL = before.length > 0 && !before.endsWith('\n');
+          const insertText = (needsNL ? '\n' : '') + html + '\n';
+          stmtTA.value = before + insertText + after;
+          stmtTA.dispatchEvent(new Event('input', { bubbles: true }));
+          const newPos = start + insertText.length;
+          stmtTA.setSelectionRange(newPos, newPos);
+          stmtPos.start = newPos;
+          stmtPos.end   = newPos;
+        }
+
+        // ⭐ 上传（autoInsert=true 时上传完自动插入）
+        async function uploadFile(file, { autoInsert = false } = {}) {
+          if (isUploading) return;
+          isUploading = true;
+          pickBtn.disabled = true;
+          resultEl.style.display = 'none';
+          progress.style.display = 'flex';
+          progressTxt.textContent = 'Compressing...';
+          try {
+            const base64 = await readAndCompress(file);
+
+            // ⭐ 從 ID 輸入框即時讀取（用戶可能還沒填 → 走 timestamped fallback）
+            const problemId = (document.getElementById('newId')?.value || '').trim();
+
+            // ⭐ 若 ID 為空，友善提示（不阻止，讓後端走時間戳命名）
+            if (!problemId && !window.__imgUpWarned) {
+              const msg = document.getElementById('message');
+              if (msg) {
+                msg.textContent = '⚠️ ID 為空，圖片將用時間戳命名。建議先填 ID 再上傳。';
+                msg.style.color = '#e67e22';
+              }
+              window.__imgUpWarned = true;
+            }
+
+            progressTxt.textContent = 'Uploading to GitHub...';
+            const res = await apiCall('/api/problem?action=adminUploadImage', 'POST', {
+              image: base64,
+              problemId: problemId || undefined,   // '' → 後端走 uploadTimestampedImage
+            });
+            if (!res.success) throw new Error(res.message || 'Upload failed');
+            currentUrl = res.url;
+            previewEl.src = currentUrl;
+            urlEl.value = currentUrl;
+            htmlEl.value = buildImgHtml(currentUrl);
+            resultEl.style.display = 'flex';
+            progress.style.display = 'none';
+            const msg = document.getElementById('message');
+            if (msg) {
+              msg.textContent = autoInsert
+                ? `✓ 圖片已上傳（${problemId ? problemId + '-N' : 'img-' + Date.now()}）並插入 Statement。`
+                : 'Image uploaded. Use "Insert into Statement" to place it.';
+              msg.style.color = '#2e7d32';
+            }
+            if (autoInsert) insertImageIntoStatement(currentUrl);
+          } catch (err) {
+            progress.style.display = 'none';
+            (window.DSHUI ? DSHUI.toast('Upload failed: ' + err.message, 'err') : alert('Upload failed: ' + err.message));
+          } finally {
+            isUploading = false;
+            pickBtn.disabled = false;
+          }
+        }
+        // ⭐ 從 clipboardData 提取圖片 file
+        function extractImageFile(cd) {
+          if (!cd || !cd.items) return null;
+          for (let i = 0; i < cd.items.length; i++) {
+            const it = cd.items[i];
+            if (it.kind === 'file' && it.type && it.type.startsWith('image/')) {
+              const f = it.getAsFile();
+              if (f) return f;
+            }
+          }
+          return null;
+        }
+
+        // ⭐ Ctrl+V 粘貼處理（textarea + 全局）
+        async function handlePaste(e) {
+          const file = extractImageFile(e.clipboardData);
+          if (!file) return;                     // 剪貼板無圖片 → 不攔截
+          e.preventDefault();
+          await uploadFile(file, { autoInsert: true });
+        }
+        if (pasteInput) pasteInput.addEventListener('paste', handlePaste);
+        document.addEventListener('paste', (e) => {
+          if (e.target === pasteInput) return;   // 已由上面處理
+          handlePaste(e);
+        });
+
+        pickBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', () => {
+          const file = fileInput.files && fileInput.files[0];
+          fileInput.value = '';
+          if (file) uploadFile(file, { autoInsert: true });
+        });
+        panel.addEventListener('dragover', (e) => { e.preventDefault(); panel.style.borderColor = 'var(--accent)'; });
+        panel.addEventListener('dragleave', () => { panel.style.borderColor = ''; });
+        panel.addEventListener('drop', (e) => {
+          e.preventDefault(); panel.style.borderColor = '';
+          const file = e.dataTransfer?.files?.[0];
+          if (file) uploadFile(file, { autoInsert: true });
+        });
+
+        async function copyText(text, btn) {
+          try {
+            if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text);
+            else {
+              const ta = document.createElement('textarea');
+              ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+              document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+            }
+            const old = btn.innerHTML;
+            btn.classList.add('done');
+            btn.innerHTML = '<i class="fas fa-check"></i> Copied';
+            setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = old; }, 1200);
+          } catch (err) { (window.DSHUI ? DSHUI.toast('Copy failed: ' + err.message, 'err') : alert('Copy failed: ' + err.message)); }
+        }
+        copyUrlBtn.addEventListener('click', () => { if (currentUrl) copyText(currentUrl, copyUrlBtn); });
+        copyHtmlBtn.addEventListener('click', () => { if (currentUrl) copyText(buildImgHtml(currentUrl), copyHtmlBtn); });
+        widthEl.addEventListener('input', refreshFields);
+
+        insertBtn.addEventListener('click', () => {
+          if (!currentUrl) return;
+          insertImageIntoStatement(currentUrl);
+        });
+        clearBtn.addEventListener('click', () => {
+          currentUrl = ''; previewEl.src = ''; urlEl.value = ''; htmlEl.value = '';
+          resultEl.style.display = 'none';
+        });
+      })();
+      // 提交
+      document.getElementById('newForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('newId').value.trim();
+        const name = document.getElementById('newName').value.trim();
+        const statement = document.getElementById('newStatement').value.trim();
+        const ans = document.getElementById('newAns').value.trim();
+        const difficulty = parseFloat(document.getElementById('newDifficulty').value) || 0;
+        const tags = document.getElementById('newTags').value.split(',').map(t => t.trim()).filter(t => t);
+        const isPublic = document.getElementById('newPublic').checked;
+        const logic = document.getElementById('newLogic').value.trim();
+        const FS = document.getElementById('newFS').checked;
+        if (!id || !name || !statement || !ans) {
+          const msgEl = document.getElementById('message');
+          msgEl.textContent = 'Please fill in all required fields.';
+          msgEl.style.color = 'var(--danger)';
+          return;
+        }
+
+        try {
+          const result = await apiCall('/api/problem?action=adminProblems', 'POST', {
+            id, name, statement, ans, difficulty, tags, public: isPublic, logic,FS
+          });
+          const msgEl = document.getElementById('message');
+          msgEl.textContent = result.message;
+          msgEl.style.color = result.success ? '#2e7d32' : 'var(--danger)';
+
+          if (result.success) {
+            // 不跳轉：清空內容欄位，保留 difficulty / tags / public 方便連續錄入
+            document.getElementById('newId').value = '';
+            document.getElementById('newName').value = '';
+            document.getElementById('newStatement').value = '';
+            document.getElementById('newAns').value = '';
+            document.getElementById('newLogic').value = '';
+
+            // 觸發編輯器高亮 / 行號更新
+            const ta = document.getElementById('newStatement');
+            ta.dispatchEvent(new Event('input', { bubbles: true }));
+
+            // 清空圖片上傳區
+            if (typeof window.__resetImageUpload === 'function') window.__resetImageUpload();
+
+            // 焦點回到 ID
+            window.__imgUpWarned = false; 
+            document.getElementById('newId').focus();
+
+            // 追加提示
+            msgEl.textContent = `"${id}" created. Ready for next.`;
+          }
+        } catch (err) {
+          const msgEl = document.getElementById('message');
+          msgEl.textContent = 'Error creating problem.';
+          msgEl.style.color = 'var(--danger)';
+        }
+      });
+
+      // 預設 focus 在 ID
+      document.getElementById('newId').focus();
+    }
+
+    renderForm();
+  
