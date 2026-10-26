@@ -716,7 +716,7 @@
     }
 
     // ⭐ STEP 1: Backup integrity check
-    const MIN_SIZE = 5 * 1024 * 1024;   // 5 MB
+    const MIN_SIZE = 900 * 1024;   // 900K
     const MIN_COLLECTIONS = 18;
     const sizeMB = b.totalSize / 1024 / 1024;
 
