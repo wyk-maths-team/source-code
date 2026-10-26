@@ -5,13 +5,16 @@ if (!isLoggedIn() || (getCurrentUser()?.role !== 'admin' && getCurrentUser()?.ro
 const mainContainer = document.getElementById('mainContent');
 const currentUsername = getCurrentUser()?.username || '';
 
-const state = { user: '', problem: '', result: '', page: 1 };
+const state = { user: '', problem: '', result: '', start: '', end: '', page: 1 };
 
 (function initFromURL() {
   const p = new URLSearchParams(location.search);
   state.user = p.get('user') || '';
   state.problem = p.get('problem') || '';
   state.result = p.get('result') || '';
+  // ⭐ 時間區間：保留 datetime-local 原生格式，直接回填到控件
+  state.start = p.get('starttime') || '';
+  state.end = p.get('endtime') || '';
   state.page = Math.max(1, parseInt(p.get('page')) || 1);
 })();
 
@@ -36,7 +39,7 @@ function formatTime(ts) {
          `${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}:${pad(local.getUTCSeconds())}`;
 }
 function makeSnapshot() {
-  return JSON.stringify({ user: state.user, problem: state.problem, result: state.result, page: state.page });
+  return JSON.stringify({ user: state.user, problem: state.problem, result: state.result, start: state.start, end: state.end, page: state.page });
 }
 
 const RESULT_LABELS = {
@@ -152,6 +155,22 @@ function renderResultFilterCell() {
   </form>`;
 }
 
+/**
+ * 時間區間篩選（和學生版一致）。
+ * 兩個 datetime-local：起點 / 終點，任一端留空即該端不限。
+ */
+function renderTimeFilterCell() {
+  if (state.start || state.end) {
+    const short = (v) => v ? v.replace('T', ' ') : '…';
+    return `<div class="filter-current">Time: <b>${escapeHtml(short(state.start))} → ${escapeHtml(short(state.end))}</b><button type="button" class="btn-remove" data-clear="time"><i class="fas fa-times"></i></button></div>`;
+  }
+  return `<form class="adv-filter-form" id="formTime" autocomplete="off">
+    <input type="datetime-local" id="filterStart" title="From (inclusive)">
+    <input type="datetime-local" id="filterEnd" title="To (inclusive)">
+    <div class="adv-filter-buttons"><button type="submit" class="btn-apply">Apply</button></div>
+  </form>`;
+}
+
 async function fetchHeaderInfo() {
   const info = {};
   if (state.problem) {
@@ -201,7 +220,7 @@ function renderLayout() {
       <div class="table-responsive">
         <table class="submissions-table">
           <thead><tr>
-            <th class="col-id">ID</th><th class="col-datetime">Date / Time</th>
+            <th class="col-id">ID</th><th class="col-datetime">Date / Time ${renderTimeFilterCell()}</th>
             <th class="col-user left-align">User ${renderUserFilterCell()}</th>
             <th class="col-problem left-align">Problem ${renderProblemFilterCell()}</th>
             <th class="col-answer">Answer</th><th class="col-status">Result ${renderResultFilterCell()}</th>
@@ -238,11 +257,29 @@ function bindFilterEvents() {
   }
   const selfBtn = document.getElementById('selfBtn');
   if (selfBtn) selfBtn.addEventListener('click', () => { state.user = currentUsername; state.page = 1; applyFilters(); });
-  
+
+  // ⭐ 時間區間
+  const formTime = document.getElementById('formTime');
+  if (formTime) {
+    formTime.addEventListener('submit', e => {
+      e.preventDefault();
+      state.start = document.getElementById('filterStart').value || '';
+      state.end   = document.getElementById('filterEnd').value || '';
+      // 起點晚於終點時自動對調，比報錯順手
+      if (state.start && state.end && state.start > state.end) {
+        const t = state.start; state.start = state.end; state.end = t;
+      }
+      state.page = 1; applyFilters();
+    });
+  }
+
   document.querySelectorAll('.btn-remove[data-clear]').forEach(btn => {
     btn.addEventListener('click', () => {
       const field = btn.dataset.clear;
-      if (field === 'user') state.user = ''; else if (field === 'problem') state.problem = ''; else if (field === 'result') state.result = '';
+      if (field === 'user') state.user = '';
+      else if (field === 'problem') state.problem = '';
+      else if (field === 'result') state.result = '';
+      else if (field === 'time') { state.start = ''; state.end = ''; }
       state.page = 1; applyFilters();
     });
   });
@@ -254,7 +291,7 @@ function bindFilterEvents() {
     });
   }
   const resetBtn = document.getElementById('resetFiltersBtn');
-  if (resetBtn) resetBtn.addEventListener('click', () => { state.user = ''; state.problem = ''; state.result = ''; state.page = 1; applyFilters(); });
+  if (resetBtn) resetBtn.addEventListener('click', () => { state.user = ''; state.problem = ''; state.result = ''; state.start = ''; state.end = ''; state.page = 1; applyFilters(); });
 }
 
 function applyFilters() {
@@ -270,6 +307,8 @@ function updateURL() {
   if (state.user) params.set('user', state.user);
   if (state.problem) params.set('problem', state.problem);
   if (state.result) params.set('result', state.result);
+  if (state.start) params.set('starttime', state.start);
+  if (state.end) params.set('endtime', state.end);
   if (state.page > 1) params.set('page', state.page);
   const qs = params.toString();
   window.history.replaceState({}, '', qs ? `/admin/submissions?${qs}` : '/admin/submissions');
@@ -282,6 +321,9 @@ async function loadSubmissions() {
   if (state.user) params.set('user', state.user);
   if (state.problem) params.set('problem_id', state.problem);
   if (state.result) params.set('status', state.result);
+  // ⭐ datetime-local 是本地时间（无时区），转 ISO 再传，避免服务器 UTC 偏移
+  if (state.start) params.set('starttime', new Date(state.start).toISOString());
+  if (state.end)   params.set('endtime',   new Date(state.end).toISOString());
   try {
     const [headerInfo, data] = await Promise.all([fetchHeaderInfo(), apiCall(`/api/submissions?${params.toString()}`)]);
     if (!data.success) throw new Error(data.message || 'Failed');

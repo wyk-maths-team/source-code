@@ -11,11 +11,15 @@
     let user = params.get('user') || '';
     let problem = params.get('problem') || '';
     let result = params.get('result') || '';
+    // ⭐ 時間區間。這裡保留 datetime-local 的原生格式（YYYY-MM-DDTHH:mm），
+    //    因為要直接塞回 <input> 的 value；轉成 ISO 只在請求時做一次。
+    let start = params.get('starttime') || '';
+    let end = params.get('endtime') || '';
     const userMatch = path.match(/^\/submissions\/user\/(.+)$/);
     const problemMatch = path.match(/^\/submissions\/problem\/(.+)$/);
     if (userMatch) user = decodeURIComponent(userMatch[1]);
     if (problemMatch) problem = decodeURIComponent(problemMatch[1]);
-    return { user, problem, result, page: Math.max(1, parseInt(params.get('page')) || 1) };
+    return { user, problem, result, start, end, page: Math.max(1, parseInt(params.get('page')) || 1) };
   }
 
   const state = getInitialFilters();
@@ -31,7 +35,7 @@
     if (statusText === 'System Error') return 'status-system';
     return 'status-system';
   }
-  function makeSnapshot() { return JSON.stringify({ user: state.user, problem: state.problem, result: state.result, page: state.page }); }
+  function makeSnapshot() { return JSON.stringify({ user: state.user, problem: state.problem, result: state.result, start: state.start, end: state.end, page: state.page }); }
   function formatTime(ts) {
     const d = new Date(ts); const pad = n => String(n).padStart(2, '0');
     const localDate = new Date(d.getTime() + 8 * 3600000);
@@ -125,6 +129,23 @@
     if (state.result) return `<div class="filter-current">Result: <b>${escapeHtml(RESULT_LABELS[state.result] || state.result)}</b><button type="button" class="btn-remove" data-clear="result"><i class="fas fa-times"></i></button></div>`;
     return `<form class="adv-filter-form" id="formResult" autocomplete="off"><select id="filterResult"><option value="">All</option><option value="accepted">Accepted</option><option value="wrong">Wrong Answer</option><option value="partial">Partial Score</option><option value="pending">Pending</option><option value="system">System Error</option></select><div class="adv-filter-buttons"><button type="submit" class="btn-apply">Apply</button></div></form>`;
   }
+
+  /**
+   * 時間區間篩選。
+   * 兩個 datetime-local：起點 / 終點，任一個留空即「該端不限」。
+   * 已套用後只顯示一行摘要 + 清除鈕，和 User / Problem / Result 三列的行為一致。
+   */
+  function renderTimeFilterCell() {
+    if (state.start || state.end) {
+      const short = (v) => v ? v.replace('T', ' ') : '…';
+      return `<div class="filter-current">Time: <b>${escapeHtml(short(state.start))} → ${escapeHtml(short(state.end))}</b><button type="button" class="btn-remove" data-clear="time"><i class="fas fa-times"></i></button></div>`;
+    }
+    return `<form class="adv-filter-form" id="formTime" autocomplete="off">
+      <input type="datetime-local" id="filterStart" title="From (inclusive)">
+      <input type="datetime-local" id="filterEnd" title="To (inclusive)">
+      <div class="adv-filter-buttons"><button type="submit" class="btn-apply">Apply</button></div>
+    </form>`;
+  }
   
   function buildFilterHeader(header) {
     let html = ''; const info = header || {};
@@ -152,7 +173,7 @@
         <div class="table-responsive">
           <table class="submissions-table">
             <thead><tr>
-              <th class="col-datetime">Date / Time</th>
+              <th class="col-datetime">Date / Time ${renderTimeFilterCell()}</th>
               <th class="col-user left-align">User ${renderUserFilterCell()}</th>
               <th class="col-problem left-align">Problem ${renderProblemFilterCell()}</th>
               <th class="col-answer">Answer</th>
@@ -180,6 +201,19 @@
     }
     const formResult = document.getElementById('formResult');
     if (formResult) formResult.addEventListener('submit', e => { e.preventDefault(); state.result = document.getElementById('filterResult').value; state.page = 1; applyFilters(); });
+
+    // ⭐ 時間區間
+    const formTime = document.getElementById('formTime');
+    if (formTime) formTime.addEventListener('submit', e => {
+      e.preventDefault();
+      state.start = document.getElementById('filterStart').value || '';
+      state.end   = document.getElementById('filterEnd').value || '';
+      // 起點晚於終點時，把兩個值對調 —— 比直接報錯更順手
+      if (state.start && state.end && state.start > state.end) {
+        const t = state.start; state.start = state.end; state.end = t;
+      }
+      state.page = 1; applyFilters();
+    });
     
     const selfBtn = document.getElementById('selfBtn');
     if (selfBtn) selfBtn.addEventListener('click', () => { state.user = currentUsername; state.page = 1; applyFilters(); });
@@ -187,7 +221,10 @@
     document.querySelectorAll('.btn-remove[data-clear]').forEach(btn => {
       btn.addEventListener('click', () => {
         const field = btn.dataset.clear;
-        if (field === 'user') state.user = ''; else if (field === 'problem') state.problem = ''; else if (field === 'result') state.result = '';
+        if (field === 'user') state.user = '';
+        else if (field === 'problem') state.problem = '';
+        else if (field === 'result') state.result = '';
+        else if (field === 'time') { state.start = ''; state.end = ''; }
         state.page = 1; applyFilters();
       });
     });
@@ -207,19 +244,28 @@
     renderLayout(); loadSubmissions();
   }
 
-  function resetFilters() { state.user = ''; state.problem = ''; state.result = ''; state.page = 1; applyFilters(); }
+  function resetFilters() { state.user = ''; state.problem = ''; state.result = ''; state.start = ''; state.end = ''; state.page = 1; applyFilters(); }
 
   function updateURL() {
     const params = new URLSearchParams(); let path = '/submissions';
-    if (state.user && !state.problem && !state.result) path = `/submissions/user/${encodeURIComponent(state.user)}`;
-    else if (state.problem && !state.user && !state.result) path = `/submissions/problem/${encodeURIComponent(state.problem)}`;
-    else { if (state.user) params.set('user', state.user); if (state.problem) params.set('problem', state.problem); if (state.result) params.set('result', state.result); }
+    // ⭐ 有時間區間時不能走 /submissions/user/xxx 這種短路徑 ——
+    //    那條路徑沒有位置放 starttime/endtime，會把時間條件吃掉。
+    const hasTime = !!(state.start || state.end);
+    if (state.user && !state.problem && !state.result && !hasTime) path = `/submissions/user/${encodeURIComponent(state.user)}`;
+    else if (state.problem && !state.user && !state.result && !hasTime) path = `/submissions/problem/${encodeURIComponent(state.problem)}`;
+    else {
+      if (state.user) params.set('user', state.user);
+      if (state.problem) params.set('problem', state.problem);
+      if (state.result) params.set('result', state.result);
+    }
+    if (state.start) params.set('starttime', state.start);
+    if (state.end) params.set('endtime', state.end);
     if (state.page > 1) params.set('page', state.page);
     const qs = params.toString(); window.history.replaceState({}, '', qs ? `${path}?${qs}` : path);
   }
 
   let _lastFilterKey = null;
-  function getFilterKey() { return [state.user || '', state.problem || '', state.result || ''].join('|'); }
+  function getFilterKey() { return [state.user || '', state.problem || '', state.result || '', state.start || '', state.end || ''].join('|'); }
   
   function updateMaxPage(page, data) {
     if (!data || !Array.isArray(data.submissions)) return;
@@ -242,7 +288,13 @@
   function fetchPage(page) {
     if (state.pagesInflight.has(page)) return state.pagesInflight.get(page);
     const params = new URLSearchParams({ all: '1', page, limit: 50, includeHeader: '1' });
-    if (state.user) params.set('user', state.user); if (state.problem) params.set('problem', state.problem); if (state.result) params.set('result', state.result);
+    if (state.user) params.set('user', state.user);
+    if (state.problem) params.set('problem', state.problem);
+    if (state.result) params.set('result', state.result);
+    // ⭐ datetime-local 给的是本地时间（无时区），必须转成 ISO 再传，
+    //    否则服务器在 UTC 时会整体偏 8 小时。
+    if (state.start) params.set('starttime', new Date(state.start).toISOString());
+    if (state.end)   params.set('endtime',   new Date(state.end).toISOString());
     const promise = apiCall(`/api/submissions?${params.toString()}`).then(data => {
       if (!data.success) throw new Error(data.message || 'Failed'); return data;
     }).finally(() => { state.pagesInflight.delete(page); });

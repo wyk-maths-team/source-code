@@ -66,6 +66,33 @@ function buildStatusFilter(status) {
   }
 }
 
+/**
+ * 时间区间过滤 —— 就地往 filter 上挂 timestamp 条件。
+ *
+ * 为什么参数是 ISO 字符串：
+ *   前端 <input type="datetime-local"> 给出的值是 "2026-10-26T10:00"，
+ *   不带时区。Node 会按**服务器本地时区**解析它 —— 而 Vercel 跑在 UTC，
+ *   于是用户选的"早上10点"会变成 UTC 10 点，比香港时间差 8 小时。
+ *   所以前端统一转成 toISOString() 再传过来。
+ *
+ * 非法值直接忽略（不报错），否则一个坏参数会让整个列表 500。
+ */
+function applyTimeRange(filter, starttime, endtime) {
+  const parse = (v) => {
+    if (!v) return null;
+    const d = new Date(String(v));
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  const start = parse(starttime);
+  const end = parse(endtime);
+  if (!start && !end) return;
+
+  filter.timestamp = {};
+  if (start) filter.timestamp.$gte = start;
+  if (end) filter.timestamp.$lte = end;
+}
+
 async function buildHeader(db, problemId, username) {
   const header = {};
   const tasks = [];
@@ -345,6 +372,7 @@ async function handler(req, res) {
       const {
         problem_id, status,
         user, username: qUsername,     // ⭐ 保持 user 作為主鍵
+        starttime, endtime,            // ⭐ 時間區間過濾
         page = '1', limit = '50'
       } = req.query;
       const pageNum = Math.max(1, parseInt(page) || 1);
@@ -358,6 +386,10 @@ async function handler(req, res) {
       if (problem_id) filter.problemId = { $in: buildProblemIdFilter([problem_id]) };
       const sf = status ? buildStatusFilter(status) : null;
       if (sf) Object.assign(filter, sf);
+
+      // ⭐ 時間區間：前端傳 ISO 字串（帶時區），這裡解析成 Date。
+      //    用 ISO 而不用本地 "YYYY-MM-DDTHH:mm"，否則伺服器在 UTC 時會偏 8 小時。
+      applyTimeRange(filter, starttime, endtime);
 
       const [total, toMark, subs] = await Promise.all([
         db.collection('submissions').countDocuments(filter),
@@ -505,6 +537,7 @@ async function handler(req, res) {
     problem: qProblem,
     problem_id: qProblemId,
     result: qResult,
+    starttime, endtime,            // ⭐ 時間區間過濾
     all,
     includeHeader
   } = req.query;
@@ -527,6 +560,9 @@ async function handler(req, res) {
       const sf = buildStatusFilter(qResult);
       if (sf) Object.assign(filter, sf);
     }
+
+    // ⭐ 時間區間
+    applyTimeRange(filter, starttime, endtime)
 
     if (!isAdmin) {
       const allowedSet = await getPublicProblemIds(db);
