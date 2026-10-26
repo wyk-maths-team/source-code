@@ -60,7 +60,7 @@ async function handler(req, res) {
   try {
     const pool = getPgPool();
     
-    // SQL 查询：使用参数化查询 $1 防止 SQL 注入[IMPORTANT]
+    // SQL 查询：使用参数化查询 $1 防止 SQL 注入[IMPORTANT]  
     // 注意 Postgres 的字段名习惯用蛇形命名 (snake_case)，查询时对应好
     const queryText = 'SELECT username, password, role, display_name, pfp, banned FROM users WHERE username = $1 LIMIT 1';
     const result = await pool.query(queryText, [username]);
