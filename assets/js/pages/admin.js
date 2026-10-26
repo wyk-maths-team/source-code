@@ -528,7 +528,8 @@
   ghBtn.addEventListener('click', async () => {
     const ok = confirm(
       '⚠️  Backup database to GitHub?\n\n' +
-      'Every collection will be dumped to backup/database/<timestamp>/.'
+      'Each collection is gzipped and uploaded as an asset on a NEW GitHub Release\n' +
+      '(tag: backup-<timestamp>), plus a _manifest.json.gz with the doc counts.'
     );
     if (!ok) return;
 
@@ -546,10 +547,11 @@
         log(`✗ ${data.message || 'Failed'}`, 'log-err');
         return;
       }
-      log(`✓ Backup folder: ${data.dir}`, 'log-ok');
+      // 後端回傳的是 { release, results } —— 沒有 dir，也沒有 url
+      log(`✓ Backup release: ${data.release || '(unknown)'}`, 'log-ok');
       for (const r of data.results) {
         if (r.error) log(`   ✗ ${r.collection}: ${r.error}`, 'log-err');
-        else log(`   ✓ ${r.collection}: ${r.count} docs → ${r.url}`, 'log-ok');
+        else log(`   ✓ ${r.collection}: ${r.count} docs (${(r.size / 1024).toFixed(1)} KB gz)`, 'log-ok');
       }
     } catch (err) {
       log(`✗ ${err.message}`, 'log-err');
@@ -677,8 +679,10 @@
     listEl.querySelectorAll('input[name="backup-pick"]').forEach(r => {
       r.addEventListener('change', () => {
         selectedReleaseId = r.value;
+        // ⭐ 用的 data-id（對應 dataset.id），不是 dataset.dir ——
+        //    之前寫成 .dir 導致高亮永遠不生效
         listEl.querySelectorAll('.backup-item').forEach(el => {
-          el.classList.toggle('selected', el.dataset.dir === selectedReleaseId);
+          el.classList.toggle('selected', el.dataset.id === selectedReleaseId);
         });
         restoreBtn.disabled = false;
       });
@@ -690,8 +694,14 @@
 
     restoreBtn.addEventListener('click', async () => {
     if (!selectedReleaseId) return;
-    const b = backups.find(x => x.dir === selectedReleaseId);
-    const when = b?.isoDate ? new Date(b.isoDate).toLocaleString() : selectedReleaseId;
+    // ⭐ 備份物件的主鍵是 id（GitHub release id），不是 dir。
+    //    之前寫 x.dir，b 恆為 undefined，接下來讀 b.totalSize 就會拋錯。
+    const b = backups.find(x => String(x.id) === String(selectedReleaseId));
+    if (!b) {
+      log('✗ Selected backup is no longer in the list — reload and try again.', 'log-err');
+      return;
+    }
+    const when = b.isoDate ? new Date(b.isoDate).toLocaleString() : b.release;
 
     clearLog();
 
@@ -755,7 +765,7 @@
           'Authorization': 'Bearer ' + token(),
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ dir: selectedReleaseId, dryRun: true }),
+        body: JSON.stringify({ releaseId: selectedReleaseId, dryRun: true }),
       });
       const dryData = await dryRes.json();
       if (!dryRes.ok || !dryData.success) {
@@ -793,7 +803,7 @@
           'Authorization': 'Bearer ' + token(),
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ dir: selectedReleaseId, dryRun: false }),
+        body: JSON.stringify({ releaseId: selectedReleaseId, dryRun: false }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
