@@ -478,11 +478,10 @@ async function handleListBackups(req, res, decoded) {
 // [5] Action handlers (只列出改动部分)
 // ═══════════════════════════════════════════════════════════════════
 
-// ── 手動備份資料庫 (改为 Release 模式) ──
-async function handleBackupDatabase(req, res, db, decoded) {
-  if (decoded.role !== 'root') return fail(res, 403, 'Root only');
-  if (req.method !== 'POST') return fail(res, 405, 'Method not allowed');
-
+// ── 備份核心：把所有 collection 打成 GitHub Release ──
+// 抽成獨立函式，是因為「恢復前自動存檔」也要用它。
+// 回傳 { release, results }；任何單一 collection 失敗不中斷，記在 results 裡。
+async function createBackupRelease(db, username) {
   const { token, owner, repo } = getBackupConfig();
   const ts = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
   const tagName = `backup-${ts}`;
@@ -499,17 +498,17 @@ async function handleBackupDatabase(req, res, db, decoded) {
   // 2. 上传
   const collections = await db.listCollections().toArray();
   const results = [];
-  const manifest = { timestamp: new Date().toISOString(), by: decoded.username, collections: {} };
+  const manifest = { timestamp: new Date().toISOString(), by: username, collections: {} };
 
   for (const { name } of collections) {
     if (name.startsWith('system.')) continue;
     try {
       const docs = await db.collection(name).find({}).toArray();
       manifest.collections[name] = { count: docs.length };
-      
+
       const rawJson = JSON.stringify({ collection: name, count: docs.length, docs });
       const compressed = zlib.gzipSync(rawJson);
-      
+
       const uploadUrl = `https://uploads.github.com/repos/${owner}/${repo}/releases/${releaseData.id}/assets?name=${name}.json.gz`;
       const uploadRes = await fetch(uploadUrl, {
         method: 'POST',
@@ -522,7 +521,7 @@ async function handleBackupDatabase(req, res, db, decoded) {
         body: compressed
       });
       if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
-      
+
       results.push({ collection: name, count: docs.length, size: compressed.length });
     } catch (e) {
       results.push({ collection: name, error: e.message });
@@ -538,13 +537,23 @@ async function handleBackupDatabase(req, res, db, decoded) {
     body: compressedManifest
   });
 
+  return { release: tagName, results };
+}
+
+// ── 手動備份資料庫 (改为 Release 模式) ──
+async function handleBackupDatabase(req, res, db, decoded) {
+  if (decoded.role !== 'root') return fail(res, 403, 'Root only');
+  if (req.method !== 'POST') return fail(res, 405, 'Method not allowed');
+
+  const { release, results } = await createBackupRelease(db, decoded.username);
+
   await safeAudit(db, 'backup_database', {
-    release: tagName,
+    release,
     totalCollections: results.length,
     results: results.map(r => ({ collection: r.collection, count: r.count, error: r.error })),
   }, decoded.username, 'warn');
 
-  return ok(res, { success: true, release: tagName, results });
+  return ok(res, { success: true, release, results });
 }
 
 // ── 恢復資料庫 ──
@@ -554,18 +563,42 @@ async function handleRestoreDatabase(req, res, db, decoded) {
 
   const { releaseId, dryRun } = req.body || {};
   if (!releaseId) return fail(res, 400, 'Missing releaseId');
-  
+
+  // ⭐ 安全網：真正恢復之前，先把「當前狀態」備份下來。
+  //    恢復本身是不可逆的 —— 選錯時間點或備份殘缺，現有資料就沒了。
+  //    所以先打一次 release，出事了還能從這個 pre-restore 快照回來。
+  //
+  //    備份失敗就不准恢復：寧可這次操作失敗，也不能在「無法回頭」的狀態下
+  //    去覆蓋資料。
+  let preRestoreBackup = null;
+  if (!dryRun) {
+    try {
+      const b = await createBackupRelease(db, decoded.username);
+      preRestoreBackup = b.release;
+      await safeAudit(db, 'pre_restore_backup', {
+        release: b.release,
+        forRestoreOf: releaseId,
+        totalCollections: b.results.length,
+        failed: b.results.filter(r => r.error).map(r => r.collection),
+      }, decoded.username, 'warn');
+    } catch (e) {
+      await safeAudit(db, 'pre_restore_backup_failed', {
+        forRestoreOf: releaseId,
+        error: e.message,
+      }, decoded.username, 'danger').catch(() => {});
+      return fail(res, 500,
+        `Pre-restore backup failed, refusing to restore: ${e.message}. ` +
+        `恢复会把当前数据整个覆盖掉，在一次不可回滚的操作前必须先有一份存档。`);
+    }
+  }
+
   const result = await restoreDatabaseHelper(db, releaseId, !!dryRun);
 
   if (!dryRun) {
-    // 安全網：恢復前先存檔
-    const ts = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
-    // 这里可以直接调用 handleBackupDatabase 的逻辑，或者为了简单，把恢复前的备份委托给 dailyBackup 处理
-    // 为了代码精简，这里省略 pre-restore backup 过程，建议在恢复前先手动触发一次备份。
-    await safeAudit(db, 'restore_database', { releaseId }, decoded.username, 'danger');
+    await safeAudit(db, 'restore_database', { releaseId, preRestoreBackup }, decoded.username, 'danger');
   }
 
-  return ok(res, { success: true, ...result });
+  return ok(res, { success: true, preRestoreBackup, ...result });
 }
 
 

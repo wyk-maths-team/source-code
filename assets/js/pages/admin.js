@@ -811,6 +811,11 @@
         return;
       }
       log(`✓ Restore complete: ${data.collectionsRestored} collections, ${data.totalDocs} docs`, 'log-ok');
+      // ⭐ 後端在恢復前會自動打一次快照，把它印出來 —— 出事了要能找回這個 tag
+      if (data.preRestoreBackup) {
+        log(`   ↳ Pre-restore snapshot: ${data.preRestoreBackup}`, 'log-info');
+        log(`     (restore the current state back from this release if needed)`, 'log-dim');
+      }
       for (const r of data.results) {
         if (r.error) log(`   ✗ ${r.collection}: ${r.error}`, 'log-err');
         else log(`   ✓ ${r.collection}: ${r.count} docs`, 'log-ok');
