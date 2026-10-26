@@ -622,7 +622,7 @@
 
   const token = () => localStorage.getItem('auth_token') || '';
   let backups = [];
-  let selectedDir = null;
+  let selectedReleaseId = null;
 
   async function loadBackups() {
     listEl.innerHTML = '<div class="backup-item" style="cursor:default;opacity:.6">Loading…</div>';
@@ -661,8 +661,8 @@
       const when = b.isoDate ? new Date(b.isoDate).toLocaleString() : b.timestamp;
       const sizeKB = (b.totalSize / 1024).toFixed(1);
       return `
-        <label class="backup-item" data-dir="${b.dir}">
-          <input type="radio" name="backup-pick" value="${b.dir}">
+        <label class="backup-item" data-id="${b.id}">
+          <input type="radio" name="backup-pick" value="${b.id}">
           <div class="backup-item-info">
             <div class="backup-item-title">${when}</div>
             <div class="backup-item-meta">
@@ -676,9 +676,9 @@
 
     listEl.querySelectorAll('input[name="backup-pick"]').forEach(r => {
       r.addEventListener('change', () => {
-        selectedDir = r.value;
+        selectedReleaseId = r.value;
         listEl.querySelectorAll('.backup-item').forEach(el => {
-          el.classList.toggle('selected', el.dataset.dir === selectedDir);
+          el.classList.toggle('selected', el.dataset.dir === selectedReleaseId);
         });
         restoreBtn.disabled = false;
       });
@@ -689,9 +689,9 @@
   reloadBtn.addEventListener('click', loadBackups);
 
     restoreBtn.addEventListener('click', async () => {
-    if (!selectedDir) return;
-    const b = backups.find(x => x.dir === selectedDir);
-    const when = b?.isoDate ? new Date(b.isoDate).toLocaleString() : selectedDir;
+    if (!selectedReleaseId) return;
+    const b = backups.find(x => x.dir === selectedReleaseId);
+    const when = b?.isoDate ? new Date(b.isoDate).toLocaleString() : selectedReleaseId;
 
     clearLog();
 
@@ -755,7 +755,7 @@
           'Authorization': 'Bearer ' + token(),
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ dir: selectedDir, dryRun: true }),
+        body: JSON.stringify({ dir: selectedReleaseId, dryRun: true }),
       });
       const dryData = await dryRes.json();
       if (!dryRes.ok || !dryData.success) {
@@ -793,7 +793,7 @@
           'Authorization': 'Bearer ' + token(),
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ dir: selectedDir, dryRun: false }),
+        body: JSON.stringify({ dir: selectedReleaseId, dryRun: false }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {

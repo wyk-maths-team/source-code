@@ -80,4 +80,5 @@ testcases/
 *.ans
 dse-data/
 tools/
-minecraft
+minecraft/
+database/

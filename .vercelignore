@@ -12,4 +12,5 @@ node_modules/
 grader
 dse-data/
 tools/
-minecraft
+minecraft/
+database/
