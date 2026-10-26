@@ -22,6 +22,7 @@ import * as nodeUtil        from 'util';
 import * as nodeQuerystring from 'querystring';
 import * as nodeUrl         from 'url';
 import { wrapHandler } from '../lib/errors.js';
+import zlib from 'zlib';
 
 // ═══════════════════════════════════════════════════════════════════
 // [2] 通用工具
