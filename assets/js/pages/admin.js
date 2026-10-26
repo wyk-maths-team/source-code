@@ -721,7 +721,7 @@
     const sizeMB = b.totalSize / 1024 / 1024;
 
     log(`[${new Date().toLocaleTimeString()}] Integrity check on selected backup…`, 'log-info');
-    log(`   Size: ${sizeMB.toFixed(2)} MB (min required: 5.00 MB)`, 'log-info');
+    log(`   Size: ${sizeMB.toFixed(2)} MB (min required: 900 KB)`, 'log-info');
     log(`   Collections: ${b.collectionCount} (min required: 18)`, 'log-info');
 
     if (b.totalSize < MIN_SIZE) {

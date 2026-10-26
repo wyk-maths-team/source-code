@@ -39,6 +39,7 @@
     if (p.indexOf('/pk/') === 0 && p !== '/pk') return true;
     if (p.indexOf('pk-') === 0) return true;          // pk-room / pk-waiting / pk-invite
     if (p.indexOf('/pk-') >= 0) return true;
+    if (localStorage.getItem('pkInviteEnabled')==='true')return true;
     return false;
   }
 
