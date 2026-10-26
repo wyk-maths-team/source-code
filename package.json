@@ -3,7 +3,7 @@
   "version": "4.1.3",
   "type": "module",
   "engines": {
-    "node": ">=20.0.0"
+    "node": "20.x"
   },
   "dependencies": {
     "@simplewebauthn/server": "^14.0.3",
