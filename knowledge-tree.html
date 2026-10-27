@@ -1,29 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta name="robots" content="noindex, nofollow" />
 <script>window.__BUILD_V='535685f5';</script>
+<script src="/assets/js/arch-render.js?v=535685f5"></script>
 <meta charset="UTF-8">
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Olympiad Achievement Tree — Radial</title>
+<title>Knowledge Tree - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="stylesheet" href="/assets/css/styles.css?v=535685f5">
 <style>
-  :root {
+  /* 树的配色变量收拢到 #ktRoot —— 原来写在 :root 上会和系统的
+     --accent / --line / --text-* 等同名变量互相覆盖，顶栏颜色会跟着变。 */
+  #ktRoot {
     --bg-0:#0b1220; --bg-1:#0f172a; --bg-2:#1e293b; --bg-3:#334155;
     --line:#334155; --text-0:#f1f5f9; --text-1:#cbd5e1; --text-2:#94a3b8;
     --text-3:#64748b; --accent:#38bdf8; --success:#22c55e;
     --critical:#f97316; --ready:#38bdf8; --done:#22c55e;
-  }
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body {
-    margin:0; height:100%;
+
+    /* 铺满 mainContent，由它负责外部布局 */
+    height: 100%;
+    display:flex; flex-direction:column;
+    background: var(--bg-0); color: var(--text-1);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     overflow:hidden;
     overscroll-behavior: none;
     -webkit-overflow-scrolling: touch;
   }
-  body {
-    background: var(--bg-0); color: var(--text-1);
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    display:flex; flex-direction:column;
+  /* 这个页面是个满屏画布，不要 main-content 的 28px 内边距 */
+  body.kt-page .main-content {
+    padding: 0;
+    min-height: 0;
+    height: calc(100vh - var(--topbar-height, 56px));
+    overflow: hidden;
   }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   #error-banner {
     display:none; background:#7f1d1d; color:#fecaca;
     padding:10px 16px; font-size:13px; font-family:ui-monospace, monospace;
@@ -280,7 +299,11 @@
   }
 </style>
 </head>
-<body>
+<body class="index-body kt-page">
+<div id="appContainer">
+  <header class="topbar" id="topbarContainer"></header>
+  <main class="main-content" id="mainContent">
+  <div id="ktRoot">
 
 <div id="error-banner"></div>
 
@@ -662,8 +685,42 @@ var edgeEls = {};
 /* =============== VIEW TRANSFORM =============== */
 var view = { tx: 0, ty: 0, scale: 1 };
 
+// 缩放和拖拽都是高频事件：触控板 wheel 能到 120Hz 以上，pointermove 在
+// 拖拽时也是每帧跑好几次。如果每次直接写 world.style，浏览器会在一帧里
+// 做多次样式计算和合成 —— 这是缩放卡顿的主因。
+//
+// 这里的做法：
+//   · 用 rAF 合并到「每帧最多写一次」
+//   · 值和上次写入相同就跳过（纯拖拽没缩放时尤其省）
+//   · translate3d 而不是 translate —— 明确要求合成层，避免重绘
+//
+// 注意：写 style 被推迟到下一帧，所以需要「立刻生效」的场合
+// （fitView、带 transition 的动画）要用 applyTransformNow()。
+var _framePending = false;
+var _written = { tx: NaN, ty: NaN, scale: NaN };
+
+function _writeTransform() {
+  if (view.tx === _written.tx && view.ty === _written.ty && view.scale === _written.scale) return;
+  _written.tx = view.tx;
+  _written.ty = view.ty;
+  _written.scale = view.scale;
+  world.style.transform =
+    "translate3d(" + view.tx + "px," + view.ty + "px,0) scale(" + view.scale + ")";
+}
+
 function applyTransform() {
-  world.style.transform = "translate(" + view.tx + "px," + view.ty + "px) scale(" + view.scale + ")";
+  if (_framePending) return;
+  _framePending = true;
+  requestAnimationFrame(function () {
+    _framePending = false;
+    _writeTransform();
+  });
+}
+
+/** 立即写入（绕过 rAF）—— 初始化、以及带 CSS transition 的动画必须用这个。 */
+function applyTransformNow() {
+  _framePending = false;
+  _writeTransform();
 }
 
 function fitView(animate) {
@@ -677,7 +734,8 @@ function fitView(animate) {
   view.ty = (vh - CANVAS_SIZE * s) / 2;
   if (animate) world.style.transition = "transform 0.35s ease";
   else world.style.transition = "";
-  applyTransform();
+  // 带 transition 时必须同步写，否则动画从下一帧才开始，会被合并/跳过
+  applyTransformNow();
   if (animate) setTimeout(function(){ world.style.transition = ""; }, 400);
 }
 
@@ -1187,10 +1245,21 @@ viewport.addEventListener("contextmenu", function(e){
   if (e.pointerType === "touch" || e.pointerType === "pen") e.preventDefault();
 });
 
+// viewport 的位置在缩放过程中不会变，但每次读 getBoundingClientRect()
+// 都会强制同步布局（reflow）—— 在 wheel 里每帧读一次是纯浪费。
+// 缓存它，只在窗口尺寸变化时失效。
+var _vpRect = null;
+function viewportRect() {
+  if (!_vpRect) _vpRect = viewport.getBoundingClientRect();
+  return _vpRect;
+}
+window.addEventListener("resize", function(){ _vpRect = null; }, { passive: true });
+window.addEventListener("scroll", function(){ _vpRect = null; }, { passive: true, capture: true });
+
 // Mouse wheel / trackpad — gentle anchored zoom
 viewport.addEventListener("wheel", function(e){
   e.preventDefault();
-  var rect = viewport.getBoundingClientRect();
+  var rect = viewportRect();
   var mx = e.clientX - rect.left;
   var my = e.clientY - rect.top;
 
@@ -1281,5 +1350,19 @@ try {
   throw err;
 }
 </script>
+
+  </div><!-- /#ktRoot -->
+  </main>
+</div><!-- /#appContainer -->
+
+<!-- 系统 core JS：登录态、主题、顶栏、心跳、API 封装 -->
+<script src="/assets/js/core/ui.js?v=535685f5"></script>
+<script src="/assets/js/core/net.js?v=535685f5"></script>
+<script src="/assets/js/core/api.js?v=535685f5"></script>
+<script src="/assets/js/core/page.js?v=535685f5"></script>
+<script src="/assets/js/auth.js?v=535685f5"></script>
+<script src="/assets/js/app.js?v=535685f5"></script>
+<script src="/assets/js/topbar.js?v=535685f5"></script>
+<script src="/assets/js/heartbeat.js?v=535685f5"></script>
 </body>
 </html>
