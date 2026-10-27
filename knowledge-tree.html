@@ -89,7 +89,10 @@
   .world {
     position:absolute; top:0; left:0; width:1700px; height:1700px;
     transform-origin:0 0;
+    /* 整张画布只有一个合成层：缩放只改这一层的矩阵，GPU 直接变换 */
     will-change: transform;
+    /* 把布局/绘制范围圈在这一层内，缩放时不必回头重算外面的元素 */
+    contain: layout style paint;
   }
   svg.edges { position:absolute; top:0; left:0; width:1700px; height:1700px; pointer-events:none; overflow:visible; }
   .edge {
@@ -101,6 +104,13 @@
   .edge.group.hl { stroke:#a78bfa; }
 
   .ring { fill:none; stroke:rgba(148,163,184,0.06); stroke-width:1; }
+
+  /* 缩放 / 拖拽进行中：关掉阴影和过渡。
+     这两样在连续变换时每帧都要重算，而画面上根本看不出来。
+     停下来 160ms 后移除这个类，效果自然恢复。 */
+  .zooming .node,
+  .zooming .edge { transition: none !important; }
+  .zooming .node { box-shadow: none !important; }
 
   .nodes { position:absolute; top:0; left:0; width:1700px; height:1700px; }
 
@@ -114,7 +124,10 @@
     letter-spacing:.3px;
     transition: transform .12s, box-shadow .18s, opacity .18s, background .18s;
     z-index:1;
-    will-change: transform;
+    /* 注意：这里不要写 will-change: transform。
+       49 个节点各自提升成独立合成层后，缩放时浏览器要逐层光栅化并上传
+       GPU —— 这正是"缩放卡"的主因，比样式写入贵得多。
+       节点只在 :hover 时用 transform，浏览器会自己按需提升。 */
     border: 2px solid var(--cat-color, var(--line));
     color: var(--cat-color, var(--text-1));
     touch-action: none;
@@ -180,14 +193,49 @@
     border-radius:8px;
   }
 
-  aside.sidebar {
-    width:340px; flex-shrink:0; background:var(--bg-1);
-    border-left:1px solid var(--line);
-    overflow-y:auto;
-    padding:20px;
+  /* 详情面板：右侧悬浮窗（不再占 flex 一列），可最小化成齿轮 */
+  aside.kt-panel {
+    position: absolute;
+    top: 14px; right: 14px; bottom: 14px;
+    width: 340px; max-width: calc(100% - 28px);
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.45);
+    overflow-y: auto;
+    padding: 20px;
+    z-index: 30;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+    /* 用 transform 移出而不是 display:none —— 避免切换时重排 */
+    transition: transform .25s ease, opacity .2s ease;
   }
+  aside.kt-panel.hidden {
+    transform: translateX(calc(100% + 24px));
+    opacity: 0;
+    pointer-events: none;
+  }
+  /* 最小化后的齿轮按钮 */
+  #ktPanelGear {
+    position: absolute;
+    right: 16px; bottom: 16px;
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    color: var(--text-1);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 31;
+    cursor: pointer;
+    box-shadow: 0 4px 18px rgba(0,0,0,.45);
+    padding: 0;
+    min-height: 0;
+  }
+  #ktPanelGear.show { display: flex; }
+  #ktPanelGear:hover { background: var(--bg-3); color: var(--text-0); }
+  #ktPanelGear svg { width: 22px; height: 22px; }
   .sidebar-handle { display: none; }
   .sidebar-close { display: none; }
 
@@ -205,7 +253,7 @@
   .sb-meta > div > span:last-child { color:var(--text-0); font-weight:600; }
   .sb-tags { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:14px; }
   .tag { background:var(--bg-2); color:var(--text-2); font-size:10px; padding:2px 7px; border-radius:10px; border:1px solid var(--line); }
-  aside.sidebar h3 { font-size:11px; text-transform:uppercase; letter-spacing:.8px; color:var(--text-3); margin:16px 0 8px; font-weight:600; }
+  aside.kt-panel h3 { font-size:11px; text-transform:uppercase; letter-spacing:.8px; color:var(--text-3); margin:16px 0 8px; font-weight:600; }
   .prereq { font-size:12px; padding:10px; background:var(--bg-2); border-radius:5px; margin-bottom:4px; color:var(--text-1); cursor:pointer; transition:background .12s; display:flex; align-items:center; gap:6px; min-height: 40px; }
   .prereq:hover { background:var(--bg-3); }
   .prereq.done { color:var(--success); }
@@ -231,7 +279,7 @@
     .stats { font-size: 11px; gap: 12px; }
     .progress-track { min-width: 70px; max-width: none; }
 
-    aside.sidebar {
+    aside.kt-panel {
       position: fixed;
       bottom: 0; left: 0; right: 0;
       width: 100%;
@@ -247,7 +295,7 @@
       padding: 8px 20px 20px;
       padding-bottom: max(20px, env(safe-area-inset-bottom));
     }
-    aside.sidebar.open { transform: translateY(0); }
+    aside.kt-panel.open { transform: translateY(0); }
 
     .sidebar-handle {
       display: block;
@@ -295,13 +343,14 @@
   @media (max-width: 480px) {
     header h1 { display: none; }
     .stats { gap: 8px; }
-    aside.sidebar { height: 65vh; }
+    aside.kt-panel { height: 65vh; }
   }
 </style>
 </head>
 <body class="index-body kt-page">
 <div id="appContainer">
   <header class="topbar" id="topbarContainer"></header>
+  <aside class="sidebar" id="sidebarContainer"></aside>
   <main class="main-content" id="mainContent">
   <div id="ktRoot">
 
@@ -331,9 +380,11 @@
       <button id="btn-zoom-out" title="Zoom out">−</button>
     </div>
   </div>
-  <aside class="sidebar" id="sidebar">
+  <aside class="kt-panel" id="ktPanel">
     <div class="sidebar-handle"></div>
-    <button class="sidebar-close" id="btn-close-sidebar" aria-label="Close">✕</button>
+    <button class="sidebar-close" id="btn-minimize-panel" aria-label="Minimize" title="Minimize">
+      <i class="fas fa-chevron-right"></i>
+    </button>
     <div class="sb-empty" id="sb-empty">
       Tap any achievement node<br>to view details and unlock it.<br><br>
       <kbd>wheel</kbd> or <kbd>pinch</kbd> zoom · <kbd>drag</kbd> pan · <kbd>Esc</kbd> deselect
@@ -363,6 +414,15 @@
       </div>
     </div>
   </aside>
+
+  <!-- 最小化后的入口：右侧齿轮。点它把详情窗重新展开 -->
+  <button id="ktPanelGear" aria-label="Show details" title="Show details">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.14.61.68 1.05 1.31 1.09H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+    </svg>
+  </button>
 </div>
 
 <script>
@@ -676,7 +736,7 @@ var viewport = document.getElementById("viewport");
 var world = document.getElementById("world");
 var edgesSvg = document.getElementById("edges");
 var nodesLayer = document.getElementById("nodes");
-var sidebar = document.getElementById("sidebar");
+var sidebar = document.getElementById("ktPanel");
 var SVG_NS = "http://www.w3.org/2000/svg";
 
 var nodeEls = {};
@@ -699,6 +759,16 @@ var view = { tx: 0, ty: 0, scale: 1 };
 var _framePending = false;
 var _written = { tx: NaN, ty: NaN, scale: NaN };
 
+// 缩放/拖拽期间给 viewport 加 .zooming，暂时关掉节点的阴影与过渡。
+var _zoomIdleTimer = null;
+function markZooming() {
+  if (!viewport.classList.contains("zooming")) viewport.classList.add("zooming");
+  if (_zoomIdleTimer) clearTimeout(_zoomIdleTimer);
+  _zoomIdleTimer = setTimeout(function () {
+    viewport.classList.remove("zooming");
+  }, 160);
+}
+
 function _writeTransform() {
   if (view.tx === _written.tx && view.ty === _written.ty && view.scale === _written.scale) return;
   _written.tx = view.tx;
@@ -709,12 +779,10 @@ function _writeTransform() {
 }
 
 function applyTransform() {
-  if (_framePending) return;
-  _framePending = true;
-  requestAnimationFrame(function () {
-    _framePending = false;
-    _writeTransform();
-  });
+  markZooming();
+  // 直接写：浏览器本来就会把同一帧内的多次 style 写入合并成一次，
+  // 再套一层 rAF 只会让画面比手指慢一帧。
+  _writeTransform();
 }
 
 /** 立即写入（绕过 rAF）—— 初始化、以及带 CSS transition 的动画必须用这个。 */
@@ -962,18 +1030,46 @@ function deselect() {
   closeSidebar();
 }
 
-/* =============== SIDEBAR (open / close for narrow screens) =============== */
+/* =============== DETAIL PANEL: 最小化 / 展开 =============== */
+// 详情窗现在是右侧悬浮层。最小化后变成一个齿轮按钮，
+// 点齿轮重新展开 —— 保留「选中了哪个节点」，展开后直接显示它。
+var panelGear = document.getElementById("ktPanelGear");
+
+function minimizePanel() {
+  sidebar.classList.add("hidden");
+  if (panelGear) panelGear.classList.add("show");
+}
+function expandPanel() {
+  sidebar.classList.remove("hidden");
+  if (panelGear) panelGear.classList.remove("show");
+  // 展开时若还没有选中节点，就把提示页显示出来
+  if (!state.selected) {
+    document.getElementById("sb-content").style.display = "none";
+    document.getElementById("sb-empty").style.display = "";
+  }
+}
+function isPanelMinimized() {
+  return sidebar.classList.contains("hidden");
+}
+
+var btnMinimize = document.getElementById("btn-minimize-panel");
+if (btnMinimize) btnMinimize.addEventListener("click", function(e){
+  e.stopPropagation();
+  minimizePanel();
+});
+if (panelGear) panelGear.addEventListener("click", function(e){
+  e.stopPropagation();
+  expandPanel();
+});
+
+// 移动端底部抽屉仍需 open 类，保留原语义
 function openSidebar() {
   sidebar.classList.add("open");
+  expandPanel();
 }
 function closeSidebar() {
   sidebar.classList.remove("open");
 }
-
-document.getElementById("btn-close-sidebar").addEventListener("click", function(e){
-  e.stopPropagation();
-  deselect();
-});
 
 /* =============== SIDEBAR CONTENT =============== */
 var sbEmpty = document.getElementById("sb-empty");
@@ -1130,7 +1226,7 @@ function pointerList() {
 
 function onPointerDown(e) {
   // Ignore pointers that start on the zoom controls or the sidebar.
-  if (e.target.closest(".zoom-controls") || e.target.closest(".sidebar")) return;
+  if (e.target.closest(".zoom-controls") || e.target.closest(".kt-panel")) return;
 
   pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
   var ids = pointerList();
@@ -1363,6 +1459,7 @@ try {
 <script src="/assets/js/auth.js?v=535685f5"></script>
 <script src="/assets/js/app.js?v=535685f5"></script>
 <script src="/assets/js/topbar.js?v=535685f5"></script>
+<script src="/assets/js/sidebar.js?v=535685f5"></script>
 <script src="/assets/js/heartbeat.js?v=535685f5"></script>
 </body>
 </html>
