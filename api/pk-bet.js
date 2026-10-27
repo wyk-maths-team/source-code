@@ -25,7 +25,9 @@ import { auditLog } from '../lib/audit.js';
 import crypto from 'crypto';
 import { wrapHandler } from '../lib/errors.js';
 // token 的加减退统一走 lib/wallet.js，别在这里再写一份
-import { totalTokens, deductTokens, refundTokens, addTokens } from '../lib/wallet.js';
+// 注意：下注只能用 deductGlobalOnly —— 不能用 deductTokens（它会先扣 daily，
+// 而奖金进 global，等于每天白送一次「每日额度换永久资产」）。
+import { totalTokens, deductGlobalOnly, refundTokens, addTokens } from '../lib/wallet.js';
 
 const MIN_STAKE = 10000;
 const FEE_RATE = 0.2;                 // 手续费 20%
@@ -176,12 +178,14 @@ async function handler(req, res) {
     }
 
     const me = await db.collection('users').findOne({ username }, { projection: { token: 1, displayName: 1 } });
-    const have = totalTokens(me?.token);
-    const charged = deductTokens(me?.token, amount);
+    // ⭐ PK 只认 global：daily 每天重置，若能用它下注而奖金进 global，
+    //    就等于每天白送一次「每日额度 → 永久资产」的兑换。
+    const have = Number(me?.token?.global) || 0;
+    const charged = deductGlobalOnly(me?.token, amount);
     if (!charged) {
       return res.status(400).json({
         success: false,
-        message: `Not enough tokens: you need ${amount.toLocaleString()} but have ${have.toLocaleString()}`,
+        message: `Not enough permanent tokens: you need ${amount.toLocaleString()} but have ${have.toLocaleString()}. PK stakes can only be paid from your permanent balance — the daily allowance cannot be staked.`,
         code: 'INSUFFICIENT_TOKENS',
         need: amount,
         have,
@@ -224,21 +228,13 @@ async function handler(req, res) {
     }
 
     const me = await db.collection('users').findOne({ username }, { projection: { token: 1, displayName: 1 } });
-    const myTokens = totalTokens(me?.token);
-    if (myTokens < invite.stake) {
-      return res.status(400).json({
-        success: false,
-        message: `Not enough tokens to match this stake: need ${invite.stake.toLocaleString()}, you have ${myTokens.toLocaleString()}`,
-        code: 'INSUFFICIENT_TOKENS',
-        need: invite.stake,
-        have: myTokens,
-      });
-    }
-    const charged = deductTokens(me?.token, invite.stake);
+    // ⭐ 与 invite 一致：只能用 global 匹配赌注
+    const myTokens = Number(me?.token?.global) || 0;
+    const charged = deductGlobalOnly(me?.token, invite.stake);
     if (!charged) {
       return res.status(400).json({
         success: false,
-        message: `Not enough tokens to match this stake: need ${invite.stake.toLocaleString()}, you have ${myTokens.toLocaleString()}`,
+        message: `Not enough permanent tokens to match this stake: need ${invite.stake.toLocaleString()}, you have ${myTokens.toLocaleString()}. PK stakes can only be paid from your permanent balance.`,
         code: 'INSUFFICIENT_TOKENS',
         need: invite.stake,
         have: myTokens,

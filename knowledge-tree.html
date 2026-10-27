@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>window.__BUILD_V='535685f5';</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Olympiad Achievement Tree — Radial</title>
+<style>
+  :root {
+    --bg-0:#0b1220; --bg-1:#0f172a; --bg-2:#1e293b; --bg-3:#334155;
+    --line:#334155; --text-0:#f1f5f9; --text-1:#cbd5e1; --text-2:#94a3b8;
+    --text-3:#64748b; --accent:#38bdf8; --success:#22c55e;
+    --critical:#f97316; --ready:#38bdf8; --done:#22c55e;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin:0; height:100%;
+    overflow:hidden;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  body {
+    background: var(--bg-0); color: var(--text-1);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display:flex; flex-direction:column;
+  }
+  #error-banner {
+    display:none; background:#7f1d1d; color:#fecaca;
+    padding:10px 16px; font-size:13px; font-family:ui-monospace, monospace;
+    border-bottom:1px solid #b91c1c; white-space:pre-wrap; z-index:100;
+  }
+  header {
+    background:linear-gradient(180deg,var(--bg-1),var(--bg-0));
+    border-bottom:1px solid var(--line);
+    padding:10px 18px; display:flex; align-items:center; gap:20px;
+    flex-wrap:wrap; z-index:10;
+    flex-shrink: 0;
+  }
+  header h1 { font-size:15px; margin:0; color:var(--text-0); font-weight:600; letter-spacing:.4px; }
+  .stats { display:flex; gap:18px; font-size:12px; color:var(--text-2); }
+  .stats b { color:var(--text-0); font-weight:600; }
+  .progress-track { flex:1; min-width:140px; max-width:360px; height:5px; background:var(--bg-2); border-radius:3px; overflow:hidden; }
+  .progress-bar { height:100%; width:0%; background:linear-gradient(90deg,var(--accent),var(--success)); transition:width .3s; }
+  .header-actions { display:flex; gap:6px; margin-left:auto; }
+  button {
+    background:var(--bg-2); color:var(--text-1); border:1px solid var(--line);
+    padding:8px 12px; border-radius:6px; font-size:12px; cursor:pointer;
+    font-family:inherit; transition:all .15s;
+    min-height: 36px;
+  }
+  button:hover:not(:disabled) { background:var(--bg-3); color:var(--text-0); }
+  button:active:not(:disabled) { transform: scale(0.97); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  button.primary { background:var(--accent); color:#0b1220; border-color:var(--accent); font-weight:600; }
+  button.primary:hover:not(:disabled) { background:#7dd3fc; }
+
+  .main { flex:1; display:flex; min-height:0; position:relative; }
+
+  .viewport {
+    flex:1; position:relative; overflow:hidden; cursor:grab;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(148,163,184,0.06) 1px, transparent 0);
+    background-size: 28px 28px;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+  .viewport.dragging { cursor:grabbing; }
+  .world {
+    position:absolute; top:0; left:0; width:1700px; height:1700px;
+    transform-origin:0 0;
+    will-change: transform;
+  }
+  svg.edges { position:absolute; top:0; left:0; width:1700px; height:1700px; pointer-events:none; overflow:visible; }
+  .edge {
+    fill:none; stroke:rgba(100,116,139,0.16); stroke-width:1.2;
+    transition: stroke .18s, stroke-width .18s, opacity .18s;
+  }
+  .edge.group { stroke:rgba(109,91,168,0.22); stroke-dasharray: 5 4; }
+  .edge.hl { stroke:var(--accent); stroke-width:2; opacity:1; }
+  .edge.group.hl { stroke:#a78bfa; }
+
+  .ring { fill:none; stroke:rgba(148,163,184,0.06); stroke-width:1; }
+
+  .nodes { position:absolute; top:0; left:0; width:1700px; height:1700px; }
+
+  .node {
+    position:absolute; width:68px; height:68px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; user-select:none;
+    background:var(--bg-1);
+    font-size:12px; font-weight:700;
+    font-family:ui-monospace,"SF Mono",Menlo,monospace;
+    letter-spacing:.3px;
+    transition: transform .12s, box-shadow .18s, opacity .18s, background .18s;
+    z-index:1;
+    will-change: transform;
+    border: 2px solid var(--cat-color, var(--line));
+    color: var(--cat-color, var(--text-1));
+    touch-action: none;
+    -webkit-user-select: none;
+  }
+  .node:hover { z-index:5; transform: scale(1.10); }
+
+  .node.locked { opacity:0.38; }
+  .node.locked:hover { opacity:0.75; }
+  .node.available { opacity:1; box-shadow: 0 0 0 1px var(--cat-color), 0 0 18px var(--cat-color); }
+  .node.completed {
+    background: radial-gradient(circle at 30% 25%, rgba(255,255,255,0.15), transparent 60%),
+                var(--cat-color, var(--success));
+    color:#0b1220;
+    border-color: rgba(255,255,255,0.4);
+    box-shadow: 0 0 0 2px rgba(34,197,94,0.35), 0 0 22px rgba(34,197,94,0.35);
+  }
+
+  .node.hl-selected {
+    outline: 3px solid var(--accent);
+    outline-offset: 5px;
+    z-index: 20;
+    box-shadow: 0 0 0 1px var(--accent), 0 0 40px rgba(56,189,248,0.9);
+  }
+  .node.hl-critical {
+    outline: 3px solid var(--critical);
+    outline-offset: 3px;
+    z-index: 15;
+    animation: pulse-orange 1.4s ease-in-out infinite;
+  }
+  .node.hl-ready {
+    outline: 2px solid var(--ready);
+    outline-offset: 3px;
+    z-index: 15;
+    animation: pulse-blue 1.4s ease-in-out infinite;
+  }
+  .node.hl-done {
+    outline: 2px solid rgba(34,197,94,0.55);
+    outline-offset: 2px;
+  }
+  @keyframes pulse-orange {
+    0%,100% { box-shadow: 0 0 0 1px var(--critical), 0 0 16px rgba(249,115,22,0.55); }
+    50%     { box-shadow: 0 0 0 1px var(--critical), 0 0 32px rgba(249,115,22,0.95); }
+  }
+  @keyframes pulse-blue {
+    0%,100% { box-shadow: 0 0 0 1px var(--ready), 0 0 14px rgba(56,189,248,0.5); }
+    50%     { box-shadow: 0 0 0 1px var(--ready), 0 0 28px rgba(56,189,248,0.9); }
+  }
+
+  .zoom-controls {
+    position:absolute; bottom:16px; right:16px;
+    display:flex; flex-direction:column; gap:6px;
+    background: rgba(15,23,42,0.78);
+    padding:6px; border-radius:10px;
+    border:1px solid var(--line);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 5;
+  }
+  .zoom-controls button {
+    width:42px; height:42px; padding:0; font-size:18px; font-weight:600;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:8px;
+  }
+
+  aside.sidebar {
+    width:340px; flex-shrink:0; background:var(--bg-1);
+    border-left:1px solid var(--line);
+    overflow-y:auto;
+    padding:20px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  .sidebar-handle { display: none; }
+  .sidebar-close { display: none; }
+
+  .sb-empty { color:var(--text-3); font-size:13px; text-align:center; padding-top:40px; line-height:1.7; }
+  .sb-empty kbd {
+    background:var(--bg-2); border:1px solid var(--line);
+    padding:1px 6px; border-radius:4px; font-size:11px; font-family:ui-monospace, monospace;
+  }
+  .sb-level { font-size:11px; text-transform:uppercase; letter-spacing:.8px; color:var(--text-3); font-weight:600; }
+  .sb-title { font-size:18px; color:var(--text-0); margin:6px 0 10px; font-weight:600; line-height:1.3; }
+  .sb-desc { font-size:13px; line-height:1.55; color:var(--text-1); margin:0 0 14px; }
+  .sb-meta { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
+  .sb-meta > div { background:var(--bg-2); border-radius:6px; padding:8px; font-size:12px; display:flex; flex-direction:column; gap:3px; }
+  .sb-meta .k { font-size:10px; color:var(--text-3); text-transform:uppercase; letter-spacing:.5px; }
+  .sb-meta > div > span:last-child { color:var(--text-0); font-weight:600; }
+  .sb-tags { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:14px; }
+  .tag { background:var(--bg-2); color:var(--text-2); font-size:10px; padding:2px 7px; border-radius:10px; border:1px solid var(--line); }
+  aside.sidebar h3 { font-size:11px; text-transform:uppercase; letter-spacing:.8px; color:var(--text-3); margin:16px 0 8px; font-weight:600; }
+  .prereq { font-size:12px; padding:10px; background:var(--bg-2); border-radius:5px; margin-bottom:4px; color:var(--text-1); cursor:pointer; transition:background .12s; display:flex; align-items:center; gap:6px; min-height: 40px; }
+  .prereq:hover { background:var(--bg-3); }
+  .prereq.done { color:var(--success); }
+  .prereq.done::before { content:"✓"; font-weight:700; }
+  .prereq:not(.done)::before { content:"○"; color:var(--text-3); }
+  .muted { color:var(--text-3); font-size:12px; margin:0; }
+  .group { background:rgba(167,139,250,.05); border:1px solid rgba(167,139,250,.2); border-radius:6px; padding:8px; margin-bottom:6px; }
+  .group-label { font-size:10px; color:#a78bfa; text-transform:uppercase; letter-spacing:.5px; font-weight:600; margin-bottom:6px; }
+  .group .prereq { margin-bottom:3px; background:var(--bg-1); }
+  .sb-actions { margin-top:18px; display:flex; flex-direction:column; gap:8px; }
+  .sb-actions button { width:100%; padding:12px; font-size:13px; min-height: 44px; }
+  .legend {
+    margin-top:16px; display:flex; flex-direction:column; gap:5px;
+    font-size:11px; color:var(--text-3);
+  }
+  .legend-row { display:flex; align-items:center; gap:8px; }
+  .legend-dot { width:14px; height:14px; border-radius:50%; flex-shrink:0; }
+
+  /* ============ Tablet / Narrow: bottom-sheet sidebar ============ */
+  @media (max-width: 900px) {
+    header { padding: 8px 14px; gap: 10px; }
+    header h1 { font-size: 13px; }
+    .stats { font-size: 11px; gap: 12px; }
+    .progress-track { min-width: 70px; max-width: none; }
+
+    aside.sidebar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      width: 100%;
+      height: 60vh;
+      max-height: 640px;
+      transform: translateY(105%);
+      transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+      border-left: none;
+      border-top: 1px solid var(--line);
+      border-radius: 16px 16px 0 0;
+      z-index: 60;
+      box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.55);
+      padding: 8px 20px 20px;
+      padding-bottom: max(20px, env(safe-area-inset-bottom));
+    }
+    aside.sidebar.open { transform: translateY(0); }
+
+    .sidebar-handle {
+      display: block;
+      width: 40px; height: 4px;
+      background: var(--bg-3);
+      border-radius: 2px;
+      margin: 0 auto 14px;
+    }
+    .sidebar-close {
+      display: block;
+      position: absolute;
+      top: 10px; right: 12px;
+      width: 36px; height: 36px;
+      padding: 0;
+      font-size: 20px;
+      line-height: 1;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      color: var(--text-2);
+      border: none;
+    }
+    .sidebar-close:hover { background: var(--bg-2); color: var(--text-0); }
+
+    .sb-empty { padding-top: 20px; }
+    .sb-empty .legend {
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px 16px;
+    }
+
+    /* Zoom controls go up-right, out of the way of the bottom sheet */
+    .zoom-controls {
+      bottom: auto;
+      top: 12px;
+      right: 12px;
+      padding: 4px;
+    }
+    .zoom-controls button { width: 40px; height: 40px; }
+  }
+
+  @media (max-width: 480px) {
+    header h1 { display: none; }
+    .stats { gap: 8px; }
+    aside.sidebar { height: 65vh; }
+  }
+</style>
+</head>
+<body>
+
+<div id="error-banner"></div>
+
+<header>
+  <h1>🏆 Olympiad Achievement Tree</h1>
+  <div class="stats">
+    <span><b id="stat-done">0 / 0</b></span>
+    <span><b id="stat-xp">0 XP</b></span>
+  </div>
+  <div class="progress-track"><div class="progress-bar" id="progress-bar"></div></div>
+  <div class="header-actions">
+    <button id="btn-fit">⤢ Fit</button>
+    <button id="btn-reset">Reset</button>
+  </div>
+</header>
+
+<div class="main">
+  <div class="viewport" id="viewport">
+    <div class="world" id="world">
+      <svg class="edges" id="edges"></svg>
+      <div class="nodes" id="nodes"></div>
+    </div>
+    <div class="zoom-controls">
+      <button id="btn-zoom-in" title="Zoom in">+</button>
+      <button id="btn-zoom-out" title="Zoom out">−</button>
+    </div>
+  </div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-handle"></div>
+    <button class="sidebar-close" id="btn-close-sidebar" aria-label="Close">✕</button>
+    <div class="sb-empty" id="sb-empty">
+      Tap any achievement node<br>to view details and unlock it.<br><br>
+      <kbd>wheel</kbd> or <kbd>pinch</kbd> zoom · <kbd>drag</kbd> pan · <kbd>Esc</kbd> deselect
+      <div class="legend">
+        <div class="legend-row"><span class="legend-dot" style="background:#f97316"></span> locked &amp; required on path (critical)</div>
+        <div class="legend-row"><span class="legend-dot" style="background:#38bdf8"></span> available next step on path</div>
+        <div class="legend-row"><span class="legend-dot" style="background:#22c55e"></span> already completed on path</div>
+      </div>
+    </div>
+    <div class="sb-content" id="sb-content" style="display:none">
+      <div class="sb-level" id="sb-level"></div>
+      <h2 class="sb-title" id="sb-title"></h2>
+      <p class="sb-desc" id="sb-desc"></p>
+      <div class="sb-meta">
+        <div><span class="k">XP</span><span id="sb-xp"></span></div>
+        <div><span class="k">Tier</span><span id="sb-tier"></span></div>
+      </div>
+      <div class="sb-tags" id="sb-tags"></div>
+      <h3>Prerequisites</h3>
+      <div id="sb-prereqs"></div>
+      <h3>Group Requirements</h3>
+      <div id="sb-groups"></div>
+      <h3>Path Summary</h3>
+      <div id="sb-summary"></div>
+      <div class="sb-actions">
+        <button id="btn-toggle"></button>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script>
+/* =============== ERROR BANNER =============== */
+(function(){
+  var b = document.getElementById("error-banner");
+  function show(m){ b.style.display="block"; b.textContent="Runtime error: "+m; }
+  window.addEventListener("error", function(e){ show(e.message + (e.lineno?" (line "+e.lineno+")":"")); });
+  window.addEventListener("unhandledrejection", function(e){ show(String(e.reason)); });
+  window.__showError = show;
+})();
+
+/* =============== DATA =============== */
+var ACHIEVEMENTS = [
+  { id:"L0-RL",  title:"Reading and Logical Interpretation", description:"Read mathematical statements accurately, identify hypotheses, conclusions, quantifiers, and distinguish necessary from sufficient conditions.", level:0, category:"Foundations", tier:"Foundation", xp:10, prerequisites:[], tags:["reading","logic","quantifiers"] },
+  { id:"L0-AR",  title:"Arithmetic and Proportional Reasoning", description:"Work fluently with fractions, decimals, percentages, ratios, rates, averages, and proportional comparisons.", level:0, category:"Foundations", tier:"Foundation", xp:10, prerequisites:[], tags:["arithmetic","ratio","percentage"] },
+  { id:"L0-ALG", title:"Algebraic Foundations", description:"Expand, factor, manipulate identities, and solve linear and quadratic equations accurately.", level:0, category:"Foundations", tier:"Foundation", xp:10, prerequisites:["L0-AR","L0-RL"], tags:["algebra","factorization","equations"] },
+  { id:"L0-GEO", title:"Geometric Foundations", description:"Use angle facts, triangle congruence, similarity, area formulas, and the Pythagorean theorem in basic configurations.", level:0, category:"Foundations", tier:"Foundation", xp:10, prerequisites:["L0-AR","L0-RL"], tags:["geometry","angles","similarity"] },
+  { id:"L0-CNT", title:"Counting Foundations", description:"Apply the multiplication principle and basic permutation and combination reasoning to simple counting problems.", level:0, category:"Foundations", tier:"Foundation", xp:10, prerequisites:["L0-AR","L0-RL"], tags:["counting","permutation","combination"] },
+  { id:"L0-PRF", title:"Proof Language", description:"Write direct proofs, contradiction proofs, and induction proofs with clear assumptions and conclusions.", level:0, category:"Foundations", tier:"Foundation", xp:10, prerequisites:["L0-RL"], tags:["proof","contradiction","induction"] },
+
+  { id:"L1-N1", title:"Divisibility and Remainders", description:"Use divisibility definitions and tests, remainder reasoning, and parity arguments to solve basic number theory problems.", level:1, category:"Number Theory", tier:"Core", xp:25, prerequisites:["L0-AR","L0-RL"], tags:["divisibility","remainders","parity"] },
+  { id:"L1-N2", title:"Prime Factorization", description:"Compute prime factorizations, GCDs, LCMs, divisor counts, divisor sums, and factorial valuations.", level:1, category:"Number Theory", tier:"Core", xp:25, prerequisites:["L1-N1"], tags:["primes","gcd","lcm","divisors"] },
+  { id:"L1-N3", title:"Modular Arithmetic", description:"Solve congruence problems, apply CRT, Fermat/Euler theorems, and reason with orders and primitive roots at an introductory level.", level:1, category:"Number Theory", tier:"Core", xp:30, prerequisites:["L1-N1","L1-N2"], tags:["modular","congruence","crt","fermat","euler"] },
+  { id:"L1-N4", title:"Digits and Bases", description:"Analyze digit sums, carries, base conversion, and digit-based constructions in number theory problems.", level:1, category:"Number Theory", tier:"Core", xp:25, prerequisites:["L1-N1","L1-N2"], tags:["digits","bases","carries"] },
+  { id:"L1-N5", title:"Diophantine Equations", description:"Solve linear Diophantine equations and use factorization, bounding, and modular constraints on integer equations.", level:1, category:"Number Theory", tier:"Core", xp:30, prerequisites:["L1-N1","L1-N2","L1-N3"], tags:["diophantine","integers","bounding"] },
+  { id:"L1-N6", title:"Advanced Number Theory Gateway", description:"Enter advanced topics such as quadratic residues, Euler phi, Carmichael numbers, and p-adic valuation arguments.", level:1, category:"Number Theory", tier:"Gateway", xp:40, prerequisites:["L1-N3","L1-N5"], tags:["quadratic-residues","phi","carmichael","p-adic"] },
+
+  { id:"L1-A1", title:"Identities and Factorization", description:"Recognize and apply algebraic identities, symmetric factorization patterns, and controlled algebraic manipulation.", level:1, category:"Algebra & Functions", tier:"Core", xp:25, prerequisites:["L0-ALG"], tags:["identities","factorization"] },
+  { id:"L1-A2", title:"Quadratics and Polynomials", description:"Use Vieta's formulas, remainder and factor theorems, symmetric functions, and polynomial structure.", level:1, category:"Algebra & Functions", tier:"Core", xp:30, prerequisites:["L1-A1"], tags:["quadratics","polynomials","vieta"] },
+  { id:"L1-A3", title:"Functions", description:"Determine domains and ranges, compose and invert functions, and work with exponential, logarithmic, and trigonometric functions.", level:1, category:"Algebra & Functions", tier:"Core", xp:30, prerequisites:["L1-A1","L1-A2"], tags:["functions","domain","inverse","trigonometry"] },
+  { id:"L1-A4", title:"Sequences and Recurrences", description:"Handle arithmetic and geometric progressions, telescoping sums, linear recurrences, and generating-function viewpoints.", level:1, category:"Algebra & Functions", tier:"Core", xp:30, prerequisites:["L1-A1","L1-A2","L1-A3"], tags:["sequences","recurrences","telescoping"] },
+  { id:"L1-A5", title:"Complex Numbers", description:"Use modulus, argument, roots of unity, and complex-plane geometry to solve algebra and geometry problems.", level:1, category:"Algebra & Functions", tier:"Core", xp:30, prerequisites:["L1-A1","L1-A2","L1-A3"], tags:["complex","roots-of-unity","geometry"] },
+  { id:"L1-A6", title:"Inequalities", description:"Apply AM-GM, Cauchy-Schwarz, rearrangement, convexity, and Jensen-type arguments with correct equality cases.", level:1, category:"Algebra & Functions", tier:"Core", xp:30, prerequisites:["L1-A1","L1-A2"], tags:["inequalities","am-gm","cauchy","jensen"] },
+  { id:"L1-A7", title:"Functional Equations", description:"Solve functional equations by substitution, symmetry, monotonicity, boundedness, and structural constraints.", level:1, category:"Algebra & Functions", tier:"Core", xp:35, prerequisites:["L1-A2","L1-A3","L1-A4","L1-A6"], tags:["functional-equations","symmetry"] },
+  { id:"L1-A8", title:"Calculus and Analysis Foundations", description:"Use derivatives, monotonicity, extrema, tangent lines, limits, and series in olympiad-style analysis.", level:1, category:"Algebra & Functions", tier:"Core", xp:35, prerequisites:["L1-A2","L1-A3","L1-A4","L1-A6"], tags:["calculus","derivatives","limits","series"] },
+
+  { id:"L1-G1", title:"Angle Chasing and Congruence", description:"Perform angle chasing and prove triangle congruence in elementary geometry configurations.", level:1, category:"Geometry", tier:"Core", xp:25, prerequisites:["L0-GEO"], tags:["angles","congruence"] },
+  { id:"L1-G2", title:"Similarity and Area Ratios", description:"Use similarity, area ratios, cevians, Ceva, Menelaus, and mass points to solve geometric problems.", level:1, category:"Geometry", tier:"Core", xp:30, prerequisites:["L1-G1"], tags:["similarity","area-ratios","ceva","menelaus"] },
+  { id:"L1-G3", title:"Circle Theorems", description:"Apply inscribed angles, tangent-chord theorems, power of a point, and cyclic quadrilateral properties.", level:1, category:"Geometry", tier:"Core", xp:30, prerequisites:["L1-G1","L1-G2"], tags:["circles","inscribed-angles","power-of-point"] },
+  { id:"L1-G4", title:"Triangle Centers", description:"Work with centroid, circumcenter, orthocenter, incenter, excenter, and Euler-line configurations.", level:1, category:"Geometry", tier:"Core", xp:30, prerequisites:["L1-G1","L1-G2","L1-G3"], tags:["triangle-centers","euler-line"] },
+  { id:"L1-G5", title:"Coordinate Geometry", description:"Use lines, circles, distance, slope, and loci in coordinate methods for geometry problems.", level:1, category:"Geometry", tier:"Core", xp:25, prerequisites:["L0-ALG","L1-G1","L1-G2"], tags:["coordinates","loci","distance"] },
+  { id:"L1-G6", title:"Conic Sections", description:"Analyze parabolas, ellipses, hyperbolas, tangents, and foci using algebraic and geometric methods.", level:1, category:"Geometry", tier:"Core", xp:35, prerequisites:["L1-A2","L1-G2","L1-G3","L1-G5"], tags:["conics","parabola","ellipse","hyperbola"] },
+  { id:"L1-G7", title:"Solid Geometry", description:"Solve problems involving tetrahedra, prisms, pyramids, spheres, volumes, surface areas, and dihedral angles.", level:1, category:"Geometry", tier:"Core", xp:35, prerequisites:["L1-G1","L1-G2","L1-G5"], tags:["solid-geometry","volume","dihedral-angles"] },
+  { id:"L1-G8", title:"Transformations and Advanced Geometry Gateway", description:"Use reflection, rotation, homothety, inversion, and complex geometry as entry points to advanced geometry.", level:1, category:"Geometry", tier:"Gateway", xp:40, prerequisites:["L1-G2","L1-G3","L1-G4","L1-G5","L1-G6"], tags:["transformations","inversion","complex-geometry"] },
+
+  { id:"L1-C1", title:"Counting Rules", description:"Apply basic counting rules, organized casework, and the multiplication principle correctly.", level:1, category:"Combinatorics & Probability", tier:"Core", xp:25, prerequisites:["L0-CNT"], tags:["counting","casework"] },
+  { id:"L1-C2", title:"Permutations and Combinations", description:"Count arrangements, selections, multisets, and constrained configurations using permutations and combinations.", level:1, category:"Combinatorics & Probability", tier:"Core", xp:25, prerequisites:["L1-C1"], tags:["permutations","combinations","multisets"] },
+  { id:"L1-C3", title:"Inclusion-Exclusion and Stars-and-Bars", description:"Use inclusion-exclusion, complementary counting, and stars-and-bars to handle overlapping or unrestricted distributions.", level:1, category:"Combinatorics & Probability", tier:"Core", xp:30, prerequisites:["L1-C1","L1-C2"], tags:["inclusion-exclusion","stars-and-bars"] },
+  { id:"L1-C4", title:"Pigeonhole Principle", description:"Recognize and apply pigeonhole arguments, including generalized and structured pigeonhole setups.", level:1, category:"Combinatorics & Probability", tier:"Core", xp:25, prerequisites:["L0-RL","L1-C1"], tags:["pigeonhole"] },
+  { id:"L1-C5", title:"Bijection and Double Counting", description:"Construct bijections and double-count combinatorial quantities to prove identities and extremal facts.", level:1, category:"Combinatorics & Probability", tier:"Core", xp:35, prerequisites:["L1-C1","L1-C2","L1-C3"], tags:["bijection","double-counting"] },
+  { id:"L1-C6", title:"Recurrences and Generating Functions", description:"Model combinatorial sequences with recurrences and solve them using generating functions and algebraic methods.", level:1, category:"Combinatorics & Probability", tier:"Core", xp:35, prerequisites:["L1-A4","L1-C1","L1-C2","L1-C3","L1-C5"], tags:["recurrences","generating-functions"] },
+  { id:"L1-C7", title:"Graph Theory", description:"Reason with degrees, trees, colorings, matchings, and basic extremal graph statements.", level:1, category:"Combinatorics & Probability", tier:"Core", xp:35, prerequisites:["L1-C1","L1-C5"], tags:["graphs","trees","matchings","colorings"] },
+  { id:"L1-C8", title:"Probability", description:"Use conditional probability, independence, expectation, and Markov-chain reasoning in combinatorial settings.", level:1, category:"Combinatorics & Probability", tier:"Core", xp:35, prerequisites:["L1-C1","L1-C2","L1-C3","L1-C6","L1-C7"], tags:["probability","expectation","markov-chains"] },
+  { id:"L1-C9", title:"Extremal, Constructive, and Game Theory Gateway", description:"Use invariants, monovariants, winning strategies, and existence constructions in combinatorial problems.", level:1, category:"Combinatorics & Probability", tier:"Gateway", xp:40, prerequisites:["L1-C4","L1-C5","L1-C6","L1-C7","L1-C8"], tags:["invariants","monovariants","games","constructions"] },
+
+  { id:"L2-AG", title:"Algebra + Geometry Synthesis", description:"Combine trigonometric geometry, coordinate methods, complex geometry, and algebraic inequalities in triangles.", level:2, category:"Cross-Domain Synthesis", tier:"Synthesis", xp:80, prerequisites:["L1-A3","L1-A5","L1-A6","L1-G4","L1-G5","L1-G6","L1-G8"], tags:["algebra","geometry","trig-geometry","complex-geometry"] },
+  { id:"L2-NC", title:"Number Theory + Combinatorics Synthesis", description:"Combine residue classes with pigeonhole, divisor-count constraints, base and digit constructions, and extremal integer sets.", level:2, category:"Cross-Domain Synthesis", tier:"Synthesis", xp:80, prerequisites:["L1-N1","L1-N2","L1-N3","L1-N4","L1-N5","L1-C1","L1-C2","L1-C3","L1-C4","L1-C5"], tags:["number-theory","combinatorics","pigeonhole"] },
+  { id:"L2-GC", title:"Geometry + Combinatorics Synthesis", description:"Solve counting regions, coloring and configuration problems, and combinatorial geometry questions.", level:2, category:"Cross-Domain Synthesis", tier:"Synthesis", xp:80, prerequisites:["L1-G1","L1-G2","L1-G3","L1-G4","L1-G5","L1-C1","L1-C2","L1-C3","L1-C5"], tags:["geometry","combinatorics","colorings"] },
+  { id:"L2-AC", title:"Algebra + Combinatorics Synthesis", description:"Use generating functions, symmetric functions, and extremal polynomial ideas in combinatorial algebra.", level:2, category:"Cross-Domain Synthesis", tier:"Synthesis", xp:80, prerequisites:["L1-A4","L1-A6","L1-A7","L1-C1","L1-C2","L1-C3","L1-C5","L1-C6"], tags:["algebra","combinatorics","generating-functions"] },
+  { id:"L2-CI", title:"Calculus + Inequalities Synthesis", description:"Apply tangent-line methods, convexity, and optimization to prove sharp inequalities.", level:2, category:"Cross-Domain Synthesis", tier:"Synthesis", xp:80, prerequisites:["L1-A2","L1-A6","L1-A8"], tags:["calculus","inequalities","convexity"] },
+  { id:"L2-PG", title:"Probability + Game Theory Synthesis", description:"Use expected value, Markov chains, and optimal strategies in probabilistic game settings.", level:2, category:"Cross-Domain Synthesis", tier:"Synthesis", xp:80, prerequisites:["L1-C7","L1-C8","L1-C9"], tags:["probability","game-theory","markov-chains"] },
+
+  { id:"L3-NT",   title:"Advanced Number Theory",  description:"Master orders, primitive roots, quadratic-residue ideas, Carmichael/phi methods, and deep Diophantine equations.", level:3, category:"Advanced Olympiad", tier:"Advanced", xp:150, prerequisites:["L1-N3","L1-N5","L1-N6","L2-NC"], tags:["advanced-number-theory","orders","quadratic-residues"] },
+  { id:"L3-ALG",  title:"Advanced Algebra",         description:"Solve advanced functional equations and polynomial problems, use complex-analysis ideas, and prove inequalities with sharp constants.", level:3, category:"Advanced Olympiad", tier:"Advanced", xp:150, prerequisites:["L1-A5","L1-A6","L1-A7","L1-A8","L2-AC","L2-CI"], tags:["advanced-algebra","functional-equations","sharp-inequalities"] },
+  { id:"L3-GEO",  title:"Advanced Geometry",        description:"Use inversion, projective ideas, advanced triangle centers, conic geometry, and three-dimensional geometry.", level:3, category:"Advanced Olympiad", tier:"Advanced", xp:150, prerequisites:["L1-G3","L1-G4","L1-G6","L1-G8","L2-AG","L2-GC"], tags:["advanced-geometry","inversion","projective","conics"] },
+  { id:"L3-COMB", title:"Advanced Combinatorics",   description:"Apply extremal graph theory, the probabilistic method, algebraic combinatorics, designs, configurations, and constructive proofs.", level:3, category:"Advanced Olympiad", tier:"Advanced", xp:150, prerequisites:["L1-C5","L1-C6","L1-C7","L1-C8","L1-C9","L2-NC","L2-GC","L2-AC","L2-PG"], tags:["advanced-combinatorics","probabilistic-method","extremal-graphs"] },
+  { id:"L3-PRF",  title:"Proof Strategy",           description:"Select and execute extremal principles, double counting, invariants, monovariants, induction, contradiction, WLOG, and symmetry arguments.", level:3, category:"Advanced Olympiad", tier:"Advanced", xp:150, prerequisites:["L0-PRF"], tags:["proof-strategy","extremal-principle","invariants","induction"] },
+  { id:"L3-SYN",  title:"Cross-Domain Synthesis",   description:"Solve multi-step olympiad problems in CMO/CTST/XMO style and CHSMLH proof families by combining advanced domains.", level:3, category:"Advanced Olympiad", tier:"Advanced", xp:200, prerequisites:["L3-PRF"], tags:["cross-domain","cmo","ctst","xmo","chsmlh"] }
+];
+
+var PREREQUISITE_GROUPS = [
+  { target:"L3-PRF", label:"Two core L1 branches", anyOf:["L1-N3","L1-A6","L1-G3","L1-C5"], min:2 },
+  { target:"L3-SYN", label:"Two advanced domains", anyOf:["L3-NT","L3-ALG","L3-GEO","L3-COMB"], min:2 }
+];
+
+/* =============== DERIVED GRAPH =============== */
+var ACHIEVEMENT_MAP = {};
+for (var i = 0; i < ACHIEVEMENTS.length; i++) ACHIEVEMENT_MAP[ACHIEVEMENTS[i].id] = ACHIEVEMENTS[i];
+
+var PREREQUISITE_EDGES = [];
+for (var i = 0; i < ACHIEVEMENTS.length; i++) {
+  var a = ACHIEVEMENTS[i];
+  for (var j = 0; j < a.prerequisites.length; j++) PREREQUISITE_EDGES.push([a.prerequisites[j], a.id]);
+}
+
+var OPTIONAL_GROUP_EDGES = [];
+for (var i = 0; i < PREREQUISITE_GROUPS.length; i++) {
+  var g = PREREQUISITE_GROUPS[i];
+  for (var j = 0; j < g.anyOf.length; j++) OPTIONAL_GROUP_EDGES.push([g.anyOf[j], g.target]);
+}
+
+var ALL_PARENTS = {};
+for (var i = 0; i < ACHIEVEMENTS.length; i++) ALL_PARENTS[ACHIEVEMENTS[i].id] = [];
+for (var i = 0; i < PREREQUISITE_EDGES.length; i++) ALL_PARENTS[PREREQUISITE_EDGES[i][1]].push(PREREQUISITE_EDGES[i][0]);
+for (var i = 0; i < OPTIONAL_GROUP_EDGES.length; i++) ALL_PARENTS[OPTIONAL_GROUP_EDGES[i][1]].push(OPTIONAL_GROUP_EDGES[i][0]);
+
+/* =============== CATEGORY COLORS =============== */
+var CATEGORY_COLORS = {
+  "Foundations": "#94a3b8",
+  "Number Theory": "#a78bfa",
+  "Algebra & Functions": "#22d3ee",
+  "Geometry": "#34d399",
+  "Combinatorics & Probability": "#fbbf24",
+  "Cross-Domain Synthesis": "#f472b6",
+  "Advanced Olympiad": "#f87171"
+};
+
+/* =============== RADIAL LAYOUT (L0–L3) =============== */
+var NODE_R = 34;
+var RING_RADII = { 0: 110, 1: 380, 2: 560, 3: 730 };
+var CANVAS_SIZE = 1700;
+var CENTER = CANVAS_SIZE / 2;
+
+var POSITIONS = {};
+var ANGLE_OF = {};
+
+var L1_CATS = ["Number Theory", "Algebra & Functions", "Geometry", "Combinatorics & Probability"];
+
+for (var lvl = 0; lvl <= 3; lvl++) {
+  var nodes = ACHIEVEMENTS.filter(function(a){ return a.level === lvl; });
+  var ordered = [];
+  if (lvl === 1) {
+    for (var c = 0; c < L1_CATS.length; c++) {
+      var group = nodes.filter(function(n){ return n.category === L1_CATS[c]; });
+      group.sort(function(x, y){ return x.id < y.id ? -1 : x.id > y.id ? 1 : 0; });
+      for (var k = 0; k < group.length; k++) ordered.push(group[k]);
+    }
+  } else {
+    ordered = nodes.slice().sort(function(x, y){ return x.id < y.id ? -1 : x.id > y.id ? 1 : 0; });
+  }
+  var N = ordered.length;
+  if (!N) continue;
+  var offset = -Math.PI / 2;
+  for (var i = 0; i < N; i++) {
+    var ang = offset + (i / N) * Math.PI * 2;
+    ANGLE_OF[ordered[i].id] = ang;
+  }
+}
+
+for (var i = 0; i < ACHIEVEMENTS.length; i++) {
+  var a = ACHIEVEMENTS[i];
+  var r = RING_RADII[a.level];
+  var ang = ANGLE_OF[a.id];
+  POSITIONS[a.id] = {
+    cx: CENTER + Math.cos(ang) * r,
+    cy: CENTER + Math.sin(ang) * r,
+    r: NODE_R,
+    ang: ang
+  };
+}
+
+/* =============== STATE =============== */
+// 存档在服务端，按用户名分离（后端 /api/knowledge-tree 存在 userdata.knowledgeTree）。
+// localStorage 只是首屏缓存：断网或请求失败时仍能看到上次的进度。
+//
+// 每完成 / 取消一个节点 = 一次 API call。不攒批量，是因为节点操作
+// 本来就有视觉反馈的等待，一次往返感知不到，而攒着提交一旦关页面就丢。
+var state = { completed: {}, selected: null, username: null };
+
+var LEGACY_KEY = "olympiad-achievements-radial-v3";
+
+function authToken() { return localStorage.getItem('auth_token') || ''; }
+
+function cacheKey() { return 'kt-cache:' + (state.username || 'anon'); }
+
+function banner(msg) {
+  var el = document.getElementById('error-banner');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function clearBanner() {
+  var el = document.getElementById('error-banner');
+  if (el) el.style.display = 'none';
+}
+
+/** 从 JWT payload 里取用户名（只用于缓存键，权限校验在服务端）。 */
+function usernameFromToken(tok) {
+  try {
+    var parts = tok.split('.');
+    if (parts.length < 2) return null;
+    var b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    var json = decodeURIComponent(escape(atob(b64)));
+    return JSON.parse(json).username || null;
+  } catch (e) { return null; }
+}
+
+function loadCache() {
+  try {
+    var raw = localStorage.getItem(cacheKey());
+    if (!raw) return;
+    var arr = JSON.parse(raw);
+    for (var i = 0; i < arr.length; i++) state.completed[arr[i]] = true;
+  } catch (e) {}
+}
+
+function writeCache() {
+  try {
+    localStorage.setItem(cacheKey(), JSON.stringify(Object.keys(state.completed)));
+  } catch (e) {}
+}
+
+function applyCompleted(list) {
+  state.completed = {};
+  for (var i = 0; i < list.length; i++) state.completed[list[i]] = true;
+  writeCache();
+}
+
+async function loadProgress() {
+  var tok = authToken();
+  if (!tok) {
+    banner('Not logged in — progress will not be saved to your account.');
+    loadCache();
+    return;
+  }
+  state.username = usernameFromToken(tok);
+  loadCache();   // 先用缓存渲染，避免白屏
+  try {
+    var res = await fetch('/api/knowledge-tree?action=load', {
+      headers: { 'Authorization': 'Bearer ' + tok },
+    });
+    var data = await res.json();
+    if (!data.success) throw new Error(data.message || ('HTTP ' + res.status));
+    state.username = data.username || state.username;
+    applyCompleted(data.completed || []);
+    clearBanner();
+  } catch (e) {
+    banner('Could not load your progress (' + e.message + '). Showing the cached copy — changes will retry saving.');
+  }
+}
+
+/**
+ * 写一个节点的完成状态。
+ * @param {string} id
+ * @param {boolean} done
+ */
+async function persistNode(id, done) {
+  var tok = authToken();
+  if (!tok) { banner('Not logged in — this change is only stored locally.'); writeCache(); return; }
+
+  try {
+    var res = await fetch('/api/knowledge-tree?action=' + (done ? 'complete' : 'uncomplete'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+      body: JSON.stringify({ nodeId: id }),
+    });
+    var data = await res.json();
+    if (!data.success) throw new Error(data.message || ('HTTP ' + res.status));
+    // 以服务端返回的完整列表为准，避免本地与服务端漂移
+    applyCompleted(data.completed || []);
+    clearBanner();
+  } catch (e) {
+    banner('Failed to save "' + id + '": ' + e.message + ' (kept locally; retry by toggling again)');
+    writeCache();
+  }
+}
+
+async function resetProgress() {
+  state.completed = {};
+  state.selected = null;
+  writeCache();
+  updateNodeStates();
+  updateProgress();
+  deselect();
+
+  var tok = authToken();
+  if (!tok) return;
+  try {
+    var res = await fetch('/api/knowledge-tree?action=reset', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + tok },
+    });
+    var data = await res.json();
+    if (!data.success) throw new Error(data.message || ('HTTP ' + res.status));
+    applyCompleted(data.completed || []);
+    clearBanner();
+  } catch (e) {
+    banner('Failed to reset on the server: ' + e.message);
+  }
+}
+
+// 旧版存档是全局键，不区分用户 —— 直接丢掉，免得串档
+try { localStorage.removeItem(LEGACY_KEY); } catch (e) {}
+
+/* =============== UNLOCK LOGIC =============== */
+function canUnlock(id) {
+  var a = ACHIEVEMENT_MAP[id];
+  if (!a) return false;
+  for (var i = 0; i < a.prerequisites.length; i++) {
+    if (!state.completed[a.prerequisites[i]]) return false;
+  }
+  for (var i = 0; i < PREREQUISITE_GROUPS.length; i++) {
+    var g = PREREQUISITE_GROUPS[i];
+    if (g.target !== id) continue;
+    var count = 0;
+    for (var j = 0; j < g.anyOf.length; j++) if (state.completed[g.anyOf[j]]) count++;
+    if (count < g.min) return false;
+  }
+  return true;
+}
+
+function statusOf(id) {
+  if (state.completed[id]) return "completed";
+  if (canUnlock(id)) return "available";
+  return "locked";
+}
+
+/* =============== DOM REFS =============== */
+var viewport = document.getElementById("viewport");
+var world = document.getElementById("world");
+var edgesSvg = document.getElementById("edges");
+var nodesLayer = document.getElementById("nodes");
+var sidebar = document.getElementById("sidebar");
+var SVG_NS = "http://www.w3.org/2000/svg";
+
+var nodeEls = {};
+var edgeEls = {};
+
+/* =============== VIEW TRANSFORM =============== */
+var view = { tx: 0, ty: 0, scale: 1 };
+
+function applyTransform() {
+  world.style.transform = "translate(" + view.tx + "px," + view.ty + "px) scale(" + view.scale + ")";
+}
+
+function fitView(animate) {
+  var vw = viewport.clientWidth;
+  var vh = viewport.clientHeight;
+  var pad = 30;
+  var s = Math.min((vw - pad * 2) / CANVAS_SIZE, (vh - pad * 2) / CANVAS_SIZE);
+  if (!isFinite(s) || s <= 0) s = 0.5;
+  view.scale = s;
+  view.tx = (vw - CANVAS_SIZE * s) / 2;
+  view.ty = (vh - CANVAS_SIZE * s) / 2;
+  if (animate) world.style.transition = "transform 0.35s ease";
+  else world.style.transition = "";
+  applyTransform();
+  if (animate) setTimeout(function(){ world.style.transition = ""; }, 400);
+}
+
+/* =============== EDGES =============== */
+function edgePath(from, to) {
+  var p1 = POSITIONS[from], p2 = POSITIONS[to];
+  if (!p1 || !p2) return null;
+  var dx = p2.cx - p1.cx, dy = p2.cy - p1.cy;
+  var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+  var ux = dx / dist, uy = dy / dist;
+  var x1 = p1.cx + ux * (p1.r + 3);
+  var y1 = p1.cy + uy * (p1.r + 3);
+  var x2 = p2.cx - ux * (p2.r + 3);
+  var y2 = p2.cy - uy * (p2.r + 3);
+  var mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+  var cx0 = mx - CENTER, cy0 = my - CENTER;
+  var clen = Math.sqrt(cx0 * cx0 + cy0 * cy0) || 1;
+  var bow = Math.min(dist * 0.08, 22);
+  var cx = mx + (cx0 / clen) * bow;
+  var cy = my + (cy0 / clen) * bow;
+  return "M " + x1.toFixed(2) + " " + y1.toFixed(2) + " Q " + cx.toFixed(2) + " " + cy.toFixed(2) + " " + x2.toFixed(2) + " " + y2.toFixed(2);
+}
+
+function createMarker(id, color) {
+  var m = document.createElementNS(SVG_NS, "marker");
+  m.setAttribute("id", id);
+  m.setAttribute("viewBox", "0 0 10 10");
+  m.setAttribute("refX", "9"); m.setAttribute("refY", "5");
+  m.setAttribute("markerWidth", "6"); m.setAttribute("markerHeight", "6");
+  m.setAttribute("orient", "auto");
+  var p = document.createElementNS(SVG_NS, "path");
+  p.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+  p.setAttribute("fill", color);
+  m.appendChild(p);
+  return m;
+}
+
+function renderRings() {
+  for (var lvl = 0; lvl <= 3; lvl++) {
+    var c = document.createElementNS(SVG_NS, "circle");
+    c.setAttribute("cx", CENTER);
+    c.setAttribute("cy", CENTER);
+    c.setAttribute("r", RING_RADII[lvl]);
+    c.setAttribute("class", "ring");
+    edgesSvg.appendChild(c);
+  }
+}
+
+function renderEdges() {
+  while (edgesSvg.firstChild) edgesSvg.removeChild(edgesSvg.firstChild);
+
+  var defs = document.createElementNS(SVG_NS, "defs");
+  defs.appendChild(createMarker("arr-hard", "rgba(100,116,139,0.5)"));
+  defs.appendChild(createMarker("arr-group", "rgba(167,139,250,0.6)"));
+  edgesSvg.appendChild(defs);
+
+  renderRings();
+
+  function addEdge(from, to, kind) {
+    var d = edgePath(from, to);
+    if (!d) return;
+    var path = document.createElementNS(SVG_NS, "path");
+    path.setAttribute("d", d);
+    path.setAttribute("class", "edge " + kind);
+    path.setAttribute("marker-end", kind === "group" ? "url(#arr-group)" : "url(#arr-hard)");
+    path.setAttribute("data-key", from + "->" + to);
+    edgesSvg.appendChild(path);
+    edgeEls[from + "->" + to] = path;
+  }
+
+  for (var i = 0; i < PREREQUISITE_EDGES.length; i++) addEdge(PREREQUISITE_EDGES[i][0], PREREQUISITE_EDGES[i][1], "hard");
+  for (var i = 0; i < OPTIONAL_GROUP_EDGES.length; i++) addEdge(OPTIONAL_GROUP_EDGES[i][0], OPTIONAL_GROUP_EDGES[i][1], "group");
+}
+
+/* =============== NODES =============== */
+function labelFor(id) {
+  var parts = id.split("-");
+  return parts.slice(1).join("-");
+}
+
+function createNodeEl(a) {
+  var pos = POSITIONS[a.id];
+  var el = document.createElement("div");
+  el.className = "node " + statusOf(a.id);
+  el.setAttribute("data-id", a.id);
+  el.setAttribute("role", "button");
+  el.setAttribute("tabindex", "0");
+  el.setAttribute("aria-label", a.id + " — " + a.title);
+  el.title = a.id + " — " + a.title + " [" + a.category + "]";
+  el.style.left = (pos.cx - NODE_R) + "px";
+  el.style.top = (pos.cy - NODE_R) + "px";
+  el.style.setProperty("--cat-color", CATEGORY_COLORS[a.category] || "#94a3b8");
+  el.textContent = labelFor(a.id);
+
+  el.addEventListener("click", function(e){
+    if (Date.now() < suppressClickUntil) { e.stopPropagation(); return; }
+    e.stopPropagation();
+    selectNode(a.id);
+  });
+  el.addEventListener("keydown", function(e){
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      selectNode(a.id);
+    }
+  });
+
+  return el;
+}
+
+function renderNodes() {
+  nodesLayer.innerHTML = "";
+  for (var i = 0; i < ACHIEVEMENTS.length; i++) {
+    var el = createNodeEl(ACHIEVEMENTS[i]);
+    nodesLayer.appendChild(el);
+    nodeEls[ACHIEVEMENTS[i].id] = el;
+  }
+}
+
+function updateNodeStates() {
+  for (var id in nodeEls) {
+    if (!nodeEls.hasOwnProperty(id)) continue;
+    var el = nodeEls[id];
+    el.classList.remove("locked", "available", "completed");
+    el.classList.add(statusOf(id));
+  }
+}
+
+/* =============== HIGHLIGHT / ANALYSIS =============== */
+function clearHighlight() {
+  for (var id in nodeEls) {
+    if (!nodeEls.hasOwnProperty(id)) continue;
+    var el = nodeEls[id];
+    el.classList.remove("hl-selected","hl-critical","hl-ready","hl-done");
+  }
+  for (var key in edgeEls) {
+    if (!edgeEls.hasOwnProperty(key)) continue;
+    edgeEls[key].classList.remove("hl");
+  }
+}
+
+function collectAncestors(targetId) {
+  var ancestors = {};
+  var queue = [targetId];
+  var visited = {};
+  visited[targetId] = true;
+  while (queue.length) {
+    var cur = queue.shift();
+    var parents = ALL_PARENTS[cur] || [];
+    for (var i = 0; i < parents.length; i++) {
+      var p = parents[i];
+      if (!visited[p]) {
+        visited[p] = true;
+        ancestors[p] = true;
+        queue.push(p);
+      }
+    }
+  }
+  return ancestors;
+}
+
+function selectNode(id) {
+  state.selected = id;
+  renderSidebar(id);
+  openSidebar();
+
+  clearHighlight();
+
+  var ancestors = collectAncestors(id);
+
+  if (nodeEls[id]) nodeEls[id].classList.add("hl-selected");
+
+  var criticalCount = 0, readyCount = 0, doneCount = 0;
+  for (var anc in ancestors) {
+    if (!ancestors.hasOwnProperty(anc)) continue;
+    var el = nodeEls[anc];
+    if (!el) continue;
+    if (state.completed[anc]) {
+      el.classList.add("hl-done");
+      doneCount++;
+    } else if (canUnlock(anc)) {
+      el.classList.add("hl-ready");
+      readyCount++;
+    } else {
+      el.classList.add("hl-critical");
+      criticalCount++;
+    }
+  }
+
+  var members = {};
+  members[id] = true;
+  for (var anc in ancestors) if (ancestors.hasOwnProperty(anc)) members[anc] = true;
+
+  for (var i = 0; i < PREREQUISITE_EDGES.length; i++) {
+    var e = PREREQUISITE_EDGES[i];
+    if (members[e[0]] && members[e[1]]) {
+      var key = e[0] + "->" + e[1];
+      if (edgeEls[key]) edgeEls[key].classList.add("hl");
+    }
+  }
+  for (var i = 0; i < OPTIONAL_GROUP_EDGES.length; i++) {
+    var e = OPTIONAL_GROUP_EDGES[i];
+    if (members[e[0]] && members[e[1]]) {
+      var key = e[0] + "->" + e[1];
+      if (edgeEls[key]) edgeEls[key].classList.add("hl");
+    }
+  }
+
+  var summary = document.getElementById("sb-summary");
+  if (summary) {
+    summary.innerHTML =
+      '<p class="muted">' +
+      '<span style="color:#22c55e">✓ ' + doneCount + ' done</span> · ' +
+      '<span style="color:#38bdf8">◐ ' + readyCount + ' ready</span> · ' +
+      '<span style="color:#f97316">✗ ' + criticalCount + ' critical</span>' +
+      '</p>';
+  }
+}
+
+function deselect() {
+  state.selected = null;
+  clearHighlight();
+  document.getElementById("sb-empty").style.display = "block";
+  document.getElementById("sb-content").style.display = "none";
+  closeSidebar();
+}
+
+/* =============== SIDEBAR (open / close for narrow screens) =============== */
+function openSidebar() {
+  sidebar.classList.add("open");
+}
+function closeSidebar() {
+  sidebar.classList.remove("open");
+}
+
+document.getElementById("btn-close-sidebar").addEventListener("click", function(e){
+  e.stopPropagation();
+  deselect();
+});
+
+/* =============== SIDEBAR CONTENT =============== */
+var sbEmpty = document.getElementById("sb-empty");
+var sbContent = document.getElementById("sb-content");
+var sbLevel = document.getElementById("sb-level");
+var sbTitle = document.getElementById("sb-title");
+var sbDesc = document.getElementById("sb-desc");
+var sbXp = document.getElementById("sb-xp");
+var sbTier = document.getElementById("sb-tier");
+var sbTags = document.getElementById("sb-tags");
+var sbPrereqs = document.getElementById("sb-prereqs");
+var sbGroups = document.getElementById("sb-groups");
+var btnToggle = document.getElementById("btn-toggle");
+
+function renderSidebar(id) {
+  var a = ACHIEVEMENT_MAP[id];
+  if (!a) return;
+
+  sbEmpty.style.display = "none";
+  sbContent.style.display = "block";
+
+  sbLevel.textContent = "Level " + a.level + " · " + a.category;
+  sbTitle.textContent = a.title;
+  sbDesc.textContent = a.description;
+  sbXp.textContent = a.xp + " XP";
+  sbTier.textContent = a.tier;
+
+  sbTags.innerHTML = "";
+  for (var i = 0; i < a.tags.length; i++) {
+    var t = document.createElement("span");
+    t.className = "tag";
+    t.textContent = a.tags[i];
+    sbTags.appendChild(t);
+  }
+
+  sbPrereqs.innerHTML = "";
+  if (a.prerequisites.length === 0) {
+    sbPrereqs.innerHTML = '<p class="muted">None</p>';
+  } else {
+    for (var i = 0; i < a.prerequisites.length; i++) {
+      var pid = a.prerequisites[i];
+      var p = ACHIEVEMENT_MAP[pid];
+      var div = document.createElement("div");
+      div.className = "prereq" + (state.completed[pid] ? " done" : "");
+      div.setAttribute("data-id", pid);
+      div.textContent = p.title;
+      sbPrereqs.appendChild(div);
+    }
+  }
+
+  sbGroups.innerHTML = "";
+  var found = false;
+  for (var i = 0; i < PREREQUISITE_GROUPS.length; i++) {
+    var g = PREREQUISITE_GROUPS[i];
+    if (g.target !== id) continue;
+    found = true;
+    var groupDiv = document.createElement("div");
+    groupDiv.className = "group";
+    var label = document.createElement("div");
+    label.className = "group-label";
+    label.textContent = g.label + " — at least " + g.min + " of " + g.anyOf.length;
+    groupDiv.appendChild(label);
+    for (var j = 0; j < g.anyOf.length; j++) {
+      var oid = g.anyOf[j];
+      var o = ACHIEVEMENT_MAP[oid];
+      var odiv = document.createElement("div");
+      odiv.className = "prereq" + (state.completed[oid] ? " done" : "");
+      odiv.setAttribute("data-id", oid);
+      odiv.textContent = o.title;
+      groupDiv.appendChild(odiv);
+    }
+    sbGroups.appendChild(groupDiv);
+  }
+  if (!found) sbGroups.innerHTML = '<p class="muted">None</p>';
+
+  var isCompleted = !!state.completed[id];
+  var unlocked = canUnlock(id);
+
+  if (isCompleted) {
+    btnToggle.textContent = "Mark as Incomplete";
+    btnToggle.disabled = false;
+    btnToggle.className = "";
+  } else if (unlocked) {
+    btnToggle.textContent = "Unlock Achievement";
+    btnToggle.disabled = false;
+    btnToggle.className = "primary";
+  } else {
+    btnToggle.textContent = "Locked — prerequisites missing";
+    btnToggle.disabled = true;
+    btnToggle.className = "";
+  }
+
+  btnToggle.onclick = function(){
+    // 每完成 / 取消一个节点，就是一次 API call
+    if (state.completed[id]) {
+      delete state.completed[id];
+      updateNodeStates();
+      updateProgress();
+      selectNode(id);
+      persistNode(id, false);
+    } else {
+      state.completed[id] = true;
+      updateNodeStates();
+      updateProgress();
+      selectNode(id);
+      persistNode(id, true);
+    }
+  };
+}
+
+sbContent.addEventListener("click", function(e){
+  var el = e.target;
+  while (el && el !== sbContent && !(el.getAttribute && el.getAttribute("data-id"))) el = el.parentNode;
+  if (el && el.getAttribute && el.getAttribute("data-id")) {
+    selectNode(el.getAttribute("data-id"));
+  }
+});
+
+/* =============== PROGRESS =============== */
+function updateProgress() {
+  var total = ACHIEVEMENTS.length;
+  var done = 0, totalXp = 0, gotXp = 0;
+  for (var i = 0; i < ACHIEVEMENTS.length; i++) {
+    var a = ACHIEVEMENTS[i];
+    totalXp += a.xp;
+    if (state.completed[a.id]) { done++; gotXp += a.xp; }
+  }
+  document.getElementById("stat-done").textContent = done + " / " + total;
+  document.getElementById("stat-xp").textContent = gotXp + " / " + totalXp + " XP";
+  document.getElementById("progress-bar").style.width = Math.round((done / total) * 100) + "%";
+}
+
+/* ============================================================
+   POINTER / TOUCH INTERACTION
+   - 1 pointer  → pan (with 6px threshold to distinguish tap from drag)
+   - 2 pointers → pinch zoom anchored at the midpoint of the two fingers
+   - tap on node → select; tap on empty → deselect
+   - wheel (mouse / trackpad) → gentle anchored zoom
+   ============================================================ */
+var pointers = {};         // pointerId -> {x, y}
+var gesture = null;        // { type, ... }
+var suppressClickUntil = 0;
+
+function pointInViewport(clientX, clientY) {
+  var rect = viewport.getBoundingClientRect();
+  return { x: clientX - rect.left, y: clientY - rect.top };
+}
+
+function pointerList() {
+  var ids = [];
+  for (var id in pointers) if (pointers.hasOwnProperty(id)) ids.push(id);
+  return ids;
+}
+
+function onPointerDown(e) {
+  // Ignore pointers that start on the zoom controls or the sidebar.
+  if (e.target.closest(".zoom-controls") || e.target.closest(".sidebar")) return;
+
+  pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+  var ids = pointerList();
+
+  if (ids.length === 1) {
+    gesture = {
+      type: "pan-maybe",
+      startX: e.clientX,
+      startY: e.clientY,
+      startTx: view.tx,
+      startTy: view.ty,
+      moved: false
+    };
+  } else if (ids.length === 2) {
+    var p1 = pointers[ids[0]];
+    var p2 = pointers[ids[1]];
+    var m0 = pointInViewport((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+    var d0 = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    gesture = {
+      type: "pinch",
+      d0: d0,
+      m0: m0,
+      s0: view.scale,
+      tx0: view.tx,
+      ty0: view.ty
+    };
+    suppressClickUntil = Date.now() + 400;
+    viewport.classList.remove("dragging");
+  }
+}
+
+function onPointerMove(e) {
+  if (!(e.pointerId in pointers)) return;
+  pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+
+  if (!gesture) return;
+
+  if (gesture.type === "pan-maybe") {
+    var dx = e.clientX - gesture.startX;
+    var dy = e.clientY - gesture.startY;
+    if (!gesture.moved && Math.hypot(dx, dy) > 6) {
+      gesture.moved = true;
+      viewport.classList.add("dragging");
+      suppressClickUntil = Date.now() + 400;
+    }
+    if (gesture.moved) {
+      view.tx = gesture.startTx + dx;
+      view.ty = gesture.startTy + dy;
+      applyTransform();
+    }
+  } else if (gesture.type === "pinch") {
+    var ids = pointerList();
+    if (ids.length < 2) return;
+    var p1 = pointers[ids[0]];
+    var p2 = pointers[ids[1]];
+    var m1 = pointInViewport((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+    var d1 = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    if (gesture.d0 < 1) return;
+
+    var newScale = Math.max(0.2, Math.min(3, gesture.s0 * (d1 / gesture.d0)));
+
+    // World-space anchor (the point under the initial midpoint)
+    var wx = (gesture.m0.x - gesture.tx0) / gesture.s0;
+    var wy = (gesture.m0.y - gesture.ty0) / gesture.s0;
+
+    view.scale = newScale;
+    view.tx = m1.x - wx * newScale;
+    view.ty = m1.y - wy * newScale;
+    applyTransform();
+  }
+}
+
+function onPointerUp(e) {
+  if (!(e.pointerId in pointers)) {
+    // Still clean up gesture if it belonged to this pointer chain
+    return;
+  }
+  delete pointers[e.pointerId];
+  var ids = pointerList();
+
+  if (gesture) {
+    if (gesture.moved) suppressClickUntil = Date.now() + 400;
+
+    if (gesture.type === "pinch" && ids.length === 1) {
+      // Downgrade pinch → pan (continue moving with the remaining finger)
+      var p = pointers[ids[0]];
+      gesture = {
+        type: "pan-maybe",
+        startX: p.x,
+        startY: p.y,
+        startTx: view.tx,
+        startTy: view.ty,
+        moved: true
+      };
+    } else if (ids.length === 0) {
+      gesture = null;
+      viewport.classList.remove("dragging");
+    }
+  }
+}
+
+viewport.addEventListener("pointerdown", onPointerDown);
+viewport.addEventListener("pointermove", onPointerMove);
+viewport.addEventListener("pointerup", onPointerUp);
+viewport.addEventListener("pointercancel", onPointerUp);
+viewport.addEventListener("pointerleave", function(e){
+  // pointerleave during drag is fine (pointer capture not used), keep as-is.
+});
+
+// Prevent long-press context menu on touch devices
+viewport.addEventListener("contextmenu", function(e){
+  if (e.pointerType === "touch" || e.pointerType === "pen") e.preventDefault();
+});
+
+// Mouse wheel / trackpad — gentle anchored zoom
+viewport.addEventListener("wheel", function(e){
+  e.preventDefault();
+  var rect = viewport.getBoundingClientRect();
+  var mx = e.clientX - rect.left;
+  var my = e.clientY - rect.top;
+
+  var intensity = Math.min(Math.abs(e.deltaY), 120) / 120;
+  var factor = e.deltaY < 0 ? (1 + intensity * 0.06) : (1 - intensity * 0.06);
+  var newScale = Math.max(0.2, Math.min(3, view.scale * factor));
+
+  view.tx = mx - (mx - view.tx) * (newScale / view.scale);
+  view.ty = my - (my - view.ty) * (newScale / view.scale);
+  view.scale = newScale;
+  applyTransform();
+}, { passive: false });
+
+// Click on empty space deselects
+viewport.addEventListener("click", function(e){
+  if (Date.now() < suppressClickUntil) return;
+  if (!e.target.closest(".node") && !e.target.closest(".zoom-controls")) {
+    deselect();
+  }
+});
+
+document.addEventListener("keydown", function(e){
+  if (e.key === "Escape") deselect();
+});
+
+/* =============== ZOOM BUTTONS =============== */
+document.getElementById("btn-zoom-in").addEventListener("click", function(e){
+  e.stopPropagation();
+  var vw = viewport.clientWidth / 2, vh = viewport.clientHeight / 2;
+  var newScale = Math.min(3, view.scale * 1.12);
+  view.tx = vw - (vw - view.tx) * (newScale / view.scale);
+  view.ty = vh - (vh - view.ty) * (newScale / view.scale);
+  view.scale = newScale;
+  applyTransform();
+});
+
+document.getElementById("btn-zoom-out").addEventListener("click", function(e){
+  e.stopPropagation();
+  var vw = viewport.clientWidth / 2, vh = viewport.clientHeight / 2;
+  var newScale = Math.max(0.2, view.scale * 0.89);
+  view.tx = vw - (vw - view.tx) * (newScale / view.scale);
+  view.ty = vh - (vh - view.ty) * (newScale / view.scale);
+  view.scale = newScale;
+  applyTransform();
+});
+
+/* =============== RESET & FIT =============== */
+document.getElementById("btn-fit").addEventListener("click", function(){ fitView(true); });
+
+document.getElementById("btn-reset").addEventListener("click", function(){
+  if (!confirm("Reset all progress? This clears it for your account.")) return;
+  resetProgress();
+});
+
+/* =============== RESIZE =============== */
+var resizeTimer = null;
+window.addEventListener("resize", function(){
+  // Close the bottom-sheet sidebar when going back to wide layout
+  if (window.innerWidth > 900) closeSidebar();
+
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(function(){
+    // Keep the current view; just make sure it's not fully off-screen.
+    applyTransform();
+  }, 120);
+});
+
+/* =============== BOOT =============== */
+try {
+  // 先同步读缓存渲染，再异步向服务端拉最新存档（拉回来会重绘一次）
+  loadCache();
+  renderEdges();
+  renderNodes();
+  updateProgress();
+  fitView(false);
+
+  loadProgress().then(function () {
+    updateNodeStates();
+    updateProgress();
+  });
+
+  // Re-fit once layout settles (fonts / rotation)
+  window.addEventListener("orientationchange", function(){
+    setTimeout(function(){ fitView(false); }, 250);
+  });
+} catch (err) {
+  window.__showError(err && err.message ? err.message : String(err));
+  throw err;
+}
+</script>
+</body>
+</html>
