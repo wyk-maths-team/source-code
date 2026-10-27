@@ -162,7 +162,7 @@ async function handler(req, res) {
       { username: to }, { projection: { username: 1, banned: 1, role: 1, displayName: 1 } }
     );
     if (!target || target.banned) return res.status(404).json({ success: false, message: 'User not found' });
-    if (target.role === 'team') return res.status(400).json({ success: false, message: 'Cannot invite team account' });
+    // if (target.role === 'team') return res.status(400).json({ success: false, message: 'Cannot invite team account' });
 
     // 已有未过期邀请就拦住
     const now = new Date();
