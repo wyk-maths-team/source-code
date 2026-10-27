@@ -19,12 +19,19 @@ import { wrapHandler } from '../lib/errors.js';
 
 const COLLECTION = 'userdata';
 
-function getUsername(req) {
-  const auth = req.headers.authorization || '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-  if (!token) return null;
-  const decoded = verifyToken(token);
-  return decoded?.username || null;
+/**
+ * 取当前用户。
+ *
+ * 注意 lib/auth.js 的 verifyToken 签名是 verifyToken(req) ——
+ * 它自己要读 req.headers.authorization，返回的是**用户对象**（不是 jwt payload），
+ * 而且是 async。三点任意一个搞错都会拿到 null：
+ *   · 传 token 字符串进去 → req.headers 是 undefined
+ *   · 忘了 await          → 拿到的是 Promise
+ *   · 当成 payload 用     → 字段名对不上
+ */
+async function getUsername(req) {
+  const user = await verifyToken(req);
+  return user?.username || null;
 }
 
 async function readTree(db, username) {
@@ -40,7 +47,7 @@ async function readTree(db, username) {
 }
 
 async function handler(req, res) {
-  const username = getUsername(req);
+  const username = await getUsername(req);
   if (!username) {
     return res.status(401).json({ success: false, message: 'Not logged in', code: 'UNAUTHORIZED' });
   }
