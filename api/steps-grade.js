@@ -4,7 +4,7 @@ import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';
 import { askDeepSeekAPI } from '../lib/deepseek-api.js';
-import { askClaude } from '../lib/temp/claude-api.js';
+// import { askClaude } from '../lib/temp/claude-api.js';
 import { buildStepsPrompt } from '../lib/grade-prompt.js';
 import { getModelChain, getModelInfo, pickThinkingEffort } from '../lib/model-router.js';
 import { consumeTokens } from '../lib/token.js';
@@ -61,9 +61,7 @@ async function tryOneModel({ modelKey, prompt, effort }) {
   const info = getModelInfo(modelKey);
   const t0 = Date.now();
   let reply;
-  if (info.provider === 'claude') {
-    reply = await askClaude(prompt, { model: modelKey, timeoutMs: 280_000, maxTokens: 8192 });
-  } else if (info.provider === 'deepseek') {
+if (info.provider === 'deepseek') {
     reply = await askDeepSeekAPI(prompt, { model: info.id, timeoutMs: 50_000, effort, maxTokens: MAX_TOKEN_CONSUMPTION });
   } else throw new Error(`Unknown provider`);
 
