@@ -3,8 +3,11 @@ import { MongoClient } from 'mongodb';
 
 let client = null;
 let db = null;
-
+const MAINTENANCE_MODE = process.env.MAINTENANCE_MODE === 'true';
 export async function connectToDatabase() {
+  if (MAINTENANCE_MODE) {
+    throw new Error('SERVICE_UNAVAILABLE: System is under maintenance.');
+  }
   if (db) return db;
   const uri = process.env.MONGODB_URI;
   const dbName = process.env.MONGODB_DB || 'wyk_math';
