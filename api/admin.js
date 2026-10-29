@@ -13,7 +13,7 @@
 // ⚠️ auditLog 簽名：auditLog(db, action, details, operator, level)
 //    level: 'info' | 'warn' | 'danger' | null
 
-import { connectToDatabase } from './_db.js';
+import { sqlDb } from '../lib/docStore.js';
 import { auditLog } from '../lib/audit.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
@@ -272,7 +272,7 @@ async function restoreDatabaseHelper(db, dir, dryRun) {
 async function handleMarkerList(req, res, db) {
   if (req.method !== 'GET') return fail(res, 405, 'Method not allowed');
 
-  const submissions = await db.collection('submissions')
+  const submissions = await S
     .find({ type: 'image', marked: false })
     .sort({ timestamp: -1 })
     .project({ username: 1, problemId: 1, subid: 1, timestamp: 1, _id: 0 })
@@ -288,7 +288,7 @@ async function handleMarkerDetail(req, res, db) {
   const { subid } = req.query;
   if (!subid) return fail(res, 400, 'Missing subid');
 
-  const sub = await db.collection('submissions').findOne({ subid });
+  const sub = await S.findOne({ subid });
   if (!sub) return fail(res, 404, 'Submission not found');
 
   const { username, problemId, timestamp, marked, score, comment, image, markedAt } = sub;
@@ -379,7 +379,7 @@ async function handleMarkSubmit(req, res, db, decoded) {
   const { subid, score, comment } = req.body || {};
   if (!subid || score === undefined) return fail(res, 400, 'Missing subid/score');
 
-  const sub = await db.collection('submissions').findOne({ subid });
+  const sub = await S.findOne({ subid });
   if (!sub) return fail(res, 404, 'Submission not found');
 
   const numScore = Number(score);
@@ -387,7 +387,7 @@ async function handleMarkSubmit(req, res, db, decoded) {
     return fail(res, 400, 'Score must be between 0 and 100');
   }
 
-  await db.collection('submissions').updateOne(
+  await S.updateOne(
     { subid },
     {
       $set: {
@@ -703,7 +703,7 @@ async function handleCmd(req, res, db, decoded) {
       process: safeProcess,
       ...(mode === 'db' ? {
         db: safeDb,
-        ObjectId: (await import('mongodb')).ObjectId,
+        ObjectId: (v) => String(v),
       } : {}),
     });
 
@@ -761,7 +761,7 @@ async function handler(req, res) {
   // DB
   let db;
   try {
-    db = await connectToDatabase();
+    db = sqlDb();
   } catch (e) {
     console.error('[admin] DB connect error:', e);
     return fail(res, 500, 'Database connection failed');

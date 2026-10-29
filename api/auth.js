@@ -1,7 +1,7 @@
 // api/auth.js
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
-import { connectToDatabase } from './_db.js';
+import { sqlDb } from '../lib/docStore.js';
 import { auditLog } from '../lib/audit.js';
 import { wrapHandler } from '../lib/errors.js';
 import { todayHK } from '../lib/time.js';
@@ -133,7 +133,7 @@ async function handler(req, res) {
       }
 
       const username = email.split('@')[0];
-      const db = await connectToDatabase();   // audit_logs 仍在 MongoDB
+      const db = sqlDb();   // audit_logs 仍在 MongoDB
       const existingUser = await getUser(username);
       // ⭐ Reset 模式：走专用分支，不登录
       if (mode === 'reset') {
@@ -239,7 +239,7 @@ if (action === 'complete-reset') {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     if (decoded.action !== 'reset') throw new Error('Invalid token');
 
-    const db = await connectToDatabase();   // 仅用于 audit_logs
+    const db = sqlDb();   // 仅用于 audit_logs
     const user = await getUser(decoded.username);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 

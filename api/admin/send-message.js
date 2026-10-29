@@ -1,8 +1,13 @@
 // api/messages.js
-import { connectToDatabase } from './_db.js';
+import { sqlDb } from '../lib/docStore.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
-import { ObjectId } from 'mongodb';
+// MongoDB 已下线：_id 现在就是字符串。
+// 保留同名构造器，让 `new ObjectId(x)` 的旧写法继续可用（返回字符串包装对象）。
+function ObjectId(v) {
+  if (new.target) return new String(String(v));
+  return String(v);
+}
 import { wrapHandler } from '../lib/errors.js';
 
 async function handler(req, res) {
@@ -11,7 +16,7 @@ async function handler(req, res) {
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
-  const db = await connectToDatabase();
+  const db = sqlDb();
   const collection = db.collection('messages');
 
   // GET：拉取未读消息

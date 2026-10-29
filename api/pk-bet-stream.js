@@ -12,7 +12,7 @@
 // 结论预期：技术上能跑，但必须配合客户端「断了就自动重连」，
 // 并且客户端不能假设连接长期存活。因此它只是轮询的补充而非替代。
 
-import { connectToDatabase } from './_db.js';
+import { sqlDb } from '../lib/docStore.js';
 import { verifyToken } from '../lib/auth.js';
 
 // 让 Vercel 允许长一点的执行时间（实际上限取决于套餐）
@@ -31,7 +31,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ success: false, message: 'Missing roomId' });
   }
 
-  const db = await connectToDatabase();
+  const db = sqlDb();
   const room = await db.collection('pk_bet_rooms').findOne({ id: roomId });
   if (!room) {
     return res.status(404).json({ success: false, message: 'Room not found' });

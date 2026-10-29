@@ -1,6 +1,6 @@
 // api/port/stats.js
 // GET /api/port/stats?subject=m2
-import { connectToDatabase } from '../_db.js';
+import { sqlDb } from '../../lib/docStore.js';
 import { portAuth } from './_auth.js';
 import { wrapHandler } from '../../lib/errors.js';
 
@@ -9,7 +9,7 @@ async function handler(req, res) {
   if (!decoded) return;
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const db = await connectToDatabase();
+  const db = sqlDb();
   const { subject } = req.query;
 
   const filter = { username: decoded.username };

@@ -1,6 +1,6 @@
 // api/port/poll.js
 // GET /api/port/poll?taskId=xxx
-import { connectToDatabase } from '../_pdb.js';
+import { sqlDb } from '../../lib/docStore.js';
 import { portAuth } from './_auth.js';
 import { wrapHandler } from '../../lib/errors.js';
 
@@ -12,7 +12,7 @@ async function handler(req, res) {
   const { taskId } = req.query;
   if (!taskId) return res.status(400).json({ success: false, message: 'Missing taskId' });
 
-  const db = await connectToDatabase();
+  const db = sqlDb();
   const task = await db.collection('port_tasks').findOne({ taskId });
   if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
 

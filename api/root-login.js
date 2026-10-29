@@ -1,7 +1,7 @@
 // api/root-login.js
 // 專用 root 登入 —— 使用預共享密鑰，避開 Microsoft OAuth
 import jwt from 'jsonwebtoken';
-import { connectToDatabase } from './_db.js';
+import { sqlDb } from '../lib/docStore.js';
 import { auditLog } from '../lib/audit.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { timingSafeEqual, createHash } from 'crypto';
@@ -60,7 +60,7 @@ async function handler(req, res) {
     });
   }
 
-  const db = await connectToDatabase();
+  const db = sqlDb();
   const matched = allowed.some(a => safeEqual(a, secret));
 
   if (!matched) {

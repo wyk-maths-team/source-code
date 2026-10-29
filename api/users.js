@@ -1,5 +1,5 @@
 // api/users.js
-import { connectToDatabase } from './_db.js';
+import { sqlDb } from '../lib/docStore.js';
 import { verifyToken } from '../lib/auth.js';
 import bcrypt from 'bcrypt';
 import { applyRateLimit } from '../lib/rateLimit.js';
@@ -24,7 +24,7 @@ async function handler(req, res) {
     decoded = await verifyToken(req);
     if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
-  const db = await connectToDatabase();
+  const db = sqlDb();
 
   // ========== 管理端 ==========
   if (typeof action === 'string' && action.startsWith('admin')) {
@@ -144,7 +144,7 @@ async function handler(req, res) {
         await U.renameUser(username, newUsername);
         effectiveUsername = newUsername;
         // submissions 仍在 MongoDB，用户名是冗余存的
-        await db.collection('submissions').updateMany(
+        await S.updateMany(
           { username }, { $set: { username: newUsername } });
       }
       if (Object.keys(fieldPatch).length > 0) {
@@ -214,7 +214,7 @@ async function handler(req, res) {
       const [userstatsDoc, userStates, submissions] = await Promise.all([
         U.getUserStats(username),
         U.getStates(username),
-        db.collection('submissions').find({ username }).toArray(),
+        S.find({ username }).toArray(),
       ]);
 
       const backupPayload = {
@@ -275,7 +275,7 @@ async function handler(req, res) {
       // ⭐ 4. 執行刪除
       // ⭐ 用户与其子表（token / stats / 状态 / 成就 / 收藏 / 设置）由 PostgreSQL 级联删除
       await U.deleteUser(username);
-      await db.collection('submissions').deleteMany({ username });
+      await S.deleteMany({ username });
 
       // ⭐ 5. 統一走 auditLog（會自動寫 DB + 發 webhook）
       await auditLog(db, 'user_delete', {
@@ -407,32 +407,11 @@ async function handler(req, res) {
       }
 
       try {
-        const pipeline = [
-          { $match: { correct: true, systemError: false } },
-          {
-            $group: {
-              _id: { username: '$username', problemId: '$problemId' },
-              firstCorrect: { $min: '$timestamp' }
-            }
-          },
-          {
-            $addFields: {
-              date: { $dateToString: { format: '%Y-%m-%d', date: '$firstCorrect' } }
-            }
-          },
-          {
-            $group: {
-              _id: { username: '$_id.username', date: '$date' },
-              count: { $sum: 1 }
-            }
-          },
-          { $sort: { '_id.date': 1 } }
-        ];
-
-        const dailyData = await db.collection('submissions').aggregate(pipeline).toArray();
+        // 按天统计首次 AC（SQL 见 submissionStore.dailyFirstAC）
+        const dailyData = await S.dailyFirstAC();
 
         const dateSet = new Set();
-        dailyData.forEach(d => dateSet.add(d._id.date));
+        dailyData.forEach(d => dateSet.add(d.date));
         const datesArray = Array.from(dateSet).sort();
 
         if (datesArray.length === 0) {
@@ -448,8 +427,8 @@ async function handler(req, res) {
 
         const userMap = {};
         dailyData.forEach(d => {
-          const username = d._id.username;
-          const date = d._id.date;
+          const username = d.username;
+          const date = d.date;
           if (!userMap[username]) userMap[username] = {};
           userMap[username][date] = d.count;
         });
@@ -849,30 +828,17 @@ if (isPeriodMode) {
 async function computePeriodLeaderboard(db, days, limit) {
   const since = new Date(Date.now() - days * 86_400_000);
 
-  const agg = await db.collection('submissions').aggregate([
-    {
-      $match: {
-        timestamp: { $gte: since },
-        $or: [
-          // 图片题：老师手动批阅过且满分
-          { type: 'image', marked: true, score: 100 },
-          // 其他题：判题器给 correct 且没有系统错误
-          { type: { $ne: 'image' }, correct: true, systemError: false },
-        ],
-      },
-    },
-    { $group: { _id: { u: '$username', p: '$problemId' } } },
-    { $group: { _id: '$_id.u', solved: { $sum: 1 } } },
-  ]).toArray();
+  // 窗口内 AC 的不同题目数（同一题交十次只算一次）
+  const agg = await S.solvedCountByUser(since);
 
   if (!agg.length) return [];
 
   // ⭐ 用户资料与 banned / team 过滤在 PostgreSQL
-  const infoMap = await U.getLeaderboardUsers(agg.map(x => x._id));
+  const infoMap = await U.getLeaderboardUsers(agg.map(x => x.username));
 
   const rows = [];
   for (const x of agg) {
-    const u = infoMap[x._id];
+    const u = infoMap[x.username];
     if (!u) continue;
     rows.push({ ...u, solves: x.solved });
   }

@@ -1,6 +1,6 @@
 // api/admin-pkproblem.js
 // 管理端：pkproblems 的读取 + 更新（无 create / delete / list）
-import { connectToDatabase } from './_db.js';
+import { sqlDb } from '../lib/docStore.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';
@@ -14,7 +14,7 @@ async function handler(req, res) {
     return res.status(403).json({ success: false, message: 'Admin only' });
   }
 
-  const db = await connectToDatabase();
+  const db = sqlDb();
   const action = req.query.action;
   const col = db.collection('pkproblems');
     // ── 列表 ──

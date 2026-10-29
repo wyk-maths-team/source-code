@@ -1,7 +1,7 @@
 // api/port/problem-stats.js
 // GET /api/port/problem-stats?subject=m2
 // 回傳 { stats: { "M2-001": { status, score, maxScore, submittedAt, attempts } } }
-import { connectToDatabase } from '../_db.js';
+import { sqlDb } from '../../lib/docStore.js';
 import { portAuth } from './_auth.js';
 import { wrapHandler } from '../../lib/errors.js';
 
@@ -11,39 +11,30 @@ async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
   const { subject } = req.query;
-  const db = await connectToDatabase();
+  const db = sqlDb();
 
   const match = { username: decoded.username };
   if (subject) match.subject = subject;
 
-  const pipeline = [
-    { $match: match },
-    { $sort: { createdAt: -1 } },
-    {
-      $group: {
-        _id: '$problemId',
-        submissionId:  { $first: '$submissionId' },
-        status:        { $first: '$status' },
-        score:         { $first: '$score' },
-        maxScore:      { $first: '$maxScore' },
-        submittedAt:   { $first: '$createdAt' },
-        attempts:      { $sum: 1 },
-      },
-    },
-  ];
-
-  const results = await db.collection('port_submissions').aggregate(pipeline).toArray();
+  // 每个 (用户, 题目) 取最新一条 + 尝试次数（原来是一条 Mongo 聚合）
+  const docs = await db.collection('port_submissions')
+    .find(match).sort({ createdAt: -1 }).toArray();
 
   const stats = {};
-  for (const r of results) {
-    stats[r._id] = {
-      submissionId: r.submissionId,
-      status: r.status,
-      score: r.score,
-      maxScore: r.maxScore,
-      submittedAt: r.submittedAt,
-      attempts: r.attempts,
-    };
+  for (const d of docs) {
+    const key = d.problemId;
+    if (!stats[key]) {
+      stats[key] = {
+        submissionId: d.submissionId,
+        status: d.status,
+        score: d.score,
+        maxScore: d.maxScore,
+        submittedAt: d.createdAt,
+        attempts: 1,
+      };
+    } else {
+      stats[key].attempts++;
+    }
   }
 
   return res.status(200).json({ success: true, stats });

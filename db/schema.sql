@@ -332,6 +332,97 @@ CREATE TABLE IF NOT EXISTS user_preferences (
 );
 
 
+-- =====================================================================
+-- 3. submissions —— 提交记录（关系表）
+-- =====================================================================
+-- subid 改为自增整数：第一次提交是 1，第二次是 2。
+-- 旧的随机串保留在 legacy_subid 里，方便对照旧日志，但不再是主键。
+CREATE TABLE IF NOT EXISTS submissions (
+  subid         BIGSERIAL PRIMARY KEY,
+  legacy_subid  TEXT,
+  username      TEXT NOT NULL REFERENCES users (username) ON UPDATE CASCADE ON DELETE CASCADE,
+  problem_id    TEXT NOT NULL REFERENCES problems (problem_id) ON DELETE CASCADE,
+  answer        TEXT NOT NULL DEFAULT '',
+  type          TEXT NOT NULL DEFAULT 'text'
+                  CHECK (type IN ('text', 'image', 'steps')),
+  image         TEXT,
+  submitted_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  correct       BOOLEAN,
+  score         INT,
+  system_error  BOOLEAN NOT NULL DEFAULT FALSE,
+  marked        BOOLEAN NOT NULL DEFAULT FALSE,
+  comment       TEXT,
+  contest_id    TEXT,
+  paper_id      TEXT,
+  marked_at     TIMESTAMPTZ,
+  ai_graded     BOOLEAN,
+  handled_by    TEXT,
+  used_model    TEXT,
+  judging_ms    INT,
+  token_usage   INT,
+  task_id       TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_sub_user_time    ON submissions (username, submitted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sub_problem      ON submissions (problem_id);
+CREATE INDEX IF NOT EXISTS idx_sub_contest      ON submissions (contest_id) WHERE contest_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_sub_user_problem ON submissions (username, problem_id, submitted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sub_time         ON submissions (submitted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sub_unmarked     ON submissions (type, marked) WHERE type = 'image';
+-- 同理：import-rest.mjs 用 ON CONFLICT (legacy_subid)，必须是普通唯一索引
+DROP INDEX IF EXISTS idx_sub_legacy;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sub_legacy ON submissions (legacy_subid);
+
+COMMENT ON TABLE submissions IS '提交记录。subid 自增；legacy_subid 保存迁移前的随机串（仅供查证）。';
+
+
+-- =====================================================================
+-- 4. 文档型表（JSONB）
+-- =====================================================================
+-- 剩下的集合（竞赛、PK、讨论区、站内信、审计日志……）都是「整体读写的文档」：
+-- 查询条件简单、字段经常变、没有跨表关联需求。把它们逐字段拆成关系表
+-- 收益很低、改动面却很大，所以统一用：
+--
+--     seq      BIGSERIAL   内部主键
+--     doc_id   TEXT         原来的 _id 或业务 id（字符串形式）
+--     data     JSONB        完整文档
+--
+-- 应用层通过 lib/docStore.js 用与 Mongo 相同的方法名访问，
+-- 所有 SQL 收在那一个文件里。
+-- =====================================================================
+DO $do$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'contests','contest_results','teams',
+    'pkproblems','pksubmissions','pk_rooms','pk_invitations',
+    'pk_bet_rooms','pk_bet_invitations','pk_bet_results',
+    'discussions','reports','submission_reports',
+    'messages','updates','calendar_tasks',
+    'steps_grading_tasks',
+    'audit_logs','achievements_log','ai_grade_logs',
+    'igem_reports','tr_problems',
+    'port_problems','port_submissions','port_userstats',
+    'port_tasks','port_drafts','port_settings'
+  ] LOOP
+    EXECUTE format(
+      'CREATE TABLE IF NOT EXISTS %I (' ||
+      '  seq        BIGSERIAL PRIMARY KEY,' ||
+      '  doc_id     TEXT,' ||
+      '  data       JSONB NOT NULL DEFAULT ''{}''::jsonb,' ||
+      '  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),' ||
+      '  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())', t);
+    EXECUTE format(
+      'CREATE INDEX IF NOT EXISTS %I ON %I USING gin (data jsonb_path_ops)',
+      t || '_data_gin', t);
+    -- ON CONFLICT (doc_id) 需要「非部分」唯一索引才能被推断出来。
+    -- PostgreSQL 的唯一索引允许多个 NULL，所以不需要 WHERE 子句。
+    EXECUTE format('DROP INDEX IF EXISTS %I', t || '_doc_id_uniq');
+    EXECUTE format('CREATE UNIQUE INDEX %I ON %I (doc_id)', t || '_doc_id_uniq', t);
+  END LOOP;
+END $do$;
+
+
 -- ---------------------------------------------------------------------
 -- 2.8 视图：一眼看全一个账号
 -- ---------------------------------------------------------------------
@@ -964,103 +1055,3 @@ ON CONFLICT (username) DO UPDATE SET
 -- O3 批量（排行榜）                            【userStore.getRatingRows】
 SELECT username, rating, solved_count, updated_at, meta
 FROM user_ratings WHERE username = ANY($1::text[]);
-
--- O4 批量已解难度（排行榜 rating 重算）          【userStore.getSolvedDifficultyMapByUser】
-SELECT s.username, p.difficulty FROM user_problem_status s
-JOIN problems p ON p.problem_id = s.problem_id
-WHERE s.username = ANY($1::text[]) AND s.status = 'passed' AND p.difficulty IS NOT NULL;
-
-
--- ─────────────────────────────────────────────────────────────
--- P. 收藏 / 界面设置
--- ─────────────────────────────────────────────────────────────
-
--- P1 收藏列表                                【userStore.getFavorites】
-SELECT problem_id FROM user_favorites
-WHERE username = $1 ORDER BY created_at, problem_id;
-
--- P2 切换收藏（事务内删-插-读）                【userStore.toggleFavorite】
-DELETE FROM user_favorites WHERE username = $1 AND problem_id = $2 RETURNING problem_id;
-INSERT INTO user_favorites (username, problem_id) VALUES ($1, $2) ON CONFLICT DO NOTHING;
-SELECT problem_id FROM user_favorites
-WHERE username = $1 ORDER BY created_at, problem_id;
-
--- P3 读设置                                  【userStore.getPreferences】
-SELECT theme, wallpaper, wallpaper_updated_at
-FROM user_preferences WHERE username = $1;
-
--- P4 写设置                                  【userStore.setPreference】
-INSERT INTO user_preferences (username) VALUES ($1)
-ON CONFLICT (username) DO NOTHING;
-UPDATE user_preferences SET theme = $2 WHERE username = $1;
-UPDATE user_preferences SET
-  wallpaper = $2,
-  wallpaper_updated_at = CASE WHEN $2 IS NULL THEN NULL ELSE NOW() END
-WHERE username = $1;
-
-
--- ─────────────────────────────────────────────────────────────
--- Q. 排行榜
--- ─────────────────────────────────────────────────────────────
-
--- Q1 总榜（同分同名次）                        【userStore.getLeaderboardOverall】
-WITH solved AS (
-  SELECT username, COUNT(*)::int AS solved
-  FROM user_problem_status WHERE status = 'passed' GROUP BY username
-)
-SELECT s.username, u.display_name, u.real_name, u.pfp, u.role, u.banned,
-       st.last_seen_at, st.explicitly_offline, s.solved,
-       RANK() OVER (ORDER BY s.solved DESC) AS rank
-FROM solved s
-JOIN users u            ON u.username = s.username
-LEFT JOIN user_stats st ON st.username = s.username
-WHERE u.banned = FALSE AND u.role <> 'team'
-ORDER BY rank, s.username
-LIMIT $1;
-
--- Q2 周期榜的用户资料（AC 计数来自 MongoDB 的 submissions，由调用方算好）【userStore.getLeaderboardUsers】
-SELECT u.username, u.display_name, u.real_name, u.pfp, u.role, u.banned,
-       st.last_seen_at, st.explicitly_offline
-FROM users u LEFT JOIN user_stats st ON st.username = u.username
-WHERE u.username = ANY($1::text[])
-  AND u.banned = FALSE AND u.role <> 'team';
-
-
--- ─────────────────────────────────────────────────────────────
--- R. 备份（api/cron.js?action=dailyBackup）
--- ─────────────────────────────────────────────────────────────
--- 表名来自白名单常量，不是用户输入：
-SELECT * FROM problems;
-SELECT * FROM tags;
-SELECT * FROM problem_tags;
-SELECT * FROM app_settings;
-SELECT * FROM users;
-SELECT * FROM user_tokens;
-SELECT * FROM user_stats;
-SELECT * FROM user_achievements;
-SELECT * FROM user_problem_status;
--- =====================================================================
---                          后续轮次（本轮不建）
--- =====================================================================
--- 已经是定论的设计决定，留在这里免得以后重新讨论：
---
--- · submissions.subid 改为自增整数（BIGSERIAL，从 1 开始）。
---   现有 'SGS...' / Date.now().toString(36) 的随机串方案废弃。
---   已确认不担心暴露「私有题被提交过」这一信息。
---
--- · 其余靠 Mongo ObjectId 当 id 的表（messages / updates / calendar_tasks /
---   discussions / reports / pk_* ...）都补 BIGSERIAL 内部主键，
---   对外接口继续返回 '_id' 字段名以保持前端零改动。
---
--- · 单次写入、不可修改的数据（audit_logs / achievements_log / ai_grade_logs）
---   继续留在 MongoDB，不迁。
---
--- · 已废弃、不迁移：teams / tr-problems / igem_reports / chris 库（api/port/*）、
---   userdata.desktopIcons。
---
--- · 难度自动调整已舍弃：lib/difficulty-sweep.js 与 cron 的 adjustDifficulty
---   动作已删除，problems 不保留 manualDifficulty / difficultyLocked。
---
--- · 时间：所有 DATE 语义都是 Asia/Hong_Kong。会话时区由 api/_pg.js 固定，
---   应用层不再手工 +8 小时。
--- =====================================================================

@@ -1,5 +1,5 @@
 // api/charts.js
-import { connectToDatabase } from './_db.js';
+import { sqlDb } from '../lib/docStore.js';
 import { auditLog } from '../lib/audit.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
@@ -23,36 +23,14 @@ async function handler(req, res) {
   }
 
   try {
-    const db = await connectToDatabase();
+    const db = sqlDb();
 
-    // 聚合：每位用戶對每題的最早 AC 時間 → 按日期累計
-    const pipeline = [
-      { $match: { correct: true, systemError: false } },
-      {
-        $group: {
-          _id: { username: '$username', problemId: '$problemId' },
-          firstCorrect: { $min: '$timestamp' },
-        },
-      },
-      {
-        $addFields: {
-          date: { $dateToString: { format: '%Y-%m-%d', date: '$firstCorrect' } },
-        },
-      },
-      {
-        $group: {
-          _id: { username: '$_id.username', date: '$date' },
-          count: { $sum: 1 },
-        },
-      },
-      { $sort: { '_id.date': 1 } },
-    ];
-
-    const dailyData = await db.collection('submissions').aggregate(pipeline).toArray();
+    // 每位用戶對每題的最早 AC 時間 → 按日期累計（SQL 窗口/分组见 submissionStore.dailyFirstAC）
+    const dailyData = await S.dailyFirstAC();
 
     // 收集所有日期
     const dateSet = new Set();
-    dailyData.forEach(d => dateSet.add(d._id.date));
+    dailyData.forEach(d => dateSet.add(d.date));
     const datesArray = Array.from(dateSet).sort();
 
     // 真空數據：回傳空結果，且**不**寫入緩存
@@ -72,8 +50,8 @@ async function handler(req, res) {
     // 按 user 重組
     const userMap = {};
     dailyData.forEach(d => {
-      const username = d._id.username;
-      const date = d._id.date;
+      const username = d.username;
+      const date = d.date;
       if (!userMap[username]) userMap[username] = {};
       userMap[username][date] = d.count;
     });

@@ -2,7 +2,7 @@
 // GET  /api/port/problems?subject=m2&chapter=3&page=1&limit=50
 // GET  /api/port/problems?id=M2-001
 // POST /api/port/problems?action=update  (Root Only)
-import { connectToDatabase } from '../_pdb.js';
+import { sqlDb } from '../../lib/docStore.js';
 import { portAuth } from './_auth.js';
 import { wrapHandler } from '../../lib/errors.js';
 
@@ -13,7 +13,7 @@ async function handler(req, res) {
   const decoded = await portAuth(req, res);
   if (!decoded) return;
 
-  const db = await connectToDatabase();
+  const db = sqlDb();
   const col = db.collection('port_problems');
 
   // ==========================================

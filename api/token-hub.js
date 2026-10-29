@@ -1,4 +1,5 @@
-import { connectToDatabase } from './_db.js';
+import { sqlDb } from '../lib/docStore.js';
+import * as S from '../lib/submissionStore.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { wrapHandler } from '../lib/errors.js';
@@ -15,7 +16,7 @@ async function handler(req, res) {
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
-  const db = await connectToDatabase();   // 只为查 submissions（今日 AC）
+  const db = sqlDb();   // 只为查 submissions（今日 AC）
   const username = decoded.username;
 
   // ⭐ 用户 / 钱包 / 主题都在 PostgreSQL。
@@ -44,7 +45,7 @@ async function handler(req, res) {
     if (!t.dailyQuestClaimed) {
       // submissions 本轮仍在 MongoDB
       const todayStart = new Date(today + 'T00:00:00+08:00');
-      const acRecords = await db.collection('submissions').find({
+      const acRecords = await S.find({
         username, correct: true, timestamp: { $gte: todayStart }
       }).project({ problemId: 1 }).toArray();
 

@@ -1,5 +1,5 @@
 // api/search.js
-import { connectToDatabase } from './_db.js';
+import { sqlDb } from '../lib/docStore.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { wrapHandler } from '../lib/errors.js';
@@ -17,7 +17,7 @@ async function handler(req, res) {
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
-  const db = await connectToDatabase();
+  const db = sqlDb();
   const action = req.query.action;
   
   const keyword = String(req.query.keyword || '').trim();

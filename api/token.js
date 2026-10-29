@@ -1,5 +1,5 @@
 // api/token.js
-import { connectToDatabase } from './_db.js';
+import { sqlDb } from '../lib/docStore.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { getTokenBalance } from '../lib/token.js';
@@ -13,7 +13,7 @@ async function handler(req, res) {
   if (!decoded) return res.status(401).json({ success: false });
 
   try {
-    const db = await connectToDatabase();
+    const db = sqlDb();
     const token = await getTokenBalance(db, decoded.username);
     return res.status(200).json({ 
       success: true, 

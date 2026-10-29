@@ -18,7 +18,7 @@
 //   强者得  prize * (1 - ratio_weak * F)
 //   F 为弱者补助比例（≥1，且受 1/ratio_weak 上限约束，保证强者为正）
 
-import { connectToDatabase } from './_db.js';
+import { sqlDb } from '../lib/docStore.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';
@@ -145,7 +145,7 @@ async function handler(req, res) {
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
-  const db = await connectToDatabase();
+  const db = sqlDb();
   const username = decoded.username;
   const action = req.query.action;
 
@@ -547,7 +547,7 @@ function publicRoom(room) {
 // 房间不再维护自己的提交记录 —— 学生就是在普通的 /problems/:id 页面上作答，
 // 我们只把落在 [startAt, endAt] 区间里的提交算进比分。
 async function collectAttempts(db, room) {
-  const subs = await db.collection('submissions').find({
+  const subs = await S.find({
     username: { $in: room.players.map(p => p.username) },
     problemId: { $in: room.problemIds },
     timestamp: { $gte: new Date(room.startAt), $lte: new Date(room.endAt) },

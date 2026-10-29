@@ -1,7 +1,7 @@
 // api/port/submissions.js
 // GET /api/port/submissions?subject=m2&page=1&limit=30
 // GET /api/port/submissions?id=PS-xxx
-import { connectToDatabase } from '../_pdb.js';
+import { sqlDb } from '../../lib/docStore.js';
 import { portAuth } from './_auth.js';
 import { wrapHandler } from '../../lib/errors.js';
 
@@ -10,7 +10,7 @@ async function handler(req, res) {
   if (!decoded) return;
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const db = await connectToDatabase();
+  const db = sqlDb();
   const col = db.collection('port_submissions');
 
   const { id, subject, page = '1', limit = '30' } = req.query;

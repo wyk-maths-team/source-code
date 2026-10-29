@@ -1,11 +1,16 @@
 // api/problem.js
-import { connectToDatabase } from './_db.js';
+import { sqlDb, isContestActive, contestProblemIds } from '../lib/docStore.js';
 import { auditLog } from '../lib/audit.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { sanitizeHTML } from '../lib/sanitize.js';
 // import { sanitizeDiscussion } from '../lib/sanitize.js';
-import { ObjectId } from 'mongodb';
+// MongoDB 已下线：_id 现在就是字符串。
+// 保留同名构造器，让 `new ObjectId(x)` 的旧写法继续可用（返回字符串包装对象）。
+function ObjectId(v) {
+  if (new.target) return new String(String(v));
+  return String(v);
+}
 import { wrapHandler } from '../lib/errors.js';
 import * as P from '../lib/pgStore.js';
 import * as U from '../lib/userStore.js';
@@ -128,7 +133,7 @@ async function handler(req, res) {
 
   req.user = { username: decoded.username, role: decoded.role };
 
-  const db = await connectToDatabase();
+  const db = sqlDb();
   const action = req.query.action || (req.body && req.body.action);
 
   // ==================== 管理員操作（前綴 admin*） ====================
@@ -715,38 +720,25 @@ async function handler(req, res) {
         let canView = problem.public;
         if (!canView) {
           const now = new Date();
-          // ⭐ teams / contests 还没迁到 PG，继续走 Mongo
           const team = await db.collection('teams').findOne({
             members: req.user.username,
-            startTime: { $lte: now }   // 用 contests 的关联条件
           });
 
-          // 常规检查
-          const contest = await db.collection('contests').findOne({
+          // ⭐ 竞赛活跃判断在 JS 里做（docStore 不支持 $expr）
+          const candidates = await db.collection('contests').find({
             participants: req.user.username,
             startTime: { $lte: now },
-            $expr: {
-              $gte: [
-                { $add: ['$startTime', { $multiply: ['$duration', 60000] }] },
-                now
-              ]
-            },
-            'problems.problemId': id
-          });
+          }).toArray();
+          const contest = candidates.find(c =>
+            isContestActive(c, now) && contestProblemIds(c).includes(id));
           if (contest) canView = true;
 
           // ⭐ Team 检查
           if (!canView) {
-            const activeSpecials = await db.collection('contests').find({
+            const activeSpecials = (await db.collection('contests').find({
               special: true,
               startTime: { $lte: now },
-              $expr: {
-                $gte: [
-                  { $add: ['$startTime', { $multiply: ['$duration', 60000] }] },
-                  now
-                ]
-              }
-            }, { projection: { id: 1, problems: 1 } }).toArray();
+            }).toArray()).filter(c => isContestActive(c, now));
 
             for (const c of activeSpecials) {
               const hasProblem = (c.problems || []).some(p => {
@@ -856,20 +848,12 @@ async function handler(req, res) {
         let canView = problem.public;
         if (!canView) {
           const now = new Date();
-          const contest = await db.collection('contests').findOne(
-            {
-              participants: req.user.username,
-              startTime: { $lte: now },
-              $expr: {
-                $gte: [
-                  { $add: ['$startTime', { $multiply: ['$duration', 60000] }] },
-                  now
-                ]
-              },
-              'problems.problemId': idStr
-            },
-            { projection: { _id: 1 } }
-          );
+          const candidates = await db.collection('contests').find({
+            participants: req.user.username,
+            startTime: { $lte: now },
+          }).toArray();
+          const contest = candidates.find(c =>
+            isContestActive(c, now) && contestProblemIds(c).includes(idStr));
           if (contest) canView = true;
         }
         if (!canView) {

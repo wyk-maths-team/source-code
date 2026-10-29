@@ -1,5 +1,5 @@
 // api/port/submit.js
-import { connectToDatabase } from '../_pdb.js';
+import { sqlDb } from '../../lib/docStore.js';
 import { portAuth } from './_auth.js';
 import crypto from 'crypto';
 import { wrapHandler } from '../../lib/errors.js';
@@ -27,7 +27,7 @@ async function handler(req, res) {
   }
   if (!stepsStr.trim() && images.length === 0) return res.status(400).json({ success: false, message: 'Provide steps or images' });
 
-  const db = await connectToDatabase();
+  const db = sqlDb();
   const problem = await db.collection('port_problems').findOne({ id: String(problemId) }, { projection: { _id: 0 } });
   if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
 

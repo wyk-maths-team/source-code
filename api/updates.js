@@ -1,9 +1,14 @@
-﻿// api/updates.js
-import { connectToDatabase } from './_db.js';
+// api/updates.js
+import { sqlDb } from '../lib/docStore.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { sanitizeHTML } from '../lib/sanitize.js';
-import { ObjectId } from 'mongodb';
+// MongoDB 已下线：_id 现在就是字符串。
+// 保留同名构造器，让 `new ObjectId(x)` 的旧写法继续可用（返回字符串包装对象）。
+function ObjectId(v) {
+  if (new.target) return new String(String(v));
+  return String(v);
+}
 import { wrapHandler } from '../lib/errors.js';
 
 let _updatesCache = { data: null, expireAt: 0 };
@@ -33,7 +38,7 @@ async function handler(req, res) {
     }
 
     try {
-      const db = await connectToDatabase();
+      const db = sqlDb();
       const updates = await db.collection('updates').find({}).sort({ date: -1 }).toArray();
       _updatesCache.data = updates;
       _updatesCache.expireAt = Date.now() + SERVER_CACHE_TTL;
@@ -49,7 +54,7 @@ async function handler(req, res) {
   if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
   if (!isAdminUser(decoded)) return res.status(403).json({ success: false, message: 'Admin only' });
 
-  const db = await connectToDatabase();
+  const db = sqlDb();
 
   // ----- GET：列表 / 單筆 -----
   if (action === 'adminList') {

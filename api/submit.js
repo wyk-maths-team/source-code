@@ -9,7 +9,7 @@
 //  6. Hook achievements & respond
 // ═══════════════════════════════════════════════════════════
 
-import { connectToDatabase } from './_db.js';
+import { sqlDb, isContestActive } from '../lib/docStore.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { runCustomLogic } from '../lib/logic-runner.js';
@@ -142,11 +142,10 @@ async function judge({ problem, answer }) {
 
 /** 检测用户是否在活跃的 special contest 队伍中 */
 async function detectTeamContext(db, username, pid, now) {
-  const specials = await db.collection('contests').find({
+  const specials = (await db.collection('contests').find({
     special: true,
     startTime: { $lte: now },
-    $expr: { $gte: [{ $add: ['$startTime', { $multiply: ['$duration', 60000] }] }, now] },
-  }, { projection: { id: 1, problems: 1, _id: 0 } }).toArray();
+  }).toArray()).filter((c) => isContestActive(c, now));
 
   for (const c of specials) {
     const team = await db.collection('teams').findOne({
@@ -166,16 +165,11 @@ async function detectTeamContext(db, username, pid, now) {
 
 /** 查找用户参与的活跃竞赛（普通参赛者） */
 async function findUserActiveContests(db, username, now) {
-  return db.collection('contests').find({
+  const all = await db.collection('contests').find({
     participants: username,
     startTime: { $lte: now },
-    $expr: {
-      $gte: [
-        { $add: ['$startTime', { $multiply: ['$duration', 60000] }] },
-        now,
-      ],
-    },
-  }, { projection: { id: 1, problems: 1, special: 1 } }).toArray();
+  }).toArray();
+  return all.filter((c) => isContestActive(c, now));
 }
 
 // ═══════════════ Achievements hook ═══════════════
@@ -191,7 +185,7 @@ async function finishSubmit(db, username, result, context = {}) {
     await updateStreak(db, username);
 
     if (context.justAC && context.problemId && context.problemSubmitCount === undefined) {
-      context.problemSubmitCount = await db.collection('submissions').countDocuments({
+      context.problemSubmitCount = await S.countDocuments({
         username,
         problemId: context.problemId,
       });
@@ -268,7 +262,7 @@ async function handler(req, res) {
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
-  const db = await connectToDatabase();
+  const db = sqlDb();
   const now = new Date();
   const submitTime = resolveSubmitTime(req.body, now);
 
@@ -465,7 +459,7 @@ async function handleSingleSubmit(ctx) {
     marked: false,
     score: 0,
     comment: '',
-    subid: generateSubid(),
+    // subid 由数据库自增生成，插入后回填
     answer: type === 'text' ? String(answer) : '',
     image: imageUrl,
   };
@@ -512,7 +506,8 @@ async function handleSingleSubmit(ctx) {
 
     // Image in contest → save & wait for manual marking
     if (type === 'image') {
-      await db.collection('submissions').insertOne(submissionData);
+      const insImg = await S.insertOne(submissionData);
+      submissionData.subid = insImg.subid;
       return sendSuccess(db, rawUsername, res, {
         success: true,
         subid: submissionData.subid,
@@ -532,7 +527,8 @@ async function handleSingleSubmit(ctx) {
     submissionData.comment = jr.comment;
     submissionData.marked = jr.marked || !jr.systemError;
 
-    await db.collection('submissions').insertOne(submissionData);
+    const insContest = await S.insertOne(submissionData);
+    submissionData.subid = insContest.subid;
 
     let currentScore = resultDoc?.score || 0;
 
@@ -603,7 +599,8 @@ async function handleSingleSubmit(ctx) {
 
   // Image outside contest → wait for marking
   if (type === 'image') {
-    await db.collection('submissions').insertOne(submissionData);
+    const insImg2 = await S.insertOne(submissionData);
+    submissionData.subid = insImg2.subid;
     return sendSuccess(db, rawUsername, res, {
       success: true,
       subid: submissionData.subid,
@@ -623,7 +620,8 @@ async function handleSingleSubmit(ctx) {
   submissionData.comment = jr.comment;
   submissionData.marked = jr.marked || !jr.systemError;
 
-  await db.collection('submissions').insertOne(submissionData);
+  const insPlain = await S.insertOne(submissionData);
+  submissionData.subid = insPlain.subid;
 
   if (!jr.systemError) {
     // ⭐ 接收返回值
@@ -705,7 +703,6 @@ async function handleBatch(req, res, db, username, now) {
 
       const jr = await judge({ problem: prob, answer: userAnswer });
 
-      const subid = generateSubid();
       inserts.push({
         username,
         problemId: pid,
@@ -716,7 +713,6 @@ async function handleBatch(req, res, db, username, now) {
         marked: true,
         score: jr.score,
         comment: jr.comment,
-        subid,
         answer: userAnswer,
         image: '',
         paperId: String(paperId),
@@ -729,7 +725,7 @@ async function handleBatch(req, res, db, username, now) {
 
       results.push({
         problemId: pid,
-        subid,
+        subid: null,          // 插入后回填（数据库自增）
         correct: jr.correct,
         systemError: jr.systemError,
         score: jr.score,
@@ -739,7 +735,16 @@ async function handleBatch(req, res, db, username, now) {
     }
 
     if (inserts.length > 0) {
-      await db.collection('submissions').insertMany(inserts, { ordered: false });
+      const insBatch = await S.insertMany(inserts);
+      // subid 由数据库生成：按 problemId 回填到 results
+      const idByProblem = {};
+      insBatch.inserted.forEach((x, i) => {
+        const pid = inserts[i] && inserts[i].problemId;
+        if (pid) idByProblem[pid] = x.subid;
+      });
+      for (const r of results) {
+        if (r.subid === null) r.subid = idByProblem[r.problemId] || null;
+      }
     }
     // ⭐ 逐题 upsert；setProblemState 内部保证 passed 不会被后来的 failed 覆盖
     for (const [pid, st] of Object.entries(pendingStates)) {

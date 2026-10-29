@@ -1,5 +1,5 @@
 // api/cron.js
-import { connectToDatabase } from './_db.js';
+import { sqlDb } from '../lib/docStore.js';
 import { auditLog } from '../lib/audit.js';
 import { wrapHandler } from '../lib/errors.js';
 function formatDuration(ms) {
@@ -22,7 +22,7 @@ async function handler(req, res) {
   }
 
   const action = req.query.action;
-  const db = await connectToDatabase();
+  const db = sqlDb();
 
   try {
     // ─────────────────────────────────────────────────────────────
@@ -48,7 +48,12 @@ async function handler(req, res) {
       const stats = [];
 
       // ① PostgreSQL：题目域
-      const PG_TABLES = ['problems', 'tags', 'problem_tags', 'app_settings'];
+      const PG_TABLES = [
+        'problems', 'tags', 'problem_tags', 'app_settings',
+        'users', 'user_tokens', 'user_stats', 'user_achievements',
+        'user_problem_status', 'user_ratings', 'user_favorites', 'user_preferences',
+        'submissions',
+      ];
       try {
         const pool = getPgPool();
         for (const table of PG_TABLES) {

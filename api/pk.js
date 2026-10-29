@@ -1,6 +1,6 @@
 // api/pk.js
 // PK 系统 —— 阶段 1：邀请 / 接受 / 拒绝 / 取消
-import { connectToDatabase } from './_db.js';
+import { sqlDb } from '../lib/docStore.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';
@@ -110,7 +110,7 @@ async function handler(req, res) {
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
-  const db = await connectToDatabase();
+  const db = sqlDb();
   const action = req.query.action;
   const username = decoded.username;
 

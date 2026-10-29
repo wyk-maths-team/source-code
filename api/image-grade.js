@@ -1,5 +1,5 @@
 // api/image-grade.js
-import { connectToDatabase } from './_db.js';
+import { sqlDb } from '../lib/docStore.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';
@@ -74,7 +74,7 @@ async function handler(req, res) {
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
-  const db = await connectToDatabase();
+  const db = sqlDb();
 
   if (req.method === 'POST') return handleCreate(req, res, db, decoded);
   if (req.method === 'GET')  return handlePoll(req, res, db, decoded);
@@ -93,7 +93,7 @@ async function handleCreate(req, res, db, decoded) {
   const problem = await P.getProblem(String(problemId), { withAnswer: true });
   if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
 
-  const sub = await db.collection('submissions').findOne({ subid, username: decoded.username, type: 'image' });
+  const sub = await S.findOne({ subid, username: decoded.username, type: 'image' });
   if (!sub) return res.status(404).json({ success: false, message: 'Submission not found' });
 
   const taskId = genTaskId();
@@ -130,7 +130,7 @@ async function handleCreate(req, res, db, decoded) {
       const actualCost = apiRes.usage.total_tokens || IMAGE_TOKEN_COST;
 
       // 更新数据库
-      await db.collection('submissions').updateOne(
+      await S.updateOne(
         { subid },
         { $set: { marked: true, score: finalScore, comment, correct: finalScore === 100, markedAt: new Date(), aiGraded: true, tokenUsage: actualCost } }
       );

@@ -1,12 +1,12 @@
 // api/port/draft.js
-import { connectToDatabase } from '../_pdb.js';
+import { sqlDb } from '../../lib/docStore.js';
 import { portAuth } from './_auth.js';
 import { wrapHandler } from '../../lib/errors.js';
 
 async function handler(req, res) {
   const decoded = await portAuth(req, res);
   if (!decoded) return;
-  const db = await connectToDatabase();
+  const db = sqlDb();
   const { problemId, steps } = req.body || {};
 
   if (req.method === 'GET') {

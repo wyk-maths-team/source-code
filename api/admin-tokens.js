@@ -1,5 +1,5 @@
 // api/admin-tokens.js
-import { connectToDatabase } from './_db.js';
+import { sqlDb } from '../lib/docStore.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { wrapHandler } from '../lib/errors.js';
@@ -13,7 +13,7 @@ async function handler(req, res) {
     return res.status(403).json({ success: false, message: 'Admin only' });
   }
 
-  const db = await connectToDatabase();
+  const db = sqlDb();
 
   // ── GET: 查詢、搜尋、排序 ──
   if (req.method === 'GET') {
@@ -61,12 +61,8 @@ async function handler(req, res) {
     // 2. 初始化历史记录（聚合 submissions）
     if (action === 'initHistory' || !action) {
       try {
-        const agg = await db.collection('submissions').aggregate([
-          { $match: { tokenUsage: { $gt: 0 } } },
-          { $group: { _id: '$username', total: { $sum: '$tokenUsage' } } }
-        ]).toArray();
-
-        const usageMap = Object.fromEntries(agg.map(a => [a._id, a.total]));
+        const usageRows = await S.sumTokenUsageByUser();
+        const usageMap = Object.fromEntries(usageRows.map(a => [a.username, Number(a.total)]));
 
         // ⭐ 只回填 total_used 与 last_reset；daily/global 保持数据库里的现值
         const users = await U.listUsersForAdmin();

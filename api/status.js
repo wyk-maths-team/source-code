@@ -1,5 +1,5 @@
 // api/status.js
-import { connectToDatabase } from './_db.js';
+import { sqlDb } from '../lib/docStore.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { wrapHandler } from '../lib/errors.js';
@@ -52,7 +52,7 @@ if (action === 'vercel') {
  * ============================================================ */
 async function systemStatus(req, res) {
   try {
-    const db = await connectToDatabase();
+    const db = sqlDb();
     const stats = await db.stats();
 
     const allCollections = await db.listCollections().toArray();
@@ -284,7 +284,7 @@ function mapVercelUnit(unit) {
  * OS 集成路由
  * ============================================================ */
 async function handleOsAction(action, req, res, decoded) {
-  const db = await connectToDatabase();
+  const db = sqlDb();
   const username = decoded.username;
 
   switch (action) {

@@ -12,7 +12,7 @@
 //   GET  ?action=states&username=x  -> 该用户的状态表 + 题目难度
 //   POST ?action=save               -> { username, changes: { pid: 'passed'|'failed'|null } }
 
-import { connectToDatabase } from './_db.js';
+import { sqlDb } from '../lib/docStore.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';
@@ -37,7 +37,7 @@ async function handler(req, res) {
     });
   }
 
-  const db = await connectToDatabase();
+  const db = sqlDb();
   const action = req.query.action;
 
   // ── 用户列表 ──

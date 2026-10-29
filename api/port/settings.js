@@ -1,7 +1,7 @@
 // api/port/settings.js
 // GET /api/port/settings  → { currentChatUrl }
 // PUT /api/port/settings  { currentChatUrl }
-import { connectToDatabase } from '../_pdb.js';
+import { sqlDb } from '../../lib/docStore.js';
 import { portAuth } from './_auth.js';
 import { wrapHandler } from '../../lib/errors.js';
 
@@ -9,7 +9,7 @@ async function handler(req, res) {
   const decoded = await portAuth(req, res);
   if (!decoded) return;
 
-  const db = await connectToDatabase();
+  const db = sqlDb();
   const col = db.collection('port_settings');
 
   if (req.method === 'GET') {

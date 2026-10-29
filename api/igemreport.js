@@ -2,7 +2,7 @@
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';
-import { connectToDatabase } from './_db.js';
+import { sqlDb } from '../lib/docStore.js';
 import { wrapHandler } from '../lib/errors.js';
 
 const FOLDER = 'static/reports/doc';
@@ -54,7 +54,7 @@ async function handler(req, res) {
 
       // ⭐ 加载已解决状态
       try {
-        const db = await connectToDatabase();
+        const db = sqlDb();
         const allNames = files.map(f => f.name);
         const metas = await db.collection('igem_reports')
           .find({ filename: { $in: allNames } })
@@ -115,7 +115,7 @@ async function handler(req, res) {
 
       // ⭐ 初始化 DB 记录
       try {
-        const db = await connectToDatabase();
+        const db = sqlDb();
         await db.collection('igem_reports').updateOne(
           { filename: finalName },
           {
@@ -133,11 +133,10 @@ async function handler(req, res) {
       }
 
       // 审计（异步）
-      connectToDatabase()
-        .then(db => auditLog(db, 'igem_report_upload', {
-          filename: finalName, size: bytes, mime,
-        }, decoded.username, 'info'))
-        .catch(() => {});
+      const igemDb = sqlDb();
+      auditLog(igemDb, 'igem_report_upload', {
+        filename: finalName, size: bytes, mime,
+      }, decoded.username, 'info').catch(() => {});
 
       return res.status(200).json({
         success: true,
@@ -166,7 +165,7 @@ async function handler(req, res) {
     }
 
     try {
-      const db = await connectToDatabase();
+      const db = sqlDb();
       await db.collection('igem_reports').updateOne(
         { filename },
         {

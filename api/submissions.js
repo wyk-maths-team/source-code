@@ -1,9 +1,14 @@
 // api/submissions.js
-import { connectToDatabase } from './_db.js';
+import { sqlDb } from '../lib/docStore.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { runCustomLogic } from '../lib/logic-runner.js';
-import { ObjectId } from 'mongodb';
+// MongoDB 已下线：_id 现在就是字符串。
+// 保留同名构造器，让 `new ObjectId(x)` 的旧写法继续可用（返回字符串包装对象）。
+function ObjectId(v) {
+  if (new.target) return new String(String(v));
+  return String(v);
+}
 import { wrapHandler } from '../lib/errors.js';
 import * as P from '../lib/pgStore.js';
 import * as U from '../lib/userStore.js';
@@ -103,7 +108,7 @@ async function handler(req, res) {
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
-  const db = await connectToDatabase();
+  const db = sqlDb();
   const isAdmin = isAdminUser(decoded);
 
   // ---------- 詳情 ----------
@@ -113,7 +118,7 @@ async function handler(req, res) {
     if (!subid) return res.status(400).json({ success: false, message: 'Missing subid' });
 
     const [sub, userStats] = await Promise.all([
-      db.collection('submissions').findOne(
+      S.findOne(
         { subid },
         {
           projection: {
@@ -135,7 +140,7 @@ async function handler(req, res) {
 
     const [problem, attempts] = await Promise.all([
       P.getProblem(sub.problemId).then(p => (p ? { name: p.name, public: p.public } : null)),
-      db.collection('submissions').countDocuments({ username: sub.username, problemId: sub.problemId })
+      S.countDocuments({ username: sub.username, problemId: sub.problemId })
     ]);
 
     if (!isOwner && !isAdmin) {
@@ -204,11 +209,11 @@ async function handler(req, res) {
     const { subid, flagType } = req.body || {}; // flagType: 'red' | 'yellow'
     if (!subid || !flagType) return res.status(400).json({ success: false, message: 'Missing subid or flagType' });
 
-    const sub = await db.collection('submissions').findOne({ subid });
+    const sub = await S.findOne({ subid });
     if (!sub) return res.status(404).json({ success: false, message: 'Submission not found' });
 
     // 1. 标记违规状态
-    await db.collection('submissions').updateOne(
+    await S.updateOne(
       { subid },
       { 
         $set: { 
@@ -237,7 +242,7 @@ async function handler(req, res) {
     const { subid, reason } = req.body || {};
     if (!subid) return res.status(400).json({ success: false, message: 'Missing subid', code: 'MISSING_PARAM' });
 
-    const sub = await db.collection('submissions').findOne({ subid });
+    const sub = await S.findOne({ subid });
     if (!sub) return res.status(404).json({ success: false, message: 'Submission not found', code: 'SUBMISSION_NOT_FOUND' });
 
     // 加固 1：不能举报自己的提交
@@ -291,13 +296,13 @@ async function handler(req, res) {
     const { subid } = req.body || {};
     if (!subid) return res.status(400).json({ success: false, message: 'Missing subid', code: 'MISSING_PARAM' });
 
-    const sub = await db.collection('submissions').findOne({ subid });
+    const sub = await S.findOne({ subid });
     if (!sub) return res.status(404).json({ success: false, message: 'Submission not found', code: 'SUBMISSION_NOT_FOUND' });
 
-    await db.collection('submissions').deleteOne({ subid });
+    await S.deleteOne({ subid });
 
     // 删完之后状态要重新判断：如果这题还有其他 AC，保持 passed；否则退回未做
-    const stillAC = await db.collection('submissions').countDocuments({
+    const stillAC = await S.countDocuments({
       username: sub.username,
       problemId: sub.problemId,
       $or: [
@@ -339,9 +344,9 @@ async function handler(req, res) {
       if (sf) Object.assign(filter, sf);
 
       const [total, toMark, subs] = await Promise.all([
-        db.collection('submissions').countDocuments(filter),
-        db.collection('submissions').countDocuments({ type: 'image', marked: false }),
-        db.collection('submissions').find(filter, { projection: { image: 0 } })
+        S.countDocuments(filter),
+        S.countDocuments({ type: 'image', marked: false }),
+        S.find(filter, { projection: { image: 0 } })
           .sort({ timestamp: -1 })
           .skip((pageNum - 1) * limitNum)
           .limit(limitNum)
@@ -382,7 +387,7 @@ async function handler(req, res) {
       if (!submissionId) return res.status(400).json({ success: false, message: 'Missing submission ID' });
       let oid;
       try { oid = new ObjectId(submissionId); } catch { return res.status(400).json({ success: false, message: 'Invalid ID' }); }
-      const result = await db.collection('submissions').deleteOne({ _id: oid });
+      const result = await S.deleteOne({ _id: oid });
       if (result.deletedCount === 0) return res.status(404).json({ success: false, message: 'Submission not found' });
       return res.status(200).json({ success: true, message: 'Submission deleted' });
     }
@@ -394,7 +399,7 @@ async function handler(req, res) {
       let oid;
       try { oid = new ObjectId(submissionId); } catch { return res.status(400).json({ success: false, message: 'Invalid ID' }); }
 
-      const sub = await db.collection('submissions').findOne({ _id: oid });
+      const sub = await S.findOne({ _id: oid });
       if (!sub) return res.status(404).json({ success: false, message: 'Submission not found' });
       // 重新判题需要 answer / logic
       const problem = await P.getProblem(sub.problemId, { withAnswer: true });
@@ -431,7 +436,7 @@ async function handler(req, res) {
         }
       }
 
-      await db.collection('submissions').updateOne(
+      await S.updateOne(
         { _id: oid },
         {
           $set: {
@@ -534,7 +539,7 @@ async function handler(req, res) {
 
     // ⭐ 去掉 countDocuments（O(N)），改用 limit+1 判斷 hasMore
     const [rawSubs, userStats, header] = await Promise.all([
-      db.collection('submissions').find(filter, {
+      S.find(filter, {
         projection: {
           subid: 1, username: 1, problemId: 1, type: 1, timestamp: 1,
           correct: 1, systemError: 1, marked: 1, score: 1, answer: 1

@@ -1,10 +1,9 @@
 // api/steps-grade.js
-import { connectToDatabase } from './_db.js';
+import { sqlDb } from '../lib/docStore.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';
 import { askDeepSeekAPI } from '../lib/deepseek-api.js';
-// import { askClaude } from '../lib/temp/claude-api.js';
 import { buildStepsPrompt } from '../lib/grade-prompt.js';
 import { getModelChain, getModelInfo, pickThinkingEffort } from '../lib/model-router.js';
 import { consumeTokens } from '../lib/token.js';
@@ -86,7 +85,7 @@ async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
-  const db = await connectToDatabase();
+  const db = sqlDb();
 
   if (req.method === 'POST') return handleCreate(req, res, db, decoded);
   if (req.method === 'GET')  return handlePoll(req, res, db, decoded);
@@ -139,23 +138,23 @@ async function handleCreate(req, res, db, decoded) {
   for (const modelKey of chain) {
     try {
       const result = await tryOneModel({ modelKey, prompt, effort });
-      const subid = genSubid();
 
-      // 成功：更新任务状态
-      await db.collection('steps_grading_tasks').updateOne(
-        { taskId },
-        { $set: { status: 'done', handledBy: 'api', usedModel: modelKey, result: { score: result.score, comment: result.comment }, rawReply: result.rawReply.slice(0, 4000), elapsedMs: result.elapsed, completedAt: new Date(), subid } }
-      );
-
-      // 写入 submissions
+      // 写入 submissions（subid 由数据库自增）
       const finalScore = result.score;
-      await db.collection('submissions').insertOne({
-        subid, username: decoded.username, problemId: String(problemId), type: 'steps',
+      const insSub = await S.insertOne({
+        username: decoded.username, problemId: String(problemId), type: 'steps',
         timestamp: new Date(), correct: finalScore === 100, systemError: false, marked: true,
         score: finalScore, comment: result.comment, answer: steps.trim(), markedAt: new Date(),
         aiGraded: true, handledBy: 'api', usedModel: modelKey, taskId,
         judgingMs: result.elapsed, judgingModel: modelKey, tokenUsage: result.tokenUsage || tokenCost
       });
+      const subid = insSub.subid;
+
+      // 成功：更新任务状态（带上新生成的 subid）
+      await db.collection('steps_grading_tasks').updateOne(
+        { taskId },
+        { $set: { status: 'done', handledBy: 'api', usedModel: modelKey, result: { score: result.score, comment: result.comment }, rawReply: result.rawReply.slice(0, 4000), elapsedMs: result.elapsed, completedAt: new Date(), subid } }
+      );
 
       // ⭐ 做题状态在 PostgreSQL（满分 passed，否则 failed；passed 不会被覆盖）
       await U.setProblemState(decoded.username, problemId,
@@ -216,16 +215,16 @@ async function handlePoll(req, res, db, decoded) {
 
     if (!isAIError) {
       const finalScore = Math.max(0, Math.min(100, Math.round(rawScoreRaw)));
-      if (!subid) subid = genSubid();
       const tokenCost = (claimed.difficulty >= 5) ? 30000 : 3000;
 
       try {
-        await db.collection('submissions').insertOne({
-          subid, username: claimed.username, problemId: claimed.problemId, type: 'steps',
+        const insPoll = await S.insertOne({
+          username: claimed.username, problemId: claimed.problemId, type: 'steps',
           timestamp: new Date(), correct: finalScore === 100, systemError: false, marked: true, score: finalScore, comment,
           answer: claimed.steps, markedAt: new Date(), aiGraded: true, handledBy: claimed.handledBy || 'bridge',
           usedModel: claimed.usedModel || null, taskId, judgingMs: claimed.elapsedMs || null, tokenUsage: claimed.result?.tokenUsage || tokenCost
         });
+        subid = insPoll.subid;
         // ⭐ 做题状态在 PostgreSQL
         await U.setProblemState(claimed.username, claimed.problemId,
           finalScore === 100 ? 'passed' : 'failed');

@@ -1,4 +1,4 @@
-import { connectToDatabase } from './_db.js';
+import { sqlDb } from '../lib/docStore.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { wrapHandler } from '../lib/errors.js';
@@ -14,7 +14,7 @@ async function handler(req, res) {
   const action = req.query.action;
 
   try {
-    const db = await connectToDatabase();
+    const db = sqlDb();
 
     // ⭐ 显式下线（登出按钮触发）
     if (action === 'offline') {
