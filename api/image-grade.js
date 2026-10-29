@@ -1,4 +1,5 @@
 // api/image-grade.js
+import * as S from '../lib/submissionStore.js';
 import { sqlDb } from '../lib/docStore.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';

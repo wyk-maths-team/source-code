@@ -1,5 +1,6 @@
 // api/pk.js
 // PK 系统 —— 阶段 1：邀请 / 接受 / 拒绝 / 取消
+import * as U from '../lib/userStore.js';
 import { sqlDb } from '../lib/docStore.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';

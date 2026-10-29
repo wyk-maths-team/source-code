@@ -18,6 +18,7 @@
 //   强者得  prize * (1 - ratio_weak * F)
 //   F 为弱者补助比例（≥1，且受 1/ratio_weak 上限约束，保证强者为正）
 
+import * as S from '../lib/submissionStore.js';
 import { sqlDb } from '../lib/docStore.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';

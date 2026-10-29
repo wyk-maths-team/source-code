@@ -9,6 +9,7 @@
 //  6. Hook achievements & respond
 // ═══════════════════════════════════════════════════════════
 
+import * as S from '../lib/submissionStore.js';
 import { sqlDb, isContestActive } from '../lib/docStore.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';

@@ -1,4 +1,5 @@
 // api/charts.js
+import * as S from '../lib/submissionStore.js';
 import { sqlDb } from '../lib/docStore.js';
 import { auditLog } from '../lib/audit.js';
 import { verifyToken } from '../lib/auth.js';
