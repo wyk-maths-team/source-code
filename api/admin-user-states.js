@@ -18,6 +18,7 @@ import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';
 import { wrapHandler } from '../lib/errors.js';
 import { invalidateUserRating } from '../lib/userRating.js';
+import * as U from '../lib/userStore.js';
 
 const VALID_STATES = new Set(['passed', 'failed', 'not_started']);
 
@@ -41,26 +42,11 @@ async function handler(req, res) {
 
   // ── 用户列表 ──
   if (action === 'users') {
-    const [users, statsList] = await Promise.all([
-      db.collection('users')
-        .find({}, { projection: { username: 1, displayName: 1, realName: 1, role: 1, banned: 1, _id: 0 } })
-        .sort({ username: 1 })
-        .toArray(),
-      db.collection('userstats')
-        .find({}, { projection: { username: 1, states: 1, _id: 0 } })
-        .toArray(),
+    // ⭐ 用户列表与状态计数都在 PostgreSQL，一条 GROUP BY 取代全量拉取
+    const [users, countMap] = await Promise.all([
+      U.listUsersForAdmin(),
+      U.getStatusCountsByUser(),
     ]);
-
-    const countMap = {};
-    for (const s of statsList) {
-      const states = s.states || {};
-      let passed = 0, failed = 0;
-      for (const v of Object.values(states)) {
-        if (v === 'passed') passed++;
-        else if (v === 'failed') failed++;
-      }
-      countMap[s.username] = { passed, failed, total: passed + failed };
-    }
 
     const list = users.map(u => ({
       username: u.username,
@@ -80,13 +66,11 @@ async function handler(req, res) {
     const username = String(req.query.username || '').trim();
     if (!username) return res.status(400).json({ success: false, message: 'Missing username' });
 
-    const [user, stats] = await Promise.all([
-      db.collection('users').findOne({ username }, { projection: { displayName: 1, realName: 1, role: 1, _id: 0 } }),
-      db.collection('userstats').findOne({ username }, { projection: { states: 1, _id: 0 } }),
+    const [user, states] = await Promise.all([
+      U.getUser(username),
+      U.getStates(username),
     ]);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-
-    const states = stats?.states || {};
     const pids = Object.keys(states);
 
     // 难度表（走 60s 缓存）
@@ -122,46 +106,15 @@ async function handler(req, res) {
       return res.status(400).json({ success: false, message: 'Missing username or changes' });
     }
 
-    const target = await db.collection('users').findOne({ username }, { projection: { _id: 1 } });
-    if (!target) return res.status(404).json({ success: false, message: 'User not found' });
-
-    const statsCol = db.collection('userstats');
-    const before = await statsCol.findOne({ username }, { projection: { states: 1, _id: 0 } });
-    const beforeStates = before?.states || {};
-
-    const setOps = {};
-    const unsetOps = {};
-    const log = [];
-
-    for (const [pid, raw] of Object.entries(changes)) {
-      if (!pid || pid.length > 64) continue;
-      const next = String(raw);
-      if (!VALID_STATES.has(next)) continue;
-
-      const prev = beforeStates[pid] || 'not_started';
-      if (prev === next) continue;                    // 没变就不写
-
-      if (next === 'not_started') {
-        unsetOps[`states.${pid}`] = '';
-      } else {
-        setOps[`states.${pid}`] = next;
-      }
-      log.push({ problemId: pid, from: prev, to: next });
+    if (!(await U.getUser(username))) {
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
 
+    // 差异计算与写入都在 userStore 的事务里，返回实际改动的条目
+    const log = await U.bulkSetStates(username, changes);
     if (log.length === 0) {
       return res.status(200).json({ success: true, changed: 0, message: 'Nothing to save' });
     }
-
-    const update = {};
-    if (Object.keys(setOps).length) update.$set = setOps;
-    if (Object.keys(unsetOps).length) update.$unset = unsetOps;
-
-    await statsCol.updateOne(
-      { username },
-      { ...update, $setOnInsert: { username } },
-      { upsert: true }
-    );
 
     // 状态变了，rating 必须重算
     invalidateUserRating(username);

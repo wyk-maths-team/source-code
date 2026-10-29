@@ -3,6 +3,7 @@ import { connectToDatabase } from './_db.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { wrapHandler } from '../lib/errors.js';
+import * as U from '../lib/userStore.js';
 
 async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
@@ -18,42 +19,8 @@ async function handler(req, res) {
   if (req.method === 'GET') {
     try {
       const { search, sortBy, order } = req.query;
-      
-      let filter = {};
-      if (search) {
-        const regex = new RegExp(search, 'i');
-        filter = {
-          $or: [
-            { username: regex },
-            { displayName: regex },
-            { realName: regex }
-          ]
-        };
-      }
-
-      let sort = { username: 1 };
-      const sortDir = order === 'asc' ? 1 : -1;
-      if (sortBy === 'totalUsed') sort = { 'token.totalUsed': sortDir};
-      else if (sortBy === 'global') sort = { 'token.global': sortDir };
-      else if (sortBy === 'daily') sort = { 'token.daily': sortDir };
-
-      const users = await db.collection('users')
-        .find(filter, { projection: { username: 1, displayName: 1, realName: 1, token: 1, _id: 0 } })
-        .sort(sort)
-        .toArray();
-
-      const list = users.map(u => {
-        const t = u.token || { daily: 30000, global: 100000, totalUsed: 0 };
-        return {
-          username: u.username,
-          displayName: u.displayName || u.username,
-          realName: u.realName || '',
-          daily: t.daily !== undefined ? t.daily : 30000,
-          global: t.global !== undefined ? t.global : 100000,
-          totalUsed: t.totalUsed || 0,
-        };
-      });
-
+      // ⭐ 用户 + 钱包一次 JOIN 拿齐（搜索与排序在 SQL 里做，排序字段走白名单）
+      const list = await U.listUsersWithTokens({ search, sortBy, order });
       return res.status(200).json({ success: true, users: list });
     } catch (err) {
       return res.status(500).json({ success: false, message: err.message });
@@ -70,18 +37,20 @@ async function handler(req, res) {
         const { username, daily, global } = req.body;
         if (!username) return res.status(400).json({ success: false, message: 'Missing username' });
 
-        const updateData = {};
-        if (daily !== undefined && !isNaN(daily)) updateData['token.daily'] = Number(daily);
-        if (global !== undefined && !isNaN(global)) updateData['token.global'] = Number(global);
-
-        if (Object.keys(updateData).length === 0) {
-           return res.status(400).json({ success: false, message: 'No valid fields to update' });
+        const hasDaily = daily !== undefined && !isNaN(daily);
+        const hasGlobal = global !== undefined && !isNaN(global);
+        if (!hasDaily && !hasGlobal) {
+          return res.status(400).json({ success: false, message: 'No valid fields to update' });
         }
 
-        await db.collection('users').updateOne(
-          { username },
-          { $set: updateData }
-        );
+        const cur = await U.getTokens(username);
+        if (!cur) return res.status(404).json({ success: false, message: 'User not found' });
+
+        // ⭐ 只覆盖传进来的那个桶，另一个保持原值
+        await U.setTokens(username, {
+          daily: hasDaily ? Number(daily) : cur.daily,
+          global: hasGlobal ? Number(global) : cur.global,
+        });
 
         return res.status(200).json({ success: true, message: 'User updated' });
       } catch (err) {
@@ -98,31 +67,13 @@ async function handler(req, res) {
         ]).toArray();
 
         const usageMap = Object.fromEntries(agg.map(a => [a._id, a.total]));
-        const users = await db.collection('users').find({}, { projection: { username: 1, token: 1 } }).toArray();
-        
-        const bulkOps = users.map(u => {
-          const totalUsed = usageMap[u.username] || 0;
-          // 保留原有的 daily/global，如果完全没有 token 字段才用默认值
-          const currentDaily = u.token?.daily !== undefined ? u.token.daily : 30000;
-          const currentGlobal = u.token?.global !== undefined ? u.token.global : 100000;
 
-          return {
-            updateOne: {
-              filter: { username: u.username },
-              update: {
-                $set: {
-                  'token.totalUsed': totalUsed,
-                  'token.daily': currentDaily,
-                  'token.global': currentGlobal,
-                  'token.lastReset': new Date(Date.now() + 8 * 3600000).toISOString().split('T')[0]
-                }
-              },
-              upsert: false
-            }
-          };
-        });
-
-        if (bulkOps.length > 0) await db.collection('users').bulkWrite(bulkOps);
+        // ⭐ 只回填 total_used 与 last_reset；daily/global 保持数据库里的现值
+        const users = await U.listUsersForAdmin();
+        for (const u of users) {
+          await U.setTotalUsed(u.username, usageMap[u.username] || 0);
+          await U.setLastResetToday(u.username);
+        }
 
         return res.status(200).json({ success: true, message: `Initialized ${users.length} users.` });
       } catch (err) {

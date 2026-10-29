@@ -24,8 +24,11 @@ import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';
 import crypto from 'crypto';
 import { wrapHandler } from '../lib/errors.js';
+import * as P from '../lib/pgStore.js';
+import * as U from '../lib/userStore.js';
 // token 的加减退统一走 lib/wallet.js，别在这里再写一份
-import { totalTokens, deductTokens, refundTokens, addTokens } from '../lib/wallet.js';
+import { totalTokens } from '../lib/wallet.js';
+import { getTokenBalance } from '../lib/token.js';
 
 const MIN_STAKE = 10000;
 const FEE_RATE = 0.2;                 // 手续费 20%
@@ -65,40 +68,38 @@ async function pickProblems(db, targetDiff, players) {
   const band = 1.2;
   const lo = Math.max(1, targetDiff - band);
   const hi = Math.min(10, targetDiff + band);
-  const baseFilter = { public: true, tags: { $ne: 'CHAIN_WARNING' } };
 
   // 先把双方已 AC 的题号取出来（states.pid === 'passed'）
   let solved = new Set();
   if (Array.isArray(players) && players.length) {
-    const stats = await db.collection('userstats').find(
-      { username: { $in: players } },
-      { projection: { states: 1, _id: 0 } }
-    ).toArray();
-    for (const s of stats) {
-      for (const [pid, st] of Object.entries(s.states || {})) {
+    // ⭐ 状态在 PostgreSQL
+    const statesList = await Promise.all(players.map(p => U.getStates(p)));
+    for (const states of statesList) {
+      for (const [pid, st] of Object.entries(states || {})) {
         if (st === 'passed') solved.add(pid);
       }
     }
   }
 
-  async function fetchPool(filter, limit) {
-    let cur = db.collection('problems').find(filter, { projection: { id: 1, difficulty: 1, _id: 0 } });
-    if (limit) cur = cur.limit(limit);
-    const rows = await cur.toArray();
+  // ⭐ 题库在 PostgreSQL：按难度区间随机取，排除 CHAIN_WARNING
+  async function fetchPool(minDiff, maxDiff, limit) {
+    const rows = await P.pickProblemPool({
+      minDiff,
+      maxDiff,
+      limit,
+      excludeTags: ['CHAIN_WARNING'],
+    });
     return solved.size ? rows.filter(p => !solved.has(p.id)) : rows;
   }
 
-  let pool = await fetchPool({ ...baseFilter, difficulty: { $gte: lo, $lte: hi } });
+  let pool = await fetchPool(lo, hi);
 
   // 附近题目不够就逐步放宽
   if (pool.length < PROBLEM_COUNT) {
-    pool = await fetchPool({
-      ...baseFilter,
-      difficulty: { $gte: Math.max(1, lo - 1.5), $lte: Math.min(10, hi + 1.5) },
-    });
+    pool = await fetchPool(Math.max(1, lo - 1.5), Math.min(10, hi + 1.5));
   }
   if (pool.length < PROBLEM_COUNT) {
-    pool = await fetchPool(baseFilter, 500);
+    pool = await fetchPool(null, null, 500);
   }
   if (pool.length === 0) return null;
 
@@ -158,9 +159,7 @@ async function handler(req, res) {
       return res.status(400).json({ success: false, message: `Minimum stake is ${MIN_STAKE}` });
     }
 
-    const target = await db.collection('users').findOne(
-      { username: to }, { projection: { username: 1, banned: 1, role: 1, displayName: 1 } }
-    );
+    const target = await U.getUser(to);
     if (!target || target.banned) return res.status(404).json({ success: false, message: 'User not found' });
     if (target.role === 'team') return res.status(400).json({ success: false, message: 'Cannot invite team account' });
 
@@ -175,19 +174,20 @@ async function handler(req, res) {
       return res.status(409).json({ success: false, message: 'You already have a pending PK invite', inviteId: myPending.id });
     }
 
-    const me = await db.collection('users').findOne({ username }, { projection: { token: 1, displayName: 1 } });
-    const have = totalTokens(me?.token);
-    const charged = deductTokens(me?.token, amount);
-    if (!charged) {
+    // ⭐ 余额与扣款都在 PostgreSQL。扣款是原子 UPDATE，并发不会扣成负数。
+    const me = await U.getUser(username);
+    const tok = await getTokenBalance(db, username);
+    const have = totalTokens(tok);
+    const charged = await U.deductTokensWithTaken(username, amount);
+    if (!charged.ok) {
       return res.status(400).json({
         success: false,
-        message: `Not enough tokens: you need ${amount.toLocaleString()} but have ${have.toLocaleString()}`,
+        message: 'Not enough tokens: you need ' + amount.toLocaleString() + ' but have ' + have.toLocaleString(),
         code: 'INSUFFICIENT_TOKENS',
         need: amount,
         have,
       });
     }
-    await db.collection('users').updateOne({ username }, { $set: { token: charged.token } });
 
     const invite = {
       id: genId('PKB'),
@@ -223,22 +223,14 @@ async function handler(req, res) {
       return res.status(410).json({ success: false, message: 'Expired' });
     }
 
-    const me = await db.collection('users').findOne({ username }, { projection: { token: 1, displayName: 1 } });
-    const myTokens = totalTokens(me?.token);
-    if (myTokens < invite.stake) {
+    const me = await U.getUser(username);
+    const tokMe = await getTokenBalance(db, username);
+    const myTokens = totalTokens(tokMe);
+    const charged = await U.deductTokensWithTaken(username, invite.stake);
+    if (!charged.ok) {
       return res.status(400).json({
         success: false,
-        message: `Not enough tokens to match this stake: need ${invite.stake.toLocaleString()}, you have ${myTokens.toLocaleString()}`,
-        code: 'INSUFFICIENT_TOKENS',
-        need: invite.stake,
-        have: myTokens,
-      });
-    }
-    const charged = deductTokens(me?.token, invite.stake);
-    if (!charged) {
-      return res.status(400).json({
-        success: false,
-        message: `Not enough tokens to match this stake: need ${invite.stake.toLocaleString()}, you have ${myTokens.toLocaleString()}`,
+        message: 'Not enough tokens to match this stake: need ' + invite.stake.toLocaleString() + ', you have ' + myTokens.toLocaleString(),
         code: 'INSUFFICIENT_TOKENS',
         need: invite.stake,
         have: myTokens,
@@ -256,8 +248,6 @@ async function handler(req, res) {
     if (!picked) {
       return res.status(500).json({ success: false, message: 'No public problems available' });
     }
-
-    await db.collection('users').updateOne({ username }, { $set: { token: charged.token } });
 
     const now = new Date();
     const pool = invite.stake * 2;
@@ -321,10 +311,8 @@ async function handler(req, res) {
     const attempts = await collectAttempts(db, room);
 
     // 题面随房间一起下发；ans 绝不下发，否则前端能直接看到答案
-    const probs = await db.collection('problems').find(
-      { id: { $in: room.problemIds } },
-      { projection: { id: 1, statement: 1, difficulty: 1, name: 1, _id: 0 } }
-    ).toArray();
+    // ⭐ 题库在 PostgreSQL
+    const probs = await P.getProblemsByIds(room.problemIds);
     const probMap = Object.fromEntries(probs.map(p => [p.id, p]));
     const problems = room.problemIds.map(id => probMap[id] || { id, statement: '(missing)', difficulty: null });
 
@@ -532,12 +520,9 @@ async function refundInvite(db, invite, status) {
   );
   if (r.modifiedCount !== 1) return;
 
-  const user = await db.collection('users').findOne({ username: invite.from }, { projection: { token: 1 } });
-
-  // 按原路退回。老记录没有 taken，refundTokens 会退回 daily（绝不退 global，
+  // 按原路退回。老记录没有 taken，就整笔退回 daily（绝不退 global，
   // 那正是「每日额度洗成永久额度」的口子）。
-  const restored = refundTokens(user?.token, invite.taken, invite.stake);
-  await db.collection('users').updateOne({ username: invite.from }, { $set: { token: restored } });
+  await U.refundTokensByTaken(invite.from, invite.taken, invite.stake);
 }
 
 function publicRoom(room) {
@@ -645,10 +630,11 @@ async function settleRoom(db, room) {
   const ratioWeak = weakIdx === 0 ? ratioA : ratioB;
 
   // token 余额（当前值，用于补助计算）
-  const users = await db.collection('users')
-    .find({ username: { $in: [weakP.username, strongP.username] } })
-    .project({ username: 1, token: 1 }).toArray();
-  const tokMap = Object.fromEntries(users.map(u => [u.username, totalTokens(u.token)]));
+  // ⭐ 钱包在 PostgreSQL
+  const tokRows = await U.getTokensMap([weakP.username, strongP.username]);
+  const tokMap = Object.fromEntries(
+    Object.entries(tokRows).map(([name, tk]) => [name, totalTokens(tk)])
+  );
   const weakTokens = tokMap[weakP.username] || 0;
   const strongTokens = tokMap[strongP.username] || 0;
 
@@ -671,11 +657,7 @@ async function settleRoom(db, room) {
 
   // 发奖
   for (const [p, amount] of [[weakP, weakPrize], [strongP, strongPrize]]) {
-    const u = await db.collection('users').findOne({ username: p.username }, { projection: { token: 1 } });
-    await db.collection('users').updateOne(
-      { username: p.username },
-      { $set: { token: addTokens(u?.token, amount) } }
-    );
+    await U.addTokens(p.username, amount);
   }
 
   const result = {

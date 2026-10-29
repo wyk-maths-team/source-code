@@ -25,50 +25,102 @@ async function handler(req, res) {
   const db = await connectToDatabase();
 
   try {
+    // ─────────────────────────────────────────────────────────────
+    // 全量备份 → GitHub Releases（替代原来的「逐文件 commit 到 repo」）
+    //   · PostgreSQL：题目域（problems / tags / problem_tags / app_settings）
+    //   · MongoDB   ：其余所有集合（users / submissions / userstats / ...）
+    //
+    // 为什么换：Contents API 每传一个文件就是一次 commit，几十个集合会把
+    // 仓库历史刷爆。Release asset 不进提交历史，也能按 tag 找到某天的快照。
+    //
+    // 最终目标是全 SQL，届时 postgres 分支覆盖全部表、mongo 分支消失。
+    // ─────────────────────────────────────────────────────────────
     if (action === 'dailyBackup') {
-      const { uploadJsonFile } = await import('../lib/github-upload.js');
+      const { publishBackupParts } = await import('../lib/github-release.js');
+      const { getPgPool } = await import('./_pg.js');
+      const { todayHK } = await import('../lib/time.js');
 
-      const ts = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
-      const dir = `database/${ts}`;
+      const startedAt = Date.now();
+      const dateStr = todayHK();
+      const tag = 'backup-' + dateStr + '-' + String(startedAt).slice(-6);
 
+      const items = [];
+      const stats = [];
+
+      // ① PostgreSQL：题目域
+      const PG_TABLES = ['problems', 'tags', 'problem_tags', 'app_settings'];
+      try {
+        const pool = getPgPool();
+        for (const table of PG_TABLES) {
+          // 表名来自白名单常量，不是用户输入 —— 可以安全拼接
+          const q = await pool.query('SELECT * FROM ' + table);
+          items.push({ name: 'pg.' + table, source: 'postgres', data: q.rows });
+          stats.push({ source: 'postgres', collection: table, count: q.rowCount });
+        }
+      } catch (e) {
+        // PostgreSQL 不可用时至少把 MongoDB 那半边备下来
+        stats.push({ source: 'postgres', collection: '*', error: e.message });
+      }
+
+      // ② MongoDB：其余集合（problems 已迁走，跳过，免得备份出一份过期副本）
+      const SKIP = new Set(['problems']);
       const collections = await db.listCollections().toArray();
-      const results = [];
       for (const { name } of collections) {
-        if (name.startsWith('system.')) continue;
+        if (name.startsWith('system.') || SKIP.has(name)) continue;
         try {
           const docs = await db.collection(name).find({}).toArray();
-          const r = await uploadJsonFile(
-            `${dir}/${name}.json`,
-            { collection: name, count: docs.length, docs },
-            { message: `cron backup: ${name} (${docs.length} docs)` }
-          );
-          results.push({ collection: name, count: docs.length });
+          items.push({ name: 'mongo.' + name, source: 'mongo', data: docs });
+          stats.push({ source: 'mongo', collection: name, count: docs.length });
         } catch (e) {
-          results.push({ collection: name, error: e.message });
+          stats.push({ source: 'mongo', collection: name, error: e.message });
         }
       }
 
+      const bodyLines = [
+        '自动备份 ' + new Date().toISOString() + '（Asia/Hong_Kong 日期 ' + dateStr + '）',
+        '',
+        'PostgreSQL：' + PG_TABLES.join(', '),
+        'MongoDB：其余集合',
+        '',
+      ];
+      for (const s of stats) {
+        bodyLines.push('- ' + s.collection + '（' + s.source + '）：' +
+          (s.error ? 'ERROR ' + s.error : s.count + ' 条'));
+      }
+
+      const result = await publishBackupParts({
+        tag,
+        name: 'Database backup ' + dateStr,
+        body: bodyLines.join('\n'),
+        items,
+      });
+
+      const totalRows = stats.reduce((s, x) => s + (x.count || 0), 0);
       await auditLog(db, 'cron_daily_backup', {
-        dir,
-        totalCollections: results.length,
-        totalDocs: results.reduce((s, r) => s + (r.count || 0), 0),
+        tag: result.tag,
+        assets: result.assets.map(a => a.name),
+        totalRows,
+        durationMs: Date.now() - startedAt,
       }, 'system', 'info').catch(() => {});
 
-      return res.status(200).json({ success: true, dir, results });
+      return res.status(200).json({
+        success: true,
+        ...result,
+        totalRows,
+        durationMs: Date.now() - startedAt,
+        stats,
+      });
     }
+
     if (action === 'dailyOnlineSnapshot') {
   const { uploadJsonFile } = await import('../lib/github-upload.js');
 
   // 心跳间隔（跟前端 heartbeat.js 保持一致）
   const HEARTBEAT_MS = Number(process.env.ONLINE_HEARTBEAT_MS) || 5 * 60 * 1000;
 
-  const users = await db.collection('users')
-    .find({}, { projection: {
-      username: 1, displayName: 1, realName: 1, role: 1,
-      heartbeatCount: 1, lastSeenAt: 1, banned: 1,
-      _id: 0,
-    }})
-    .toArray();
+  // ⭐ 账号与心跳在 PostgreSQL
+  const { listUsersOnline } = await import('../lib/userStore.js');
+  const users = await listUsersOnline();
 
   const snapshot = {
     updatedAt: new Date().toISOString(),
@@ -112,20 +164,6 @@ async function handler(req, res) {
     url: r.githubUrl,
   });
 }
-
-    if (action === 'adjustDifficulty') {
-      const { sweepDifficulties } = await import('../lib/difficulty-sweep.js');
-
-      const summary = await sweepDifficulties(db);
-
-      await auditLog(db, 'cron_adjust_difficulty', {
-        total: summary.total,
-        adjusted: summary.adjusted,
-        skipped: summary.skipped,
-      }, 'system', 'info').catch(() => {});
-
-      return res.status(200).json({ success: true, ...summary });
-    }
 
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {

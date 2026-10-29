@@ -5,18 +5,19 @@ import { applyRateLimit } from '../lib/rateLimit.js';
 import { runCustomLogic } from '../lib/logic-runner.js';
 import { ObjectId } from 'mongodb';
 import { wrapHandler } from '../lib/errors.js';
+import * as P from '../lib/pgStore.js';
+import * as U from '../lib/userStore.js';
 import { auditLog } from '../lib/audit.js';
 // ⭐ 移除 executeCustomLogic 死函數（原使用 vm，但 import 被註釋 → 一旦被呼叫就 ReferenceError）
 
 // =============== 快取 ===============
 let _publicIdsCache = { ids: null, expireAt: 0 };
-async function getPublicProblemIds(db) {
+async function getPublicProblemIds() {
   const now = Date.now();
   if (_publicIdsCache.ids && _publicIdsCache.expireAt > now) return _publicIdsCache.ids;
-  const publicProblems = await db.collection('problems')
-    .find({ public: true }, { projection: { id: 1, _id: 0 } })
-    .toArray();
-  _publicIdsCache.ids = new Set(publicProblems.map(p => String(p.id)));
+  // ⭐ 题库在 PostgreSQL；这里保留 5 分钟本地缓存，避免每个列表请求都查一遍
+  const ids = await P.getPublicProblemIds();
+  _publicIdsCache.ids = new Set(ids.map(String));
   _publicIdsCache.expireAt = now + 300_000;
   return _publicIdsCache.ids;
 }
@@ -72,19 +73,14 @@ async function buildHeader(db, problemId, username) {
 
   if (problemId) {
     tasks.push(
-      db.collection('problems')
-        .findOne({ id: String(problemId) }, { projection: { id: 1, name: 1, difficulty: 1, _id: 0 } })
-        .then(p => { if (p) header.problem = p; })
+      P.getProblem(String(problemId))
+        .then(p => { if (p) header.problem = { id: p.id, name: p.name, difficulty: p.difficulty }; })
         .catch(() => {})
     );
   }
   if (username) {
     tasks.push(
-      db.collection('users')
-        .findOne(
-          { username },
-          { projection: { username: 1, displayName: 1, realName: 1, pfp: 1, _id: 0 } }
-        )
+      U.getUser(username)
         .then(u => {
           if (u) header.user = {
             username: u.username,
@@ -131,20 +127,14 @@ async function handler(req, res) {
           }
         }
       ),
-      db.collection('userstats').findOne(
-        { username: decoded.username },
-        { projection: { states: 1, _id: 0 } }
-      )
+      U.getStates(decoded.username),
     ]);
 
     if (!sub) return res.status(404).json({ success: false, message: 'Submission not found' });
     const isOwner = sub.username === decoded.username;
 
     const [problem, attempts] = await Promise.all([
-      db.collection('problems').findOne(
-        { id: sub.problemId },
-        { projection: { name: 1, public: 1, _id: 0 } }
-      ),
+      P.getProblem(sub.problemId).then(p => (p ? { name: p.name, public: p.public } : null)),
       db.collection('submissions').countDocuments({ username: sub.username, problemId: sub.problemId })
     ]);
 
@@ -192,10 +182,7 @@ async function handler(req, res) {
 
     // 谁能举报这条提交：不是本人、且提交者不是 root
     // （管理员举报自己或 root 的提交没有意义，直接在前端隐藏、后端拒绝）
-    const ownerDoc = await db.collection('users').findOne(
-      { username: result.username },
-      { projection: { role: 1 } }
-    );
+    const ownerDoc = await U.getUser(result.username);
     const canReport = result.username !== decoded.username && ownerDoc?.role !== 'root';
 
     return res.status(200).json({
@@ -236,11 +223,8 @@ async function handler(req, res) {
     );
 
     // 2. 清除用户在此题的状态 (如果是 passed 或 failed，直接 unset 掉，相当于回到未做状态)
-    const statsCol = db.collection('userstats');
-    await statsCol.updateOne(
-      { username: sub.username },
-      { $unset: { [`states.${sub.problemId}`]: '' } }
-    );
+    // ⭐ 状态在 PostgreSQL
+    await U.removeProblemState(sub.username, sub.problemId);
 
     return res.status(200).json({ success: true });
   }
@@ -265,9 +249,7 @@ async function handler(req, res) {
     }
 
     // 加固 2：不能举报 root 的提交
-    const owner = await db.collection('users').findOne(
-      { username: sub.username }, { projection: { role: 1 } }
-    );
+    const owner = await U.getUser(sub.username);
     if (owner?.role === 'root') {
       return res.status(403).json({
         success: false, code: 'CANNOT_REPORT_ROOT',
@@ -325,10 +307,7 @@ async function handler(req, res) {
     });
 
     if (stillAC === 0) {
-      await db.collection('userstats').updateOne(
-        { username: sub.username },
-        { $unset: { [`states.${sub.problemId}`]: '' } }
-      );
+      await U.removeProblemState(sub.username, sub.problemId);
     }
 
     await auditLog(db, 'submission_delete', {
@@ -372,8 +351,8 @@ async function handler(req, res) {
       const pids = [...new Set(subs.map(s => s.problemId))];
       const usernames = [...new Set(subs.map(s => s.username))];
       const [probs, users] = await Promise.all([
-        db.collection('problems').find({ id: { $in: pids } }, { projection: { id: 1, name: 1, _id: 0 } }).toArray(),
-        db.collection('users').find({ username: { $in: usernames } }, { projection: { username: 1, displayName: 1, _id: 0 } }).toArray()
+        P.getProblemsByIds(pids).then(list => list.map(p => ({ id: p.id, name: p.name }))),
+        U.getUsersByNames(usernames)
       ]);
       const nameMap = Object.fromEntries(probs.map(p => [p.id, p.name]));
       const dispMap = Object.fromEntries(users.map(u => [u.username, u.displayName || u.username]));
@@ -417,7 +396,8 @@ async function handler(req, res) {
 
       const sub = await db.collection('submissions').findOne({ _id: oid });
       if (!sub) return res.status(404).json({ success: false, message: 'Submission not found' });
-      const problem = await db.collection('problems').findOne({ id: sub.problemId });
+      // 重新判题需要 answer / logic
+      const problem = await P.getProblem(sub.problemId, { withAnswer: true });
       if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
 
       if (sub.type === 'image') {
@@ -467,18 +447,11 @@ async function handler(req, res) {
 
       const username = sub.username;
       const problemId = sub.problemId;
-      const statsCol = db.collection('userstats');
-
-      const stats = await statsCol.findOne({ username }, { projection: { states: 1 } });
-      const currentState = stats?.states?.[problemId];
+      // ⭐ 状态在 PostgreSQL（setProblemState 保证 passed 不被覆盖）
+      const currentState = await U.getProblemState(username, problemId);
 
       if (currentState !== 'passed') {
-        const newState = correct ? 'passed' : 'failed';
-        await statsCol.updateOne(
-          { username },
-          { $set: { [`states.${problemId}`]: newState } },
-          { upsert: true }
-        );
+        await U.setProblemState(username, problemId, correct ? 'passed' : 'failed');
       }
 
       return res.status(200).json({
@@ -570,10 +543,7 @@ async function handler(req, res) {
         .skip((pageNum - 1) * limitNum)
         .limit(limitNum + 1)
         .toArray(),
-      db.collection('userstats').findOne(
-        { username: decoded.username },
-        { projection: { states: 1, _id: 0 } }
-      ),
+      U.getStates(decoded.username),
       includeHeader === '1' ? buildHeader(db, targetProblem, targetUser) : Promise.resolve(null)
     ]);
 
@@ -583,18 +553,16 @@ async function handler(req, res) {
     const problemIds = [...new Set(submissions.map(s => s.problemId))];
     const usernames = [...new Set(submissions.map(s => s.username))];
     const [problems, users] = await Promise.all([
-      db.collection('problems').find({ id: { $in: problemIds } }, { projection: { id: 1, name: 1, _id: 0 } }).toArray(),
-      db.collection('users').find({ username: { $in: usernames } }, { projection: { username: 1, displayName: 1, _id: 0 } }).toArray()
+      P.getProblemsByIds(problemIds).then(list => list.map(p => ({ id: p.id, name: p.name }))),
+      U.getUsersByNames(usernames)
     ]);
     const nameMap = Object.fromEntries(problems.map(p => [p.id, p.name]));
     const displayMap = Object.fromEntries(users.map(u => [u.username, u.displayName || u.username]));
 
     const passedSet = new Set();
-    if (userStats?.states) {
-      Object.entries(userStats.states).forEach(([pid, state]) => {
-        if (state === 'passed') passedSet.add(pid);
-      });
-    }
+    Object.entries(userStats || {}).forEach(([pid, state]) => {
+      if (state === 'passed') passedSet.add(pid);
+    });
 
     const enriched = submissions.map(s => {
       const status = deriveStatus(s);

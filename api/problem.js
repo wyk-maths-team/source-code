@@ -7,6 +7,8 @@ import { sanitizeHTML } from '../lib/sanitize.js';
 // import { sanitizeDiscussion } from '../lib/sanitize.js';
 import { ObjectId } from 'mongodb';
 import { wrapHandler } from '../lib/errors.js';
+import * as P from '../lib/pgStore.js';
+import * as U from '../lib/userStore.js';
 //説明：所有的題目相關的操作都在這裏。
 // ============== 輔助函數 ==============
 // ============== 輔助函數 ==============
@@ -23,15 +25,8 @@ async function getSolvesCountMap(db) {
   if (_solvesCache.map && _solvesCache.expireAt > Date.now()) {
     return _solvesCache.map;
   }
-  const result = await db.collection('userstats').aggregate([
-    { $project: { statesArray: { $objectToArray: { $ifNull: ['$states', {}] } } } },
-    { $unwind: '$statesArray' },
-    { $match: { 'statesArray.v': 'passed' } },
-    { $group: { _id: '$statesArray.k', count: { $sum: 1 } } },
-  ]).toArray();
-
-  const map = Object.create(null);
-  for (const r of result) map[r._id] = r.count;
+  // ⭐ 一条 GROUP BY 取代原来扫全库 userstats.states 的聚合
+  const map = await U.getSolvesCountMap();
   _solvesCache = { map, expireAt: Date.now() + SOLVES_CACHE_TTL };
   return map;
 }
@@ -94,11 +89,10 @@ async function auditProblemDelete(db, operator, problem) {
   }, operator, 'danger');
 }
 
-async function bumpProblemsVersion(db) {
-  await db.collection('metadata').updateOne(
-    { _key: 'problemsVersion' },
-    { $set: { version: Date.now() } }
-  );
+// 题目表已经迁到 PostgreSQL，版本号存在 app_settings。
+// 保留函数名与 db 参数，调用处不用改（db 参数已不再使用）。
+async function bumpProblemsVersion() {
+  await P.bumpProblemsVersion();
 }
 
 // 共用：抓某題的 discussions（含 liked 標記）
@@ -148,11 +142,11 @@ async function handler(req, res) {
       if (req.method === 'GET') {
         const { id } = req.query;
         if (id) {
-          const problem = await db.collection('problems').findOne({ id: String(id) });
+          const problem = await P.getProblemForAdmin(String(id));   // ⭐ PostgreSQL，含 tags
           if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
           return res.status(200).json({ success: true, problem });
         }
-        const problems = await db.collection('problems').find({}).toArray();
+        const problems = await P.listAllForAdmin();                  // ⭐ PostgreSQL，含 answer/logic
         return res.status(200).json({ success: true, problems });
       }
 
@@ -162,7 +156,7 @@ async function handler(req, res) {
           return res.status(400).json({ success: false, message: 'Missing fields' });
         }
         const idStr = String(id);
-        const exist = await db.collection('problems').findOne({ id: idStr });
+        const exist = await P.problemExists(idStr);
         if (exist) return res.status(400).json({ success: false, message: 'Problem ID already exists' });
 
         const newProblem = {
@@ -176,8 +170,9 @@ async function handler(req, res) {
           logic: logic || '',
           FS: FS === true,
         };
-        await db.collection('problems').insertOne(newProblem);
-        await bumpProblemsVersion(db);
+        // ⭐ problems / tags / problem_tags 全部在 PostgreSQL 的同一个事务里
+        await P.createProblem(newProblem);
+        await bumpProblemsVersion();
         await auditLog(db, 'problem_create', {
           problemId: idStr,
           collection: 'problems',
@@ -194,22 +189,20 @@ async function handler(req, res) {
         if (Array.isArray(ids) && ids.length && isPublic !== undefined) {
           const idStrs = ids.map(String);
           const target = isPublic === false ? false : true;
-          const beforeList = await db.collection('problems').find({ id: { $in: idStrs } }).toArray();
-          const result = await db.collection('problems').updateMany(
-            { id: { $in: idStrs } },
-            { $set: { public: target } }
-          );
+          // ⭐ 先取旧值（审计要 before/after）
+          const beforeList = await P.getProblemsByIds(idStrs);
+          const result = await P.setProblemsPublic(idStrs, target);
           for (const prob of beforeList) {
             await auditProblemChange(db, req.user.username, prob.id, { public: prob.public }, { public: target });
           }
-          await bumpProblemsVersion(db);
-          return res.status(200).json({ success: true, message: `Updated ${result.modifiedCount} problems` });
+          await bumpProblemsVersion();
+          return res.status(200).json({ success: true, message: `Updated ${result.updated} problems` });
         }
 
         // 單題更新
         if (!id) return res.status(400).json({ success: false, message: 'Missing problem ID' });
         const idStr = String(id);
-        const before = await db.collection('problems').findOne({ id: idStr });
+        const before = await P.getProblemForAdmin(idStr);   // 含 tags，审计才能看见标签变化
         if (!before) return res.status(404).json({ success: false, message: 'Problem not found' });
 
         const upd = {};
@@ -226,8 +219,9 @@ async function handler(req, res) {
           return res.status(400).json({ success: false, message: 'No fields to update' });
         }
 
-        await db.collection('problems').updateOne({ id: idStr }, { $set: upd });
-        await bumpProblemsVersion(db);
+        // ⭐ 字段与标签在 PostgreSQL 的同一个事务里更新
+        await P.updateProblem(idStr, upd);
+        await bumpProblemsVersion();
         await auditProblemChange(db, req.user.username, idStr, before, { ...before, ...upd });
         return res.status(200).json({ success: true, message: 'Problem updated' });
       }
@@ -238,12 +232,13 @@ async function handler(req, res) {
 
         if (id) {
           const idStr = String(id);
-          const problem = await db.collection('problems').findOne({ id: idStr });
+          const problem = await P.getProblemForAdmin(idStr);
           if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
-          await db.collection('problems').deleteOne({ id: idStr });
-          await db.collection('userstats').updateMany({}, { $unset: { [`states.${idStr}`]: '' } });
+          // ⭐ 题目删在 PG；用户答题状态仍在 Mongo，需要同时清掉，否则会留下指向不存在题目的状态
+          await P.deleteProblems([idStr]);
+          await U.deleteProblemStatesEverywhere(idStr);
           await auditProblemDelete(db, req.user.username, problem);
-          await bumpProblemsVersion(db);
+          await bumpProblemsVersion();
           return res.status(200).json({ success: true, message: 'Problem deleted' });
         }
 
@@ -257,15 +252,17 @@ async function handler(req, res) {
           }
 
           const idStrs = ids.map(String);
-          const problems = await db.collection('problems').find({ id: { $in: idStrs } }).toArray();
-          await db.collection('problems').deleteMany({ id: { $in: idStrs } });
+          // 审计要保留完整文档（含答案），所以先逐条读出来再删
+          const problems = await Promise.all(idStrs.map((pid) => P.getProblemForAdmin(pid)));
+          const existing = problems.filter(Boolean);
+          await P.deleteProblems(idStrs);
           for (const pid of idStrs) {
-            await db.collection('userstats').updateMany({}, { $unset: { [`states.${pid}`]: '' } });
+            await U.deleteProblemStatesEverywhere(pid);
           }
 
           // ⭐ 寫 N 筆 audit_logs（保持完整），但只發 1 條 webhook
           // ⭐ 每筆只寫 DB 不發通知（避免 Discord 被掃屏）
-          for (const prob of problems) {
+          for (const prob of existing) {
             await auditLog(db, 'problem_delete', {
               problemId: String(prob.id),
               collection: 'problems',
@@ -277,13 +274,13 @@ async function handler(req, res) {
 
           // ⭐ 一條匯總通知
           await auditLog(db, 'problem_delete_batch', {
-            ids: problems.map(p => p.id),
-            count: problems.length,
+            ids: existing.map(p => p.id),
+            count: existing.length,
             collection: 'problems',
           }, req.user.username, 'danger');
 
-          await bumpProblemsVersion(db);
-          return res.status(200).json({ success: true, message: `Deleted ${problems.length} problems` });
+          await bumpProblemsVersion();
+          return res.status(200).json({ success: true, message: `Deleted ${existing.length} problems` });
         }
         return res.status(400).json({ success: false, message: 'Invalid ids' });
       }
@@ -296,7 +293,7 @@ async function handler(req, res) {
       const id = String(req.query.id || '').trim();
       if (!id) return res.status(400).json({ success: false, message: 'Missing id' });
 
-      const problem = await db.collection('problems').findOne({ id });
+      const problem = await P.getProblemForAdmin(id);   // ⭐ PostgreSQL，含 answer/logic/tags
       if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
 
       const page = Math.max(1, parseInt(req.query.page) || 1);
@@ -316,7 +313,7 @@ async function handler(req, res) {
         const paperId = String(req.query.paperId || '').trim();
         if (!paperId) return res.status(400).json({ success: false, message: 'Missing paperId' });
 
-        const paper = await db.collection('problems').findOne({ id: paperId });
+        const paper = await P.getProblem(paperId, { withAnswer: true });
         if (!paper) return res.status(404).json({ success: false, message: 'Paper not found' });
 
         const stmt = String(paper.statement || '');
@@ -334,11 +331,14 @@ async function handler(req, res) {
         const ids = [];
         for (let i = 1; i <= total; i++) ids.push(prefix + String(i).padStart(2, '0'));
 
-        const existing = await db.collection('problems')
-          .find({ id: { $in: ids } },
-                { projection: { id: 1, ans: 1, difficulty: 1, tags: 1, public: 1, _id: 0 } })
-          .toArray();
-        const map = Object.fromEntries(existing.map(q => [q.id, q]));
+        // ⭐ 一次批量取（含答案）+ 一次批量取标签，避免 2×N 次往返
+        const [existing, tagMap] = await Promise.all([
+          P.getProblemsByIds(ids, { withAnswer: true }),
+          P.getTagsForProblems(ids),
+        ]);
+        const map = Object.fromEntries(
+          existing.map(q => [q.id, { ...q, tags: tagMap[q.id] || [] }])
+        );
 
         const questions = ids.map(qid => ({
           id: qid,
@@ -358,14 +358,14 @@ async function handler(req, res) {
           return res.status(400).json({ success: false, message: 'Missing paperId or questions' });
         }
 
-        const paper = await db.collection('problems').findOne({ id: paperId });
+        const paper = await P.getProblem(paperId, { withAnswer: true });
         if (!paper) return res.status(404).json({ success: false, message: 'Paper not found' });
 
         const prefix = paperId.slice(0, -2);
-        const col = db.collection('problems');
-        let created = 0, updated = 0;
         const errors = [];
+        const toUpsert = [];
 
+        // 先做纯校验，通过的收集起来一次性写库（单事务）
         for (const q of questions) {
           const qid = String(q.id || '').trim();
           if (!qid || qid === paperId) continue;
@@ -373,36 +373,17 @@ async function handler(req, res) {
             errors.push(`${qid}: prefix mismatch (expected ${prefix}XX)`);
             continue;
           }
-
-          const setObj = {};
-          if (q.ans !== undefined) setObj.ans = String(q.ans);
-          if (q.difficulty !== undefined) setObj.difficulty = Number(q.difficulty) || 0;
-          if (Array.isArray(q.tags)) setObj.tags = q.tags;
-          if (q.public !== undefined) setObj.public = q.public !== false;
-
-          const exist = await col.findOne({ id: qid }, { projection: { _id: 1 } });
-          if (exist) {
-            await col.updateOne({ id: qid }, { $set: setObj });
-            updated++;
-          } else {
-            await col.insertOne({
-              id: qid,
-              name: qid,
-              statement: '',
-              ans: String(q.ans || ''),
-              difficulty: Number(q.difficulty) || 5,
-              tags: Array.isArray(q.tags) ? q.tags : [],
-              public: q.public !== false,
-              logic: '',
-            });
-            created++;
-          }
+          toUpsert.push({
+            id: qid,
+            ans: q.ans,
+            difficulty: q.difficulty,
+            tags: q.tags,
+            public: q.public,
+          });
         }
 
-        await db.collection('metadata').updateOne(
-          { _key: 'problemsVersion' },
-          { $set: { version: Date.now() } }
-        );
+        const { created, updated } = await P.upsertPaperQuestions(toUpsert);
+        await bumpProblemsVersion();
 
         return res.status(200).json({ success: true, created, updated, errors });
       }
@@ -480,8 +461,7 @@ async function handler(req, res) {
   // ==================== 討論區 ====================
   if (action === 'discussions') {
     if (!req.user.states) {
-      const statsDoc = await db.collection('userstats').findOne({ username: req.user.username });
-      req.user.states = statsDoc ? (statsDoc.states || {}) : {};
+      req.user.states = await U.getStates(req.user.username);
     }
 
     if (req.method === 'GET') {
@@ -558,11 +538,8 @@ async function handler(req, res) {
 
     const adminUser = isAdminUser(req.user);
 
-    // ⭐ 相似题目改成 PostgreSQL：
-    //    原来是一条 MongoDB 聚合（$setIntersection 算共同标签数）。
-    //    PG 里用 problem_tags 自连接 GROUP BY 得到同一结果，而且能走索引。
-    const P = await import('../lib/pgStore.js');
-
+    // 相似题目走 PostgreSQL：problem_tags 自连接 GROUP BY 算共同标签数，
+    // 比原来 MongoDB 的 $setIntersection 更快，而且能走索引。
     const [current, curTags] = await Promise.all([
       P.getProblem(pid),
       P.getProblemTags(pid),
@@ -593,8 +570,9 @@ async function handler(req, res) {
       const { problemId, reason } = req.body || {};
       if (!problemId) return res.status(400).json({ success: false, message: 'Missing problemId' });
       const pidStr = String(problemId);
-      const problem = await db.collection('problems').findOne({ id: pidStr });
-      if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
+      if (!(await P.problemExists(pidStr))) {
+        return res.status(404).json({ success: false, message: 'Problem not found' });
+      }
 
       const trimmedReason = String(reason || '').trim().slice(0, 1000);
 
@@ -654,7 +632,7 @@ async function handler(req, res) {
     try {
       const adminUser = isAdminUser(req.user);
 
-      const paper = await db.collection('problems').findOne({ id });
+      const paper = await P.getProblem(id, { withAnswer: true });   // 需要 statement 解析 paper-mount
       if (!paper) return res.status(404).json({ success: false, message: 'Paper not found' });
       if (!adminUser && paper.public === false) {
         return res.status(404).json({ success: false, message: 'Paper not found' });
@@ -682,21 +660,12 @@ async function handler(req, res) {
       }
 
       // 檢查子題存在 + 拿用戶狀態
-      const [questions, userStats] = await Promise.all([
-        db.collection('problems')
-          .find(
-            { id: { $in: questionIds } },
-            { projection: { id: 1, _id: 0 } }
-          )
-          .toArray(),
-        db.collection('userstats').findOne(
-          { username: req.user.username },
-          { projection: { states: 1, _id: 0 } }
-        ),
+      const [questions, states] = await Promise.all([
+        P.getProblemsByIds(questionIds),
+        U.getStates(req.user.username),
       ]);
 
       const existing = new Set(questions.map(q => q.id));
-      const states = userStats?.states || {};
 
       const enriched = questionIds
         .filter(qid => existing.has(qid))
@@ -731,15 +700,11 @@ async function handler(req, res) {
       // ⭐ problems 和 userstats 已迁到 PostgreSQL，走 lib/pgStore.js。
       //    getProblem 默认不取 answer/logic（判题才需要），所以不用再手动剥离。
       //    userdata（收藏）还没迁，继续读 Mongo。
-      const P = await import('../lib/pgStore.js');
-
-      const [problem, state, userdataDoc] = await Promise.all([
+      // 题目、做题状态、收藏全部在 PostgreSQL
+      const [problem, state, favorites] = await Promise.all([
         P.getProblem(id),
-        P.getProblemState(req.user.username, id),
-        db.collection('userdata').findOne(
-          { username: req.user.username },
-          { projection: { favorites: 1, _id: 0 } }
-        )
+        U.getProblemState(req.user.username, id),
+        U.getFavorites(req.user.username),
       ]);
 
       if (!problem) {
@@ -806,7 +771,7 @@ async function handler(req, res) {
       // 双保险：即使 getProblem 以后改成带 answer，这里也不外泄
       const { ans, logic, ...safeProblem } = problem;
 
-      const favorited = Array.isArray(userdataDoc?.favorites) && userdataDoc.favorites.includes(id);
+      const favorited = favorites.includes(id);
 
       return res.status(200).json({
         success: true,
@@ -830,55 +795,35 @@ async function handler(req, res) {
   try {
     const adminUser = isAdminUser(req.user);
 
-    // 版本號
+    // 版本號（存在 PostgreSQL 的 app_settings）
     if (checkVersion === '1') {
-      const meta = await db.collection('metadata').findOne({ _key: 'problemsVersion' });
-      return res.status(200).json({ success: true, version: meta ? meta.version : 0 });
+      return res.status(200).json({ success: true, version: await P.getProblemsVersion() });
     }
 
     // 輕量 id 列表
     if (ids === '1') {
       // ⭐ 非管理員只能看到 public 題目
-      const idFilter = adminUser ? {} : { public: true };
-      const idList = await db.collection('problems')
-        .find(idFilter, { projection: { id: 1, _id: 0 } })
-        .toArray();
-      return res.status(200).json({ success: true, ids: idList.map(p => p.id) });
+      const idList = await P.getAllProblemIds({ publicOnly: !adminUser });
+      return res.status(200).json({ success: true, ids: idList });
     }
 
     if (req.query.all === '1') {
-      const baseFilter = adminUser ? {} : { public: true };
+      const publicOnly = !adminUser;
       const withStatement = req.query.withStatement === '1';
 
-      const projection = {
-        id: 1, name: 1, difficulty: 1, tags: 1, public: 1, _id: 0,
-      };
-      if (withStatement) projection.statement = 1;
-
-      const [meta, problems, solvesMap, allTags] = await Promise.all([
-        db.collection('metadata').findOne(
-          { _key: 'problemsVersion' },
-          { projection: { version: 1, _id: 0 } }
-        ),
-        db.collection('problems')
-          .find(baseFilter, { projection })
-          .sort({ id: 1 })
-          .toArray(),
+      const [version, problems, solvesMap, allTags] = await Promise.all([
+        P.getProblemsVersion(),
+        P.getAllProblems({ publicOnly, withStatement }),
         getSolvesCountMap(db),
-        fetchAllTags(db, baseFilter),
+        P.listTagNames({ publicOnly }),
       ]);
 
-      // 補上 solves（一次遍歷，O(N)）
+      // 補上 solves（一次遍歷，O(N)）。solves 仍来自 Mongo 的 userstats。
       for (const p of problems) {
         p.solves = solvesMap[p.id] || 0;
       }
 
-      return res.status(200).json({
-        success: true,
-        version: meta?.version || 0,
-        problems,
-        allTags,
-      });
+      return res.status(200).json({ success: true, version, problems, allTags });
     }
 
     // 多個 ID（收藏夾）
@@ -887,17 +832,24 @@ async function handler(req, res) {
       if (idArray.length === 0) {
         return res.status(200).json({ success: true, problems: [], allTags: [] });
       }
-      const baseFilter = adminUser ? {} : { public: true };
-      const filter = { ...baseFilter, id: { $in: idArray } };
-      const problems = await fetchProblemsWithSolves(db, filter, sortBy, order);
-      const allTags = await fetchAllTags(db, baseFilter);
+      const publicOnly = !adminUser;
+      const [problems, allTags, solvesMap] = await Promise.all([
+        P.listProblemsByIds(idArray, { publicOnly, sortBy, order }),
+        P.listTagNames({ publicOnly }),
+        getSolvesCountMap(db),
+      ]);
+      for (const p of problems) p.solves = solvesMap[p.id] || 0;
+      // solves 的数据源在 Mongo，SQL 排不了，只能在这里补排
+      if (sortBy === 'solves') {
+        problems.sort((a, b) => (order === 'desc' ? b.solves - a.solves : a.solves - b.solves));
+      }
       return res.status(200).json({ success: true, problems, allTags });
     }
 
     // 單題詳情
     if (id) {
       const idStr = String(id);
-      const problem = await db.collection('problems').findOne({ id: idStr });
+      const problem = await P.getProblemForAdmin(idStr);   // 先取全量，再剥离答案
       if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
 
       if (!adminUser) {
@@ -925,31 +877,58 @@ async function handler(req, res) {
         }
       }
 
-      // 一律剝離 ans（用戶端永遠拿不到；admin 要 ans 請用 adminProblems / adminEditProblem）
-      const { ans,logic, _id, ...safeProblem } = problem;
+      // 一律剝離 ans / logic（用戶端永遠拿不到；admin 要答案請用 adminProblems / adminEditProblem）
+      const { ans, logic, ...safeProblem } = problem;
       return res.status(200).json({ success: true, problem: safeProblem });
     }
 
     // 分頁列表
     const pageNum = Math.max(1, parseInt(page) || 1);
     const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20));
+    const publicOnly = !adminUser;
 
-    const baseFilter = adminUser ? {} : { public: true };
-    const filter = { ...baseFilter };
-    if (tags) {
-      const tagsArray = String(tags).split(',').map(t => t.trim()).filter(Boolean);
-      if (tagsArray.length > 0) filter.tags = { $in: tagsArray };
-    }
+    const tagList = tags
+      ? String(tags).split(',').map(t => t.trim()).filter(Boolean)
+      : [];
 
     const allowedSortFields = ['id', 'difficulty', 'solves'];
     const sortField = allowedSortFields.includes(sortBy) ? sortBy : 'id';
-    const sortOrderNum = (order === 'desc') ? -1 : 1;
+    const sortOrder = order === 'desc' ? 'desc' : 'asc';
 
-    const pipeline = buildProblemListPipeline(filter, sortField, sortOrderNum, pageNum, limitNum);
-    const problems = await db.collection('problems').aggregate(pipeline).toArray();
+    const [solvesMap, allTags] = await Promise.all([
+      getSolvesCountMap(db),
+      P.listTagNames({ publicOnly }),
+    ]);
 
-    const allTags = await fetchAllTags(db, baseFilter);
-    const total = await db.collection('problems').countDocuments(filter);
+    let problems;
+    let total;
+
+    if (sortField === 'solves') {
+      // solves 来自 Mongo 的 userstats，SQL 排不了。
+      // 题量约 2700，拉全量在内存里排序分页，和原来聚合的代价同阶。
+      const all = await P.getAllProblems({ publicOnly });
+      for (const p of all) p.solves = solvesMap[p.id] || 0;
+      all.sort((a, b) => {
+        const d = a.solves - b.solves;
+        if (d !== 0) return sortOrder === 'desc' ? -d : d;
+        return String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
+      });
+      total = all.length;
+      const start = (pageNum - 1) * limitNum;
+      problems = all.slice(start, start + limitNum);
+    } else {
+      const r = await P.listProblemsPage({
+        publicOnly,
+        tags: tagList,
+        sortBy: sortField,
+        order: sortOrder,
+        page: pageNum,
+        limit: limitNum,
+      });
+      problems = r.problems;
+      total = r.total;
+      for (const p of problems) p.solves = solvesMap[p.id] || 0;
+    }
 
     return res.status(200).json({
       success: true,
@@ -969,146 +948,9 @@ async function handler(req, res) {
   }
 }
 
-// ============== 管線 / 輔助 ==============
-function buildProblemListPipeline(filter, sortField, sortOrder, pageNum, limitNum) {
-  const pipeline = [
-    { $match: filter },
-    {
-      $lookup: {
-        from: 'userstats',
-        let: { pidStr: '$id' },
-        pipeline: [
-          { $project: { statesArray: { $objectToArray: '$states' } } },
-          { $unwind: '$statesArray' },
-          {
-            $match: {
-              $expr: {
-                $and: [
-                  { $eq: ['$statesArray.v', 'passed'] },
-                  { $eq: ['$statesArray.k', '$$pidStr'] }
-                ]
-              }
-            }
-          },
-          { $count: 'count' }
-        ],
-        as: 'solvesData'
-      }
-    },
-    { $addFields: { solves: { $ifNull: [{ $arrayElemAt: ['$solvesData.count', 0] }, 0] } } },
-  ];
-
-  if (sortField === 'id') {
-    pipeline.push({
-      $addFields: {
-        _idParts: { $regexFind: { input: '$id', regex: /^([A-Za-z]*)(\d+)$/ } }
-      }
-    });
-    pipeline.push({
-      $addFields: {
-        idPrefix: { $toLower: { $ifNull: [{ $arrayElemAt: ['$_idParts.captures', 0] }, ''] } },
-        idNum: {
-          $convert: {
-            input: { $ifNull: [{ $arrayElemAt: ['$_idParts.captures', 1] }, '0'] },
-            to: 'int', onError: 0, onNull: 0
-          }
-        }
-      }
-    });
-    pipeline.push({ $sort: { idPrefix: sortOrder, idNum: sortOrder } });
-  } else {
-    pipeline.push({ $sort: { [sortField]: sortOrder } });
-  }
-
-  if (pageNum && limitNum) {
-    pipeline.push({ $skip: (pageNum - 1) * limitNum });
-    pipeline.push({ $limit: limitNum });
-  }
-
-  pipeline.push({
-    $project: {
-      statement: 0,
-      ans: 0,
-      logic: 0,
-      solvesData: 0,
-      idPrefix: 0,
-      idNum: 0,
-      _idParts: 0
-    }
-  });
-
-  return pipeline;
-}
-
-async function fetchAllTags(db, baseFilter) {
-  const tags = await db.collection('problems').distinct('tags', baseFilter);
-  return tags.filter(t => t).sort();
-}
-
-async function fetchProblemsWithSolves(db, filter, sortBy, order) {
-  const sortField = ['id', 'difficulty', 'solves'].includes(sortBy) ? sortBy : 'id';
-  const sortOrder = (order === 'desc') ? -1 : 1;
-  const pipe = [
-    { $match: filter },
-    {
-      $lookup: {
-        from: 'userstats',
-        let: { pidStr: '$id' },
-        pipeline: [
-          { $project: { statesArray: { $objectToArray: '$states' } } },
-          { $unwind: '$statesArray' },
-          {
-            $match: {
-              $expr: {
-                $and: [
-                  { $eq: ['$statesArray.v', 'passed'] },
-                  { $eq: ['$statesArray.k', '$$pidStr'] }
-                ]
-              }
-            }
-          },
-          { $count: 'count' }
-        ],
-        as: 'solvesData'
-      }
-    },
-    { $addFields: { solves: { $ifNull: [{ $arrayElemAt: ['$solvesData.count', 0] }, 0] } } },
-  ];
-
-  if (sortField === 'id') {
-    pipe.push({
-      $addFields: {
-        _idParts: { $regexFind: { input: '$id', regex: /^([A-Za-z]*)(\d+)$/ } }
-      }
-    });
-    pipe.push({
-      $addFields: {
-        idPrefix: { $toLower: { $ifNull: [{ $arrayElemAt: ['$_idParts.captures', 0] }, ''] } },
-        idNum: {
-          $convert: {
-            input: { $ifNull: [{ $arrayElemAt: ['$_idParts.captures', 1] }, '0'] },
-            to: 'int', onError: 0, onNull: 0
-          }
-        }
-      }
-    });
-    pipe.push({ $sort: { idPrefix: sortOrder, idNum: sortOrder } });
-  } else {
-    pipe.push({ $sort: { [sortField]: sortOrder } });
-  }
-  pipe.push({
-    $project: {
-      statement: 0,
-      ans: 0,
-      logic: 0,
-      solvesData: 0,
-      idPrefix: 0,
-      idNum: 0,
-      _idParts: 0
-    }
-  });
-  return await db.collection('problems').aggregate(pipe).toArray();
-}
+// ============== 輔助 ==============
+// 题目相关的 SQL 全部收敛在 lib/pgStore.js。
+// solves（通过人数）仍来自 MongoDB 的 userstats，见上面的 getSolvesCountMap。
 
 // 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
 export default wrapHandler(handler);

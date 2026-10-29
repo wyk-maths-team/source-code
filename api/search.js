@@ -3,6 +3,8 @@ import { connectToDatabase } from './_db.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { wrapHandler } from '../lib/errors.js';
+import * as P from '../lib/pgStore.js';
+import * as U from '../lib/userStore.js';
 
 function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // AGAINST INJECTION
@@ -27,25 +29,14 @@ async function handler(req, res) {
   const regex = new RegExp(safeKeyword, 'i');
 
   if (action === 'search_user') {
-    const users = await db.collection('users').find({
-      $or: [
-        { username: regex }, 
-        { realName: regex }, 
-        { displayName: regex }
-      ]
-    }).project({ username: 1, realName: 1, displayName: 1, _id: 0 }).limit(6).toArray();
-    
+    // ⭐ 用户表在 PostgreSQL：ILIKE 模糊匹配
+    const users = await U.searchUsers(keyword, 6);
     return res.status(200).json({ success: true, data: users });
   }
 
   if (action === 'search_prob') {
-    const problems = await db.collection('problems').find({
-      $or: [
-        { id: regex }, 
-        { name: regex }
-      ]
-    }).project({ id: 1, name: 1, _id: 0 }).limit(6).toArray();
-    
+    // ⭐ 题库在 PostgreSQL：ILIKE 模糊匹配 id / name
+    const problems = await P.searchProblems(keyword, 6);
     return res.status(200).json({ success: true, data: problems });
   }
 

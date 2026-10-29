@@ -122,9 +122,7 @@ async function handler(req, res) {
       return res.status(400).json({ success: false, message: 'Invalid target' });
     }
 
-    const target = await db.collection('users').findOne(
-      { username: to }, { projection: { username: 1, banned: 1, role: 1, displayName: 1 } }
-    );
+    const target = await U.getUser(to);
     if (!target || target.banned) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }

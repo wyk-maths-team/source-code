@@ -7,6 +7,8 @@ import { getTokenBalance, consumeTokens } from '../lib/token.js';
 import { buildImageGradePrompt } from '../lib/grade-prompt.js';
 import crypto from 'crypto';
 import { wrapHandler } from '../lib/errors.js';
+import * as P from '../lib/pgStore.js';
+import * as U from '../lib/userStore.js';
 
 // ⭐ 必须配置这个，否则 Vercel 免费版 10 秒后必断连！
 export const config = { maxDuration: 300 };
@@ -87,7 +89,8 @@ async function handleCreate(req, res, db, decoded) {
     return res.status(400).json({ success: false, message: 'Missing fields' });
   }
   
-  const problem = await db.collection('problems').findOne({ id: String(problemId) });
+  // ⭐ 题库在 PostgreSQL；批改需要 statement / ans / logic
+  const problem = await P.getProblem(String(problemId), { withAnswer: true });
   if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
 
   const sub = await db.collection('submissions').findOne({ subid, username: decoded.username, type: 'image' });
@@ -132,10 +135,9 @@ async function handleCreate(req, res, db, decoded) {
         { $set: { marked: true, score: finalScore, comment, correct: finalScore === 100, markedAt: new Date(), aiGraded: true, tokenUsage: actualCost } }
       );
 
-      const statsCol = db.collection('userstats');
-      await statsCol.updateOne({ username: decoded.username }, { $setOnInsert: { username: decoded.username, states: {} } }, { upsert: true });
-      if (finalScore === 100) await statsCol.updateOne({ username: decoded.username }, { $set: { [`states.${problemId}`]: 'passed' } });
-      else await statsCol.updateOne({ username: decoded.username, [`states.${problemId}`]: { $ne: 'passed' } }, { $set: { [`states.${problemId}`]: 'failed' } });
+      // ⭐ 做题状态在 PostgreSQL
+      await U.setProblemState(decoded.username, problemId,
+        finalScore === 100 ? 'passed' : 'failed');
 
       await db.collection('steps_grading_tasks').updateOne({ taskId }, { $set: { status: 'done', result: { score: finalScore, comment }, completedAt: new Date() } });
       const newTokens = await consumeTokens(db, decoded.username, actualCost);

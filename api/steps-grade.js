@@ -10,6 +10,8 @@ import { getModelChain, getModelInfo, pickThinkingEffort } from '../lib/model-ro
 import { consumeTokens } from '../lib/token.js';
 import crypto from 'crypto';
 import { wrapHandler } from '../lib/errors.js';
+import * as P from '../lib/pgStore.js';
+import * as U from '../lib/userStore.js';
 
 const MAX_STEPS_LEN = 10000;
 const TASK_TTL_MS   = 30 * 60_000;
@@ -98,7 +100,8 @@ async function handleCreate(req, res, db, decoded) {
   if (!problemId || !steps || !steps.trim()) return res.status(400).json({ success: false, message: 'Missing or empty steps' });
   if (steps.trim().length > MAX_STEPS_LEN) return res.status(400).json({ success: false, message: 'Steps too long' });
 
-  const problem = await db.collection('problems').findOne({ id: String(problemId) }, { projection: { id: 1, statement: 1, ans: 1, difficulty: 1 } });
+  // ⭐ 题库在 PostgreSQL；评分需要 statement / ans / difficulty
+  const problem = await P.getProblem(String(problemId), { withAnswer: true });
   if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
     // ⭐ 前置余额校验
   const tokenCost = problem.difficulty*3000;
@@ -156,11 +159,9 @@ async function handleCreate(req, res, db, decoded) {
         judgingMs: result.elapsed, judgingModel: modelKey, tokenUsage: result.tokenUsage || tokenCost
       });
 
-      // 更新 userstats
-      const statsCol = db.collection('userstats');
-      await statsCol.updateOne({ username: decoded.username }, { $setOnInsert: { username: decoded.username, states: {} } }, { upsert: true });
-      if (finalScore === 100) await statsCol.updateOne({ username: decoded.username }, { $set: { [`states.${problemId}`]: 'passed' } });
-      else await statsCol.updateOne({ username: decoded.username, [`states.${problemId}`]: { $ne: 'passed' } }, { $set: { [`states.${problemId}`]: 'failed' } });
+      // ⭐ 做题状态在 PostgreSQL（满分 passed，否则 failed；passed 不会被覆盖）
+      await U.setProblemState(decoded.username, problemId,
+        finalScore === 100 ? 'passed' : 'failed');
 
       // 扣除 Token
       const newTokens = await consumeTokens(db, decoded.username, result.tokenUsage || tokenCost);
@@ -227,10 +228,9 @@ async function handlePoll(req, res, db, decoded) {
           answer: claimed.steps, markedAt: new Date(), aiGraded: true, handledBy: claimed.handledBy || 'bridge',
           usedModel: claimed.usedModel || null, taskId, judgingMs: claimed.elapsedMs || null, tokenUsage: claimed.result?.tokenUsage || tokenCost
         });
-        const statsCol = db.collection('userstats');
-        await statsCol.updateOne({ username: claimed.username }, { $setOnInsert: { username: claimed.username, states: {} } }, { upsert: true });
-        if (finalScore === 100) await statsCol.updateOne({ username: claimed.username }, { $set: { [`states.${claimed.problemId}`]: 'passed' } });
-        else await statsCol.updateOne({ username: claimed.username, [`states.${claimed.problemId}`]: { $ne: 'passed' } }, { $set: { [`states.${claimed.problemId}`]: 'failed' } });
+        // ⭐ 做题状态在 PostgreSQL
+        await U.setProblemState(claimed.username, claimed.problemId,
+          finalScore === 100 ? 'passed' : 'failed');
 
         await consumeTokens(db, claimed.username, claimed.result?.tokenUsage || tokenCost);
       } catch (e) { console.error('[steps-grade] poll write failed:', e); }

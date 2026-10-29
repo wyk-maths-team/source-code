@@ -3,6 +3,7 @@ import { connectToDatabase } from './_db.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { wrapHandler } from '../lib/errors.js';
+import * as U from '../lib/userStore.js';
 
 async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
@@ -304,8 +305,8 @@ async function handleOsAction(action, req, res, decoded) {
 
     // ── 壁紙 ──
     case 'os.getWallpaper': {
-      const doc = await db.collection('userdata').findOne({ username });
-      return res.status(200).json({ success: true, url: doc?.wallpaper || '' });
+      const prefs = await U.getPreferences(username);
+      return res.status(200).json({ success: true, url: prefs?.wallpaper || '' });
     }
 
     case 'os.uploadWallpaper': {
@@ -325,11 +326,7 @@ async function handleOsAction(action, req, res, decoded) {
       try {
         const { uploadImage } = await import('../lib/cloudinary.js');
         const url = await uploadImage(image, { folder: 'wallpapers' });
-        await db.collection('userdata').updateOne(
-          { username },
-          { $set: { wallpaper: url, wallpaperUpdatedAt: new Date() } },
-          { upsert: true }
-        );
+        await U.setPreference(username, { wallpaper: url });
         return res.status(200).json({ success: true, url });
       } catch (err) {
         console.error('Wallpaper upload error:', err);
@@ -339,30 +336,19 @@ async function handleOsAction(action, req, res, decoded) {
 
     case 'os.clearWallpaper': {
       if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-      await db.collection('userdata').updateOne(
-        { username },
-        { $unset: { wallpaper: '' } }
-      );
+      await U.setPreference(username, { wallpaper: null });
       return res.status(200).json({ success: true });
     }
         // ── 桌面圖標 ──
     case 'os.getDesktop': {
-      const doc = await db.collection('userdata').findOne({ username });
-      // 首次登入：給予默認圖標
-      let icons = doc?.desktopIcons;
-      if (!Array.isArray(icons)) {
-        icons = [
-          { id: 'd-problems',    title: 'Problems',    icon: 'fa-list-check',   type: 'app', appId: 'problems' },
-          { id: 'd-submissions', title: 'Submissions', icon: 'fa-paper-plane',  type: 'app', appId: 'submissions' },
-          { id: 'd-ranklist',    title: 'Leaderboard', icon: 'fa-ranking-star', type: 'app', appId: 'ranklist' },
-          { id: 'd-bookmarked',  title: 'Bookmarks',   icon: 'fa-star',         type: 'app', appId: 'bookmarked' },
-        ];
-        await db.collection('userdata').updateOne(
-          { username },
-          { $set: { desktopIcons: icons } },
-          { upsert: true }
-        );
-      }
+      // ⚠️ desktopIcons 已废弃：不再持久化，每次返回默认布局。
+      //    保留接口是为了不破坏老客户端（移动端桌面）。
+      const icons = [
+        { id: 'd-problems',    title: 'Problems',    icon: 'fa-list-check',   type: 'app', appId: 'problems' },
+        { id: 'd-submissions', title: 'Submissions', icon: 'fa-paper-plane',  type: 'app', appId: 'submissions' },
+        { id: 'd-ranklist',    title: 'Leaderboard', icon: 'fa-ranking-star', type: 'app', appId: 'ranklist' },
+        { id: 'd-bookmarked',  title: 'Bookmarks',   icon: 'fa-star',         type: 'app', appId: 'bookmarked' },
+      ];
       return res.status(200).json({ success: true, icons });
     }
 
@@ -381,12 +367,8 @@ async function handleOsAction(action, req, res, decoded) {
         appId: it.type === 'app' ? String(it.appId || '').slice(0, 60) : undefined,
         url:   it.type === 'url' ? String(it.url   || '').slice(0, 2000) : undefined,
       }));
-      await db.collection('userdata').updateOne(
-        { username },
-        { $set: { desktopIcons: sanitized } },
-        { upsert: true }
-      );
-      return res.status(200).json({ success: true, icons: sanitized });
+      // desktopIcons 已废弃：只做校验后回显，不落库
+      return res.status(200).json({ success: true, icons: sanitized, persisted: false });
     }
     default:
       return res.status(400).json({ success: false, message: 'Unknown action: ' + action });

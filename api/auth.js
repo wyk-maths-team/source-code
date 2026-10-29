@@ -4,6 +4,8 @@ import bcrypt from 'bcrypt';
 import { connectToDatabase } from './_db.js';
 import { auditLog } from '../lib/audit.js';
 import { wrapHandler } from '../lib/errors.js';
+import { todayHK } from '../lib/time.js';
+import { getUser, updateUser, createUser, usernameExists } from '../lib/userStore.js';
 
 /**
  * 從微軟回傳的 displayName 抽出真名。
@@ -131,8 +133,8 @@ async function handler(req, res) {
       }
 
       const username = email.split('@')[0];
-      const db = await connectToDatabase();
-      const existingUser = await db.collection('users').findOne({ username });
+      const db = await connectToDatabase();   // audit_logs 仍在 MongoDB
+      const existingUser = await getUser(username);
       // ⭐ Reset 模式：走专用分支，不登录
       if (mode === 'reset') {
         if (!existingUser) {
@@ -161,12 +163,9 @@ async function handler(req, res) {
         return res.redirect(`/auth/setup?token=${setupToken}`);
       } else {
         // 老用戶：同步 displayName 與 realName（微軟是權威來源）
-        const updateFields = {};
+        // ⭐ 微软是 realName 的权威来源，登录时同步
         if (realName && existingUser.realName !== realName) {
-          updateFields.realName = realName;
-        }
-        if (Object.keys(updateFields).length > 0) {
-          await db.collection('users').updateOne({ username }, { $set: updateFields });
+          await updateUser(username, { realName });
         }
 
 
@@ -197,27 +196,19 @@ async function handler(req, res) {
       if (decoded.action !== 'setup') throw new Error('Invalid token');
       const { username, email, displayName, realName } = decoded;
 
-      const db = await connectToDatabase();
-      const existing = await db.collection('users').findOne({ username });
-      if (existing) return res.status(400).json({ success: false, message: 'Username already taken' });
+      if (await usernameExists(username)) {
+        return res.status(400).json({ success: false, message: 'Username already taken' });
+      }
 
       const hashedPassword = await bcrypt.hash(password, 10);
-      await db.collection('users').insertOne({
+      // ⭐ users + user_tokens + user_stats 在同一个事务里建
+      await createUser({
         username,
         email,
         password: hashedPassword,
         role: 'student',
         displayName: displayName || username,
-        realName: realName || '',      // ⭐ 存入真名
-        createdAt: new Date(),
-        // 新账号的初始余额：daily 30,000（每日重置）+ global 100,000（永久）
-        token: {
-          daily: 30000,
-          global: 100000,
-          lastReset: new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10),
-          dailyLoginClaimed: false,
-          dailyQuestClaimed: false,
-        },
+        realName: realName || '',
       });
 
       res.json({ success: true });
@@ -248,15 +239,12 @@ if (action === 'complete-reset') {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     if (decoded.action !== 'reset') throw new Error('Invalid token');
 
-    const db = await connectToDatabase();
-    const user = await db.collection('users').findOne({ username: decoded.username });
+    const db = await connectToDatabase();   // 仅用于 audit_logs
+    const user = await getUser(decoded.username);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
     const hashed = await bcrypt.hash(password, 10);
-    await db.collection('users').updateOne(
-      { username: decoded.username },
-      { $set: { password: hashed, passwordResetAt: new Date() } }
-    );
+    await updateUser(decoded.username, { password: hashed });
 
     // 审计（用 warn 级，Discord 会通知）
     await auditLog(db, 'password_reset_via_microsoft', {

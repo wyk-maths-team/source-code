@@ -17,6 +17,8 @@ import crypto from 'crypto';
 import { json } from 'stream/consumers';
 import { waitUntil } from '@vercel/functions';
 import { wrapHandler } from '../lib/errors.js';
+import * as P from '../lib/pgStore.js';
+import * as U from '../lib/userStore.js';
 
 // ═══════════════ Constants ═══════════════
 const RATE_MAX_PER_MIN = 10;
@@ -88,67 +90,20 @@ function compareNumeric(ansStr, userAnswer) {
 //   todayAC       —— 今天 AC 过的题目（去重，跨天清空）
 // 读取端（lib/achievements.js collectStats）只看 userstats 就够，不再触碰 submissions。
 async function updateUserStats(db, username, pid, correct) {
-  const col = db.collection('userstats');
-  const { getHktToday, STATS_VERSION } = await import('../lib/achievements.js');
-  const today = getHktToday();
-
-  let doc = await col.findOne({ username }, {
-    projection: { states: 1, firstTryCount: 1, todayDate: 1, todayTried: 1, todayAC: 1, statsVersion: 1, _id: 1 },
-  });
-
-  // 老用户还没回填：先补齐一次，否则 firstTryCount 会从 0 开始算错
-  if (doc && doc.statsVersion !== STATS_VERSION) {
-    const { collectStats } = await import('../lib/achievements.js');
-    await collectStats(db, username, { fresh: true });
-    doc = await col.findOne({ username }, {
-      projection: { states: 1, firstTryCount: 1, todayDate: 1, todayTried: 1, todayAC: 1, statsVersion: 1, _id: 1 },
-    });
-  }
-
-  const states = doc?.states || {};
-  const wasAttempted = Object.prototype.hasOwnProperty.call(states, pid);
-  const wasPassed = states[pid] === 'passed';
-
-  // 跨天重置
-  const sameDay = doc?.todayDate === today;
-  const todayTried = (sameDay && Array.isArray(doc.todayTried)) ? doc.todayTried.slice() : [];
-  const todayAC = (sameDay && Array.isArray(doc.todayAC)) ? doc.todayAC.slice() : [];
-
-  if (!todayTried.includes(pid)) todayTried.push(pid);
-  if (correct && !todayAC.includes(pid)) todayAC.push(pid);
-
-  const set = {
-    todayDate: today,
-    todayTried,
-    todayAC,
-    statsVersion: STATS_VERSION,
-  };
-
-  // firstTryCount 用 $inc 避免并发覆盖
-  const inc = {};
-  if (correct && !wasAttempted) inc.firstTryCount = 1;
-
-  if (correct) {
-    set[`states.${pid}`] = 'passed';
-  } else if (!wasPassed) {
-    set[`states.${pid}`] = 'failed';
-  }
-
-  const update = { $set: set, $setOnInsert: { username } };
-  if (Object.keys(inc).length) update.$inc = inc;
-
-  await col.updateOne({ username }, update, { upsert: true });
+  // ⭐ 做题状态 / 今日集合 / firstTryCount 都在 PostgreSQL，
+  //    由 userStore.updateStatsForSubmission 在一个事务里完成
+  //    （FOR UPDATE 锁住 user_stats，并发提交不会互相覆盖 todayAC）。
+  const r = await U.updateStatsForSubmission(username, pid, correct);
 
   // 新 AC 会让 rating 变化：清掉内存缓存，否则接下来 60 秒内 profile 会显示旧 rating
-  if (correct && !wasPassed) {
+  if (r.isNewAC) {
     const { invalidateUserRating } = await import('../lib/userRating.js');
     invalidateUserRating(username);
   }
 
-  // ⭐ 返回是否是新 AC（之前没 passed，现在 passed 了）
-  return correct && !wasPassed;
+  // 返回是否是新 AC（之前没 passed，现在 passed 了）
+  return r.isNewAC;
 }
-
 // ═══════════════ Judging (pure — no DB writes) ═══════════════
 
 /**
@@ -438,7 +393,8 @@ async function handleSingleSubmit(ctx) {
 
   // ── Load problem + user's active contests ──
   const [problem, activeContests] = await Promise.all([
-    db.collection('problems').findOne({ id: pid }),
+    // ⭐ 题库在 PostgreSQL；判题需要 answer 与 logic
+    P.getProblem(pid, { withAnswer: true }),
     teamContext
       ? Promise.resolve([])                          // team: use teamContext.contest
       : findUserActiveContests(db, effectiveUsername, now),
@@ -714,28 +670,20 @@ async function handleBatch(req, res, db, username, now) {
   }
 
   try {
-    const paper = await db.collection('problems').findOne(
-      { id: String(paperId) },
-      { projection: { id: 1, _id: 0 } }
-    );
+    const paper = await P.getProblem(String(paperId));
     if (!paper) {
       return res.status(404).json({ success: false, message: 'Paper not found' });
     }
 
-    const problems = await db.collection('problems')
-      .find({ id: { $in: answerIds } })
-      .toArray();
+    const problems = await P.getProblemsByIds(answerIds, { withAnswer: true });
     const problemMap = Object.fromEntries(problems.map(p => [p.id, p]));
 
-    const statsDoc = await db.collection('userstats').findOne(
-      { username },
-      { projection: { states: 1, _id: 0 } }
-    );
-    const userStates = statsDoc?.states || {};
+    // ⭐ 状态在 PostgreSQL
+    const userStates = await U.getStates(username);
 
     const results = [];
     const inserts = [];
-    const setObj = {};
+    const pendingStates = {};   // pid -> 'passed' | 'failed'
     let submittedCount = 0;
 
     for (const pid of answerIds) {
@@ -775,8 +723,8 @@ async function handleBatch(req, res, db, username, now) {
       });
 
       if (!jr.systemError) {
-        if (jr.correct) setObj[`states.${pid}`] = 'passed';
-        else if (userStates[pid] !== 'passed') setObj[`states.${pid}`] = 'failed';
+        if (jr.correct) pendingStates[pid] = 'passed';
+        else if (userStates[pid] !== 'passed') pendingStates[pid] = 'failed';
       }
 
       results.push({
@@ -793,14 +741,9 @@ async function handleBatch(req, res, db, username, now) {
     if (inserts.length > 0) {
       await db.collection('submissions').insertMany(inserts, { ordered: false });
     }
-    if (Object.keys(setObj).length > 0) {
-      const col = db.collection('userstats');
-      await col.updateOne(
-        { username },
-        { $setOnInsert: { username, states: {} } },
-        { upsert: true }
-      );
-      await col.updateOne({ username }, { $set: setObj });
+    // ⭐ 逐题 upsert；setProblemState 内部保证 passed 不会被后来的 failed 覆盖
+    for (const [pid, st] of Object.entries(pendingStates)) {
+      await U.setProblemState(username, pid, st);
     }
 
     return sendSuccess(db, username, res, {

@@ -6,6 +6,9 @@ import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';   // ⭐ 唯一来源，不再本地重复定义
 import { calculateUserRating, getTier } from '../lib/rating.js';
 import { wrapHandler } from '../lib/errors.js';
+import * as P from '../lib/pgStore.js';
+import { todayHK } from '../lib/time.js';
+import * as U from '../lib/userStore.js';
 // ⭐ 排行榜內存緩存（30 秒）
 let _leaderboardCache = { data: null, expireAt: 0 };
 const LEADERBOARD_TTL = 10_000;
@@ -33,12 +36,11 @@ async function handler(req, res) {
       if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
       const { username } = req.query;
       if (username) {
-        const user = await db.collection('users').findOne({ username });
+        const user = await U.getUser(username);          // 不含 password
         if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-        const { password, ...safeUser } = user;
-        return res.status(200).json({ success: true, user: safeUser });
+        return res.status(200).json({ success: true, user });
       }
-      const users = await db.collection('users').find({}).project({ password: 0 }).toArray();
+      const users = await U.listUsersForAdmin();
       return res.status(200).json({ success: true, users });
     }
 
@@ -49,8 +51,9 @@ async function handler(req, res) {
       if (!username || !password) {
         return res.status(400).json({ success: false, message: 'Username and password are required' });
       }
-      const existing = await db.collection('users').findOne({ username });
-      if (existing) return res.status(400).json({ success: false, message: 'Username already exists' });
+      if (await U.usernameExists(username)) {
+        return res.status(400).json({ success: false, message: 'Username already exists' });
+      }
 
       let finalRole;
       if (decoded.role === 'root') {
@@ -60,33 +63,18 @@ async function handler(req, res) {
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
-      const newUser = {
+      // ⭐ users + user_tokens + user_stats 在同一个事务里建
+      await U.createUser({
         username,
         password: hashedPassword,
         displayName: displayName || username,
         realName: realName || '',
         role: finalRole,
-        banned: false,
-        createdAt: new Date(),
-        // 新账号的初始余额：daily 30,000（每日重置）+ global 100,000（永久）
-        token: {
-          daily: 30000,
-          global: 100000,
-          lastReset: new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10),
-          dailyLoginClaimed: false,
-          dailyQuestClaimed: false,
-        },
-      };
-      await db.collection('users').insertOne(newUser);
-      await db.collection('userstats').updateOne(
-        { username },
-        { $setOnInsert: { username, states: {} } },
-        { upsert: true }
-      );
+      });
 
       await auditLog(db, 'user_create', {
         username,
-        displayName: newUser.displayName,
+        displayName: displayName || username,
         role: finalRole,
       }, decoded.username, 'info');
 
@@ -99,7 +87,7 @@ async function handler(req, res) {
       const { username } = req.query;
       if (!username) return res.status(400).json({ success: false, message: 'Missing username' });
 
-      const targetUser = await db.collection('users').findOne({ username });
+      const targetUser = await U.getUser(username);
       if (!targetUser) return res.status(404).json({ success: false, message: 'User not found' });
       if (targetUser.role === 'root') {
         return res.status(400).json({ success: false, message: 'Cannot modify root user' });
@@ -116,8 +104,9 @@ async function handler(req, res) {
         updateFields.displayName = req.body.displayName;
       }
       if (req.body.newUsername !== undefined && req.body.newUsername !== username) {
-        const existingNew = await db.collection('users').findOne({ username: req.body.newUsername });
-        if (existingNew) return res.status(400).json({ success: false, message: 'New username already exists' });
+        if (await U.usernameExists(req.body.newUsername)) {
+          return res.status(400).json({ success: false, message: 'New username already exists' });
+        }
         updateFields.username = req.body.newUsername;
       }
       if (req.body.password !== undefined && req.body.password.trim() !== '') {
@@ -147,12 +136,19 @@ async function handler(req, res) {
         return res.status(400).json({ success: false, message: 'No fields to update' });
       }
 
-      if (updateFields.username && updateFields.username !== username) {
-        await db.collection('users').updateOne({ username }, { $set: updateFields });
-        await db.collection('submissions').updateMany({ username }, { $set: { username: updateFields.username } });
-        await db.collection('userstats').updateOne({ username }, { $set: { username: updateFields.username } });
-      } else {
-        await db.collection('users').updateOne({ username }, { $set: updateFields });
+      const { username: newUsername, ...fieldPatch } = updateFields;
+      let effectiveUsername = username;
+
+      if (newUsername && newUsername !== username) {
+        // ⭐ 外键都带 ON UPDATE CASCADE，token/stats/状态/收藏会自动跟随
+        await U.renameUser(username, newUsername);
+        effectiveUsername = newUsername;
+        // submissions 仍在 MongoDB，用户名是冗余存的
+        await db.collection('submissions').updateMany(
+          { username }, { $set: { username: newUsername } });
+      }
+      if (Object.keys(fieldPatch).length > 0) {
+        await U.updateUser(effectiveUsername, fieldPatch);
       }
 
       // ⭐ 依「改了什麼」決定通知級別
@@ -205,7 +201,7 @@ async function handler(req, res) {
       const force = req.query.force === '1' || req.body?.force === true;
       if (!username) return res.status(400).json({ success: false, message: 'Missing username' });
 
-      const user = await db.collection('users').findOne({ username });
+      const user = await U.getUser(username);
       if (!user) return res.status(404).json({ success: false, message: 'User not found' });
       if (user.role === 'root') {
         return res.status(403).json({ success: false, message: 'Cannot delete root user' });
@@ -215,8 +211,9 @@ async function handler(req, res) {
       }
 
       // ⭐ 1. 收集要備份的全部資料
-      const [userstatsDoc, submissions] = await Promise.all([
-        db.collection('userstats').findOne({ username }),
+      const [userstatsDoc, userStates, submissions] = await Promise.all([
+        U.getUserStats(username),
+        U.getStates(username),
         db.collection('submissions').find({ username }).toArray(),
       ]);
 
@@ -234,7 +231,7 @@ async function handler(req, res) {
           },
         },
         user,
-        userstats: userstatsDoc || null,
+        userstats: userstatsDoc ? { ...userstatsDoc, states: userStates } : { states: userStates },
         submissions,
       };
 
@@ -276,9 +273,9 @@ async function handler(req, res) {
       }
 
       // ⭐ 4. 執行刪除
-      await db.collection('users').deleteOne({ username });
+      // ⭐ 用户与其子表（token / stats / 状态 / 成就 / 收藏 / 设置）由 PostgreSQL 级联删除
+      await U.deleteUser(username);
       await db.collection('submissions').deleteMany({ username });
-      await db.collection('userstats').deleteOne({ username });
 
       // ⭐ 5. 統一走 auditLog（會自動寫 DB + 發 webhook）
       await auditLog(db, 'user_delete', {
@@ -316,21 +313,17 @@ async function handler(req, res) {
   try {
     // ---------- 用户状态 ----------
     if (action === 'stats') {
-      const stats = await db.collection('userstats').findOne({ username: decoded.username });
-      return res.status(200).json({ success: true, states: stats?.states || {} });
+      const states = await U.getStates(decoded.username);
+      return res.status(200).json({ success: true, states });
     }
 
     if (action === 'preload') {
       if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-      const [stats, userdata] = await Promise.all([
-        db.collection('userstats').findOne({ username: decoded.username }),
-        db.collection('userdata').findOne({ username: decoded.username })
+      const [states, favorites] = await Promise.all([
+        U.getStates(decoded.username),
+        U.getFavorites(decoded.username),
       ]);
-      return res.status(200).json({
-        success: true,
-        states: stats?.states || {},
-        favorites: userdata?.favorites || []
-      });
+      return res.status(200).json({ success: true, states, favorites });
     }
 
     if (action === 'pfp') {
@@ -349,15 +342,7 @@ async function handler(req, res) {
             return res.status(200).json({ success: true, pfps: {} });
           }
 
-          const docs = await db.collection('users')
-            .find(
-              { username: { $in: list } },
-              { projection: { username: 1, pfp: 1, _id: 0 } }
-            )
-            .toArray();
-
-          const map = {};
-          for (const u of docs) map[u.username] = u.pfp || '';
+          const map = await U.getBatchPfps(list);
 
           res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800');
           return res.status(200).json({ success: true, pfps: map });
@@ -366,8 +351,7 @@ async function handler(req, res) {
         const { username } = req.query;
         if (!username) return res.status(400).json({ success: false, message: 'Missing username' });
 
-        const user = await db.collection('users')
-          .findOne({ username }, { projection: { pfp: 1, _id: 0 } });
+        const user = await U.getUser(username);
 
         if (!user || !user.pfp) {
           res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=600');
@@ -395,10 +379,7 @@ async function handler(req, res) {
             folder: 'images/pfp',
             baseName: decoded.username,
           });
-          await db.collection('users').updateOne(
-            { username: decoded.username },
-            { $set: { pfp: imageUrl, pfpUpdatedAt: new Date() } }
-          );
+          await U.updateUser(decoded.username, { pfp: imageUrl, pfpUpdatedAt: new Date() });
 
           await auditLog(db, 'pfp_upload', {
             username: decoded.username,
@@ -475,12 +456,7 @@ async function handler(req, res) {
 
         const usernames = Object.keys(userMap);
 
-        const userDocs = await db.collection('users')
-          .find(
-            { username: { $in: usernames } },
-            { projection: { username: 1, realName: 1, displayName: 1 } }
-          )
-          .toArray();
+        const userDocs = await U.getUsersByNames(usernames);
         const nameMap = Object.fromEntries(
           userDocs.map(u => [u.username, { realName: u.realName || '', displayName: u.displayName || '' }])
         );
@@ -531,10 +507,9 @@ if (isPeriodMode) {
   const TIMEOUT_MS   = Number(process.env.ONLINE_TIMEOUT_MS)   || HEARTBEAT_MS * 2;
   const serverNow    = Date.now();
 
-  // ⭐ 改成 PostgreSQL：一条 SQL 就拿到「窗口内 AC 的不同题目数 + 用户资料 + 在线状态」。
-  //    原来要三步：聚合 submissions → 拉 users → 在 JS 里过滤 banned/team。
-  const P = await import('../lib/pgStore.js');
-  const rows = await P.getLeaderboardPeriod(days, 200, 0);
+  // 用户与提交仍在 MongoDB。周期榜 = 窗口内 AC 的不同题目数，
+  // 聚合完再与 users 合并、过滤 banned / team。
+  const rows = await computePeriodLeaderboard(db, days, 200);
 
   if (rows.length === 0) {
     const empty = {
@@ -579,11 +554,8 @@ if (isPeriodMode) {
         return res.status(200).json(_leaderboardCache.data);
       }
 
-      // ⭐ 总榜改成直接从 PostgreSQL 聚合（原来是读 Mongo 的 leaderboardView 物化视图）。
-      //    user_problem_status 的 status='passed' 就是权威的 AC 记录，
-      //    不需要再维护一份物化视图。
-      const P = await import('../lib/pgStore.js');
-      const rows = await P.getLeaderboardOverall(500, 0);
+      // ⭐ 总榜直接从 PostgreSQL 聚合（user_problem_status 的 passed 就是权威 AC 记录）
+      const rows = await U.getLeaderboardOverall(500);
 
       const HEARTBEAT_MS = Number(process.env.ONLINE_HEARTBEAT_MS) || 5 * 60 * 1000;
       const TIMEOUT_MS   = Number(process.env.ONLINE_TIMEOUT_MS)   || HEARTBEAT_MS * 2;
@@ -594,20 +566,11 @@ if (isPeriodMode) {
       //    榜单本身已经来自 PG，两边的 solvedCount 由同一套 states 派生，不会不一致。
       const usernames = rows.map(r => r.username);
 
-      const statsDocs = usernames.length
-        ? await db.collection('userstats').find({ username: { $in: usernames } }).toArray()
-        : [];
-
-      const allPids = new Set();
-      statsDocs.forEach(s => Object.keys(s.states || {}).forEach(pid => allPids.add(pid)));
-
-      const problemDocs = allPids.size > 0
-        ? await db.collection('problems')
-            .find({ id: { $in: [...allPids] } }, { projection: { id: 1, difficulty: 1, _id: 0 } })
-            .toArray()
-        : [];
-      const diffMap = Object.fromEntries(problemDocs.map(p => [String(p.id), Number(p.difficulty) || 0]));
-      const statsMap = Object.fromEntries(statsDocs.map(s => [s.username, s]));
+      // ⭐ 已解题目难度 + rating 缓存，批量从 PostgreSQL 取（两条查询，避免 N+1）
+      const [solvedDiffByUser, ratingRows] = await Promise.all([
+        U.getSolvedDifficultyMapByUser(usernames),
+        U.getRatingRows(usernames),
+      ]);
 
       const RATING_MAX_AGE_MS = 7 * 24 * 3600_000;
 
@@ -615,28 +578,21 @@ if (isPeriodMode) {
         const lastSeenMs = u.lastSeenAt ? new Date(u.lastSeenAt).getTime() : 0;
         const online = lastSeenMs > 0 && (serverNow - lastSeenMs) < TIMEOUT_MS;
 
-        const doc = statsMap[u.username];
-        const states = doc?.states || {};
-
-        // 只在难度表里存在的已解题才算（题目被删掉的不计入）
-        const solvedDiffs = [];
-        for (const [pid, st] of Object.entries(states)) {
-          if (st === 'passed' && diffMap[pid] !== undefined) {
-            solvedDiffs.push(diffMap[pid]);
-          }
-        }
+        // 只统计题目表里仍然存在、且有难度的已解题（题目被删掉的不计入）
+        const solvedDiffs = solvedDiffByUser[u.username] || [];
         const solvedCount = solvedDiffs.length;
 
-        const cached = doc?.rating;
-        const cachedCount = doc?.ratingSolvedCount;
-        const updatedAt = doc?.ratingUpdatedAt ? new Date(doc.ratingUpdatedAt).getTime() : 0;
+        const cachedRow = ratingRows[u.username];
+        const cached = cachedRow?.rating;
+        const cachedCount = cachedRow?.solvedCount;
+        const updatedAt = cachedRow?.updatedAt ? new Date(cachedRow.updatedAt).getTime() : 0;
         const cacheFresh = updatedAt > 0 && (Date.now() - updatedAt) < RATING_MAX_AGE_MS;
 
         let rating, tier, effectiveMax;
-        if (cached != null && cachedCount === solvedCount && cacheFresh && doc?.ratingMeta) {
+        if (cached != null && cachedCount === solvedCount && cacheFresh && cachedRow?.meta) {
           rating = cached;
           tier = getTier(cached);
-          effectiveMax = doc.ratingMeta.effectiveMax;
+          effectiveMax = cachedRow.meta.effectiveMax;
         } else {
           const r = calculateUserRating({ solvedDifficulties: solvedDiffs });
           rating = r.rating;
@@ -672,25 +628,20 @@ if (isPeriodMode) {
 
       const isAdminUser = decoded.role === 'admin' || decoded.role === 'root';
 
-      // ⭐ 核心三表已迁移到 PostgreSQL，统一走 lib/pgStore.js。
-      //    只有 userdata（主题设置）还在 MongoDB —— 那张表本轮没迁。
-      const P = await import('../lib/pgStore.js');
-
-      const [user, statusList, statsCache, allIds, userdata] = await Promise.all([
-        P.getUser(username),
-        // 只返回该用户做过的题；publicOnly 让非管理员看不到隐藏题
-        P.getUserProblemStatus(username, { publicOnly: !isAdminUser }),
-        P.getUserStatsCache(username),
+      // ⭐ 用户域全部在 PostgreSQL；publicOnly 交给 SQL 的 JOIN 处理
+      const [user, attempted, statsCache, allIds, prefs] = await Promise.all([
+        U.getUser(username),
+        U.getStatusList(username, { publicOnly: !isAdminUser }),
+        U.getUserStats(username),
         isAdminUser ? P.getAllProblemIds() : P.getPublicProblemIds(),
-        db.collection('userdata').findOne({ username }, { projection: { theme: 1, _id: 0 } }),
+        U.getPreferences(username),
       ]);
 
       if (!user) {
         return res.status(404).json({ success: false, message: 'User not found' });
       }
 
-      const attempted = statusList.map(s => ({ id: s.id, state: s.state }));
-      const totalPassed = statusList.filter(s => s.state === 'passed').length;
+      const totalPassed = attempted.filter(s => s.state === 'passed').length;
 
       // ⭐ Rating 仍走原实现（lib/userRating.js 读的是 Mongo 的物化缓存）。
       //    等那份缓存也迁过来再换掉。
@@ -723,7 +674,7 @@ if (isPeriodMode) {
         tierGlow: ratingResult.tier.glow,
         maxDifficulty: ratingResult.effectiveMax,
         solvedCount: ratingResult.solvedCount,
-        theme: userdata?.theme || 'default'
+        theme: prefs?.theme || 'default'
       });
     }
 
@@ -733,26 +684,14 @@ if (isPeriodMode) {
       const { problemId } = req.body;
       if (!problemId) return res.status(400).json({ success: false, message: 'Missing problemId' });
 
-      const userdata = await db.collection('userdata').findOne({ username: decoded.username });
-      let favorites = userdata?.favorites || [];
-      if (favorites.includes(problemId)) {
-        favorites = favorites.filter(id => id !== problemId);
-      } else {
-        favorites.push(problemId);
-      }
-      await db.collection('userdata').updateOne(
-        { username: decoded.username },
-        { $set: { favorites } },
-        { upsert: true }
-      );
+      const favorites = await U.toggleFavorite(decoded.username, problemId);
       return res.status(200).json({ success: true, favorites });
     }
 
     // ========== 获取收藏列表 ==========
     if (action === 'favorites') {
       if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-      const userdata = await db.collection('userdata').findOne({ username: decoded.username });
-      const favorites = userdata?.favorites || [];
+      const favorites = await U.getFavorites(decoded.username);
       return res.status(200).json({ success: true, favorites });
     }
     if (action === 'changename') {
@@ -769,19 +708,12 @@ if (isPeriodMode) {
       const trimmed = newname.trim();
 
       // ⭐ 檢查是否已被別人使用
-      const existing = await db.collection('users').findOne({
-        displayName: trimmed,
-        username: { $ne: decoded.username },
-      });
-      if (existing) {
+      if (await U.displayNameTaken(trimmed, decoded.username)) {
         return res.status(400).json({ success: false, message: 'This name is used' });
       }
 
       // ⭐ 檢查改名頻率（防刷）
-      const user = await db.collection('users').findOne(
-        { username: decoded.username },
-        { projection: { lastRenameAt: 1, renameCount: 1 } }
-      );
+      const user = await U.getUser(decoded.username);
 
       const now = Date.now();
       const lastRename = user?.lastRenameAt ? new Date(user.lastRenameAt).getTime() : 0;
@@ -797,16 +729,11 @@ if (isPeriodMode) {
       }
 
       try {
-        await db.collection('users').updateOne(
-          { username: decoded.username },
-          {
-            $set: {
-              displayName: trimmed,
-              lastRenameAt: new Date(),
-            },
-            $inc: { renameCount: 1 },
-          }
-        );
+        await U.updateUser(decoded.username, {
+          displayName: trimmed,
+          lastRenameAt: new Date(),
+          renameCount: (user?.renameCount || 0) + 1,
+        });
         return res.status(200).json({
           success: true,
           message: 'Display name updated successfully',
@@ -832,10 +759,7 @@ if (isPeriodMode) {
         return res.status(400).json({ success: false, message: 'Password too long (max 128 chars)' });
       }
 
-      const user = await db.collection('users').findOne(
-        { username: decoded.username },
-        { projection: { password: 1 } }
-      );
+      const user = await U.getUserForAuth(decoded.username);
       if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
       if (!user.password) {
@@ -846,10 +770,7 @@ if (isPeriodMode) {
       if (!match) return res.status(400).json({ success: false, message: 'Old password is incorrect' });
 
       const hashed = await bcrypt.hash(newPassword, 10);
-      await db.collection('users').updateOne(
-        { username: decoded.username },
-        { $set: { password: hashed } }
-      );
+      await U.updateUser(decoded.username, { password: hashed });
       return res.status(200).json({ success: true, message: 'Password updated successfully' });
     }
     // ========== 成就相关 ==========
@@ -859,22 +780,15 @@ if (isPeriodMode) {
       if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
       const targetUsername = req.query.username || decoded.username;
 
-      const [user, logs] = await Promise.all([
-        db.collection('users').findOne(
-          { username: targetUsername },
-          { projection: { achievements: 1, streakDays: 1, maxStreak: 1, activeDaysTotal: 1 } }
-        ),
-        db.collection('achievements_log')
-          .find({ username: targetUsername }, { projection: { achievementId: 1, unlockedAt: 1, reward: 1, _id: 0 } })
-          .sort({ unlockedAt: 1 })
-          .toArray(),
+      const [user, stats, achs] = await Promise.all([
+        U.getUser(targetUsername),
+        U.getUserStats(targetUsername),
+        U.getAchievements(targetUsername),
       ]);
 
       if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-      const unlockedMap = Object.fromEntries(
-        logs.map(l => [l.achievementId, l.unlockedAt])
-      );
+      const unlockedMap = Object.fromEntries(achs.map(a => [a.id, a.unlockedAt]));
 
       // 进度 + 定义表：前端不再自己维护一份成就元数据
       let definitions = null, progress = null, rewardsEarned = 0;
@@ -893,15 +807,15 @@ if (isPeriodMode) {
       return res.status(200).json({
         success: true,
         username: targetUsername,
-        achievements: user.achievements || [],
+        achievements: achs.map(a => a.id),
         unlockedAt: unlockedMap,
         definitions,
         progress,
         rewardsEarned,
         streak: {
-          current: user.streakDays || 0,
-          max: user.maxStreak || 0,
-          activeDays: user.activeDaysTotal || 0,
+          current: stats?.streakDays || 0,
+          max: stats?.maxStreak || 0,
+          activeDays: stats?.activeDaysTotal || 0,
         },
       });
     }
@@ -910,21 +824,9 @@ if (isPeriodMode) {
     if (action === 'achievementsStats') {
       if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-      const stats = await db.collection('users').aggregate([
-        { $match: { banned: { $ne: true } } },
-        { $unwind: { path: '$achievements', preserveNullAndEmptyArrays: false } },
-        { $group: { _id: '$achievements', count: { $sum: 1 } } },
-        { $sort: { count: -1 } },
-      ]).toArray();
-
-      const totalUsers = await db.collection('users').countDocuments({ banned: { $ne: true } });
-      const map = Object.fromEntries(stats.map(s => [s._id, s.count]));
-
-      return res.status(200).json({
-        success: true,
-        totalUsers,
-        counts: map,
-      });
+      // ⭐ 一条 GROUP BY 取代原来的 unwind 聚合
+      const { totalUsers, counts } = await U.getAchievementUnlockCounts();
+      return res.status(200).json({ success: true, totalUsers, counts });
     }
 
     // markAdminVisit / markAchievement 已移除：
@@ -936,6 +838,46 @@ if (isPeriodMode) {
     console.error('Users API error:', err);
     res.status(500).json({ success: false, message: err.message });
   }
+}
+
+// ═══════════════ 排行榜（数据源：MongoDB） ═══════════════
+// 用户与提交本轮还没迁到 PostgreSQL，所以这里仍是 Mongo 聚合。
+// 返回形状与原来 PostgreSQL 版一致，上层渲染逻辑不用改。
+
+
+/** 周期榜：时间窗口内 AC 的不同题目数（同一题交十次只算一次） */
+async function computePeriodLeaderboard(db, days, limit) {
+  const since = new Date(Date.now() - days * 86_400_000);
+
+  const agg = await db.collection('submissions').aggregate([
+    {
+      $match: {
+        timestamp: { $gte: since },
+        $or: [
+          // 图片题：老师手动批阅过且满分
+          { type: 'image', marked: true, score: 100 },
+          // 其他题：判题器给 correct 且没有系统错误
+          { type: { $ne: 'image' }, correct: true, systemError: false },
+        ],
+      },
+    },
+    { $group: { _id: { u: '$username', p: '$problemId' } } },
+    { $group: { _id: '$_id.u', solved: { $sum: 1 } } },
+  ]).toArray();
+
+  if (!agg.length) return [];
+
+  // ⭐ 用户资料与 banned / team 过滤在 PostgreSQL
+  const infoMap = await U.getLeaderboardUsers(agg.map(x => x._id));
+
+  const rows = [];
+  for (const x of agg) {
+    const u = infoMap[x._id];
+    if (!u) continue;
+    rows.push({ ...u, solves: x.solved });
+  }
+  rows.sort((a, b) => b.solves - a.solves || a.username.localeCompare(b.username));
+  return rows.slice(0, limit);
 }
 
 // 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }

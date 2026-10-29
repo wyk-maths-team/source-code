@@ -4,6 +4,8 @@ import { auditLog } from '../lib/audit.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { wrapHandler } from '../lib/errors.js';
+import * as P from '../lib/pgStore.js';
+import * as U from '../lib/userStore.js';
 
 function isAdminUser(user) {
   return !!user && (user.role === 'admin' || user.role === 'root');
@@ -178,12 +180,8 @@ async function handler(req, res) {
       // 1) 題目詳情（含 name）
       if (showProblems) {
         tasks.push(
-          db.collection('problems')
-            .find(
-              { id: { $in: problemIds } },
-              { projection: { id: 1, name: 1, difficulty: 1, tags: 1, _id: 0 } }
-            )
-            .toArray()
+          // ⭐ 题库在 PostgreSQL（含 tags）
+          P.listProblemsByIds(problemIds, { publicOnly: false })
             .then(probs => {
               const map = Object.fromEntries(probs.map(p => [p.id, p]));
               result.problems = problemIds.map(pid => {
@@ -228,10 +226,9 @@ async function handler(req, res) {
       // 3) 全域狀態（給「賽前已完成」判斷用）
       if (showProblems) {
         tasks.push(
-          db.collection('userstats')
-            .findOne({ username }, { projection: { states: 1, _id: 0 } })
-            .then(stats => {
-              const all = stats?.states || {};
+          U.getStates(username)
+            .then(all => {
+              // 只保留这场竞赛涉及题目状态
               const relevant = {};
               for (const pid of problemIds) {
                 if (all[pid]) relevant[pid] = all[pid];
@@ -500,12 +497,7 @@ async function calculateContestStats(db, contest) {
   let nameMap = {};
   if (usernames.length > 0) {
     try {
-      const userDocs = await db.collection('users')
-        .find(
-          { username: { $in: usernames } },
-          { projection: { username: 1, displayName: 1, realName: 1, pfp: 1, _id: 0 } }
-        )
-        .toArray();
+      const userDocs = await U.getUsersByNames(usernames);
       nameMap = Object.fromEntries(
         userDocs.map(u => [u.username, {
           displayName: u.displayName || '',

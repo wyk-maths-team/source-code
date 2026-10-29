@@ -1,6 +1,6 @@
-﻿// api/login.js
-// new version on different database
-import { getPgPool } from './_pg.js';
+// api/login.js
+// 用户数据在 PostgreSQL（lib/userStore.js）。
+import { getUserForAuth } from '../lib/userStore.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { applyRateLimit } from '../lib/rateLimit.js';
@@ -58,18 +58,15 @@ async function handler(req, res) {
   }
 
   try {
-    const pool = getPgPool();
-    
-    // SQL 查询：使用参数化查询 $1 防止 SQL 注入[IMPORTANT]  
-    // 注意 Postgres 的字段名习惯用蛇形命名 (snake_case)，查询时对应好
-    const queryText = 'SELECT username, password, role, display_name, pfp, banned FROM users WHERE username = $1 LIMIT 1';
-    const result = await pool.query(queryText, [username]);
-    const user = result.rows[0]; // 拿第一行
+    const user = await getUserForAuth(username);
 
     if (!user || user.banned) {
       return res.status(401).json({ success: false, message: 'Invalid username or password' });
     }
 
+    if (!user.password) {
+      return res.status(401).json({ success: false, message: 'Invalid username or password' });
+    }
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
       return res.status(401).json({ success: false, message: 'Invalid username or password' });
@@ -78,7 +75,7 @@ async function handler(req, res) {
     const token = jwt.sign({
       username: user.username,
       role: user.role || 'student',
-      displayName: user.display_name || user.username,
+      displayName: user.displayName || user.username,
       pfp: user.pfp || ''
     }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
@@ -87,7 +84,7 @@ async function handler(req, res) {
       token,
       user: {
         username: user.username,
-        displayName: user.display_name || user.username,
+        displayName: user.displayName || user.username,
         role: user.role || 'student',
         pfp: user.pfp || ''
       }

@@ -22,6 +22,8 @@ import * as nodeUtil        from 'util';
 import * as nodeQuerystring from 'querystring';
 import * as nodeUrl         from 'url';
 import { wrapHandler } from '../lib/errors.js';
+import * as P from '../lib/pgStore.js';
+import * as U from '../lib/userStore.js';
 
 // ═══════════════════════════════════════════════════════════════════
 // [2] 通用工具
@@ -341,7 +343,7 @@ async function handleFlagUser(req, res, db, decoded) {
     return fail(res, 400, 'You cannot flag yourself.');
   }
 
-  const target = await db.collection('users').findOne({ username: targetUser });
+  const target = await U.getUser(targetUser);
   if (!target) return fail(res, 404, 'User not found');
 
   // ⭐ 2. 权限隔离
@@ -356,10 +358,8 @@ async function handleFlagUser(req, res, db, decoded) {
     : `[YELLOW CARD] You have been warned for inappropriate behavior or rule violation. Please follow the rules.`;
 
   // 3. 更新用户状态 (红牌封号，黄牌记过)
-  const updateData = isRed 
-    ? { $set: { banned: true } } 
-    : { $inc: { yellowCards: 1 } };
-  await db.collection('users').updateOne({ username: targetUser }, updateData);
+  if (isRed) await U.updateUser(targetUser, { banned: true });
+  else await U.incYellowCard(targetUser);
 
   // 4. 发送系统通知
   await db.collection('messages').insertOne({
@@ -417,21 +417,9 @@ async function handleMarkSubmit(req, res, db, decoded) {
 
   // 更新用戶解題狀態
   if (sub.type === 'image') {
-    const statesCol = db.collection('userstats');
-    const stats = await statesCol.findOne({ username: sub.username });
-    const states = stats ? (stats.states || {}) : {};
-    const pid = sub.problemId;
-
-    if (numScore === 100) {
-      states[pid] = 'passed';
-    } else if (states[pid] !== 'passed') {
-      states[pid] = 'failed';
-    }
-    await statesCol.updateOne(
-      { username: sub.username },
-      { $set: { states } },
-      { upsert: true }
-    );
+    // ⭐ 状态在 PostgreSQL（setProblemState 不会把已 passed 的题改回 failed）
+    await U.setProblemState(sub.username, sub.problemId,
+      numScore === 100 ? 'passed' : 'failed');
   }
 
   // ⭐ FIX：補上 db / operator / level
@@ -597,11 +585,8 @@ async function handleLogs(req, res, db) {
 async function handleSyncVersion(req, res, db, decoded) {
   if (req.method !== 'POST') return fail(res, 405, 'Method not allowed');
 
-  const newVer = Date.now();
-  await db.collection('metadata').updateOne(
-    { _key: 'problemsVersion' },
-    { $set: { version: newVer } }
-  );
+  // ⭐ 版本号存在 PostgreSQL 的 app_settings
+  const newVer = await P.bumpProblemsVersion();
 
   // ⭐ FIX：補上 db / operator / level
   await safeAudit(db, 'sync_version', { newVer }, decoded.username, 'info');
@@ -613,7 +598,7 @@ async function handleSyncVersion(req, res, db, decoded) {
 async function handleSetDifficulty(req, res, db, decoded) {
   if (req.method !== 'POST') return fail(res, 405, 'Method not allowed');
 
-  const { problemId, difficulty, lock } = req.body || {};
+  const { problemId, difficulty } = req.body || {};
   if (!problemId) return fail(res, 400, 'Missing problemId');
 
   const d = Number(difficulty);
@@ -621,46 +606,21 @@ async function handleSetDifficulty(req, res, db, decoded) {
     return fail(res, 400, 'Difficulty must be between 1 and 10');
   }
 
-  const problem = await db.collection('problems').findOne(
-    { id: String(problemId) },
-    { projection: { id: 1, _id: 0 } }
-  );
-  if (!problem) return fail(res, 404, 'Problem not found');
-
   const rounded = Math.round(d * 100) / 100;
-  await db.collection('problems').updateOne(
-    { id: String(problemId) },
-    {
-      $set: {
-        difficulty: rounded,
-        manualDifficulty: rounded,          // 手动值成为后续自动调整的先验
-        difficultyLocked: lock === true,    // 锁定后 cron 跳过此题
-        difficultyLastAdjustedAt: new Date(),
-      },
-    }
-  );
+
+  // ⭐ 题库在 PostgreSQL。
+  //    「难度自动调整」已舍弃，所以不再写 manualDifficulty / difficultyLocked，
+  //    这里就是唯一的难度写入口。
+  const updated = await P.setDifficulty(String(problemId), rounded);
+  if (!updated) return fail(res, 404, 'Problem not found');
 
   await safeAudit(db, 'set_difficulty',
-    { problemId: String(problemId), difficulty: rounded, locked: lock === true },
+    { problemId: String(problemId), difficulty: rounded },
     decoded.username, 'warn');
 
-  return ok(res, { success: true, problemId: String(problemId), difficulty: rounded, locked: lock === true });
+  return ok(res, { success: true, problemId: String(problemId), difficulty: rounded });
 }
 
-// ── 手動觸發全量難度調整 ──
-async function handleRunDifficultyAdjust(req, res, db, decoded) {
-  if (decoded.role !== 'root') return fail(res, 403, 'Root only');
-  if (req.method !== 'POST') return fail(res, 405, 'Method not allowed');
-
-  const { sweepDifficulties } = await import('../lib/difficulty-sweep.js');
-  const summary = await sweepDifficulties(db);
-
-  await safeAudit(db, 'run_difficulty_adjust',
-    { total: summary.total, adjusted: summary.adjusted, skipped: summary.skipped },
-    decoded.username, 'info');
-
-  return ok(res, { success: true, ...summary });
-}
 
 // ── 高級命令終端（加固版） ──
 async function handleCmd(req, res, db, decoded) {
@@ -822,7 +782,6 @@ async function handler(req, res) {
       case 'logs':            return await handleLogs(req, res, db);
       case 'syncVersion':     return await handleSyncVersion(req, res, db, decoded);
       case 'setDifficulty':   return await handleSetDifficulty(req, res, db, decoded);
-      case 'runDifficultyAdjust': return await handleRunDifficultyAdjust(req, res, db, decoded);
       case 'cmd':             return await handleCmd(req, res, db, decoded);
       case 'sendMessage':     return await handleSendMessage(req, res, db, decoded);
       case 'flagUser':        return await handleFlagUser(req, res, db, decoded);

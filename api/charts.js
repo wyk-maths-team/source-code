@@ -1,9 +1,10 @@
-﻿// api/charts.js
+// api/charts.js
 import { connectToDatabase } from './_db.js';
 import { auditLog } from '../lib/audit.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { wrapHandler } from '../lib/errors.js';
+import * as U from '../lib/userStore.js';
 
 // 24 小時緩存：聚合一次約 3 秒，避免頻繁觸發
 let _chartCache = { data: null, expireAt: 0 };
@@ -80,12 +81,7 @@ async function handler(req, res) {
     const usernames = Object.keys(userMap);
 
     // 一次性拉 realName（避免前端顯示時還要再打 API）
-    const userDocs = await db.collection('users')
-      .find(
-        { username: { $in: usernames } },
-        { projection: { username: 1, realName: 1, displayName: 1 } }
-      )
-      .toArray();
+    const userDocs = await U.getUsersByNames(usernames);
     const nameMap = Object.fromEntries(
       userDocs.map(u => [u.username, { realName: u.realName || '', displayName: u.displayName || '' }])
     );
