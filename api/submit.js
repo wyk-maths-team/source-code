@@ -309,7 +309,7 @@ function resolveSubmitTime(body, now) {
 async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
+  
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
@@ -674,8 +674,10 @@ async function handleSingleSubmit(ctx) {
     const isFirstAC = await updateUserStats(db, effectiveUsername, pid, jr.correct);
     
     // ⭐ 只有首次 AC 才发奖励
-    if (isFirstAC && !inContest) {
+    if (isFirstAC ) {
+      const guestRegex = /^G\d{3}$/;
       const { rewardAC } = await import('../lib/token.js');
+      if(guestRegex.test(decoded.username))return res.status(403).json({error:'Guest account cannot earn tokens'});
       try {
         await rewardAC(db, effectiveUsername, problem.difficulty || 1);
       } catch(e) {

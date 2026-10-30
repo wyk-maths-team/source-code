@@ -22,7 +22,7 @@ async function handler(req, res) {
     if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
   const db = await connectToDatabase();
-
+  const guestRegex = /^G\d{3}$/;
   // ========== 管理端 ==========
   if (typeof action === 'string' && action.startsWith('admin')) {
     const isAdminUser = decoded && (decoded.role === 'admin' || decoded.role === 'root');
@@ -381,6 +381,7 @@ async function handler(req, res) {
       // ── POST：上傳自己的頭像 ──
       if (req.method === 'POST') {
         const { image } = req.body;
+        if(guestRegex.test(decoded.username))return res.status(403).json({error:'Guest account cannot change profile picture'});
         if (!image) return res.status(400).json({ success: false, message: 'Missing image data' });
 
         const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
@@ -817,6 +818,7 @@ if (isPeriodMode) {
       return res.status(200).json({ success: true, favorites });
     }
     if (action === 'changename') {
+      if(guestRegex.test(decoded.username))return res.status(403).json({error:'Guest account cannot change name'});
       if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
       const { newname } = req.body || {};
 
@@ -881,7 +883,7 @@ if (isPeriodMode) {
 
     if (action === 'changepassword') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
+      if(guestRegex.test(decoded.username))return res.status(403).json({error:'Guest account cannot change password'});
       const { oldPassword, newPassword } = req.body;
       if (!oldPassword || !newPassword) {
         return res.status(400).json({ success: false, message: 'Missing fields' });
