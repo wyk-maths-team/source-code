@@ -46,6 +46,13 @@
   }
 
   function applyState(res) {
+    // 接口结构和前端脚本版本对不上时（多半是浏览器还缓存着旧 JS），
+    // 给一句能照做的提示，而不是白屏一个 TypeError。
+    if (!res || !Array.isArray(res.quests) || !res.daily || !res.streak) {
+      DSHUI.toast('页面脚本版本不匹配，请强制刷新（Ctrl / Cmd + Shift + R）', 'err');
+      return;
+    }
+
     state = res;
 
     $('pv-name').textContent = res.displayName;

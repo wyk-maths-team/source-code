@@ -22,11 +22,13 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "node tools/version-assets.mjs",
     "new:page": "node tools/new-page.mjs",
     "version:assets": "node tools/version-assets.mjs",
     "check:versions": "node tools/version-assets.mjs --check",
     "test:errors": "node tools/test-errors.mjs",
     "test:quests": "node dev/test-quests.mjs",
+    "test:e2e:hub": "node dev/test-token-hub-e2e.mjs",
     "serve": "node tools/serve.mjs"
   },
   "license": "ISC"
