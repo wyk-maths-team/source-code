@@ -26,6 +26,7 @@
     "version:assets": "node tools/version-assets.mjs",
     "check:versions": "node tools/version-assets.mjs --check",
     "test:errors": "node tools/test-errors.mjs",
+    "test:quests": "node dev/test-quests.mjs",
     "serve": "node tools/serve.mjs"
   },
   "license": "ISC"

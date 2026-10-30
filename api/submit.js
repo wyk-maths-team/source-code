@@ -677,8 +677,8 @@ async function handleSingleSubmit(ctx) {
     if (isFirstAC ) {
       const guestRegex = /^G\d{3}$/;
       const { rewardAC } = await import('../lib/token.js');
-      if(guestRegex.test(rawUsername))return res.status(403).json({error:'Guest account cannot earn tokens'});
       try {
+        if(!guestRegex.test(rawUsername))
         await rewardAC(db, effectiveUsername, problem.difficulty || 1);
       } catch(e) {
         console.error('[submit] reward failed:', e);

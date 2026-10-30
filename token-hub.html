@@ -30,6 +30,34 @@
   .btn-go:hover { background: #2980b9; }
   .btn-complete { background: rgba(46, 204, 113, 0.1); color: #2ecc71; border: 1px solid #2ecc71; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: default; }
   .btn-ad { background: #555; color: #aaa; border: none; padding: 8px 16px; border-radius: 4px; cursor: not-allowed; }
+  .btn-go:disabled, .btn-claim:disabled { opacity: .6; cursor: default; }
+
+  .quest-item { gap: 12px; }
+  .quest-icon { font-size: 1.2rem; width: 26px; text-align: center; flex: 0 0 auto; }
+  .quest-info { flex: 1 1 auto; min-width: 0; }
+  .quest-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex: 0 0 auto; }
+  .quest-item.is-claimed { opacity: .75; }
+
+  .quest-reset-hint { margin-left: auto; font-size: .72rem; font-weight: normal; color: var(--text-secondary); font-family: monospace; }
+  .quest-summary { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 14px; font-size: .82rem; color: var(--text-secondary); }
+  .quest-summary b { color: var(--text-primary); }
+
+  .quest-progress { display: flex; align-items: center; gap: 8px; max-width: 200px; margin-top: 6px; font-size: .72rem; color: var(--text-secondary); font-family: monospace; }
+  .quest-progress-bar { flex: 1; height: 6px; border-radius: 999px; background: var(--border-color); overflow: hidden; }
+  .quest-progress-bar i { display: block; height: 100%; background: linear-gradient(90deg, #3498db, #2ecc71); transition: width .35s; }
+
+  .btn-claim { background: #f1c40f; color: #1a1a2e; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; animation: claimPulse 1.6s infinite; }
+  .btn-claim:hover { background: #f39c12; }
+  @keyframes claimPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(241,196,15,.55); } 50% { box-shadow: 0 0 0 8px rgba(241,196,15,0); } }
+
+  .streak-panel { margin-top: 18px; border-top: 1px dashed var(--border-color); padding-top: 14px; }
+  .streak-head { display: flex; align-items: center; gap: 8px; font-weight: bold; color: var(--text-primary); margin-bottom: 10px; font-size: .95rem; }
+  .streak-milestones { display: flex; gap: 10px; flex-wrap: wrap; }
+  .streak-milestone { flex: 1 1 120px; border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; background: var(--bg-color); text-align: center; font-size: .78rem; }
+  .streak-milestone.reached { border-color: #2ecc71; }
+  .streak-milestone.claimed { opacity: .6; }
+  .streak-milestone .days { font-size: 1.05rem; font-weight: bold; color: var(--text-primary); }
+  .streak-milestone button { margin-top: 6px; width: 100%; }
 
   .theme-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 16px; }
   .theme-card { border: 2px solid var(--border-color); border-radius: 6px; padding: 12px; cursor: pointer; text-align: center; transition: 0.2s; }
@@ -57,33 +85,15 @@
       <div class="hub-container">
         
         <div class="card">
-          <h2><i class="fas fa-bolt" style="color:#f1c40f;"></i> Daily Quests</h2>
-          <div class="quest-item" id="quest-login">
-            <div class="quest-info">
-              <h4>Daily Login</h4>
-              <p>Log in today to get a reward.</p>
-              <span class="quest-reward">+10,000</span>
-            </div>
-            <div id="btn-login-wrap"><button class="btn-go" id="btn-login">Go for it</button></div>
+          <h2>
+            <i class="fas fa-bolt" style="color:#f1c40f;"></i> Daily Quests
+            <span class="quest-reset-hint" id="quest-reset-hint"></span>
+          </h2>
+          <div class="quest-summary" id="quest-summary"></div>
+          <div id="quest-list">
+            <div class="quest-item"><div class="quest-info"><h4>Loading...</h4></div></div>
           </div>
-
-          <div class="quest-item" id="quest-do">
-            <div class="quest-info">
-              <h4>Daily Challenge</h4>
-              <p>AC a problem with difficulty <b>d >= <span id="target-diff">3</span></b>.</p>
-              <span class="quest-reward">+30,000</span>
-            </div>
-            <div id="btn-do-wrap"><button class="btn-go" id="btn-do">Go for it</button></div>
-          </div>
-
-          <!-- <div class="quest-item" style="opacity: 0.5;">
-            <div class="quest-info">
-              <h4>Watch an Ad</h4>
-              <p>手动狗头</p>
-              <span class="quest-reward">+100,000</span>
-            </div>
-            <div><button class="btn-ad"><i class="fas fa-video"></i> Disabled</button></div>
-          </div> -->
+          <div class="streak-panel" id="streak-panel"></div>
         </div>
 
         <div class="card">
