@@ -63,7 +63,7 @@ async function handler(req, res) {
   // ── POST: 更新 Token 或 初始化 ──
   if (req.method === 'POST') {
     const { action } = req.query;
-    
+    if(decoded.role!=='root') return res.status(403).json({success:false,message:'Unauthorized'});
     // 1. 更新单个用户的 token
     if (action === 'updateUser') {
       try {
