@@ -5,7 +5,7 @@ import { ensureDailyReset } from '../lib/token.js';
 import { invalidateProblemCache } from '../lib/problemCache.js';
 import {
   computeQuests, invalidateQuestCache, submissionPassed,
-  targetDifficultyFor, hktToday,
+  targetDifficultyFor, levelMultiplier, levelReward, hktToday,
 } from '../lib/quests.js';
 
 // ───────── 内存 DB ─────────
@@ -92,6 +92,28 @@ function makeDb(collections) {
           applyUpdate(row, update);
           return { value: row };
         },
+        // 只实现 computeQuests 用到的那两步：$match + $group _id
+        aggregate: (pipeline = []) => ({
+          toArray: async () => {
+            let out = rows;
+            for (const st of pipeline) {
+              if (st.$match) out = out.filter((r) => matchOne(r, st.$match));
+              if (st.$group && st.$group._id) {
+                const field = String(st.$group._id).replace(/^\$/, '');
+                const seen = new Set();
+                const grouped = [];
+                for (const r of out) {
+                  const v = getPath(r, field);
+                  if (seen.has(v)) continue;
+                  seen.add(v);
+                  grouped.push({ _id: v });
+                }
+                out = grouped;
+              }
+            }
+            return out;
+          },
+        }),
       };
     },
   };
@@ -300,12 +322,78 @@ function testDifficultyMapping() {
   console.log('ok  - 难度映射');
 }
 
+// ⑦ Breakthrough: 复习旧题不算，做新题才算
+async function testBreakthrough() {
+  const dayMs = 86400_000;
+  const yesterday = new Date(new Date(hktToday() + 'T00:00:00+08:00').getTime() - dayMs);
+  const store = {
+    users: [{ username: 'hal', dailyQuests: { date: hktToday(), claimed: [] } }],
+    userstats: [{ username: 'hal', states: { H1: 'passed' } }],
+    problems: [
+      { id: 'H1', difficulty: 4, tags: [], public: true, name: 'H1' },
+      { id: 'H2', difficulty: 5, tags: [], public: true, name: 'H2' },
+    ],
+    submissions: [
+      { username: 'hal', problemId: 'H1', correct: true, systemError: false, type: 'text', timestamp: yesterday },
+    ],
+  };
+  const db = makeDb(store);
+  invalidateProblemCache();
+  invalidateQuestCache('hal');
+
+  store.submissions.push({ username: 'hal', problemId: 'H1', correct: true, systemError: false, type: 'text', timestamp: new Date() });
+  invalidateQuestCache('hal');
+  let st = await computeQuests(db, 'hal', { rating: 1000, fresh: true });
+  assert.equal(st.quests.find((q) => q.id === 'breakthrough').completed, false, '复习旧题不算突破');
+
+  store.submissions.push({ username: 'hal', problemId: 'H2', correct: true, systemError: false, type: 'text', timestamp: new Date() });
+  invalidateQuestCache('hal');
+  st = await computeQuests(db, 'hal', { rating: 1000, fresh: true });
+  assert.equal(st.quests.find((q) => q.id === 'breakthrough').completed, true, '做够难度的新题算突破');
+  console.log('ok  - 突破：复习不算、新题算');
+
+  const store2 = {
+    users: [{ username: 'ivy', dailyQuests: { date: hktToday(), claimed: [] } }],
+    userstats: [{ username: 'ivy', states: {} }],
+    problems: [
+      { id: 'N1', difficulty: 2, tags: [], public: true, name: 'N1' },
+      { id: 'N2', difficulty: 3, tags: [], public: true, name: 'N2' },
+    ],
+    submissions: [
+      { username: 'ivy', problemId: 'N1', correct: true, systemError: false, type: 'text', timestamp: new Date() },
+    ],
+  };
+  const db2 = makeDb(store2);
+  invalidateProblemCache();
+  invalidateQuestCache('ivy');
+  const st2 = await computeQuests(db2, 'ivy', { rating: 1000, fresh: true });
+  assert.equal(st2.quests.find((q) => q.id === 'breakthrough').completed, true, '新用户第一天也能完成突破');
+  console.log('ok  - 突破：新用户第一天可达');
+}
+
+// ⑧ 等级加成
+function testLevelBonus() {
+  assert.equal(levelMultiplier(1000), 1.0);
+  assert.equal(levelMultiplier(1250), 1.1);
+  assert.equal(levelMultiplier(1500), 1.2);
+  assert.equal(levelMultiplier(2000), 1.4);
+  assert.equal(levelMultiplier(3000), 1.8);
+  assert.equal(levelMultiplier(9999), 1.8);
+  assert.equal(levelReward(30000, 1000), 30000);
+  assert.equal(levelReward(30000, 1500), 36000);
+  assert.equal(levelReward(5000, 1000), 5000);
+  assert.equal(levelReward(5000, 1500), 6000);
+  console.log('ok  - 等级加成（×1.0 ~ ×1.8）');
+}
+
 await testDayResetAfterSolving();
 await testDailyQuestsStaleNextToFreshToken();
 await testQuestCompletion();
 await testDailyProblemStability();
 await testDailyProblemAfterAC();
 await testFallbackWhenEverythingSolved();
+await testBreakthrough();
 testImageSubmissionOnly();
 testDifficultyMapping();
+testLevelBonus();
 console.log('\nALL PASS');

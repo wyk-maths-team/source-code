@@ -55,6 +55,7 @@ async function buildHubState(db, user, username) {
     solvedCount: ratingData.solvedCount,
     tokens: tokenSnapshot(user.token),
     quests: quests.quests,
+    level: quests.level,
     streak: quests.streak,
     daily: {
       date: quests.date,
@@ -81,10 +82,10 @@ async function claimQuest(db, username, questId) {
     return { status: 400, body: { success: false, message: 'Unknown quest' } };
   }
   if (quest.claimed) {
-    return { status: 400, body: { success: false, message: '今天已经领过这个任务了' } };
+    return { status: 400, body: { success: false, message: 'Already claimed today' } };
   }
   if (!quest.completed) {
-    return { status: 400, body: { success: false, message: '任务还没完成哦' } };
+    return { status: 400, body: { success: false, message: 'Quest not completed yet' } };
   }
 
   const today = hktToday();
@@ -106,7 +107,7 @@ async function claimQuest(db, username, questId) {
 
   if (!doc) {
     // 另一个请求先领了，或者刚好跨天刷新了
-    return { status: 409, body: { success: false, message: '任务状态已更新，请刷新页面' } };
+    return { status: 409, body: { success: false, message: 'State changed — please refresh' } };
   }
 
   invalidateQuestCache(username);
@@ -143,7 +144,7 @@ async function claimStreak(db, username, days) {
   ));
 
   if (!doc) {
-    return { status: 400, body: { success: false, message: '还没达成，或者已经领过了' } };
+    return { status: 400, body: { success: false, message: 'Not reached yet, or already claimed' } };
   }
 
   invalidateQuestCache(username);

@@ -66,8 +66,15 @@ async function prepUser(db) {
     token: { daily: 0, global: 0, lastReset: '2000-01-01', dailyLoginClaimed: true, dailyQuestClaimed: true },
     dailyQuests: { date: '2000-01-01', claimed: [] },
   });
+  // 塞两道 7 级题，把 rating 抬到 ~1930，验证「等级越高奖励越多」的加成显示
+  const hard = await db.collection('problems')
+    .find({ public: true, difficulty: { $gte: 7 } }, { projection: { id: 1, _id: 0 } })
+    .limit(2).toArray();
+  const states = {};
+  for (const p of hard) states[p.id] = 'passed';
+
   await db.collection('userstats').updateOne(
-    { username: USER }, { $setOnInsert: { username: USER, states: {} } }, { upsert: true }
+    { username: USER }, { $setOnInsert: { username: USER, states } }, { upsert: true }
   );
   return today;
 }
@@ -126,10 +133,18 @@ try {
   // 3. 每日挑战有具体题目 + 去做题
   const dailyCard = page.locator('.quest-item[data-qid="daily"]');
   const dailyText = (await dailyCard.textContent()).replace(/\s+/g, ' ');
-  assert.ok(/难度/.test(dailyText), '每日挑战应显示题目难度');
+  assert.ok(/(难度|Difficulty)/.test(dailyText), '每日挑战应显示题目难度');
   const goBtn = dailyCard.locator('[data-go="daily"]');
   assert.equal(await goBtn.count(), 1, '未完成时应是「去做题」');
   console.log('✓ 每日挑战：' + dailyText.trim().slice(0, 80));
+
+  // 3b. 等级加成：rating ~1930 → ×1.4
+  const summaryText = await page.locator('#quest-summary').textContent();
+  assert.ok(/Level bonus|×1\.[0-9]/.test(summaryText), '应显示等级加成：' + summaryText);
+  const rewardText = await page.locator('.quest-item[data-qid="login"] .quest-reward').textContent();
+  const loginReward = Number((rewardText.match(/\+([\d,]+)/) || [])[1].replace(/,/g, ''));
+  assert.ok(loginReward > 10000, '登入奖励应被等级放大（实际 ' + loginReward + '）');
+  console.log('✓ 等级加成：' + summaryText.replace(/\s+/g, ' ').trim() + ' | 登入奖励 ' + loginReward);
 
   // 4. 领取每日登入
   const before = await db.collection('users').findOne({ username: USER }, { projection: { token: 1 } });
@@ -138,11 +153,11 @@ try {
   const after = await db.collection('users').findOne(
     { username: USER }, { projection: { token: 1, dailyQuests: 1 } }
   );
-  assert.equal(after.token.global, (before.token.global || 0) + 10000, '登入应 +10000');
+  assert.equal(after.token.global, (before.token.global || 0) + loginReward, '登入应加等级加成后的金额');
   assert.ok(after.dailyQuests.claimed.includes('login'), '领取记录应落库');
   assert.equal(await page.locator('[data-claim="login"]').count(), 0, '领取后按钮应消失');
   assert.equal(await page.locator('.quest-item[data-qid="login"] .btn-complete').count(), 1);
-  console.log('✓ 领取每日登入：+10,000 落库，按钮变「已领取」');
+  console.log('✓ 领取每日登入：+' + loginReward + ' 落库，按钮变「已领取」');
 
   // 5. 未完成的任务不能领
   assert.equal(await page.locator('[data-claim="practice"]').count(), 0, '未完成任务不应有领取按钮');

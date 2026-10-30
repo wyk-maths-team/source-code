@@ -76,11 +76,16 @@
   // ── Top summary ──
   function renderSummary() {
     const st = state.stats || {};
-    $('quest-summary').innerHTML = [
+    const lv = state.level || { multiplier: 1 };
+    const parts = [
       'Submissions today: <b>' + fmt(st.submitCount) + '</b>',
       'AC: <b>' + fmt(st.acCount) + '</b> problems',
       'Target difficulty: <b>d ≥ ' + fmt(state.daily.targetDifficulty) + '</b>'
-    ].map((s) => '<span>' + s + '</span>').join('');
+    ];
+    if (lv.multiplier > 1) {
+      parts.push('Level bonus: <b style="color:#f1c40f">×' + lv.multiplier + '</b>');
+    }
+    $('quest-summary').innerHTML = parts.map((s) => '<span>' + s + '</span>').join('');
   }
 
   // ── Quest list ──
@@ -118,6 +123,7 @@
 
   function renderQuests() {
     const wrap = $('quest-list');
+    const lvMult = (state.level && state.level.multiplier) || 1;
     wrap.innerHTML = state.quests.map((q) => {
       return '<div class="quest-item' + (q.claimed ? ' is-claimed' : '') + '" data-qid="' + q.id + '">' +
         '<div class="quest-icon" style="color:' + q.color + '"><i class="fas ' + q.icon + '"></i></div>' +
@@ -127,7 +133,9 @@
           progressHtml(q) +
         '</div>' +
         '<div class="quest-side">' +
-          '<span class="quest-reward">+' + fmt(q.reward) + '</span>' +
+          '<span class="quest-reward">+' + fmt(q.reward) +
+            (lvMult > 1 ? ' <small>×' + lvMult + '</small>' : '') +
+          '</span>' +
           questButton(q) +
         '</div>' +
       '</div>';
