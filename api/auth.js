@@ -55,9 +55,10 @@ async function handler(req, res) {
   // ===== 1. 發起微軟登入 =====
   if (action === 'microsoft') {
     const clientId = process.env.MICROSOFT_CLIENT_ID;
-    const redirectUri = process.env.MICROSOFT_REDIRECT_URI;
+    
     const tenant = process.env.MICROSOFT_TENANT || 'common';
-
+    const baseUrl = getBaseUrl(req);//dynamic change
+    const redirectUri = `${baseUrl}/api/auth?action=callback`;
     // ⭐ 新增：区分登录 / 重置模式
     const mode = req.query.mode === 'reset' ? 'reset' : 'login';
 
@@ -95,10 +96,11 @@ async function handler(req, res) {
 
     const clientId = process.env.MICROSOFT_CLIENT_ID;
     const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;
-    const redirectUri = process.env.MICROSOFT_REDIRECT_URI;
+    
     const tenant = process.env.MICROSOFT_TENANT || 'common';
     const allowedDomain = process.env.ALLOWED_DOMAIN || 'cloud.wyk.edu.hk';
-
+    const baseUrl = getBaseUrl(req);
+    const redirectUri = `${baseUrl}/api/auth?action=callback`;//sim actions
     try {
       const tokenRes = await fetch(`https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`, {
         method: 'POST',
