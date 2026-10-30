@@ -35,8 +35,6 @@
   if (isMobile && username.length > 7) {
     displayUsername = username.substring(0, 4) + '...';
   }
-  
-  
 
   // ---------- 头像缓存 ----------
   let avatarCache = null;
@@ -116,9 +114,6 @@
   }
 
   // Token 图标。
-  // 默认用 FontAwesome 的闪电 / 金币；只有用户在 Settings 里主动打开
-  // 「Genshin icons」才换成 ml.png / ys.png。
-  // 默认不用图片，是因为那两张图带有特定作品的指向，不希望默认强加给所有人。
   function tokenIcon(which, size) {
     let genshin = false;
     try { genshin = localStorage.getItem('genshinIcons') === 'true'; } catch (e) { genshin = false; }
@@ -145,7 +140,6 @@
       
       const oldHtml = displayEl.innerHTML;
       
-      // 更新外层简略版
       displayEl.innerHTML = `
         <span style="color:${dailyCls}; font-weight:bold; display: inline-flex; align-items: center; gap: 4px;" title="Daily Tokens: ${daily.toLocaleString()}">
           ${tokenIcon('daily', 16)} ${formatTokens(daily)}
@@ -156,7 +150,6 @@
         </span>
       `;
       
-      // 更新下拉菜单里的精确数字（带千分位）
       if (dailyExactEl) {
         dailyExactEl.textContent = daily.toLocaleString();
         dailyExactEl.style.color = daily < 3000 ? '#d93025' : '#fff';
@@ -174,7 +167,6 @@
     }
   };
 
-  // 原有的拉取方法保留，页面加载时调用
   async function loadTokens() {
     if (!loggedIn) return;
     try {
@@ -207,7 +199,6 @@
     dropdown.style.display = 'none';
   }
 
-  // ---------- 登出 ----------
   function performLogout() {
     if (typeof logout === 'function') logout();
     localStorage.removeItem('sidebarOpen');
@@ -245,18 +236,15 @@
     } else {
       document.body.classList.remove('sidebar-hidden-desktop');
     }
-    // 更新按钮图标
     const iconEl = document.querySelector('#fullscreenToggleBtn i');
     if (iconEl) {
-      iconEl.className = hidden
-        ? 'fa-solid fa-angles-right'
-        : 'fa-solid fa-angles-left';
+      iconEl.className = hidden ? 'fa-solid fa-angles-right' : 'fa-solid fa-angles-left';
     }
   }
 
   function toggleDesktopSidebar(e) {
     if (e) e.stopPropagation();
-    if (window.innerWidth <= 768) return; // 移动端不处理
+    if (window.innerWidth <= 768) return;
     const isHidden = document.body.classList.contains('sidebar-hidden-desktop');
     const newHidden = !isHidden;
     applyDesktopSidebarState(newHidden);
@@ -301,10 +289,12 @@
     topbarHTML += `
       <div class="user-menu" id="userMenu">
         <div class="user-box" id="userBox">
-          <div class="user-box-left">
+          <!-- 点击左边去 Profile -->
+          <div class="user-box-left" id="userBoxLeft">
             <img id="userAvatar" src="" alt="avatar" class="user-box-avatar">
             <span id="currentUsername" class="user-box-name">${escapeHtml(displayUsername)}</span>
           </div>
+          <!-- 点击右边开下拉 -->
           <div class="user-box-right" id="userBoxArrow">
             <i class="fa fa-caret-down"></i>
           </div>
@@ -332,7 +322,6 @@
     `;
   }
   
-  // 移動端漢堡按鈕
   if (isMobile) {
     topbarHTML += `
       <button class="topbar-sidebar-toggle" id="mobileSidebarToggle" title="Menu">
@@ -340,17 +329,7 @@
       </button>
     `;
   }
-  
-  // ⭐ WYK OS 啟動按鈕
-  if (!isMobile) {
-    topbarHTML += `
-      <button class="os-launch-btn" id="osLaunchBtn" title="Enter WYK OS">
-        <i class="fas fa-desktop"></i>
-      </button>
-    `;
-  }
 
-  // 桌面端全屏側邊欄切換按鈕
   topbarHTML += `
       <button class="topbar-fullscreen-toggle" id="fullscreenToggleBtn" title="Toggle sidebar">
         <i class="fa-solid fa-angles-left"></i>
@@ -361,11 +340,11 @@
     </div>
   `;
 
-  // ⭐ 核心：先渲染 HTML
+  // ⭐ 渲染 HTML
   container.innerHTML = topbarHTML;
 
   // ==========================================
-  // ⭐ 核心：渲染完之后再绑定事件
+  // ⭐ 渲染完之后再绑定事件
   // ==========================================
 
   // 1. 绑定 Token 下拉事件
@@ -380,7 +359,6 @@
       tokenDropdownMenu.style.display = isVisible ? 'none' : 'block';
     });
 
-    // 点击其他区域关闭
     document.addEventListener('click', (e) => {
       if (tokenMenuContainer && !tokenMenuContainer.contains(e.target)) {
         tokenDropdownMenu.style.display = 'none';
@@ -399,17 +377,20 @@
     fullscreenBtn.addEventListener('click', toggleDesktopSidebar);
   }
 
-  const osLaunchBtn = document.getElementById('osLaunchBtn');
-  if (osLaunchBtn) {
-    osLaunchBtn.addEventListener('click', (e) => {
+  // ⭐ 拆分 User 的点击事件
+  const userBoxLeft = document.getElementById('userBoxLeft');
+  if (userBoxLeft) {
+    userBoxLeft.addEventListener('click', (e) => {
       e.stopPropagation();
-      window.location.href = '/os';
+      if (realUsername !== 'guest') {
+        window.location.href = `/users/${encodeURIComponent(realUsername)}`;
+      }
     });
   }
 
-  const userBox = document.getElementById('userBox');
-  if (userBox) {
-    userBox.addEventListener('click', (e) => {
+  const userBoxArrow = document.getElementById('userBoxArrow');
+  if (userBoxArrow) {
+    userBoxArrow.addEventListener('click', (e) => {
       e.stopPropagation();
       toggleDropdown(e);
     });
@@ -423,14 +404,10 @@
     });
   }
 
-  // 暴露全局
   window.toggleDropdown = toggleDropdown;
   window.performLogout = performLogout;
-
-  // 点击页面其他区域关闭 User 下拉
   document.addEventListener('click', closeDropdown);
 
-  // 加载头像和 Token
   if (loggedIn && realUsername) {
     setTimeout(loadUserAvatar, 100);
   }
@@ -438,14 +415,12 @@
     setTimeout(loadTokens, 200);
   }
 
-  // 恢复桌面端侧边栏状态
   try {
     if (window.innerWidth > 768 && localStorage.getItem(SIDEBAR_HIDDEN_KEY) === '1') {
       applyDesktopSidebarState(true);
     }
   } catch (e) { /* ignore */ }
 
-  // 时钟
   function updateClock() {
     const d = new Date();
     const pad = n => String(n).padStart(2, '0');
@@ -463,7 +438,7 @@
   // ---------- 样式 ----------
   const style = document.createElement('style');
   style.textContent = `
-    /* ===== 基础布局：topbar 高度满格 ===== */
+    /* ===== 基础布局 ===== */
     .topbar { overflow-y: visible !important; z-index: 9998 !important; padding: 0 0 0 24px !important; }
     .topbar-right {
       display: flex;
@@ -478,7 +453,7 @@
       align-self: center;
     }
 
-    /* ===== 用户框：两个长方形 ===== */
+    /* ===== 用户框 ===== */
     .user-menu {
       position: relative;
       z-index: 9999 !important;
@@ -491,7 +466,6 @@
       display: flex;
       align-items: stretch;
       height: 100%;
-      cursor: pointer;
       background: rgba(255,255,255,0.06);
       overflow: hidden;
       user-select: none;
@@ -505,25 +479,19 @@
       padding: 0 14px;
       transition: background 0.15s ease;
       min-width: 0;
+      cursor: pointer;
     }
     .user-box-left:hover { background: rgba(255,255,255,0.08); }
     .user-box-avatar {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      object-fit: cover;
-      display: none;
-      flex-shrink: 0;
+      width: 28px; height: 28px; border-radius: 50%;
+      object-fit: cover; display: none; flex-shrink: 0;
     }
     .user-box-name {
-      font-weight: 500;
-      font-size: 0.9rem;
-      color: #ffffff;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 180px;
+      font-weight: 500; font-size: 0.9rem; color: #ffffff;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;
     }
+    
+    /* ⭐ 修改：右侧三角形区域 */
     .user-box-right {
       display: flex;
       align-items: center;
@@ -534,6 +502,7 @@
       transition: background 0.15s ease;
       color: #ffffff;
       font-size: 0.8rem;
+      cursor: pointer;
     }
     .user-box-right:hover { background: rgba(255,255,255,0.18); }
     .user-box.open .user-box-right i,
@@ -546,8 +515,6 @@
       position: absolute;
       top: calc(100% + 6px);
       right: 0;
-      /* 走主题变量：这段样式在运行时注入，优先级高于 styles.css 的同名规则，
-         写死 #fff 会让暗色与科幻主题下的下拉变成刺眼的纯白 */
       background: var(--card-bg, #fff);
       border-radius: var(--radius-sm, 6px);
       box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,0.15));
@@ -557,20 +524,11 @@
     }
     .user-dropdown .dropdown-item,
     .user-dropdown .logout-btn {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      width: 100%;
-      padding: 11px 18px;
-      background: var(--card-bg, #fff);
-      color: var(--text-primary, #212529);
-      text-decoration: none;
-      font-size: 0.9rem;
-      font-weight: 500;
-      border: none;
-      cursor: pointer;
-      text-align: left;
-      transition: background 0.15s;
+      display: flex; align-items: center; gap: 8px; width: 100%;
+      padding: 11px 18px; background: var(--card-bg, #fff);
+      color: var(--text-primary, #212529); text-decoration: none;
+      font-size: 0.9rem; font-weight: 500; border: none; cursor: pointer;
+      text-align: left; transition: background 0.15s;
     }
     .user-dropdown .dropdown-item:hover { background: #f0f2f5; }
     .user-dropdown .logout-btn { color: var(--danger, #dc3545); }
@@ -578,37 +536,31 @@
 
     /* ===== 全屏按钮 ===== */
     .topbar-fullscreen-toggle {
-      background: rgba(255,255,255,0.08);
-      border: none;
-      color: var(--topbar-text, #e0e0e0);
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      cursor: pointer;
-      display: flex;
+      background: rgba(255,255,255,0.08); border: none; color: var(--topbar-text, #e0e0e0);
+      width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.95rem; transition: background 0.2s;
+    }
+    .topbar-fullscreen-toggle:hover { background: rgba(255,255,255,0.18); color: #fff; }
+
+    /* ===== ⭐ 修改：Login 按钮 ===== */
+    .login-btn-header {
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.95rem;
-      transition: background 0.2s;
-    }
-    .topbar-fullscreen-toggle:hover {
-      background: rgba(255,255,255,0.18);
-      color: #fff;
-    }
-
-    /* ===== 登录按钮 ===== */
-    .login-btn-header {
-      display: inline-block;
-      padding: 6px 16px;
-      background: var(--accent, #4a90d9);
-      color: #fff;
-      border-radius: 20px;
+      gap: 6px;
+      padding: 0 16px;
+      height: 36px;
+      background: rgba(255,255,255,0.08);
+      color: #e0e0e0;
+      border-radius: 6px;
       text-decoration: none;
       font-weight: 600;
       font-size: 0.9rem;
-      transition: background 0.2s;
+      border: 1px solid rgba(255,255,255,0.1);
+      transition: all 0.2s;
     }
-    .login-btn-header:hover { background: var(--accent-hover, #3a7bc8) !important; }
+    .login-btn-header:hover { background: rgba(255,255,255,0.15); color: #fff; }
 
     /* ===== 深色模式 ===== */
     [data-theme="dark"] .user-dropdown { background: #1e1e1e; border: 1px solid #444; }
@@ -621,105 +573,42 @@
     [data-theme="scifi"] .user-dropdown .logout-btn:hover { background: #2a1118; }
     [data-theme="dark"] .user-dropdown .logout-btn { color: #f85149; }
     [data-theme="dark"] .user-dropdown .logout-btn:hover { background: #3a1a1a; }
-        /* ⭐ WYK OS 按鈕 */
-    .os-launch-btn {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 14px;
-      border: 1px solid rgba(100, 150, 220, 0.4);
-      border-radius: 20px;
-      background: linear-gradient(135deg, rgba(74, 144, 217, 0.25) 0%, rgba(46, 95, 160, 0.2) 100%);
-      color: #d6e4ff;
-      font-size: 0.82rem;
-      font-weight: 700;
-      font-family: inherit;
-      letter-spacing: 0.5px;
-      cursor: pointer;
-      transition: all 0.18s ease;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
-      flex-shrink: 0;
-    }
-    .os-launch-btn:hover {
-      background: linear-gradient(135deg, rgba(74, 144, 217, 0.5) 0%, rgba(46, 95, 160, 0.4) 100%);
-      border-color: var(--accent, #4a90d9);
-      color: #fff;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(74,144,217,.35), inset 0 1px 0 rgba(255,255,255,0.15);
-    }
-    .os-launch-btn:active { transform: translateY(0); }
-    .os-launch-btn i { font-size: 0.9rem; }
 
-    @media (max-width: 768px) {
-      .os-launch-btn { display: none !important; }
-    }
     /* ===== 桌面端侧边栏隐藏状态 ===== */
     @media (min-width: 769px) {
-      .sidebar {
-        transition: transform 0.3s ease !important;
-      }
-      body.sidebar-hidden-desktop .sidebar {
-        transform: translateX(-100%) !important;
-      }
-      body.sidebar-hidden-desktop {
-        padding-left: 0 !important;
-      }
+      .sidebar { transition: transform 0.3s ease !important; }
+      body.sidebar-hidden-desktop .sidebar { transform: translateX(-100%) !important; }
+      body.sidebar-hidden-desktop { padding-left: 0 !important; }
     }
-        /* ===== Token 跳动特效 ===== */
+
+    /* ===== Token 跳动特效 ===== */
     @keyframes tokenPop {
       0% { transform: scale(1); opacity: 0.8; }
       50% { transform: scale(1.15); opacity: 1; text-shadow: 0 0 10px rgba(255,255,255,0.6); }
       100% { transform: scale(1); opacity: 1; }
     }
-    .topbar-token-pop {
-      animation: tokenPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
-          /* ===== Token 下拉菜单 ===== */
-    .token-menu {
-      position: relative;
-      display: flex;
-      align-items: center;
-      margin-right: 15px;
-    }
+    .topbar-token-pop { animation: tokenPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+    /* ===== Token 下拉菜单 ===== */
+    .token-menu { position: relative; display: flex; align-items: center; margin-right: 15px; }
     .token-display-box {
-      display: flex;
-      align-items: center;
-      font-family: monospace;
-      font-size: 14px;
-      background: rgba(255,255,255,0.08);
-      padding: 4px 12px;
-      border-radius: 12px;
-      cursor: pointer;
-      transition: background 0.15s;
-      user-select: none;
+      display: flex; align-items: center; font-family: monospace; font-size: 14px;
+      background: rgba(255,255,255,0.08); padding: 4px 12px; border-radius: 12px;
+      cursor: pointer; transition: background 0.15s; user-select: none;
     }
     .token-display-box:hover { background: rgba(255,255,255,0.15); }
     .token-dropdown {
-      display: none;
-      position: absolute;
-      top: calc(100% + 8px);
-      right: 0;
-      background: #1e1e1e;
-      border: 1px solid #444;
-      border-radius: 6px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-      min-width: 180px;
-      z-index: 99999;
-      padding: 6px 0;
+      display: none; position: absolute; top: calc(100% + 8px); right: 0;
+      background: #1e1e1e; border: 1px solid #444; border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5); min-width: 180px;
+      z-index: 99999; padding: 6px 0;
     }
     .token-detail-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 16px;
-      font-size: 13px;
-      color: #ccc;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 16px; font-size: 13px; color: #ccc;
     }
-    .token-detail-row strong {
-      font-family: monospace;
-      font-size: 14px;
-      color: #fff;
-    }
+    .token-detail-row strong { font-family: monospace; font-size: 14px; color: #fff; }
+
     /* ===== 移动端 ===== */
     @media (max-width: 768px) {
       .topbar { padding: 0 12px !important; }
@@ -732,7 +621,7 @@
       .user-box-name { font-size: 0.8rem; max-width: 90px; }
       .user-box-left { padding: 0 10px; }
       .user-box-right { width: 32px; font-size: 0.7rem; }
-      .login-btn-header { font-size: 0.8rem; padding: 4px 12px; }
+      .login-btn-header { font-size: 0.8rem; padding: 0 12px; height: 32px; }
       .user-dropdown { right: 0; left: auto; min-width: 130px; }
     }
   `;
