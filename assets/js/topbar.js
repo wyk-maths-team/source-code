@@ -313,8 +313,9 @@
       </div>
     `;
   } else {
+    // ⭐ 添加了 align-items: center 强行垂直居中
     topbarHTML += `
-      <div class="user-menu" id="userMenu">
+      <div class="user-menu" id="userMenu" style="align-items: center;">
         <a href="/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}" class="login-btn-header">
           <i class="fa fa-sign-in-alt fa-fw"></i> Login
         </a>
@@ -448,8 +449,7 @@
       padding-right: 24px;
     }
     .topbar-right > .clock,
-    .topbar-right > .topbar-fullscreen-toggle,
-    .topbar-right > .login-btn-header {
+    .topbar-right > .topbar-fullscreen-toggle {
       align-self: center;
     }
 
@@ -457,11 +457,16 @@
     .user-menu {
       position: relative;
       z-index: 9999 !important;
-      align-self: stretch;
+      /* 这里不设置 align-self: stretch，避免影响到内部按钮 */
       display: flex;
-      align-items: stretch;
       height: 100%;
     }
+    /* 针对已登录状态的 user-menu，继续保持拉伸 */
+    #userMenu:has(.user-box) {
+      align-self: stretch;
+      align-items: stretch;
+    }
+
     .user-box {
       display: flex;
       align-items: stretch;
@@ -491,7 +496,6 @@
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;
     }
     
-    /* ⭐ 修改：右侧三角形区域 */
     .user-box-right {
       display: flex;
       align-items: center;
@@ -543,24 +547,28 @@
     }
     .topbar-fullscreen-toggle:hover { background: rgba(255,255,255,0.18); color: #fff; }
 
-    /* ===== ⭐ 修改：Login 按钮 ===== */
+    /* ⭐ 恢复蓝色，并在内部强制垂直居中 */
     .login-btn-header {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
+      height: 34px; /* 定死高度 */
       padding: 0 16px;
-      height: 36px;
-      background: rgba(255,255,255,0.08);
-      color: #e0e0e0;
-      border-radius: 6px;
+      margin: 0;
+      background: var(--accent, #4a90d9) !important; /* 恢复蓝色 */
+      color: #fff !important;
+      border: none; /* 蓝色按钮不要边框更干净 */
+      border-radius: 20px;
       text-decoration: none;
-      font-weight: 600;
       font-size: 0.9rem;
-      border: 1px solid rgba(255,255,255,0.1);
-      transition: all 0.2s;
+      font-weight: 600;
+      transition: background 0.2s ease;
+      cursor: pointer;
     }
-    .login-btn-header:hover { background: rgba(255,255,255,0.15); color: #fff; }
+    .login-btn-header:hover {
+      background: var(--accent-hover, #3a7bc8) !important; /* 恢复 hover 颜色 */
+    }
 
     /* ===== 深色模式 ===== */
     [data-theme="dark"] .user-dropdown { background: #1e1e1e; border: 1px solid #444; }
