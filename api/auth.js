@@ -49,6 +49,11 @@ function getCookie(req, name) {
   const match = cookies.match(new RegExp(`(?:^|; )${name}=([^;]+)`));
   return match ? decodeURIComponent(match[1]) : null;
 }
+function getBaseUrl(req) {
+  const host = req.headers['x-forwarded-host'] || req.headers.host || 'moj.wyk.edu.hk';
+  const proto = req.headers['x-forwarded-proto'] || 'https';
+  return `${proto}://${host}`;
+}
 async function handler(req, res) {
   const action = req.query.action || (req.body && req.body.action);
 
