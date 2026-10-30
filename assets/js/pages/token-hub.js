@@ -12,8 +12,8 @@
   };
 
   let state = null;
-  let busy = false;        // 领取中，挡住连点
-  let fetching = false;    // 防并发重复拉取
+  let busy = false;        // Claiming in progress — block double-clicks
+  let fetching = false;    // Prevent concurrent duplicate fetches
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => (window.DSHUI && DSHUI.esc) ? DSHUI.esc(s) : String(s == null ? '' : s)
@@ -23,7 +23,7 @@
 
   Page.ready(async () => {
     await loadData();
-    // 从题目页回来（切标签页 / 回到窗口）自动刷新一次，不用手点
+    // Auto-refresh once when coming back from the problem page (tab switch / window focus) — no manual click needed
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') loadData({ silent: true });
     });
@@ -38,7 +38,7 @@
       if (!res || !res.success) throw new Error((res && res.message) || 'Failed to load');
       applyState(res);
     } catch (e) {
-      if (!opts.silent) DSHUI.toast(e.message || '加载失败', 'err');
+      if (!opts.silent) DSHUI.toast(e.message || 'Failed to load', 'err');
     } finally {
       fetching = false;
       Page.hideSkeleton();
@@ -46,10 +46,11 @@
   }
 
   function applyState(res) {
-    // 接口结构和前端脚本版本对不上时（多半是浏览器还缓存着旧 JS），
-    // 给一句能照做的提示，而不是白屏一个 TypeError。
+    // When the API shape doesn't match the frontend script version (usually the browser
+    // is still caching old JS), show an actionable hint instead of a blank white
+    // screen with a TypeError.
     if (!res || !Array.isArray(res.quests) || !res.daily || !res.streak) {
-      DSHUI.toast('页面脚本版本不匹配，请强制刷新（Ctrl / Cmd + Shift + R）', 'err');
+      DSHUI.toast('Page script version mismatch — please hard refresh (Ctrl / Cmd + Shift + R)', 'err');
       return;
     }
 
@@ -63,7 +64,7 @@
       window.updateTopbarTokens(res.tokens.daily, res.tokens.global);
     }
 
-    $('quest-reset-hint').textContent = '每天 00:00 刷新 · ' + res.daily.date;
+    $('quest-reset-hint').textContent = 'Resets daily at 00:00 · ' + res.daily.date;
 
     renderSummary();
     renderQuests();
@@ -72,36 +73,36 @@
     updatePreview(res.theme);
   }
 
-  // ── 顶部概览 ──
+  // ── Top summary ──
   function renderSummary() {
     const st = state.stats || {};
     $('quest-summary').innerHTML = [
-      '今日提交 <b>' + fmt(st.submitCount) + '</b> 次',
-      'AC <b>' + fmt(st.acCount) + '</b> 道',
-      '目标难度 <b>d ≥ ' + fmt(state.daily.targetDifficulty) + '</b>'
+      'Submissions today: <b>' + fmt(st.submitCount) + '</b>',
+      'AC: <b>' + fmt(st.acCount) + '</b> problems',
+      'Target difficulty: <b>d ≥ ' + fmt(state.daily.targetDifficulty) + '</b>'
     ].map((s) => '<span>' + s + '</span>').join('');
   }
 
-  // ── 任务列表 ──
+  // ── Quest list ──
   function questDesc(q) {
     if (q.id !== 'daily') return q.desc;
     const p = state.daily && state.daily.problem;
-    if (!p) return '今天 AC 任意一道难度 ≥ ' + state.daily.targetDifficulty + ' 的题。';
-    if (p.fallback) return '目标难度的题都被你清完了，今天 AC 任意一道难度 ≥ ' + p.difficulty + ' 的题即可。';
-    return '今天派给你的是 <b>' + esc(p.title) + '</b>（' + esc(p.id) + '）· 难度 ' + p.difficulty;
+    if (!p) return 'AC any problem with difficulty ≥ ' + state.daily.targetDifficulty + ' today.';
+    if (p.fallback) return 'You\'ve cleared every problem at the target difficulty — just AC any problem with difficulty ≥ ' + p.difficulty + ' today.';
+    return 'Today\'s assignment: <b>' + esc(p.title) + '</b> (' + esc(p.id) + ') · Difficulty ' + p.difficulty;
   }
 
   function questButton(q) {
     if (q.claimed) {
-      return '<button class="btn-complete" disabled><i class="fas fa-check"></i> 已领取</button>';
+      return '<button class="btn-complete" disabled><i class="fas fa-check"></i> Claimed</button>';
     }
     if (q.completed) {
-      return '<button class="btn-claim" data-claim="' + q.id + '">领取</button>';
+      return '<button class="btn-claim" data-claim="' + q.id + '">Claim</button>';
     }
     if (!q.link) {
-      return '<button class="btn-ad" disabled>未完成</button>';
+      return '<button class="btn-ad" disabled>Not completed</button>';
     }
-    const label = q.id === 'daily' ? '去做题' : '去完成';
+    const label = q.id === 'daily' ? 'Go solve' : 'Go';
     return '<button class="btn-go" data-go="' + q.id + '">' + label + ' <i class="fas fa-arrow-right" style="font-size:.75em"></i></button>';
   }
 
@@ -158,14 +159,14 @@
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
     try {
       const res = await API.post('/api/token-hub', { action: 'claim', questId });
-      if (!res.success) throw new Error(res.message || '领取失败');
-      DSHUI.toast(res.message || '领取成功', 'ok');
+      if (!res.success) throw new Error(res.message || 'Claim failed');
+      DSHUI.toast(res.message || 'Claimed successfully', 'ok');
       if (res.tokens && window.updateTopbarTokens) {
         window.updateTopbarTokens(res.tokens.daily, res.tokens.global);
       }
       await loadData({ silent: true });
     } catch (e) {
-      DSHUI.toast(e.message || '领取失败', 'err');
+      DSHUI.toast(e.message || 'Claim failed', 'err');
       btn.disabled = false;
       btn.innerHTML = old;
     } finally {
@@ -173,7 +174,7 @@
     }
   }
 
-  // ── 连续学习里程碑 ──
+  // ── Streak milestones ──
   function renderStreak() {
     const panel = $('streak-panel');
     const s = state.streak;
@@ -181,20 +182,20 @@
 
     const items = s.milestones.map((m) => {
       let btn;
-      if (m.claimed) btn = '<button class="btn-complete" disabled>已领取</button>';
-      else if (m.reached) btn = '<button class="btn-claim" data-streak="' + m.days + '">领取</button>';
-      else btn = '<button class="btn-ad" disabled>还差 ' + (m.days - s.days) + ' 天</button>';
+      if (m.claimed) btn = '<button class="btn-complete" disabled>Claimed</button>';
+      else if (m.reached) btn = '<button class="btn-claim" data-streak="' + m.days + '">Claim</button>';
+      else btn = '<button class="btn-ad" disabled>' + (m.days - s.days) + ' days to go</button>';
 
       const cls = 'streak-milestone' + (m.reached ? ' reached' : '') + (m.claimed ? ' claimed' : '');
       return '<div class="' + cls + '">' +
-        '<div class="days">' + m.days + ' 天</div>' +
+        '<div class="days">' + m.days + ' days</div>' +
         '<div style="color:var(--text-secondary)">+' + fmt(m.reward) + '</div>' +
         btn +
       '</div>';
     }).join('');
 
     panel.innerHTML =
-      '<div class="streak-head"><i class="fas fa-fire" style="color:#e67e22"></i> 连续学习 ' + s.days + ' 天</div>' +
+      '<div class="streak-head"><i class="fas fa-fire" style="color:#e67e22"></i> Learning streak: ' + s.days + ' days</div>' +
       '<div class="streak-milestones">' + items + '</div>';
 
     panel.onclick = (e) => {
@@ -211,14 +212,14 @@
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
     try {
       const res = await API.post('/api/token-hub', { action: 'claim_streak', days });
-      if (!res.success) throw new Error(res.message || '领取失败');
-      DSHUI.toast(res.message || '领取成功', 'ok');
+      if (!res.success) throw new Error(res.message || 'Claim failed');
+      DSHUI.toast(res.message || 'Claimed successfully', 'ok');
       if (res.tokens && window.updateTopbarTokens) {
         window.updateTopbarTokens(res.tokens.daily, res.tokens.global);
       }
       await loadData({ silent: true });
     } catch (e) {
-      DSHUI.toast(e.message || '领取失败', 'err');
+      DSHUI.toast(e.message || 'Claim failed', 'err');
       btn.disabled = false;
       btn.innerHTML = old;
     } finally {
@@ -226,7 +227,7 @@
     }
   }
 
-  // ── 主题商店（原逻辑保留）──
+  // ── Theme shop (original logic preserved) ──
   function renderThemes() {
     const grid = $('theme-grid');
     grid.innerHTML = Object.keys(THEMES).map((key) => {
@@ -268,11 +269,11 @@
   async function buyTheme(themeKey) {
     try {
       const res = await API.post('/api/token-hub', { action: 'buy_theme', theme: themeKey });
-      if (!res.success) throw new Error(res.message || '购买失败');
+      if (!res.success) throw new Error(res.message || 'Purchase failed');
       DSHUI.toast(res.message, 'ok');
       await loadData({ silent: true });
     } catch (e) {
-      DSHUI.toast(e.message || '购买失败', 'err');
+      DSHUI.toast(e.message || 'Purchase failed', 'err');
       if (state) updatePreview(state.theme);
     }
   }
