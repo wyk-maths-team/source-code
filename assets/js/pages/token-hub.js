@@ -18,19 +18,8 @@
     mono:      { name: 'Mono',      dark: true,  bg: 'linear-gradient(135deg, #111111 0%, #333333 100%)', color: '#f5f5f5' }
   };
 
-  // 把主题应用到整站：暗色主题会让所有页面进入 data-theme 暗色模式
-  function applySiteTheme(key) {
-    const theme = THEMES[key] || THEMES.default;
-    // scifi 有自己的一套变量，保持原样；其余暗色主题统一走 dark
-    const ui = theme.dark ? (key === 'scifi' ? 'scifi' : 'dark') : 'light';
-    try {
-      localStorage.setItem('theme', ui);
-      localStorage.setItem('profileTheme', key);
-    } catch (e) { /* 隐身模式等 */ }
-
-    if (ui === 'light') document.documentElement.removeAttribute('data-theme');
-    else document.documentElement.setAttribute('data-theme', ui);
-  }
+  // 注意：主题只作用于个人主页（/users/<username>），
+  // 不会写 localStorage.theme，也不会影响整站配色。
 
   let state = null;
   let busy = false;        // Claiming in progress — block double-clicks
@@ -92,8 +81,6 @@
     renderStreak();
     renderThemes();
     updatePreview(res.theme);
-    // 暗色主题顺带把整站切到暗色，题目列表的小方块不再刺眼
-    applySiteTheme(res.theme);
   }
 
   // ── Top summary ──
@@ -278,7 +265,7 @@
 
         updatePreview(themeKey);
         const darkNote = THEMES[themeKey].dark
-          ? '\n\nThis is a dark theme — the whole site will switch to dark mode.'
+          ? '\n\nThis is a dark theme — your profile page will render in dark mode.'
           : '';
         if (confirm('Apply "' + THEMES[themeKey].name + '" theme for 300,000 tokens?' + darkNote)) {
           buyTheme(themeKey);
@@ -306,7 +293,6 @@
       const res = await API.post('/api/token-hub', { action: 'buy_theme', theme: themeKey });
       if (!res.success) throw new Error(res.message || 'Purchase failed');
       DSHUI.toast(res.message, 'ok');
-      applySiteTheme(themeKey);
       await loadData({ silent: true });
     } catch (e) {
       DSHUI.toast(e.message || 'Purchase failed', 'err');

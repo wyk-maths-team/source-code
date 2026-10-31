@@ -187,12 +187,25 @@
         }
       }
 
+      // 这些主题背景偏暗，个人主页临时切到暗色 UI，白色小方块才不会刺眼。
+      // 只改当前页面，不写 localStorage —— 离开页面（整页跳转）就自动恢复。
+      const DARK_PROFILE_THEMES = new Set(['cyberpunk', 'matrix', 'scifi', 'midnight', 'nord', 'mono']);
+
+      function applyProfileTheme(theme) {
+        const key = String(theme || 'default');
+        if (!DARK_PROFILE_THEMES.has(key)) return;   // 浅色主题不强制，尊重访客自己的设置
+        document.documentElement.setAttribute('data-theme', key === 'scifi' ? 'scifi' : 'dark');
+      }
+
       function renderProfile(data) {
                 const {
           username, displayName, realName, totalPassed, totalProblems,
           attempted, allProblemIds, pfp,
           totalOnlineMs, lastSeenAt,theme
         } = data;
+
+        // 按被查看用户的主题，临时套一层暗色
+        applyProfileTheme(theme);
 
         const currentUser = getCurrentUser() || {};
         const isAdmin = currentUser.role === 'admin' || currentUser.role === 'root';
