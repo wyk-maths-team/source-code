@@ -186,6 +186,18 @@
               </small>
             </div>
             <div class="form-group">
+              <style>
+                .hint-row { border: 1px solid var(--border-color); border-radius: 8px; padding: .75rem; background: var(--card-bg); display: flex; flex-direction: column; gap: .5rem; }
+                .hint-row-head { display: flex; justify-content: space-between; align-items: center; }
+                .hint-row-title { font-weight: 600; font-size: .85rem; color: var(--text-primary); }
+                .hint-row-remove { background: transparent; border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); cursor: pointer; padding: 2px 9px; line-height: 1.2; }
+                .hint-row-remove:hover { color: var(--danger); border-color: var(--danger); }
+                .hint-content-input { width: 100%; min-height: 80px; resize: vertical; padding: .6rem .7rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-color); color: var(--text-primary); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .86rem; line-height: 1.55; box-sizing: border-box; }
+                .hint-content-input:focus { outline: none; border-color: #3498db; box-shadow: 0 0 0 2px rgba(52,152,219,.15); }
+                .hint-price-wrap { display: flex; align-items: center; gap: .45rem; font-size: .82rem; color: var(--text-secondary); }
+                .hint-price-input { width: 110px; flex: 0 0 110px; padding: .35rem .5rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-color); color: var(--text-primary); }
+                .hint-price-input:focus { outline: none; border-color: #3498db; }
+              </style>
               <label>Hints (optional, shown under the statement; students pay tokens to unlock)</label>
               <div id="hintsEditor" style="display:flex;flex-direction:column;gap:8px;"></div>
               <button type="button" id="addHintBtn" class="btn btn-secondary" style="margin-top:8px;">+ Add hint</button>
@@ -216,14 +228,18 @@
           const row = document.createElement('div');
           row.className = 'hint-row';
           row.dataset.hid = 'h' + seq;
-          row.style.cssText = 'display:flex;gap:8px;align-items:flex-start;border:1px solid var(--border-color);border-radius:6px;padding:8px;';
           row.innerHTML =
-            '<textarea class="hint-content-input" rows="2" placeholder="Hint text (LaTeX supported)" ' +
-              'style="flex:1;min-height:44px;font-family:ui-monospace,Menlo,monospace;"></textarea>' +
-            '<input type="number" min="0" step="1000" class="hint-price-input" placeholder="price" value="0" ' +
-              'style="width:110px;" title="Price in tokens">' +
-            '<button type="button" class="btn btn-danger hint-remove" title="Remove this hint">✕</button>';
-          row.querySelector('.hint-remove').addEventListener('click', () => row.remove());
+            '<div class="hint-row-head">' +
+              '<span class="hint-row-title">Hint ' + seq + '</span>' +
+              '<button type="button" class="hint-row-remove" title="Remove this hint">✕</button>' +
+            '</div>' +
+            '<textarea class="hint-content-input" rows="3" ' +
+              'placeholder="Hint text — LaTeX with $...$ supported. Shown to students only after they unlock it."></textarea>' +
+            '<div class="hint-price-wrap">Price ' +
+              '<input type="number" min="0" step="1000" class="hint-price-input" value="0">' +
+              'tokens <span style="font-size:.75rem;">(0 = free)</span>' +
+            '</div>';
+          row.querySelector('.hint-row-remove').addEventListener('click', () => row.remove());
           hintsEditor.appendChild(row);
         }
         document.getElementById('addHintBtn').addEventListener('click', addRow);

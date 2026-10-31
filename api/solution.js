@@ -47,9 +47,10 @@ async function charge(db, username, amount, label) {
   return { ok: true, tokens: { daily: res.token.daily, global: res.token.global } };
 }
 
-async function listSolutions(db, problemId, username) {
+async function listSolutions(db, problemId, username, { includeHidden = false } = {}) {
+  const filter = includeHidden ? { problemId } : { problemId, hidden: { $ne: true } };
   const rows = await db.collection('solutions')
-    .find({ problemId })
+    .find(filter)
     .sort({ likes: -1, createdAt: -1 })
     .limit(PAGE_SIZE)
     .toArray();
@@ -81,6 +82,7 @@ async function listSolutions(db, problemId, username) {
     createdAt: r.createdAt,
     liked: liked.has(String(r._id)),
     mine: r.username === username,
+    hidden: r.hidden === true,
   }));
 }
 
@@ -104,11 +106,13 @@ async function handler(req, res) {
         return res.status(403).json({ success: false, message: 'Solve this problem first to view solutions' });
       }
 
-      const solutions = await listSolutions(db, problemId, username);
+      // 管理员可以看到被隐藏的题解（方便恢复）
+      const solutions = await listSolutions(db, problemId, username, { includeHidden: isAdmin(user) });
       return res.status(200).json({
         success: true,
         solutions,
         solved: true,
+        isAdmin: isAdmin(user),
         postCost: POST_COST,
         likeReward: LIKE_REWARD,
         canPost: !isAdmin(user) || true,
@@ -120,6 +124,28 @@ async function handler(req, res) {
     }
 
     const body = req.body || {};
+
+    // ── 隐藏 / 恢复（管理员）──
+    if (body.action === 'hide') {
+      if (!isAdmin(user)) return res.status(403).json({ success: false, message: 'Admin only' });
+
+      let oid;
+      try { oid = new ObjectId(String(body.solutionId || '')); }
+      catch { return res.status(400).json({ success: false, message: 'Bad solution id' }); }
+
+      const hidden = body.hidden === true || body.hidden === 'true';
+      const upd = await db.collection('solutions').updateOne(
+        { _id: oid },
+        { $set: { hidden, hiddenAt: new Date(), hiddenBy: username } }
+      );
+      if (!upd.matchedCount) return res.status(404).json({ success: false, message: 'Solution not found' });
+
+      return res.status(200).json({
+        success: true,
+        hidden,
+        message: hidden ? 'Solution hidden' : 'Solution restored',
+      });
+    }
 
     // ── 点赞（不可取消）──
     if (body.action === 'like') {

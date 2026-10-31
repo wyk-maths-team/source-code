@@ -217,6 +217,80 @@
       }
     }
 
+    // ══════════ 題解管理 ══════════
+    async function loadAdminSolutions() {
+      const box = document.getElementById('solutionListAdmin');
+      if (!box) return;
+      box.innerHTML = '<p style="color:var(--text-secondary);">Loading solutions…</p>';
+      try {
+        const data = await apiCall('/api/solution?problemId=' + encodeURIComponent(problemId));
+        if (!data.success) throw new Error(data.message || 'load failed');
+        renderSolutionList(box, data.solutions || []);
+      } catch (err) {
+        box.innerHTML = '<p style="color:var(--danger);">Failed to load solutions: ' + escapeHtml(err.message) + '</p>';
+      }
+    }
+
+    function solutionPreview(content) {
+      const text = String(content || '')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      return text.length > 280 ? text.slice(0, 280) + '…' : text;
+    }
+
+    function renderSolutionList(box, list) {
+      if (!box) return;
+      if (!list.length) {
+        box.innerHTML = '<p style="color:var(--text-secondary);">No solutions yet.</p>';
+        return;
+      }
+
+      box.innerHTML = list.map((s) => {
+        const when = new Date(s.createdAt).toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong' });
+        return '<div class="sol-admin-row' + (s.hidden ? ' is-hidden' : '') + '" data-id="' + escapeHtml(s._id) + '">' +
+            '<div class="sol-admin-head">' +
+              '<div>' +
+                '<strong><a href="/users/' + encodeURIComponent(s.username) + '" target="_blank" rel="noopener">' + escapeHtml(s.username) + '</a></strong>' +
+                '<span class="sol-admin-meta">' + escapeHtml(when) + '</span>' +
+                '<span class="sol-admin-likes"><i class="fas fa-heart"></i> ' + (s.likes || 0) + '</span>' +
+                (s.hidden ? '<span class="sol-admin-badge">HIDDEN</span>' : '') +
+              '</div>' +
+              '<button class="btn ' + (s.hidden ? 'btn-primary' : 'btn-danger') + ' btn-sm sol-toggle-btn" data-hidden="' + (s.hidden ? '1' : '0') + '">' +
+                '<i class="fas ' + (s.hidden ? 'fa-eye' : 'fa-eye-slash') + '"></i> ' + (s.hidden ? 'Restore' : 'Hide') +
+              '</button>' +
+            '</div>' +
+            '<div class="sol-admin-body">' + escapeHtml(solutionPreview(s.content)) + '</div>' +
+          '</div>';
+      }).join('');
+
+      box.querySelectorAll('.sol-toggle-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const row = btn.closest('.sol-admin-row');
+          if (!row) return;
+          const nextHidden = btn.dataset.hidden !== '1';
+          btn.disabled = true;
+          const old = btn.innerHTML;
+          btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+          try {
+            const res = await apiCall('/api/solution', 'POST', {
+              action: 'hide',
+              solutionId: row.dataset.id,
+              hidden: nextHidden,
+            });
+            if (!res.success) throw new Error(res.message || 'failed');
+            await loadAdminSolutions();
+          } catch (err) {
+            alert(err.message || '操作失敗');
+            btn.disabled = false;
+            btn.innerHTML = old;
+          }
+        });
+      });
+    }
+
     function initCodeEditor(textarea, lineNumbersDiv, highlightPre, toolbar) {
       if (!textarea) return;
       updateLineNumbers(textarea, lineNumbersDiv); updateHighlight(textarea, highlightPre);
@@ -439,6 +513,34 @@
               <a href="/problems/${encodeURIComponent(problemId)}" class="btn btn-secondary" style="margin-left:0.5rem;" title="View as student">👁️</a>
             </div>
           </form>
+          <div id="solutionManage" style="margin-top:2rem; border-top:1px solid var(--border-color); padding-top:1rem;">
+            <style>
+              .sol-admin-row { border: 1px solid var(--border-color); border-radius: 8px; padding: .75rem; margin-bottom: .6rem; background: var(--card-bg); }
+              .sol-admin-row.is-hidden { opacity: .65; border-style: dashed; background: var(--bg-color); }
+              .sol-admin-head { display: flex; justify-content: space-between; align-items: center; gap: .75rem; flex-wrap: wrap; }
+              .sol-admin-meta { color: var(--text-secondary); font-size: .82rem; margin-left: .5rem; }
+              .sol-admin-likes { color: #e74c3c; margin-left: .5rem; font-size: .85rem; }
+              .sol-admin-badge { background: #e74c3c; color: #fff; font-size: .68rem; padding: 1px 7px; border-radius: 999px; margin-left: .5rem; letter-spacing: .04em; }
+              .sol-admin-body { margin: .55rem 0 0; font-size: .88rem; line-height: 1.55; white-space: pre-wrap; word-break: break-word; color: var(--text-secondary); max-height: 9rem; overflow: auto; }
+
+              /* Hints 編輯器 */
+              .hint-row { border: 1px solid var(--border-color); border-radius: 8px; padding: .75rem; background: var(--card-bg); display: flex; flex-direction: column; gap: .5rem; }
+              .hint-row-head { display: flex; justify-content: space-between; align-items: center; }
+              .hint-row-title { font-weight: 600; font-size: .85rem; color: var(--text-primary); }
+              .hint-row-remove { background: transparent; border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); cursor: pointer; padding: 2px 9px; line-height: 1.2; }
+              .hint-row-remove:hover { color: var(--danger); border-color: var(--danger); }
+              .hint-content-input { width: 100%; min-height: 80px; resize: vertical; padding: .6rem .7rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-color); color: var(--text-primary); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .86rem; line-height: 1.55; box-sizing: border-box; }
+              .hint-content-input:focus { outline: none; border-color: #3498db; box-shadow: 0 0 0 2px rgba(52,152,219,.15); }
+              .hint-price-wrap { display: flex; align-items: center; gap: .45rem; font-size: .82rem; color: var(--text-secondary); }
+              .hint-price-input { width: 110px; flex: 0 0 110px; padding: .35rem .5rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-color); color: var(--text-primary); }
+              .hint-price-input:focus { outline: none; border-color: #3498db; }
+            </style>
+            <h3 style="margin-top:0;">Manage Solutions</h3>
+            <p style="color: var(--text-secondary); font-size: .85rem; margin-top: -.4rem;">
+              Hiding removes a solution from students without deleting it. Likes already settled stay with the author.
+            </p>
+            <div id="solutionListAdmin"><p style="color: var(--text-secondary);">Loading solutions…</p></div>
+          </div>
           <div id="discussionManage" style="margin-top:2rem; border-top:1px solid var(--border-color); padding-top:1rem;">
             <h3>Manage Discussions</h3>
             <div id="discussionListAdmin"></div>
@@ -465,14 +567,19 @@
         const row = document.createElement('div');
         row.className = 'hint-row';
         row.dataset.hid = hint.id || ('h' + hintSeq);
-        row.style.cssText = 'display:flex;gap:8px;align-items:flex-start;border:1px solid var(--border-color);border-radius:6px;padding:8px;';
         row.innerHTML =
-          '<textarea class="hint-content-input" rows="2" placeholder="Hint text (LaTeX supported)" ' +
-            'style="flex:1;min-height:44px;font-family:ui-monospace,Menlo,monospace;">' + escapeHtml(hint.content || '') + '</textarea>' +
-          '<input type="number" min="0" step="1000" class="hint-price-input" placeholder="price" ' +
-            'value="' + (Number(hint.price) || 0) + '" style="width:110px;" title="Price in tokens">' +
-          '<button type="button" class="btn btn-danger hint-remove" title="Remove this hint">✕</button>';
-        row.querySelector('.hint-remove').addEventListener('click', () => row.remove());
+          '<div class="hint-row-head">' +
+            '<span class="hint-row-title">Hint ' + hintSeq + '</span>' +
+            '<button type="button" class="hint-row-remove" title="Remove this hint">✕</button>' +
+          '</div>' +
+          '<textarea class="hint-content-input" rows="3" ' +
+            'placeholder="Hint text — LaTeX with $...$ supported. Shown to students only after they unlock it.">' +
+            escapeHtml(hint.content || '') + '</textarea>' +
+          '<div class="hint-price-wrap">Price ' +
+            '<input type="number" min="0" step="1000" class="hint-price-input" value="' + (Number(hint.price) || 0) + '">' +
+            'tokens <span style="font-size:.75rem;">(0 = free)</span>' +
+          '</div>';
+        row.querySelector('.hint-row-remove').addEventListener('click', () => row.remove());
         hintsEditor.appendChild(row);
       }
       (Array.isArray(problem.hints) ? problem.hints : []).forEach(addHintRow);
@@ -487,6 +594,9 @@
       })();
       // 首次渲染討論（用 adminEditProblem 帶回的資料，不再打第二次 API）
       renderDiscussionList(document.getElementById('discussionListAdmin'), discussions);
+
+      // ---- 題解管理 ----
+      loadAdminSolutions();
 
       // 圖片上傳
       (function initImageUpload() {
