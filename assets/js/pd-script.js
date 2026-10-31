@@ -301,6 +301,15 @@
     const state = opts.state || 'not_started';
     const isFav = !!opts.favorited;
 
+    // 题解栏：AC 过才看得到（管理员也放行，方便审阅）
+    const canSeeSolutions = (() => {
+      if (opts.state === 'passed') return true;
+      try {
+        const u = typeof window.getCurrentUser === 'function' ? window.getCurrentUser() : null;
+        return !!u && (u.role === 'admin' || u.role === 'root');
+      } catch (e) { return false; }
+    })();
+
     // 命中快取時，用戶狀態未知 → 先按 not_started / 未收藏渲染
     const starClass = isFav ? 'fas fa-star' : 'far fa-star';
     const starColor = isFav ? '#f1c40f' : '#aaa';
@@ -347,7 +356,7 @@
                 <button type="button" class="wb-tab" data-mode="steps" role="tab" title="Steps (AI grading)">
                   <i class="fas fa-wand-magic-sparkles"></i><br>AI
                 </button>
-                ${opts.state === 'passed' ? `<button type="button" class="wb-tab" data-mode="solution" role="tab" title="Solutions">
+                ${canSeeSolutions ? `<button type="button" class="wb-tab" data-mode="solution" role="tab" title="Solutions">
                   <i class="fas fa-book-open"></i><br>Solution
                 </button>` : ''}
               </div>
