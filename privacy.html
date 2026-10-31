@@ -10,62 +10,82 @@
 }catch(e){}})();</script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-<!-- content="false" 表示公开页（不需要登录）；null/true 则沿用 auth.js 的白名单判断 -->
 <meta name="requires-auth" content="false" />
 <title>Privacy Policy - WYK Maths Team</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-<link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
 
 <link rel="stylesheet" href="/assets/css/styles.css?v=39ed8638" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 
-<!-- ═══ core：统一错误提示 / 请求封装 / 页面启动器 ═══ -->
-<!-- 顺序不能变：ui -> net -> api -> page -->
 <script src="/assets/js/core/ui.js?v=39ed8638"></script>
 <script src="/assets/js/core/net.js?v=39ed8638"></script>
 <script src="/assets/js/core/api.js?v=39ed8638"></script>
 <script src="/assets/js/core/page.js?v=39ed8638"></script>
 
-<!-- PWA（必须静态写入 head，不能靠 JS 注入） -->
+<!-- PWA -->
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#1a1a2e">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="WYK Maths">
 <meta name="mobile-web-app-capable" content="yes">
 <style>
   .legal-doc {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 40px 20px;
-  line-height: 1.7;
-  color: var(--text-primary, #333);
-}
-.legal-doc h1 {
-  border-bottom: 2px solid var(--border-color, #ddd);
-  padding-bottom: 10px;
-  margin-bottom: 24px;
-}
-.legal-doc h2 {
-  margin-top: 32px;
-  margin-bottom: 16px;
-  font-size: 1.25rem;
-}
-.legal-doc ul {
-  padding-left: 20px;
-  margin-bottom: 16px;
-}
-.legal-doc li {
-  margin-bottom: 10px;
-}
-.legal-doc b {
-  color: var(--danger, #d93025); /* 把所有重要警告标成红色 */
-}
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    line-height: 1.7;
+    color: var(--text-primary, #333);
+  }
+  .legal-doc h1 {
+    border-bottom: 2px solid var(--border-color, #ddd);
+    padding-bottom: 10px;
+    margin-bottom: 24px;
+  }
+  .legal-doc h2 {
+    margin-top: 32px;
+    margin-bottom: 16px;
+    font-size: 1.25rem;
+  }
+  .legal-doc ul {
+    padding-left: 20px;
+    margin-bottom: 16px;
+  }
+  .legal-doc li {
+    margin-bottom: 10px;
+  }
+  .legal-doc b {
+    color: var(--danger, #d93025); /* 重要警告标红 */
+  }
+
+  /* ⭐ 多语言切换器 */
+  .lang-switcher {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 24px;
+    justify-content: flex-end;
+  }
+  .lang-btn {
+    background: var(--c-surface-muted, #f0f0f0);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+  }
+  .lang-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .lang-btn.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .lang-content { display: none; }
 </style>
 </head>
 <body class="index-body">
@@ -75,45 +95,112 @@
 
     <main class="main-content" id="mainContent">
       <div class="legal-doc">
-  <h1>Privacy Policy</h1>
-  <p><em><b>Last Updated:</b> October 31, 2026</em></p>
-  <p>This Privacy Policy explains how the WYK Maths Team platform ("we", "us", or "our") collects, uses, and discloses your information when you use our service.</p>
+        <div class="lang-switcher">
+          <button class="lang-btn active" id="btn-en" onclick="switchLang('en')">English</button>
+          <button class="lang-btn" id="btn-zh-Hant" onclick="switchLang('zh-Hant')">繁體中文</button>
+          <button class="lang-btn" id="btn-zh-Hans" onclick="switchLang('zh-Hans')">简体中文</button>
+        </div>
 
-  <h2>1. Information We Collect</h2>
-  <ul>
-    <li><b>1.1 Authentication Data:</b> We collect your school email address, username, and Microsoft OAuth details upon login.</li>
-    <li><b>1.2 Academic Data:</b> We collect and store your problem submissions, code, uploaded images, and AI grading feedback.</li>
-    <li><b>1.3 Usage Data:</b> We monitor system interactions (such as heartbeat timestamps and IP addresses) to maintain server security and manage traffic.</li>
-  </ul>
+        <!-- ═══════════ English ═══════════ -->
+        <div id="content-en" class="lang-content">
+          <h1>Privacy Policy</h1>
+          <p><em><b>Last Updated:</b> October 31, 2026</em></p>
+          <p>This Privacy Policy explains how the WYK Maths Team platform ("we", "us", or "our") collects, uses, and discloses your information when you use our service.</p>
+          <h2>1. Information We Collect</h2>
+          <ul>
+            <li><b>1.1 Authentication Data:</b> We collect your school email address, username, and Microsoft OAuth details upon login.</li>
+            <li><b>1.2 Academic Data:</b> We collect and store your problem submissions, code, uploaded images, and AI grading feedback.</li>
+            <li><b>1.3 Usage Data:</b> We monitor system interactions (such as heartbeat timestamps and IP addresses) to maintain server security and manage traffic.</li>
+          </ul>
+          <h2>2. Public Visibility of Information (CRITICAL)</h2>
+          <ul>
+            <li><b>2.1 Real Names and Identifiers:</b> By registering and using the Platform, you acknowledge and agree that <b>your Real Name (extracted from the Microsoft OAuth profile) and Username will be visible to all other logged-in users</b> across the Platform, including but not limited to Leaderboards, Submission History, and Public Profiles.</li>
+            <li><b>2.2 Public Submissions:</b> All your code and problem submissions are publicly viewable by <b>all administrators</b> and <b>users who have already passed the problem</b>. If you are not the first to solve a problem, your code may be visible to others after you have passed the problem.</li>
+          </ul>
+          <h2>3. How We Use Your Information</h2>
+          <ul>
+            <li><b>3.1</b> We use your data to provide, maintain, and improve the Platform (e.g., calculating ratings, organizing contests, and enabling AI grading).</li>
+            <li><b>3.2</b> We use usage data (such as IP addresses and timestamps) strictly for security, auditing, and preventing abuse (e.g., preventing DDoS attacks or alt-account farming).</li>
+          </ul>
+          <h2>4. Data Sharing and Disclosure</h2>
+          <ul>
+            <li><b>4.1 No Commercial Sale:</b> We do <b>NOT</b> sell, rent, or trade your personal information to any third parties.</li>
+            <li><b>4.2 Third-Party Services:</b> We use Microsoft for authentication, MongoDB for data storage, and DeepSeek/Anthropic APIs for AI grading. Your data is processed by these services solely for functional purposes.</li>
+          </ul>
+          <h2>5. Data Security</h2>
+          <p>We implement reasonable security measures (including access controls and encrypted credentials) to protect your data. However, as a student-run open-source project, we cannot guarantee absolute security against all cyber threats.</p>
+          <h2>6. Your Rights</h2>
+          <p>If you wish to have your account deleted or your data removed from the public-facing parts of the Platform, please contact the Platform administrators. Note that deleting your account will result in the permanent loss of all Tokens, submissions, and achievements.</p>
+        </div>
 
-  <h2>2. Public Visibility of Information (CRITICAL)</h2>
-  <ul>
-    <li><b>2.1 Real Names and Identifiers:</b> By registering and using the Platform, you acknowledge and agree that <b>your Real Name (extracted from the Microsoft OAuth profile) and Username will be visible to all other logged-in users</b> across the Platform, including but not limited to Leaderboards, Submission History, and Public Profiles.</li>
-    <li><b>2.2 Public Submissions:</b> All your code and problem submissions are publicly viewable by all authenticated users of the Platform. If you are not the first to solve a problem, your code may be visible to others after you have passed the problem.</li>
-  </ul>
+        <!-- ═══════════ 繁體中文 ═══════════ -->
+        <div id="content-zh-Hant" class="lang-content">
+          <h1>隱私政策</h1>
+          <p><em><b>最後更新：</b>2026年10月31日</em></p>
+          <p>本隱私政策說明了 WYK 數學隊平台（以下簡稱「我們」）在您使用我們的服務時，如何收集、使用和揭露您的資訊。</p>
+          <h2>1. 我們收集的資訊</h2>
+          <ul>
+            <li><b>1.1 身份驗證數據：</b>我們在登入時收集您的學校電子郵件地址、用戶名和 Microsoft OAuth 詳細資訊。</li>
+            <li><b>1.2 學術數據：</b>我們收集並儲存您的題目提交、程式碼、上傳的圖片以及 AI 評分反饋。</li>
+            <li><b>1.3 使用數據：</b>我們監控系統互動（如心跳時間戳和 IP 地址），以維護伺服器安全並管理流量。</li>
+          </ul>
+          <h2>2. 資訊的公開可見性（重要）</h2>
+          <ul>
+            <li><b>2.1 真實姓名與識別符：</b>透過註冊並使用本平台，您承認並同意<b>您的真實姓名（從 Microsoft OAuth 個人資料中擷取）和用戶名將對所有其他已登入的用戶可見</b>，包括但不限於排行榜、提交歷史記錄和公開個人資料。</li>
+            <li><b>2.2 公開提交內容：</b>您的所有程式碼及題目提交紀錄，將對<b>所有管理員</b>以及<b>已經通過該題的學生</b>公開。如果您不是第一個解出該題的人，您的程式碼可能會在您通過該題後被其他人看到。</li>
+          </ul>
+          <h2>3. 我們如何使用您的資訊</h2>
+          <ul>
+            <li><b>3.1</b> 我們使用您的數據來提供、維護和改進本平台（例如計算評分、組織競賽和啟用 AI 評分）。</li>
+            <li><b>3.2</b> 我們嚴格將使用數據（如 IP 地址和時間戳）用於安全、審計和防止濫用（例如防止 DDoS 攻擊或小號刷幣）。</li>
+          </ul>
+          <h2>4. 數據共享與揭露</h2>
+          <ul>
+            <li><b>4.1 無商業販售：</b>我們不會出售、出租或交易您的個人資訊給任何第三方。</li>
+            <li><b>4.2 第三方服務：</b>我們使用 Microsoft 進行身份驗證，MongoDB 進行數據儲存，以及 DeepSeek/Anthropic API 進行 AI 評分。您的數據僅出於功能目的由這些服務處理。</li>
+          </ul>
+          <h2>5. 數據安全</h2>
+          <p>我們實施合理的安全措施（包括存取控制和加密憑證）來保護您的數據。然而，作為一個由學生營運的開源專案，我們無法保證能抵禦所有網路威脅的絕對安全。</p>
+          <h2>6. 您的權利</h2>
+          <p>如果您希望刪除您的帳戶或從平台的公開部分移除您的數據，請聯繫平台管理員。請注意，刪除帳戶將導致所有代幣、提交和成就永久丟失。</p>
+        </div>
 
-  <h2>3. How We Use Your Information</h2>
-  <ul>
-    <li><b>3.1</b> We use your data to provide, maintain, and improve the Platform (e.g., calculating ratings, organizing contests, and enabling AI grading).</li>
-    <li><b>3.2</b> We use usage data (such as IP addresses and timestamps) strictly for security, auditing, and preventing abuse (e.g., preventing DDoS attacks or alt-account farming).</li>
-  </ul>
+        <!-- ═══════════ 简体中文 ═══════════ -->
+        <div id="content-zh-Hans" class="lang-content">
+          <h1>隐私政策</h1>
+          <p><em><b>最后更新：</b>2026年10月31日</em></p>
+          <p>本隐私政策说明了 WYK 数学队平台（以下简称“我们”）在您使用我们的服务时，如何收集、使用和揭露您的信息。</p>
+          <h2>1. 我们收集的信息</h2>
+          <ul>
+            <li><b>1.1 身份验证数据：</b>我们在登录时收集您的学校电子邮件地址、用户名和 Microsoft OAuth 详细信息。</li>
+            <li><b>1.2 学术数据：</b>我们收集并储存您的题目提交、代码、上传的图片以及 AI 评分反馈。</li>
+            <li><b>1.3 使用数据：</b>我们监控系统交互（如心跳时间戳和 IP 地址），以维护服务器安全并管理流量。</li>
+          </ul>
+          <h2>2. 信息的公开可见性（重要）</h2>
+          <ul>
+            <li><b>2.1 真实姓名与识别符：</b>通过注册并使用本平台，您承认并同意<b>您的真实姓名（从 Microsoft OAuth 个人资料中提取）和用户名将对所有其他已登录的用户可见</b>，包括但不限于排行榜、提交历史记录和公开个人资料。</li>
+            <li><b>2.2 公开提交内容：</b>您的所有代码及题目提交记录，将对<b>所有管理员</b>以及<b>已经通过该题的学生</b>公开。如果您不是第一个解出该题的人，您的代码可能会在您通过该题后被其他人看到。</li>
+          </ul>
+          <h2>3. 我们如何使用您的信息</h2>
+          <ul>
+            <li><b>3.1</b> 我们使用您的数据来提供、维护和改进本平台（例如计算评分、组织竞赛和启用 AI 评分）。</li>
+            <li><b>3.2</b> 我们严格将使用数据（如 IP 地址和时间戳）用于安全、审计和防止滥用（例如防止 DDoS 攻击或小号刷币）。</li>
+          </ul>
+          <h2>4. 数据共享与揭露</h2>
+          <ul>
+            <li><b>4.1 无商业贩卖：</b>我们不会出售、出租或交易您的个人信息给任何第三方。</li>
+            <li><b>4.2 第三方服务：</b>我们使用 Microsoft 进行身份验证，MongoDB 进行数据储存，以及 DeepSeek/Anthropic API 进行 AI 评分。您的数据仅出于功能目的由这些服务处理。</li>
+          </ul>
+          <h2>5. 数据安全</h2>
+          <p>我们实施合理的安全措施（包括访问控制和加密凭证）来保护您的数据。然而，作为一个由学生运营的开源项目，我们无法保证能抵御所有网络威胁的绝对安全。</p>
+          <h2>6. 您的权利</h2>
+          <p>如果您希望删除您的账户或从平台的公开部分移除您的数据，请联系平台管理员。请注意，删除账户将导致所有代币、提交和成就永久丢失。</p>
+        </div>
 
-  <h2>4. Data Sharing and Disclosure</h2>
-  <ul>
-    <li><b>4.1 No Commercial Sale:</b> We do <b>NOT</b> sell, rent, or trade your personal information to any third parties.</li>
-    <li><b>4.2 Third-Party Services:</b> We use Microsoft for authentication, MongoDB for data storage, and DeepSeek/Anthropic APIs for AI grading. Your data is processed by these services solely for functional purposes.</li>
-  </ul>
-
-  <h2>5. Data Security</h2>
-  <p>We implement reasonable security measures (including access controls and encrypted credentials) to protect your data. However, as a student-run open-source project, we cannot guarantee absolute security against all cyber threats.</p>
-
-  <h2>6. Your Rights</h2>
-  <p>If you wish to have your account deleted or your data removed from the public-facing parts of the Platform, please contact the Platform administrators. Note that deleting your account will result in the permanent loss of all Tokens, submissions, and achievements.</p>
-</div>
+      </div>
     </main>
   </div>
 
-  <!-- ═══ 共享脚本 ═══ -->
   <script src="/assets/js/auth.js?v=39ed8638"></script>
   <script src="/assets/js/app.js?v=39ed8638"></script>
   <script src="/assets/js/topbar.js?v=39ed8638"></script>
@@ -121,7 +208,23 @@
   <script src="/assets/js/heartbeat.js?v=39ed8638"></script>
   <script src="/assets/js/pk-invite.js?v=39ed8638"></script>
 
-  <!-- ═══ 本页脚本 ═══ -->
-  <script src="{{PAGE_JS}}"></script>
+  <script>
+    function switchLang(lang) {
+      document.querySelectorAll('.lang-content').forEach(el => el.style.display = 'none');
+      document.getElementById('content-' + lang).style.display = 'block';
+      
+      document.querySelectorAll('.lang-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById('btn-' + lang).classList.add('active');
+      
+      try { localStorage.setItem('legal_lang', lang); } catch(e) {}
+    }
+
+    // 初始化语言
+    (function() {
+      let saved = 'en';
+      try { saved = localStorage.getItem('legal_lang') || 'en'; } catch(e) {}
+      switchLang(saved);
+    })();
+  </script>
 </body>
 </html>

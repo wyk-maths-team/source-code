@@ -10,62 +10,82 @@
 }catch(e){}})();</script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-<!-- content="false" 表示公开页（不需要登录）；null/true 则沿用 auth.js 的白名单判断 -->
 <meta name="requires-auth" content="false" />
 <title>Terms - WYK Maths Team</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-<link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
 
 <link rel="stylesheet" href="/assets/css/styles.css?v=39ed8638" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 
-<!-- ═══ core：统一错误提示 / 请求封装 / 页面启动器 ═══ -->
-<!-- 顺序不能变：ui -> net -> api -> page -->
 <script src="/assets/js/core/ui.js?v=39ed8638"></script>
 <script src="/assets/js/core/net.js?v=39ed8638"></script>
 <script src="/assets/js/core/api.js?v=39ed8638"></script>
 <script src="/assets/js/core/page.js?v=39ed8638"></script>
 
-<!-- PWA（必须静态写入 head，不能靠 JS 注入） -->
+<!-- PWA -->
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#1a1a2e">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="WYK Maths">
 <meta name="mobile-web-app-capable" content="yes">
 <style>
   .legal-doc {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 40px 20px;
-  line-height: 1.7;
-  color: var(--text-primary, #333);
-}
-.legal-doc h1 {
-  border-bottom: 2px solid var(--border-color, #ddd);
-  padding-bottom: 10px;
-  margin-bottom: 24px;
-}
-.legal-doc h2 {
-  margin-top: 32px;
-  margin-bottom: 16px;
-  font-size: 1.25rem;
-}
-.legal-doc ul {
-  padding-left: 20px;
-  margin-bottom: 16px;
-}
-.legal-doc li {
-  margin-bottom: 10px;
-}
-.legal-doc b {
-  color: var(--danger, #d93025); /* 把所有重要警告标成红色 */
-}
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    line-height: 1.7;
+    color: var(--text-primary, #333);
+  }
+  .legal-doc h1 {
+    border-bottom: 2px solid var(--border-color, #ddd);
+    padding-bottom: 10px;
+    margin-bottom: 24px;
+  }
+  .legal-doc h2 {
+    margin-top: 32px;
+    margin-bottom: 16px;
+    font-size: 1.25rem;
+  }
+  .legal-doc ul {
+    padding-left: 20px;
+    margin-bottom: 16px;
+  }
+  .legal-doc li {
+    margin-bottom: 10px;
+  }
+  .legal-doc b {
+    color: var(--danger, #d93025); /* 重要警告标红 */
+  }
+
+  /* ⭐ 多语言切换器 */
+  .lang-switcher {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 24px;
+    justify-content: flex-end;
+  }
+  .lang-btn {
+    background: var(--c-surface-muted, #f0f0f0);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+  }
+  .lang-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .lang-btn.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .lang-content { display: none; }
 </style>
 </head>
 <body class="index-body">
@@ -75,44 +95,109 @@
 
     <main class="main-content" id="mainContent">
       <div class="legal-doc">
-  <h1>Terms of Service</h1>
-  <p><em><b>Last Updated:</b> October 31, 2026</em></p>
-  <p>Welcome to the WYK Maths Team platform ("the Platform"). By accessing or using the Platform, you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, you are strictly prohibited from using the Platform.</p>
+        <div class="lang-switcher">
+          <button class="lang-btn active" id="btn-en" onclick="switchLang('en')">English</button>
+          <button class="lang-btn" id="btn-zh-Hant" onclick="switchLang('zh-Hant')">繁體中文</button>
+          <button class="lang-btn" id="btn-zh-Hans" onclick="switchLang('zh-Hans')">简体中文</button>
+        </div>
 
-  <h2>1. Account Usage and Eligibility</h2>
-  <ul>
-    <li><b>1.1 Eligibility:</b> The Platform is intended exclusively for students and staff of Wah Yan College, Kowloon (WYK).</li>
-    <li><b>1.2 Account Security:</b> You are responsible for maintaining the confidentiality of your account credentials.</li>
-    <li><b>1.3 Strict Prohibition on Account Sharing:</b> Sharing, lending, or transferring your account to any individual outside the authorized institution is <b>strictly prohibited</b>. Any unauthorized access or cross-school account borrowing will result in immediate and permanent account suspension.</li>
-  </ul>
+        <!-- ═══════════ English ═══════════ -->
+        <div id="content-en" class="lang-content">
+          <h1>Terms of Service</h1>
+          <p><em><b>Last Updated:</b> October 31, 2026</em></p>
+          <p>Welcome to the WYK Maths Team platform ("the Platform"). By accessing or using the Platform, you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, you are strictly prohibited from using the Platform.</p>
+          <h2>1. Account Usage and Eligibility</h2>
+          <ul>
+            <li><b>1.1 Eligibility:</b> The Platform is intended exclusively for students and staff of Wah Yan College, Kowloon (WYK).</li>
+            <li><b>1.2 Account Security:</b> You are responsible for maintaining the confidentiality of your account credentials.</li>
+            <li><b>1.3 Strict Prohibition on Account Sharing:</b> Sharing, lending, or transferring your account to any individual outside the authorized institution is <b>strictly prohibited</b>. Any unauthorized access or cross-school account borrowing will result in immediate and permanent account suspension.</li>
+          </ul>
+          <h2>2. Virtual Token System (The "Token Economy")</h2>
+          <ul>
+            <li><b>2.1 No Real-World Value:</b> The virtual tokens ("Tokens") distributed within the Platform are intended solely for gamification and educational engagement. They hold <b>NO</b> real-world monetary value, commercial value, or cash equivalent.</li>
+            <li><b>2.2 Prohibition of Real-Money Trading:</b> You are strictly prohibited from buying, selling, trading, or exchanging Tokens for real currency, goods, or services. Any attempt to link the virtual economy to real-world financial transactions will result in immediate account termination and potential disciplinary action by the school administration.</li>
+            <li><b>2.3 No Gambling:</b> Features involving "stakes" or "bets" (such as PK matches) are strictly for internal skill-based competition. They do not constitute gambling.</li>
+            <li><b>2.4 System Modifications:</b> The Platform administrators reserve the right to adjust Token balances, tax rates, or economic rules at any time without prior notice to maintain system health.</li>
+          </ul>
+          <h2>3. User Content and Conduct</h2>
+          <ul>
+            <li><b>3.1 Platform Abuse:</b> You agree not to exploit, hack, reverse-engineer, or intentionally disrupt the Platform's infrastructure (including but not limited to DoS attacks, exploiting APIs, or bypassing rate limits).</li>
+            <li><b>3.2 Academic Integrity:</b> Any automated scripts, bots, or unauthorized AI tools used to farm Tokens or solve problems without genuine effort are strictly prohibited.</li>
+          </ul>
+          <h2>4. Limitation of Liability</h2>
+          <p>The Platform is provided "as is" and "as available." The developers and administrators of the WYK Maths Team make no warranties regarding uptime, data retention, or the accuracy of AI-generated grading. We are not liable for any data loss, server downtime, or perceived "academic setbacks" resulting from the use of this Platform.</p>
+          <h2>5. Termination</h2>
+          <p>We reserve the right to suspend or terminate your access to the Platform at our sole discretion, without notice, for conduct that we believe violates these Terms or is harmful to other users, the school, or the Platform itself.</p>
+          <h2>6. Amendments</h2>
+          <p>We may update these Terms from time to time. Your continued use of the Platform constitutes acceptance of any modified Terms.</p>
+        </div>
 
-  <h2>2. Virtual Token System (The "Token Economy")</h2>
-  <ul>
-    <li><b>2.1 No Real-World Value:</b> The virtual tokens ("Tokens") distributed within the Platform are intended solely for gamification and educational engagement. They hold <b>NO</b> real-world monetary value, commercial value, or cash equivalent.</li>
-    <li><b>2.2 Prohibition of Real-Money Trading:</b> You are strictly prohibited from buying, selling, trading, or exchanging Tokens for real currency, goods, or services. Any attempt to link the virtual economy to real-world financial transactions will result in immediate account termination and potential disciplinary action by the school administration.</li>
-    <li><b>2.3 No Gambling:</b> Features involving "stakes" or "bets" (such as PK matches) are strictly for internal skill-based competition. They do not constitute gambling.</li>
-    <li><b>2.4 System Modifications:</b> The Platform administrators reserve the right to adjust Token balances, tax rates, or economic rules at any time without prior notice to maintain system health.</li>
-  </ul>
+        <!-- ═══════════ 繁體中文 ═══════════ -->
+        <div id="content-zh-Hant" class="lang-content">
+          <h1>服務條款</h1>
+          <p><em><b>最後更新：</b>2026年10月31日</em></p>
+          <p>歡迎使用 WYK 數學隊平台（以下簡稱「本平台」）。一經訪問或使用本平台，即表示您同意受本服務條款（以下簡稱「條款」）的約束。如果您不同意這些條款，請嚴格禁止使用本平台。</p>
+          <h2>1. 帳戶使用與資格</h2>
+          <ul>
+            <li><b>1.1 資格：</b>本平台專供九龍華仁書院（WYK）的學生及教職員使用。</li>
+            <li><b>1.2 帳戶安全：</b>您有責任維護您帳戶憑證的機密性。</li>
+            <li><b>1.3 嚴格禁止共享帳戶：</b><b>嚴格禁止</b>將您的帳戶共享、借用或轉讓給授權機構以外的任何個人。任何未經授權的訪問或跨校借用帳戶的行為，將導致帳戶被立即且永久停權。</li>
+          </ul>
+          <h2>2. 虛擬代幣系統（「代幣經濟」）</h2>
+          <ul>
+            <li><b>2.1 無現實價值：</b>本平台發行的虛擬代幣（以下簡稱「代幣」）僅用於遊戲化和教育參與。它們不具備任何現實世界的貨幣價值、商業價值或現金等價物。</li>
+            <li><b>2.2 禁止現實金錢交易：</b>嚴格禁止您購買、出售、交易或將代幣兌換為真實貨幣、商品或服務。任何試圖將虛擬經濟與現實金融交易掛鉤的行為，將導致帳戶被立即終止，並可能面臨校方的紀律處分。</li>
+            <li><b>2.3 禁止賭博：</b>涉及「押注」或「賭注」的功能（如 PK 對戰）純屬內部基於技能的競賽，不構成賭博。</li>
+            <li><b>2.4 系統修改：</b>平台管理員保留隨時調整代幣餘額、稅率或經濟規則的權利，以維護系統健康，恕不另行通知。</li>
+          </ul>
+          <h2>3. 用戶內容與行為</h2>
+          <ul>
+            <li><b>3.1 平台濫用：</b>您同意不利用、駭客攻擊、逆向工程或故意破壞平台的基礎設施（包括但不限於 DoS 攻擊、利用 API 漏洞或繞過速率限制）。</li>
+            <li><b>3.2 學術誠信：</b>嚴格禁止使用任何自動化腳本、機器人或未經授權的 AI 工具來刷取代幣或非出於真實努力解題。</li>
+          </ul>
+          <h2>4. 責任限制</h2>
+          <p>本平台按「現狀」和「現有」提供。WYK 數學隊的開發者和管理員不對正常運行時間、數據保留或 AI 生成評分的準確性作任何保證。我們不對因使用本平台而導致的任何數據丟失、伺服器停機或感知到的「學業挫折」負責。</p>
+          <h2>5. 終止</h2>
+          <p>我們保留自行決定暫停或終止您訪問本平台的權利，恕不另行通知，前提是我們認為您的行為違反了這些條款，或對其他用戶、學校或平台本身有害。</p>
+          <h2>6. 修訂</h2>
+          <p>我們可能會不時更新這些條款。您繼續使用本平台即表示接受任何修改後的條款。</p>
+        </div>
 
-  <h2>3. User Content and Conduct</h2>
-  <ul>
-    <li><b>3.1 Platform Abuse:</b> You agree not to exploit, hack, reverse-engineer, or intentionally disrupt the Platform's infrastructure (including but not limited to DoS attacks, exploiting APIs, or bypassing rate limits).</li>
-    <li><b>3.2 Academic Integrity:</b> Any automated scripts, bots, or unauthorized AI tools used to farm Tokens or solve problems without genuine effort are strictly prohibited.</li>
-  </ul>
+        <!-- ═══════════ 简体中文 ═══════════ -->
+        <div id="content-zh-Hans" class="lang-content">
+          <h1>服务条款</h1>
+          <p><em><b>最后更新：</b>2026年10月31日</em></p>
+          <p>欢迎使用 WYK 数学队平台（以下简称“本平台”）。一经访问或使用本平台，即表示您同意受本服务条款（以下简称“条款”）的约束。如果您不同意这些条款，请严格禁止使用本平台。</p>
+          <h2>1. 账户使用与资格</h2>
+          <ul>
+            <li><b>1.1 资格：</b>本平台专供九龙华仁书院（WYK）的学生及教职员使用。</li>
+            <li><b>1.2 账户安全：</b>您有责任维护您账户凭证的机密性。</li>
+            <li><b>1.3 严格禁止共享账户：</b><b>严格禁止</b>将您的账户共享、借用或转让给授权机构以外的任何个人。任何未经授权的访问或跨校借用账户的行为，将导致账户被立即且永久停权。</li>
+          </ul>
+          <h2>2. 虚拟代币系统（“代币经济”）</h2>
+          <ul>
+            <li><b>2.1 无现实价值：</b>本平台发行的虚拟代币（以下简称“代币”）仅用于游戏化和教育参与。它们不具备任何现实世界的货币价值、商业价值或现金等价物。</li>
+            <li><b>2.2 禁止现实金钱交易：</b>严格禁止您购买、出售、交易或将代币兑换为真实货币、商品或服务。任何试图将虚拟经济与现实金融交易挂钩的行为，将导致账户被立即终止，并可能面临校方的纪律处分。</li>
+            <li><b>2.3 禁止赌博：</b>涉及“押注”或“赌注”的功能（如 PK 对战）纯属内部基于技能的竞赛，不构成赌博。</li>
+            <li><b>2.4 系统修改：</b>平台管理员保留随时调整代币余额、税率或经济规则的权利，以维护系统健康，恕不另行通知。</li>
+          </ul>
+          <h2>3. 用户内容与行为</h2>
+          <ul>
+            <li><b>3.1 平台滥用：</b>您同意不利用、黑客攻击、逆向工程或故意破坏平台的基础设施（包括但不限于 DoS 攻击、利用 API 漏洞或绕过速率限制）。</li>
+            <li><b>3.2 学术诚信：</b>严格禁止使用任何自动化脚本、机器人或未经授权的 AI 工具来刷取代币或非出于真实努力解题。</li>
+          </ul>
+          <h2>4. 责任限制</h2>
+          <p>本平台按“现状”和“现有”提供。WYK 数学队的开发者和管理员不对正常运行时间、数据保留或 AI 生成评分的准确性作任何保证。我们不对因使用本平台而导致的任何数据丢失、服务器停机或感知到的“学业挫折”负责。</p>
+          <h2>5. 终止</h2>
+          <p>我们保留自行决定暂停或终止您访问本平台的权利，恕不另行通知，前提是我们认为您的行为违反了这些条款，或其他用户、学校或平台本身有害。</p>
+          <h2>6. 修订</h2>
+          <p>我们可能会不时更新这些条款。您继续使用本平台即表示接受任何修改后的条款。</p>
+        </div>
 
-  <h2>4. Limitation of Liability</h2>
-  <p>The Platform is provided "as is" and "as available." The developers and administrators of the WYK Maths Team make no warranties regarding uptime, data retention, or the accuracy of AI-generated grading. We are not liable for any data loss, server downtime, or perceived "academic setbacks" resulting from the use of this Platform.</p>
-
-  <h2>5. Termination</h2>
-  <p>We reserve the right to suspend or terminate your access to the Platform at our sole discretion, without notice, for conduct that we believe violates these Terms or is harmful to other users, the school, or the Platform itself.</p>
-
-  <h2>6. Amendments</h2>
-  <p>We may update these Terms from time to time. Your continued use of the Platform constitutes acceptance of any modified Terms.</p>
-</div>
+      </div>
     </main>
   </div>
 
-  <!-- ═══ 共享脚本 ═══ -->
   <script src="/assets/js/auth.js?v=39ed8638"></script>
   <script src="/assets/js/app.js?v=39ed8638"></script>
   <script src="/assets/js/topbar.js?v=39ed8638"></script>
@@ -120,7 +205,23 @@
   <script src="/assets/js/heartbeat.js?v=39ed8638"></script>
   <script src="/assets/js/pk-invite.js?v=39ed8638"></script>
 
-  <!-- ═══ 本页脚本 ═══ -->
-  <!-- <script src="{{PAGE_JS}}"></script> -->
+  <script>
+    function switchLang(lang) {
+      document.querySelectorAll('.lang-content').forEach(el => el.style.display = 'none');
+      document.getElementById('content-' + lang).style.display = 'block';
+      
+      document.querySelectorAll('.lang-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById('btn-' + lang).classList.add('active');
+      
+      try { localStorage.setItem('legal_lang', lang); } catch(e) {}
+    }
+
+    // 初始化语言
+    (function() {
+      let saved = 'en';
+      try { saved = localStorage.getItem('legal_lang') || 'en'; } catch(e) {}
+      switchLang(saved);
+    })();
+  </script>
 </body>
 </html>
