@@ -132,6 +132,15 @@
 
     renderMath(document.getElementById('solutionList'));
 
+    // 编辑器一渲染出来就绑好输入监听：不依赖用户点「Write」，
+    // 避免编辑器因为样式原因提前可见、用户直接输字却没人接收。
+    const editorInput = document.getElementById('solInput');
+    if (editorInput) {
+      bindEditor(editorInput);
+      try { editorInput.value = localStorage.getItem('sol_draft_' + problemId) || ''; } catch {}
+      renderPreview(editorInput.value);
+    }
+
     const writeBtn = document.getElementById('solWriteBtn');
     if (writeBtn) writeBtn.addEventListener('click', openEditor);
     const cancelBtn = document.getElementById('solCancelBtn');
@@ -154,7 +163,7 @@
     try { input.value = localStorage.getItem('sol_draft_' + problemId) || ''; } catch {}
     input.focus();
 
-    input.addEventListener('input', onInput);
+    bindEditor(input);
 
     // 保险丝：每 400ms 对一次值。万一 input 事件没挂上（DOM 被重建、浏览器怪癖），
     // 也能保证预览跟着内容走，不会出现「写了字但预览空白」。
@@ -177,6 +186,17 @@
     const editor = document.getElementById('solEditor');
     if (editor) editor.hidden = true;
     if (_editorWatch) { clearInterval(_editorWatch); _editorWatch = null; }
+  }
+
+  // 只绑一次；多事件覆盖（输入法、粘贴、拖放）
+  function bindEditor(input) {
+    if (!input || input.dataset.solBound === '1') return;
+    input.dataset.solBound = '1';
+    input.addEventListener('input', onInput);
+    input.addEventListener('keyup', onInput);
+    input.addEventListener('change', onInput);
+    input.addEventListener('paste', () => setTimeout(onInput, 0));
+    input.addEventListener('drop', () => setTimeout(onInput, 0));
   }
 
   let _previewTimer = null;

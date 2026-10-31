@@ -225,6 +225,8 @@ body.draw-mode-active{touch-action:none}
 .solution-write-btn:hover { background: #2980b9; }
 
 .solution-editor { border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; background: var(--bg-color); display: flex; flex-direction: column; gap: 10px; }
+/* 上面的 display:flex 会盖掉 [hidden] 的 display:none，这里显式补回来 */
+.solution-editor[hidden] { display: none; }
 .solution-input { width: 100%; min-height: 180px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .86rem; line-height: 1.55; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--card-bg); color: var(--text-primary); box-sizing: border-box; }
 .solution-preview-wrap { border: 1px dashed var(--border-color); border-radius: 6px; padding: 10px; }
 .solution-preview-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-secondary); margin-bottom: 6px; }
