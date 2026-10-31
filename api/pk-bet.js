@@ -30,7 +30,7 @@ import { wrapHandler } from '../lib/errors.js';
 import { totalTokens, deductGlobalOnly, refundTokens, addTokens } from '../lib/wallet.js';
 
 const MIN_STAKE = 10000;
-const FEE_RATE = 0.2;                 // 手续费 20%
+const FEE_RATE = 0.01;                 // 手续费 1%
 const DURATION_MS = 30 * 60 * 1000;   // 30 分钟
 const DURATION_SEC = 1800;
 const INVITE_TTL_MS = 10 * 60 * 1000; // 邀请 10 分钟过期
