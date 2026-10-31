@@ -199,6 +199,41 @@ async function handler(req, res) {
       return res.status(200).json({ success: true, date: today, users: ops.length, written });
     }
 
+    // ── 每日 rating 快照（rating 周/月/日榜靠它算提升）──
+    if (action === 'snapshotRatings') {
+      const today = new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10);
+      const stats = await db.collection('userstats').find(
+        { rating: { $ne: null } },
+        { projection: { username: 1, rating: 1 } }
+      ).toArray();
+
+      const ops = stats
+        .filter((s) => s.username && !/^\d+$/.test(s.username) && Number.isFinite(Number(s.rating)))
+        .map((s) => ({
+          updateOne: {
+            filter: { _id: today + ':' + s.username },
+            update: {
+              $set: {
+                date: today,
+                username: s.username,
+                rating: Number(s.rating),
+                at: new Date(),
+              },
+            },
+            upsert: true,
+          },
+        }));
+
+      let written = 0;
+      for (let i = 0; i < ops.length; i += 500) {
+        const r = await db.collection('ratingHistory').bulkWrite(ops.slice(i, i + 500), { ordered: false });
+        written += (r.upsertedCount || 0) + (r.modifiedCount || 0);
+      }
+
+      await auditLog(db, 'snapshot_ratings', { date: today, users: ops.length, written }, 'system', 'info').catch(() => {});
+      return res.status(200).json({ success: true, date: today, users: ops.length, written });
+    }
+
     if (action === 'adjustDifficulty') {
       const { sweepDifficulties } = await import('../lib/difficulty-sweep.js');
       const summary = await sweepDifficulties(db);

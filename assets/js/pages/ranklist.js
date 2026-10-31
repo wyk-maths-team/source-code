@@ -256,8 +256,9 @@
 
     // ⭐ 只有 overall 才允许按 rating 排序，其余周期榜强制按 solves
     function sortedEntries(entries) {
-      if (sortMode === 'tokens') return entries;   // 后端已按 tokens 排好
-      if (periodMode !== 'overall' || sortMode !== 'rating') return entries;
+      if (periodMode !== 'overall') return entries;   // 周期榜（solves / tokens / rating 涨幅）都由后端排好
+      if (sortMode === 'tokens') return entries;
+      if (sortMode !== 'rating') return entries;
       return [...entries]
         .sort((a, b) => (b.rating - a.rating) || (b.solves - a.solves) || a.username.localeCompare(b.username))
         .map((e, i) => ({ ...e, rank: i + 1 }));
@@ -272,16 +273,16 @@
     function updateSortButtons() {
       document.querySelectorAll('[data-sort]').forEach(btn => {
         const active = btn.dataset.sort === sortMode;
-        // 周期榜只对 rating 无效，tokens 和 solves 都可以
-        const forcedDisabled = (periodMode !== 'overall' && btn.dataset.sort === 'rating');
         btn.classList.toggle('btn-info', active);
-        btn.disabled = active || forcedDisabled;
+        btn.disabled = active;
       });
 
       const mh = document.getElementById('metricHead');
       if (mh) {
         if (sortMode === 'tokens') {
           mh.textContent = 'Tokens';
+        } else if (sortMode === 'rating' && periodMode !== 'overall') {
+          mh.textContent = 'Rating Gain';
         } else if (periodMode !== 'overall') {
           const label = { monthly: 'This Month', weekly: 'This Week', daily: 'Today' }[periodMode] || 'Solves';
           mh.textContent = label;
@@ -323,6 +324,14 @@
           const total = Number(entry.tokens) || 0;
           metricCell = '<span title="' + total.toLocaleString('en-US') + ' tokens">' +
             formatTokens(total) + '</span>';
+        } else if (periodMode !== 'overall' && sortMode === 'rating') {
+          // 周期 Rating 榜：显示涨幅，颜色用涨完之后那段位色
+          const gain = Number(entry.gain) || 0;
+          const color = entry.tierColor || 'var(--text-primary)';
+          metricCell = '<span class="rating-gain" style="color:' + color + ';font-weight:700;">' +
+            (gain > 0 ? '+' : '') + gain +
+            '</span><span class="rating-gain-base" style="color:var(--text-secondary);font-size:.75em;"> (' +
+            (Number(entry.rating) || 0) + ')</span>';
         } else if (periodMode === 'overall' && sortMode === 'rating' && hasRating) {
           metricCell = ratingBadge(entry.rating, entry.tierColor, entry.tierGlow);
         } else {
@@ -388,6 +397,8 @@
         }
         if (sortMode === 'tokens') {
           url += '&sort=tokens';
+        } else if (sortMode === 'rating' && periodMode !== 'overall') {
+          url += '&sort=rating';
         }
         const data = await apiCall(url);
         lastData = data;
@@ -434,13 +445,12 @@
       if (sortBtn) {
         if (sortBtn.disabled) return;
         const mode = sortBtn.dataset.sort;
-        // 周期榜不允许切到 rating
-        if (periodMode !== 'overall' && mode === 'rating') return;
         if (mode === sortMode) return;
         const prev = sortMode;
         sortMode = mode;
-        // tokens 的数据只在这条请求里出现，进出 tokens 都要重新拉
-        if (mode === 'tokens' || prev === 'tokens') {
+        // 周期榜的指标（solves / tokens 增量 / rating 涨幅）是不同查询，
+        // 在周期榜里换排序、或进出 tokens，都要重新拉数据
+        if (mode === 'tokens' || prev === 'tokens' || periodMode !== 'overall') {
           loadLeaderboard();
         } else if (lastData) {
           renderLeaderboardBody(lastData);

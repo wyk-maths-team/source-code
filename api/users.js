@@ -605,6 +605,80 @@ if (String(req.query.sort || '').toLowerCase() === 'tokens') {
   return res.status(200).json(payload);
 }
 
+// ─────────── 周期 Rating 榜（按提升幅度）───────────
+// overall 用当前 rating；daily/weekly/monthly 用 ratingHistory 的期初快照算涨幅，
+// 颜色取「涨完之后」的 rating 对应的段位色。
+if (isPeriodMode && String(req.query.sort || '').toLowerCase() === 'rating') {
+  const daysBack = period === 'daily' ? 1 : period === 'weekly' ? 7 : 30;
+  const startDate = new Date(Date.now() + 8 * 3600_000 - daysBack * 86400_000)
+    .toISOString().slice(0, 10);
+
+  const HEARTBEAT_MS = Number(process.env.ONLINE_HEARTBEAT_MS) || 5 * 60 * 1000;
+  const TIMEOUT_MS = Number(process.env.ONLINE_TIMEOUT_MS) || HEARTBEAT_MS * 2;
+  const serverNow = Date.now();
+
+  const [snaps, stats, users] = await Promise.all([
+    db.collection('ratingHistory')
+      .find({ date: startDate }, { projection: { username: 1, rating: 1 } })
+      .toArray(),
+    db.collection('userstats')
+      .find({ rating: { $ne: null } }, { projection: { username: 1, rating: 1 } })
+      .toArray(),
+    db.collection('users').find({}, {
+      projection: {
+        username: 1, displayName: 1, realName: 1, pfp: 1, role: 1, banned: 1,
+        lastSeenAt: 1, explicitlyOffline: 1,
+      },
+    }).toArray(),
+  ]);
+
+  const snapMap = new Map(snaps.map((s) => [s.username, Number(s.rating)]));
+  const userMap = new Map(users.map((u) => [u.username, u]));
+
+  const rows = [];
+  for (const st of stats) {
+    const u = userMap.get(st.username);
+    if (!u || u.banned === true || u.role === 'team' || /^\d+$/.test(st.username)) continue;
+
+    const current = Number(st.rating);
+    const start = snapMap.get(st.username);
+    if (!Number.isFinite(current) || start === undefined) continue;
+
+    const gain = Math.round(current - start);
+    if (gain === 0) continue;
+
+    const tier = getTier(current);
+    const lastSeenMs = u.lastSeenAt ? new Date(u.lastSeenAt).getTime() : 0;
+
+    rows.push({
+      username: st.username,
+      displayName: u.displayName || st.username,
+      realName: u.realName || '',
+      pfp: u.pfp || '',
+      rating: current,          // 涨完之后的 rating
+      gain,                     // 这段时间涨了多少
+      tierColor: tier.color,
+      tierGlow: tier.glow,
+      online: !u.explicitlyOffline && lastSeenMs > 0 && (serverNow - lastSeenMs) < TIMEOUT_MS,
+      lastSeenAt: u.lastSeenAt || null,
+      explicitlyOffline: !!u.explicitlyOffline,
+    });
+  }
+
+  rows.sort((a, b) => (b.gain - a.gain) || a.username.localeCompare(b.username));
+
+  return res.status(200).json({
+    success: true,
+    sort: 'rating',
+    period,
+    leaderboard: rows.map((u, i) => ({ ...u, rank: i + 1 })),
+    serverNow,
+    heartbeatMs: HEARTBEAT_MS,
+    timeoutMs: TIMEOUT_MS,
+  });
+}
+
+
 // ─────────── 缓存 key 也要按 period 区分 ───────────
 // 现有 _leaderboardCache 是单槽，用 Map 更稳：
 //   _leaderboardCache = new Map();  // key: period → { data, expireAt }
