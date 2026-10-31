@@ -12,6 +12,7 @@
   const m = location.pathname.match(/^\/problems\/([^/]+)$/);
   if (!m) return;
   const problemId = decodeURIComponent(m[1]);
+  const PD_SOLUTION_BUILD = '2026-10-31c';   // 换版时改这里，方便在控制台确认缓存
 
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const fmt = (n) => Number(n || 0).toLocaleString('en-US');
@@ -148,20 +149,40 @@
     if (!editor) return;
     editor.hidden = false;
     const input = document.getElementById('solInput');
-    if (input) {
-      try { input.value = localStorage.getItem('sol_draft_' + problemId) || ''; } catch {}
-      input.focus();
-      input.addEventListener('input', onInput);
-      onInput();
-    }
+    if (!input) return;
+
+    try { input.value = localStorage.getItem('sol_draft_' + problemId) || ''; } catch {}
+    input.focus();
+
+    input.addEventListener('input', onInput);
+
+    // 保险丝：每 400ms 对一次值。万一 input 事件没挂上（DOM 被重建、浏览器怪癖），
+    // 也能保证预览跟着内容走，不会出现「写了字但预览空白」。
+    if (_editorWatch) clearInterval(_editorWatch);
+    _watchLast = input.value;
+    _editorWatch = setInterval(() => {
+      const el = document.getElementById('solInput');
+      if (!el) return;
+      if (el.value !== _watchLast) {
+        _watchLast = el.value;
+        try { localStorage.setItem('sol_draft_' + problemId, el.value); } catch {}
+        renderPreview(el.value);
+      }
+    }, 400);
+
+    renderPreview(input.value);
   }
 
   function closeEditor() {
     const editor = document.getElementById('solEditor');
     if (editor) editor.hidden = true;
+    if (_editorWatch) { clearInterval(_editorWatch); _editorWatch = null; }
   }
 
   let _previewTimer = null;
+  let _editorWatch = null;
+  let _watchLast = null;
+  let _katexWaits = 0;
 
   function onInput() {
     const input = document.getElementById('solInput');
@@ -176,7 +197,9 @@
   // 把文本拆成「普通文字 / 行内公式 / 行间公式」，方便逐段渲染并定位错误
   function splitMath(text) {
     const out = [];
-    const re = /\$\$([\s\S]+?)\$\$|\$([^$\n]+?)\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)/g;
+    // 行内 $...$ 故意允许跨行：学生经常把一条长公式折成两行写，
+    // 以前那种写法会整段不渲染，看起来就像预览坏了。
+    const re = /\$\$([\s\S]+?)\$\$|\$([^$]{1,4000}?)\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)/g;
     let last = 0;
     let m;
     while ((m = re.exec(text))) {
@@ -204,11 +227,23 @@
       return;
     }
 
-    if (!window.katex || typeof window.katex.renderToString !== 'function') {
-      if (status) status.innerHTML = '<span class="st-wait"><i class="fas fa-spinner fa-spin"></i> loading maths…</span>';
-      setTimeout(() => renderPreview(text), 400);
+    const katexReady = !!window.katex && typeof window.katex.renderToString === 'function';
+
+    // 关键：先把纯文本铺上去。KaTeX 没加载好（CDN 慢/被挡）时，
+    // 学生至少看得到自己写了什么，而不是一片 "Nothing to preview yet"。
+    if (!katexReady) {
+      preview.innerHTML = esc(text).replace(/\n/g, '<br>');
+      if (_katexWaits < 15) {
+        _katexWaits++;
+        if (status) status.innerHTML = '<span class="st-wait"><i class="fas fa-spinner fa-spin"></i> loading maths…</span>';
+        setTimeout(() => renderPreview(text), 400);
+      } else if (status) {
+        status.innerHTML = '<span class="st-bad">⚠ maths renderer not loaded — showing plain text</span>';
+      }
       return;
     }
+
+    _katexWaits = 0;
 
     let errors = 0;
     let formulas = 0;
@@ -393,7 +428,8 @@
     }, 250);
   }
 
-  window.PDSolution = { activate, reload: loadSolutions };
+  window.PDSolution = { activate, reload: loadSolutions, build: PD_SOLUTION_BUILD };
+  try { console.log('[pd-solution] build', PD_SOLUTION_BUILD); } catch (e) {}
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);
   } else {

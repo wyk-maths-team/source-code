@@ -1,0 +1,1435 @@
+2026-10-31 09:48  [FEAT] solution author avatar, clickable profile link, live LaTeX preview status
+    - API returns author pfp (batch lookup) for solutions
+    - avatar falls back to an initial badge when pfp is empty
+    - author name links to /users/<username>
+    - preview renders per segment, marks failed formulas, warns on unclosed $
+2026-10-31 09:38  [FIX] admins can open the solutions tab too
+2026-10-31 09:37  [FEAT] problem solutions + paid hints
+    - solutions: AC-only tab, 10k tokens per post, one-way likes, likes sorted first
+    - daily like settlement via cron (author +1k per like)
+    - hints: admin-editable under statement, token-priced unlocks
+    - asset versions resynced
+2026-10-30 22:25  U : allowed cross-site login
+2026-10-30 22:04  [FIX] ANNOYING UI
+2026-10-30 21:55  [FIX] ANNOYING UI
+2026-10-30 21:48  [FIX] FAHHHHH trash azure
+2026-10-30 21:40  FIX: undefined functions
+2026-10-30 21:34  FIX: microsoft login in pages
+2026-10-30 21:13  [agent] 5.0.2-dev:new rules on token
+2026-10-30 20:47  5.0.1-fix.4: prevented abuse of tokens
+2026-10-30 14:48  [agent] 5.0.1-fix.2: fix lang 2
+2026-10-30 14:40  [agent] 5.0.1-fix.2: fix lang
+2026-10-30 14:36  [agent] 5.0.1-fix: fixed bugs
+2026-10-30 14:31  [agent] 5.0.1-dev: fixed token hub
+2026-10-30 14:13  [agent] 5.0.0-release
+2026-10-30 13:49  [] removed unsuitable content
+2026-10-30 13:45  [] fixed ref err
+2026-10-30 13:39  [TEMP] Guest accounts for info day
+2026-10-29 14:24  Stopped service
+2026-10-29 12:59  Exhausted, gg bio, gg math gg eng gg phy gg chem
+2026-10-27 20:57  [agent] fix(knowledge-tree): call verifyToken correctly, unbreaking progress sync
+    Symptom: the page always showed "Could not load your progress (Not logged in)"
+    and nothing ever synced, despite being logged in.
+    lib/auth.js exports:
+    export async function verifyToken(req) {
+    const authHeader = req.headers.authorization;   // reads the request
+    ...
+    return buildUser(user);                          // returns a USER
+    }
+    I had called it as verifyToken(token), without await, and then read
+    .username off the result. Three separate mistakes compounding:
+    - Passing the token string instead of req means req.headers is undefined,
+    so it throws on the first line.
+    - It is async, so that throw surfaces as a rejected promise, not a
+    synchronous error. Without await, the local holds a Promise.
+    - Reading .username off a Promise yields undefined, so getUsername()
+    returned null every single time and the route answered 401.
+    Verified against the real secret:
+    verifyToken(req)   -> { username: 'root', role: 'root' }
+    verifyToken(token) -> THREW: Cannot read properties of undefined
+    (reading 'authorization')
+    no header          -> null
+    invalid token      -> null
+    getUsername is now async and does , and the handler
+    awaits it. Also documented the three traps in the function comment, since
+    this signature is easy to get wrong again.
+    Note: this route also gets the ban/existence check for free through
+    verifyToken, which a hand-rolled jwt.verify would have skipped.
+2026-10-27 20:51  [agent] fix(knowledge-tree): restore the site sidebar, float the detail panel, fix zoom
+    The sidebar was missing. My previous change built the page shell but never
+    loaded sidebarContainer or sidebar.js, so the only sidebar on screen was the
+    tree's own — which is why it read as broken. Restored <aside id=sidebarContainer>
+    and sidebar.js to every normal page's line-up.
+    That needed the tree's own panel to stop squatting on the same class name:
+    - aside.sidebar -> aside.kt-panel in all 5 CSS rules and the element itself.
+    - .closest('.sidebar') in the pointerdown guard -> .closest('.kt-panel'),
+    otherwise dragging inside the panel would pan the canvas underneath.
+    - #sidebar stays as a JS alias, now pointing at #ktPanel.
+    Detail panel is a floating card:
+    - position:absolute at top/right 14px, rounded, shadowed, scrolling inside.
+    - It no longer takes a flex column, so the canvas gets the full width.
+    - Minimize slides it out with transform (not display:none, which would
+    reflow the canvas) and reveals #ktPanelGear, a round gear button bottom-right.
+    - Clicking the gear brings it back. Selecting a node also auto-expands it,
+    so a click on a node is never silently lost while minimized.
+    - The ✕ button became a chevron minimize — closing it outright was the
+    thing that made the panel feel gone.
+    Zoom was still slow, and the cost was not in the transform math:
+    - .node carried will-change: transform. With 49 nodes that is 49 separate
+    compositor layers to rasterize and upload on every scale step - far more
+    expensive than writing a style string. Removed; nodes only use transform on
+    :hover, where the browser promotes them on demand.
+    - .world now has contain: layout style paint so the canvas cannot invalidate
+    layout outside itself.
+    - During zoom/drag, .zooming disables node box-shadow and transitions, which
+    would otherwise be recomputed every frame for something you cannot see.
+    - applyTransform now writes directly instead of deferring to rAF. Browsers
+    already coalesce multiple style writes within a frame, so the extra rAF
+    only added a frame of input lag.
+    40 wheel events: 9.7ms -> 5.2ms (0.13ms each), one composite layer instead
+    of fifty.
+    Verified: sidebarContainer renders with content, the panel computes to
+    position:absolute, minimize shows the gear, the gear restores the panel,
+    selecting a node auto-expands it, .node will-change computes to auto while
+    .world stays transform, and there are no JS errors.
+2026-10-27 20:45  [agent] feat(knowledge-tree): embed in mainContent, load core JS, make zoom cheap
+    The page was a standalone document: its own <html>/<body> layout, no auth
+    gate, no topbar, and a :root variable block that would have overridden the
+    site's --accent / --line / --text-* the moment it shared a stylesheet.
+    Structure
+    - Now a normal page: auth-gate script, arch-render.js, theme restore,
+    favicon, styles.css, and body.index-body with
+    header.topbar + main.main-content > #ktRoot.
+    - Loads the core JS every page needs: core/ui, core/net, core/api,
+    core/page, auth, app, topbar, heartbeat. Verified isLoggedIn / apiCall /
+    getCurrentUser are all available on the page.
+    - body.kt-page .main-content gets padding:0 and a full-height box, since
+    this page is an edge-to-edge canvas. #ktRoot owns the flex column that
+    used to live on body.
+    - The tree's palette moved from :root to #ktRoot so it cannot leak into the
+    site chrome. Its own aside.sidebar keeps its class name but is scoped by
+    #ktRoot, so it will not collide with the system sidebar.
+    Zoom performance
+    - applyTransform used to write world.style on every event. A trackpad wheel
+    fires well over 60Hz, so a single frame could do several style writes and
+    force repeated style recalculation.
+    - It now coalesces into one rAF per frame, skips the write entirely when
+    nothing changed, and uses translate3d instead of translate so the layer is
+    explicitly composited.
+    - applyTransformNow() exists for the cases that cannot wait a frame:
+    fitView and anything running under a CSS transition.
+    - wheel no longer calls getBoundingClientRect() every event - the rect is
+    cached and invalidated on resize/scroll. That call forces a synchronous
+    layout, which is why it was the most expensive line in the handler.
+    Measured: 40 consecutive wheel events dispatch in 9.7ms total (~0.24ms
+    each) and land as a single transform update.
+    Verified in the browser: #ktRoot sits inside #mainContent, the topbar
+    renders with content, all 49 nodes draw, the initial action=load fires, and
+    toggling a node posts action=complete with its nodeId. No JS errors.
+2026-10-27 20:36  [agent] feat(knowledge-tree): per-user saved progress; close the PK token-wash hole
+    Three things, one commit.
+    1. Knowledge tree is now part of the system
+    tools/_knowledge_tree.html was a standalone radial chart that kept its
+    state in one global localStorage key, so every account on a machine
+    shared the same progress. Promoted it to /knowledge-tree.html and moved
+    state to the server.
+    - New api/knowledge-tree.js: load / complete / uncomplete / reset,
+    scoped by the JWT username, persisted to userdata.knowledgeTree so it
+    sits alongside theme and favorites instead of needing another table.
+    - Each node toggle is one API call, as requested. Not batched on purpose:
+    a click already waits for visual feedback so the round-trip is
+    invisible, while batching loses everything if the tab closes.
+    - complete uses $addToSet, so a double click cannot record the node
+    twice. Server state is authoritative and the client replaces its list
+    with whatever comes back.
+    - localStorage is now only a first-paint cache, keyed per user
+    (kt-cache:<username>). The old global key is deleted on boot so a
+    stale shared archive cannot leak into someone's account.
+    - Request failures surface in the existing top banner and keep the
+    change locally rather than silently dropping it.
+    2. PK could be used to launder daily tokens into permanent ones
+    deductTokens spends daily before global, while addTokens always credits
+    global. Staking therefore paid with the daily allowance and paid out
+    into permanent balance - and since daily resets every day, two accounts
+    cooperating could convert it at will. Even with the 20% fee it was a
+    net gain, because unspent daily is worthless anyway.
+    - Added deductGlobalOnly to lib/wallet.js and switched both invite and
+    accept to it. Stake and payout are now the same asset.
+    - totalTokens stays in the subsidy calculation - comparing total wealth
+    is correct there; it is the stake that must not touch daily.
+    - Error messages now say the stake comes from the permanent balance.
+    3. Misc
+    - deductTokens import dropped from pk-bet.js (no longer used).
+    Note: this does not undo past laundering; it only stops it going forward.
+    If you want, I can query which accounts gained global while spending daily
+    and flag the suspicious ones.
+2026-10-27 17:18  Merge branch 'main' of github.com:wyk-maths-team/source-code
+2026-10-27 17:16  FIX: redirect at list challanges
+2026-10-27 11:26  Revise security policy and reporting guidelines
+    Updated the security policy to reflect continuous deployment and added detailed reporting guidelines for vulnerabilities.
+2026-10-27 07:02  Fah2
+2026-10-27 06:59  Fah1
+2026-10-27 06:37  Fah
+2026-10-26 21:58  [agent] feat(admin): auto-snapshot the current database before a restore
+    Restoring overwrites live data irreversibly. handleRestoreDatabase had a
+    comment saying a pre-restore backup was skipped for brevity and that you
+    should trigger one by hand - which is exactly the step people forget at the
+    moment they are panicking.
+    Now every real restore first creates a backup release of the current state:
+    - Extracted the dump/upload logic out of handleBackupDatabase into
+    createBackupRelease(db, username) so both paths share one implementation.
+    handleBackupDatabase keeps its permission check and audit, then delegates.
+    - handleRestoreDatabase calls it when dryRun is false, before touching
+    anything, and records the resulting tag in the restore audit entry.
+    - If the snapshot fails, the restore is refused with 500. Restoring on top
+    of data you could not back up would leave no way back; failing the
+    operation is the safer outcome.
+    - The response now carries preRestoreBackup, and the admin page prints it
+    after completion so the tag is visible if you need to roll back.
+    Dry-run is unchanged - it still just reports what would happen.
+2026-10-26 21:56  [agent] fix(admin): sync the backup/restore UI with the GitHub Release backend
+    The backend moved backups from a folder in the resources repo to one GitHub
+    Release per backup (tag backup-<timestamp>, one gzipped asset per collection
+    plus _manifest.json.gz). The admin UI never followed, so besides stale copy
+    the restore path was outright broken.
+    Real bugs, not just wording:
+    - backups.find(x => x.dir === selectedReleaseId) never matched: the list
+    objects key on id. b was therefore always undefined, and the very next
+    read (b.totalSize, for the integrity check) threw a TypeError - so
+    restore could not run at all.
+    - The restore POST sent { dir: ... } while handleRestoreDatabase reads
+    releaseId and rejects anything else with 400 Missing releaseId. Both the
+    dry-run and the real restore were sending the wrong field.
+    - The selected highlight compared el.dataset.dir against a value stored in
+    data-id, so the row never lit up.
+    Also corrected the fields read off the backup response, which do not exist:
+    - Backup log printed data.dir and r.url; the endpoint returns { release,
+    results } where each result has { collection, count, size }.
+    - Copy claimed collections land in backup/database/<timestamp>/; they are
+    uploaded as release assets.
+    Verified end to end against a mocked GitHub API: list renders both backups,
+    selection highlights, the confirm text describes releases, and the restore
+    run emits { releaseId, dryRun:true } followed by { releaseId, dryRun:false }
+    with the expected dry-run and completion log lines. No JS errors.
+2026-10-26 21:36  Fah
+2026-10-26 21:23  minor fix
+2026-10-26 18:19  reduce build time
+2026-10-26 18:16  reduce build time
+2026-10-26 18:08  [agent] feat(submissions): add start/end time range filters to both submission lists
+    Both submission pages already had in-header filters for User, Problem and
+    Result. Date / Time was the only column you could not narrow down, so
+    finding "what did I submit between 9 and 6" meant paging through
+    everything.
+    Added the same in-header filter to the Date / Time column: two
+    datetime-local inputs (from / to), either side optional.
+    Server (api/submissions.js)
+    - New applyTimeRange() helper folds starttime/endtime into filter.timestamp.
+    - Wired into both the student list and the admin list (admin=1).
+    - Unparsable values are ignored rather than thrown, so one bad query
+    param cannot 500 the whole list.
+    Timezone is the trap here
+    - datetime-local yields "2026-10-26T09:00" with no zone. Node parses that
+    in the *server's* local zone, and Vercel runs in UTC, so a 9am choice
+    would silently become UTC 9am - eight hours off for Hong Kong users.
+    - The client therefore converts to toISOString() before sending, and the
+    URL keeps the human-readable local value. Verified: picking 09:00
+    sends 2026-10-26T01:00:00.000Z, which is correct for UTC+8.
+    Client
+    - renderTimeFilterCell() follows the existing User/Problem/Result pattern:
+    a form when empty, a one-line summary plus a clear button when applied.
+    - State threads through getFilterKey / makeSnapshot / updateURL /
+    fetchPage so paging keeps the range.
+    - updateURL no longer takes the short /submissions/user/:name path while a
+    time range is active - that path has nowhere to put starttime/endtime
+    and would have silently dropped them.
+    - Swaps the two values if start comes after end instead of erroring.
+    Styles
+    - datetime-local is a native control and wider than a text input, so it
+    gets a smaller font, tighter padding, and a 168px min-width on the
+    column; otherwise the two inputs collapse into each other.
+    Verified in the browser on both pages: controls render inside the Date /
+    Time header, requests carry ISO params, the summary shows the local
+    range, clearing restores the empty form, and no JS errors.
+2026-10-25 17:52  [agent] 4.7.6-release: wide formulas no longer scroll inside the statement
+    A statement containing \dfrac (or any tall fraction) overflowed the
+    statement pane. .katex-display carries overflow-x: auto, so the formula
+    grew its own little horizontal scrollbar inside the problem text - the
+    数学 stayed unreadable at the exact moment it got complicated.
+    Fix: shrink the formula instead of scrolling it.
+    fitWideFormulas() walks every .katex-display after KaTeX renders and
+    shrinks its font-size until it fits. KaTeX sizes everything in em, so
+    scaling the font scales the whole drawing and the layout height follows
+    correctly (unlike transform, which would need height compensation).
+    Three things had to be right for this to actually converge:
+    - Available width must come from el.clientWidth, not container.clientWidth.
+    The container's padding lands in its clientWidth, so measuring from the
+    container left the formula permanently a few pixels too wide.
+    - It has to iterate. scrollWidth is content x scale plus a fixed offset
+    (rounding, padding), so a single proportional estimate always left a
+    residual scrollbar. It now re-measures and re-scales up to 5 times.
+    - There is a floor at 45%. Past that the text is unreadable, so the
+    original horizontal scroll returns as the fallback for genuinely huge
+    formulas.
+    A ResizeObserver re-runs the fit when the statement pane changes width
+    (dragging the split divider, resizing the window), otherwise the first
+    scale would freeze.
+    Verified against an equivalent DOM (KaTeX's CDN is unreachable from this
+    machine): a 619px formula in a 300px pane converged to scrollWidth 300
+    with font 7.65px and no overflow; a short formula was left untouched at
+    16px; an extreme 180px pane hit the 45% floor and fell back to scrolling;
+    widening back to 700px restored 16px.
+2026-10-25 17:37  4.7.5-release: withdraw, revision! If i still make then go ****
+2026-10-25 17:27  feat(problem): restore the full-screen draw overlay, now with an eraser and multi-touch
+    draw.js was removed in 180e83b ('remove the deprecated draw tool'). Restored
+    from that commit's parent, then upgraded.
+    What changed in the overlay
+    - Eraser: a second tool using destination-out, so it clears pixels and
+    reveals the white backdrop instead of painting white over the page. The
+    eraser radius is the pen width times 4, so it is usable at the default
+    width of 3.
+    - Multi-touch: the old version kept a single lastX/lastY, so a second
+    finger stole the line from the first. Each pointerId now carries its own
+    previous point in a Map, with per-pointer capture and release. Lifting one
+    finger no longer ends the stroke of another.
+    - Style is re-applied on every dot/line, otherwise a destination-out eraser
+    would leak into the next pen stroke.
+    - P and E switch tools, Esc still closes.
+    Wiring restored
+    - pd-script.js: the Draw button back in the workbench footer.
+    - pd-extras.js: the Draw block (scroll lock, lazy loader, toggle with a
+    double-click guard) and the drawtool:open/close listeners.
+    - pd.css: html/body.draw-mode-active { overflow:hidden } was also missing;
+    without it, drawing with a finger on a phone scrolled the problem behind
+    the overlay.
+    Verified against the real module: pen paints 1376 px, eraser clears all of
+    them, two simultaneous pointers produce two independent strokes (both
+    probe regions painted), Esc removes the overlay and the scroll lock, and
+    reopening restores the canvas pixel-for-pixel from localStorage.
+2026-10-25 17:16  4.7.4-fix.2: fixed read link
+2026-10-25 16:52  feat(settings): make the Genshin token icons opt-in
+    The Primogem / Mora images were about to become everyone's default, which
+    would push one particular game's branding on every user. Inverted it: the
+    default is FontAwesome (fa-bolt for daily, fa-coins for global) and the
+    images only load when the user turns on 'Genshin Icons' in Settings.
+    Three files touched:
+    - topbar.js: a tokenIcon(which, size) helper decides between an <img> and
+    an <i>, used by all four places the icon appears (collapsed display and
+    the dropdown breakdown).
+    - settings.html: one toggle below 3D Buttons.
+    - settings.js: load / save / change handler. Changing it reloads the page,
+    since the topbar picks the icon at render time.
+    Verified in a browser: unset and explicit false both render fa-bolt +
+    fa-coins with zero <img>; true renders ml.png + ys.png with zero FA icons.
+    No console errors.
+2026-10-25 16:43  4.7.4-fix.1: add some good img 2
+2026-10-25 16:38  4.7.4-dev: add some good img
+2026-10-25 14:13  4.7.3-dev: add html for ai, fixed guide
+2026-10-25 13:26  feat: seed new users with tokens; report/delete submissions; answer-state admin page
+    1. New accounts start with 30,000 daily + 100,000 global
+    Both creation paths get an explicit token object: the admin-created
+    account in api/users.js and the Microsoft OAuth sign-up that lands in
+    api/auth.js complete-setup. Previously the balance only existed as a
+    read-time fallback in token-hub, so the field was absent from the
+    database until the user touched that page.
+    2. Reporting a submission
+    services/detail now returns canReport and isAdmin. The Report button is
+    hidden when you are looking at your own submission or one made by root.
+    The backend refuses both cases again (CANNOT_REPORT_SELF /
+    CANNOT_REPORT_ROOT) and deduplicates per (subid, reporter). Reports land
+    in submission_reports with the reason and are written to the audit log.
+    3. Deleting a submission
+    Admin-only trash button on the detail page. The backend deletes the row,
+    then recomputes the user's state for that problem: it stays passed only
+    if another accepted submission remains, otherwise the state is unset.
+    4. Answer state management (/admin/user-states, root only)
+    User list -> click a user -> accordion opens their problem states as
+    colour blocks (green passed / red failed / grey not started, each
+    showing difficulty). Clicking a block offers the three states; changes
+    accumulate client-side with a dirty outline until Save, which posts the
+    diff. The API re-checks root, skips no-op entries, writes an audit log
+    with per-problem from/to, and invalidates the rating cache so the next
+    read reflects the new solved set. New rows can be added by problem ID.
+    Also includes the guide rewrite that failed to commit earlier (git index
+    was blocked by the sandbox; the ACL repair unblocked it).
+    Verified with an end-to-end browser run: admin role is rejected, root sees
+    the list, expanding shows the grid, picking a state enables Save, and the
+    payload is { username, changes }.
+2026-10-25 07:31  4.7.2-dev: fixed user page UI
+2026-10-24 23:51  perf: materialize the three hot read paths (profile, achievements, rating)
+    All three shared one shape: high-frequency read, low-frequency change,
+    never cached. Each is now computed on write and read back.
+    1. Problem metadata -> lib/problemCache.js
+    profile fetched all ~2400 public rows on every page view. Now a 60s
+    shared cache (public and full variants), and the profile loop iterates
+    the user's states instead of the whole problem bank.
+    273ms -> 0.01ms.
+    2. Achievement counters -> userstats
+    collectStats ran four distinct() scans plus an aggregation over
+    submissions on every submit: O(Sᵤ log Sᵤ). Counters are now maintained
+    incrementally in updateUserStats (firstTryCount via $inc, todayTried /
+    todayAC with HKT day reset), and collectStats only reads one document.
+    Existing users are backfilled once, guarded by statsVersion.
+    82ms -> 17ms (the remainder is one userstats round-trip).
+    3. Rating -> userstats.rating + lib/userRating.js
+    Reads a materialized value when ratingSolvedCount still matches
+    solvedCount, plus a 60s in-process cache. AC calls invalidateUserRating.
+    token-hub, pk-bet and profile all go through it now.
+    0.35ms -> 0.00ms, and the old path additionally queried problems.
+    Two real findings along the way:
+    - allTried/allSolved used distinct(problemId), which counted submissions
+    whose judging had failed (systemError), unmarked image answers and
+    deleted problems as 'attempted'. That inflated the denominator and
+    understated accuracy. They now come from userstats.states, which is what
+    the system actually believes. Verified across five users; the old numbers
+    were high by 1-7 problems each.
+    - leaderboard set u.maxDifficulty = r.maxPR, a field that does not exist
+    (effectiveMax). Every entry had undefined there. Fixed.
+    tools/verify-materialized-stats.mjs  (5 users, materialized vs recomputed)
+    tools/verify-user-rating.mjs        (20 checks: first-read, cached, stable)
+    tools/bench-modules.mjs             (before/after timings)
+2026-10-24 23:33  feat(achievements): progress bars, token rewards, single source of truth
+    Three problems were blocking any expansion, all fixed here.
+    1. Two definitions of the same 36+ achievements (backend icon:'fa-solid x',
+    frontend fa:'x'), already drifted in icons and descriptions. The frontend
+    copy is gone; /api/users?action=achievements now returns the full
+    definition table plus a progress map.
+    2. checkAchievements ran four distinct() scans over submissions on every
+    submit. The collection logic now lives in collectStats(), shared by the
+    unlock path (fresh) and the display path (60s cache), so progress and
+    unlocks can never disagree - progressOf() is used by both.
+    3. voyeur / curious removed. voyeur was whitelisted for client reporting but
+    never defined, so reports silently failed; curious depended on an admin
+    visit trigger. Both actions (markAdminVisit, markAchievement) are gone,
+    along with the voyeur localStorage counter and the eleven admin pages
+    still POSTing to markAdminVisit.
+    Added:
+    - Every achievement carries metric + target, so THRESHOLDS is no longer a
+    second table that has to be kept in sync.
+    - Rewards by rarity (5k/15k/40k/100k/250k, 2M total) paid once on unlock via
+    lib/wallet.js into global.
+    - Progress bars on locked cards, with the accuracy series showing gate
+    progress ('8/20 tried') until the 20-problem minimum is met.
+    - Headers show tokens earned from achievements.
+    - lib/wallet.js: the only place tokens may be added, deducted or refunded.
+    pk-bet.js no longer keeps its own copy - two implementations drifting apart
+    is exactly how the daily-to-global arbitrage appeared.
+    tools/test-achievements.mjs: 29 checks covering definition integrity, icon
+    prefixing, progress maths, the gate, and the invariant that pct>=1 always
+    means unlocked.
+2026-10-24 18:40  4.7.1-dev: fixed weighted mean
+2026-10-24 18:27  feat(pk): make problem ids and usernames clickable everywhere
+    Anything that has its own page now links to it.
+    pk-bet-result
+    - problemLink(pid) renders <a href=/problems/:id>, used in both the
+    per-player attempt list and the score table's first column.
+    - userLink(username, display) renders <a href=/users/:username>, used for
+    the player card titles and the score table headers.
+    - .pkr-link is accent coloured with a hover underline, and inherits colour
+    inside table headers so they do not turn into a wall of blue.
+    pk-bet-challenges
+    - the opponent name links to /users/:username (.pkc-link, inherits colour,
+    turns accent on hover).
+    pk-bet-room
+    - both player names link to /users/:username (.pkb-link). The three blocks
+    were already anchors to /problems/:id, so problems were covered.
+    Verified rendered hrefs on all three pages: 9 links on the result page
+    (2 player cards + 2 headers + 3 table rows, with duplicates), 1 on the
+    challenge list, 2 usernames plus 3 problem blocks in the room.
+2026-10-24 18:20  4.7.0-fix.1: fixed styling
+2026-10-24 17:50  4.7.0-dev: finalized new pk mode
+2026-10-24 17:45  fix(pk): stop polling once the room closes
+    tick() called refresh() whenever left <= 0. Since room.endAt stays in the
+    past after the match ends, that fired every single second, and refresh()
+    only swapped the text to 'This room is closed' without clearing the
+    timers - so a finished room issued ~1 request per second forever.
+    - Add a stopped flag and stopAll(), which clears both intervals.
+    - tick() triggers the end-of-time refresh at most once (endTriggered).
+    - refresh() calls stopAll() on every terminal branch: business failure,
+    res.result, status settled, and status != active. Network errors keep
+    polling, since those can recover.
+    - After the first refresh(), the intervals are only started when !stopped,
+    so a room that is already finished never schedules a timer at all.
+    - toggleReady() also stops the timers before redirecting to the result.
+    Measured with a mock room whose endAt is in the past:
+    status=closed             8s → 1 request  (was ~1/sec)
+    status=settled(no result) 6s → 1 request
+    status=active             7s → 3 requests (polling still works)
+2026-10-24 17:31  fix(pk): close the daily-to-permanent token arbitrage; auto-redirect on accept and settle
+    Token arbitrage (the important one)
+    - invite charged tokens daily-first; refundInvite paid everything back
+    into global. daily resets each day while global never does, so
+    'stake 30000, cancel' converted 30000 daily into 30000 permanent tokens,
+    once per day, for free.
+    - deductTokens now returns { token, taken } recording exactly how much came
+    from each bucket, the invite stores taken, and refundInvite uses
+    refundTokens to pay back along the original path.
+    - Legacy invitations without taken refund into daily (never global) so the
+    old ones cannot be used to launder either.
+    - addTokens still routes prizes into global on purpose - that is a real
+    reward, not a refund.
+    - tools/test-refund.mjs: 12 checks, including the old implementation as a
+    control (it produces +30000 permanent from the same flow) and 100
+    stake/cancel cycles showing neither bucket drifts.
+    Auto-redirects
+    - pk-bet-challenges: if any of my challenges is accepted and has a roomId,
+    jump straight to /pk-bet-room (or to /pk-bet-result when it already
+    settled) instead of leaving the sender on a list page.
+    - pk-bet-room: a settled room now redirects to its result page rather than
+    showing 'This room is closed'.
+    Verified both jumps with mocked APIs.
+2026-10-24 17:18  feat(pk): block-only room, mutual finish, exclude solved problems; SSE probe
+    1. Problem selection excludes what either player already solved
+    pickProblems now takes the two usernames, reads userstats.states, and
+    filters out every passed problem before all three widening passes. A
+    high-rated player was otherwise handed problems they had already AC'd,
+    could not resubmit (main judge reports alreadyAC), and scored 0 while
+    the opponent scored normally.
+    2. Mutual early finish
+    New action=ready-end adds the caller to room.endRequestedBy via
+    $addToSet (pass cancel:true to pull it back). When both players are in
+    the set, endAt is pulled to now and the room settles immediately, so
+    collectAttempts only sees submissions up to that instant.
+    3. Room shows no problem text at all
+    Redesigned as three colour blocks: grey = not attempted, green = AC,
+    red = WA, amber = partial credit. Each block prints its current time
+    score and links to /problems/:id in a new tab. Below, a pip row per
+    player mirrors the same colours. Statement text is never rendered.
+    4. SSE feasibility (experiment only, not wired into the UI)
+    api/pk-bet-stream.js streams room changes with event/data framing,
+    X-Accel-Buffering:no, heartbeat pings, a 'retry:' hint and a graceful
+    'end' 5s before Vercel's ceiling.
+    tools/sse-probe.mjs proves the framing arrives incrementally (6 ticks
+    over 1565ms vs 1500ms expected, so nothing is batched), that a clean end
+    is observable, and that a hard destroy surfaces as a client error which
+    EventSource turns into an automatic reconnect.
+    Verdict: technically fine, but the 10s/60s serverless ceiling means a
+    forced reconnect every minute plus one instance per viewer, while the
+    room only needs ~5s latency. Kept as a probe; the room still polls.
+2026-10-24 17:02  refactor(pk): answer on the real problem page; exclude CHAIN_WARNING
+    Problem selection
+    - pickProblems now filters tags != CHAIN_WARNING on all three widening
+    passes, so a broken judging chain can never end up in a staked match.
+    Room no longer has its own submission box
+    - The in-room answer field and Submit button are gone. Each tab shows the
+    statement plus an 'Open problem page' link to /problems/:id, opening in a
+    new tab, so students answer with the real editor, editorials and judge.
+    - action=submit now returns 410 SUBMIT_REMOVED.
+    - pk_bet_attempts is no longer written or read anywhere (zero references).
+    Scoring reads the main submission log
+    - New collectAttempts(db, room) selects submissions whose timestamp falls
+    inside [startAt, endAt] for these three problems and these two players,
+    keeps the latest row per (player, problem), and derives
+    T = seconds since start (1..1800) and weighted = (1800 - T) * score.
+    - Both action=room and settleRoom use it, so the live display and the final
+    settlement can never disagree.
+    - Uses the submission's own score field (0..100), so non-numeric judged
+    problems score correctly instead of being forced to 0.
+    Room UI: per-tab tick/cross markers from the attempt list, 'submitted N/3'
+    on each player card, and the tab index is remembered in sessionStorage so
+    returning from a problem page lands back on the same question.
+    Verified: no input, no submit button, Open link points at /problems/HA0012,
+    Q1 shows 'Accepted at 42s — weighted 175,800', Q2 shows the failed attempt.
+2026-10-24 16:53  fix(pk): register the new routes and make invite pages mode-aware
+    Two separate causes behind 'both links are broken'.
+    1. No rewrites. vercel.json only mapped /pk/waiting, /pk/room and
+    /pk/invite, so /pk-bet-room, /pk-bet-result and /pk-bet-challenges fell
+    through to the catch-all /404.html. Added those three plus
+    /pk-bet-invite -> pk-invite.html.
+    2. The invite pages read the old API only. pages/pk-invite.js queried
+    /api/pk?action=invite-status, which searches pk_invitations; a staked
+    invite lives in pk_bet_invitations, so it always came back
+    'Invitation unavailable'. Now it tries /api/pk-bet first and falls back
+    to the old endpoint, and picks /api/pk-bet?action=accept vs
+    /api/pk?action=accept according to whether the invite carries a stake.
+    Accepted invites route to /pk-bet-room for staked rooms, /pk/room
+    otherwise.
+    Also:
+    - share-invite.js now builds /pk-bet-invite?id=... and its 'wait' button
+    goes to /pk-bet-challenges (the sender's own list, where the stake can
+    still be cancelled) instead of /pk/waiting, which is the legacy room
+    waiting page and useless for a staked invite.
+    - The invite card shows the stake and the post-fee prize.
+    - api/pk-bet.js gained action=invite-status (participants only).
+2026-10-24 16:44  feat(pk): outgoing challenges page with cancel; richer API errors
+    New /pk-bet-challenges lists every invitation I have sent (pending,
+    accepted, declined, expired, cancelled), newest first.
+    - api/pk-bet.js action=outgoing returns my invites plus the room/result id
+    so the page can link straight to the room or the settlement.
+    - Pending rows expose Cancel & refund, which posts action=cancel and the
+    stake goes back to the sender. Accepted rows link to the room.
+    - Status is recomputed against serverNow, so a pending row whose expiresAt
+    has passed shows as expired even before any sweep runs.
+    - Refreshes every 20s while the tab is visible.
+    - Reachable from one's own profile: the profile-meta row now shows a
+    'My Challenges' link when viewing yourself.
+    Errors: insufficient tokens used to say only 'Not enough tokens', which
+    told you nothing. Both invite and accept now return
+    { code:'INSUFFICIENT_TOKENS', need, have, message } with the actual numbers
+    in the message. The page renders status + code + need/have inline instead
+    of a bare toast.
+2026-10-24 16:26  feat(pk): staked PK mode (3 problems / 30 min / prize split)
+    New api/pk-bet.js implements the betting format alongside the old room one.
+    Flow
+    - invite: stake >= 10000, deducted immediately from the sender (daily
+    first, then global) and held in the pool. Refunded on decline/expire via
+    refundInvite(), which claims status first so it cannot double-refund.
+    - accept: acceptor must cover the same stake; 20% fee is taken from the
+    pool; three public problems are picked near the difficulty implied by the
+    pair's average rating; both players see them for 30 minutes.
+    - submit: the server judges the answer (numeric, 1e-6) and stores one row
+    per (player, problem); resubmitting overwrites, so only the last attempt
+    per problem counts.
+    - room/settle/result: settlement is idempotent (claims status first),
+    writes a permanent pk_bet_results row, and room redirects to it.
+    Scoring: per problem (1800 - T) * 100, T = seconds since start (1..1800).
+    Total = sum of three. Higher total wins.
+    Settlement: prize = pool * 0.8.
+    weaker  = prize * ratioWeaker * F
+    stronger = prize - that
+    F is a token-balance subsidy (1 .. 1.25), capped at 0.99/ratioWeaker so the
+    stronger side is never negative. Verified over 20000 random cases: never
+    negative, always sums to prize.
+    Pages: pk-bet-room.html (timer, 3 tabs, submit) and pk-bet-result.html
+    (permanent, shows per-problem attempts, F, both payouts). The user-page
+    Invite button prompts for a stake; pk-notify now polls the new endpoints
+    and shows the stake in its card.
+2026-10-24 16:05  feat(pk): global invitation notifier
+    Until now an invitation could only be seen by opening the share link on
+    pk-invite.html. Nothing told you it existed while you were browsing, so
+    from the invitee's side PK looked broken even when it worked.
+    assets/js/pk-notify.js polls /api/pk?action=pending every 20s (first poll
+    3s after load) and shows a bottom-right card with Accept / Decline and a
+    live countdown. Accept posts action=accept then goes straight to the room.
+    Kept intentionally unobtrusive:
+    - No DOM at all when there is no invitation.
+    - Dismissing stores the invite id, so the same invite never re-pops.
+    - Skips /pk/*, pk-room, pk-waiting and pk-invite, which handle invites
+    themselves.
+    - Does nothing when there is no auth token.
+    Injected into all 64 pages via tools/inject-pk-notify.mjs.
+    Note on the earlier assumption: pk-invite.js in the js root is a commented
+    copy of heartbeat.js and never contained invite logic; the real invite UI
+    lives in pages/pk-invite.js and only backs pk-invite.html. Git history has
+    no version of this notifier - it is new.
+2026-10-24 16:01  fix(pk): expired invites no longer block; feat: optional 3D buttons
+    PK invitations
+    - invite handler checked conflicting rows with status:'pending' only.
+    Expiry cleanup lives in action=pending, so a pending row nobody swept
+    stays forever. Two rows had been pending 3975 and 1627 minutes against a
+    10-minute TTL; those two accounts could never start a PK.
+    - Both conflict queries now require expiresAt > now.
+    - tools/clean-pk-expired.mjs sweeps stale rows (supports --dry). Ran it:
+    2 marked expired, pending count back to 0.
+    3D buttons (opt-in preference)
+    - The purple Invite button on the user page only looked raised because it
+    is a <button> and browsers give it border:outset by default - the same
+    reason almost every other button looks flat (they set border:none).
+    - New body.ui-3d rules apply an inset top highlight, an inset bottom
+    shade, a 2px solid contact shadow and a small lift on hover, with the
+    press sinking 1px. Scoped to .ui-3d so it changes nothing when off.
+    - Settings gains a '3D Buttons' toggle (applies instantly, no Save
+    needed); app.js restores it on every page, same as theme/font size.
+    - Respects prefers-reduced-motion (keeps the static shadow, drops the
+    translate).
+    Verified: default off, toggling adds the class and writes localStorage,
+    survives reload.
+2026-10-24 14:03  feat(admin/problems): virtual scrolling and bulk publish controls
+    The list now has 261+ problems and will keep growing, so rendering every
+    row is wasteful.
+    - Still one adminProblems call that fetches everything (unchanged API);
+    filtering and windowing happen entirely in the browser.
+    - Virtual rendering: only the rows in view plus 10 rows of buffer are in
+    the DOM, with two spacer <tr>s occupying the rest so the scrollbar keeps
+    the true length. ROW_HEIGHT is fixed at 41px and matched in CSS.
+    - Selection lives in a Set keyed by id, so it survives scrolling (the
+    rows are destroyed and rebuilt) and survives filtering.
+    - Select-all applies to the current filtered view only; previously
+    selected rows outside the filter are kept.
+    - The action bar is now Set public / Set private / Delete, with a
+    'n selected' readout. Previous 'Hide Selected' only ever set false.
+    Measured with 300 mock rows: 12 rows in the DOM initially, 36 after
+    scrolling, scrollHeight 12404px (= 300 x 41).
+2026-10-24 13:31  feat(port,admin): cache port problems locally; rebuild admin problems list
+    port
+    - loadProblems() now mirrors the full problem list into localStorage
+    (key port_problems_cache, with subject + updatedAt) after every
+    successful fetch, and falls back to that cache when the API fails, so
+    browsing and searching still work offline. A quota error is swallowed.
+    admin problems list
+    - Edit / Delete are now Font Awesome icon buttons (pencil / trash) with
+    title tooltips, instead of the word 'Edit'.
+    - Added a search box at the top; it matches id, name, answer, difficulty
+    and tags, and shows 'n / total' while filtering.
+    - Answer column capped at 280px with ellipsis and a title tooltip, so one
+    long answer can no longer stretch the table.
+    - Public is now a toggle switch that PUTs a single id and rolls back the
+    checkbox if the request fails, instead of a read-only Yes/No.
+    - Table sits in a scroll container with position:sticky headers, so the
+    Public column and action buttons stay visible while scrolling; the
+    batch action bar is sticky to the bottom of the container.
+2026-10-24 13:15  fix(port): gate the page on root role, matching the API
+    Every /api/port/* endpoint goes through portAuth, which rejects anything
+    below root. The page itself only asked requireAuth, so a student could
+    open port.html, see an empty shell, and get 403 on every request
+    ('Failed to load' with no explanation).
+    Page.boot has no role option, so this follows the pattern used by the
+    other root-only pages: check user.role inside Page.ready and redirect.
+    Verified with seeded tokens: student and admin are redirected to /,
+    root reaches the page.
+2026-10-24 13:10  fix(port): sanitize AI output and stop score being overwritten
+    Two defects reproduced in the browser with a mocked grading response.
+    XSS
+    - showResult() passed result.comment through marked.parse straight into
+    innerHTML. marked does not sanitize, so a comment containing
+    <img src=x onerror=...> executed (window.__xss became true in the test).
+    Added sanitizeHtml(): parse into a <template>, drop script/style/iframe/
+    object/embed/link/meta/form, strip every on* attribute, and neutralise
+    javascript: URLs. Re-tested: the payload no longer fires.
+    Score
+    - The response object was built as { score: finalScore, ...result }, so the
+    spread overwrote the numeric score with whatever string the model
+    returned; the UI showed 'Score: 85/100 / 100'. Spread first, assign
+    score after.
+2026-10-24 13:06  fix(port): draft cross-contamination, XSS, and submit guards
+    Found by driving the page in a browser with mocked APIs.
+    Draft bugs
+    - Switching problems within the 1s autosave debounce wrote the old text
+    into the new problem's draft: the timeout callback read currentProblem,
+    which by then pointed at the newer problem. Capture id and value at
+    scheduling time.
+    - 'Clear draft' only cleared the cloud copy; localStorage kept the old
+    text, so reselecting the problem restored it. Remove the local copy too.
+    - Loading a draft used 'if (res.steps)', so the empty string returned
+    after a clear was treated as 'no draft' and the stale local copy won.
+    Compare against undefined instead.
+    XSS / markup
+    - id and source were interpolated straight into innerHTML; a source
+    containing <b> rendered as markup, and an id containing a quote broke
+    the inline onclick. Switched to data-pid + delegated listener and
+    DSHUI.esc for every interpolated field (list, warnings, submissions).
+    Submit guards
+    - Submit button was enabled on selection even with an empty draft; now it
+    follows the loaded draft content.
+    - api/port/submit.js deleted the draft before calling DeepSeek, so a
+    failed grading threw away the student's text. Delete only on success.
+    - MAX_IMAGES was declared but never enforced.
+    - A mismatched subject was accepted and written to the wrong subject's
+    stats; now the problem's own subject is authoritative.
+    - Number(result.score) guard so a string like '85/100' cannot produce NaN.
+    Search
+    - Only matched id/chapter; now matches source, statement and answer too.
+    Note: assets/js/pages/port.js is an unreferenced copy (no page loads it);
+    the same fixes were applied to assets/js/port.js, which port.html does load.
+2026-10-24 11:43  4.6.7-fix.4: trash styling
+2026-10-24 11:39  4.6.7-fix.3:sync user page
+2026-10-24 11:25  4.6.7-fix.2: add token hub for economic completeion
+2026-10-24 11:19  4.6.7-fix.1: add token hub for economic completeion
+2026-10-24 11:07  4.6.7-dev: add token hub for economic completeion
+2026-10-24 10:55  4.6.6: complete scifi variable coverage across all theme blocks
+    Added tools/audit-theme-vars.mjs, which parses every <style> block and
+    stylesheet, extracts the variables declared per theme scope, and reports
+    any that exist under [data-theme=dark] but not [data-theme=scifi].
+    It found 7 files, all now fixed:
+    login.html            second var block lacked scifi (card-bg, border,
+    text, input-bg)
+    submissions/detail    same, plus badge status colours
+    tr-system.html        14 vars incl. hover-bg, good/good-bg, bad/bad-bg
+    admin/oplog.html      8 --op-* action colours (kept hues, cyan-tinted bg)
+    submissions.html      --page-overlay-bg
+    mobile/styles.css     entire block missing, 30 vars
+    assets/css/port.css   9 vars
+    Re-running the audit reports no remaining gaps.
+2026-10-24 10:52  4.6.5: theme adaption for problem filters and leaderboard period tabs
+    Two surfaces still fell back to light or invalid colours under scifi.
+    - ranklist.html declares its own --hover-bg / --table-hover-bg for :root
+    and dark, but had no scifi block, so .period-tabs resolved
+    background: var(--hover-bg) to an invalid value (transparent).
+    Added a scifi variable block covering card-bg, border, text, accent
+    and both hover tokens.
+    - problems.css: .cat-heading (the filter panel header) hardcoded
+    #e9ecef with a dark override only; added scifi. Also gave .cat-badge
+    a scifi background, since rgba(0,0,0,.08) is invisible on dark, and
+    row hover a scifi colour.
+2026-10-24 10:26  4.6.4: extract neutral colours from inline styles into theme variables
+    Scanned every page: 59 documents carry 9542 lines of inline CSS containing
+    273 distinct colour values across 939 references.
+    Only neutral colours were extracted — 67 occurrences in 30 pages:
+    background / color / border values that were plain white, light grey,
+    dark grey — these are what break under dark and sci-fi because they do
+    not follow the theme.
+    Deliberately left hardcoded:
+    - semantic colours (success #2e7d32, error #e74c3c, warning #f0ad4e):
+    they remain legible on dark backgrounds and carry meaning
+    - colour:#fff on coloured buttons (136 occurrences): changing it would
+    destroy contrast
+    - code highlight palette (#2d2d2d / #d4d4d4 / #3e3e3e): already dark
+    Each touched page now declares three blocks at the top of its style:
+    :root, :root[data-theme=dark] and :root[data-theme=scifi], mapping
+    --c-surface / --c-surface-sunken / --c-border / --c-text and friends.
+    Verified: --c-surface resolves to #ffffff / #161b22 / #09101a under light,
+    dark and scifi respectively.
+2026-10-23 23:24  4.6.4-fix.1: fixed AI prompt
+2026-10-23 23:10  4.6.4-dev: fixed severe search bot things
+2026-10-23 22:00  4.6.3: complete scifi coverage for tags, table headers and controls
+    Remaining surfaces still fell back to light colours because their rules were
+    hardcoded rather than token-driven.
+    - problems.css: .tag used #f0f0f0 with a 12px radius — narrowed to 4px and
+    given dark/scifi backgrounds; also added a scifi rule for
+    .problems-table th, which stayed #e9ecef
+    - ranklist.html: .period-btn.active had a dark override but no scifi one
+    - topbar.js: dropdown hover had a dark override but no scifi one
+    - user.html: .profile-solved grid links kept the light #f8f9fa / #d4edda /
+    #f8d7da backgrounds; added scifi equivalents
+    Verified in-browser under the scifi theme:
+    problems th   rgb(10,21,32) on rgb(159,232,255)
+    tag           rgb(15,34,49), radius 4px
+    period-btn    rgb(15,34,49) on rgb(0,229,255)
+2026-10-23 21:50  4.6.2: fix scifi theme on tables, dropdown and problem states
+    The sci-fi skin left several surfaces unstyled because their colours were
+    hardcoded instead of read from theme tokens.
+    - submissions.css re-declares the global :root variables for its own table,
+    which shadows styles.css, so dark and scifi values had to be re-declared
+    there; five hardcoded light colours now reference those tokens
+    - topbar.js injects dropdown styles at runtime, beating styles.css on equal
+    specificity, so its #fff backgrounds ignored the theme entirely; both now
+    use var(--card-bg)
+    - ranklist.html carries inline table styles with a #e9ecef header colour;
+    added scifi overrides next to the existing dark ones
+    - problems.css: added scifi overrides for row state and hover backgrounds,
+    which otherwise fell back to the light #e6ffed / #ffeaea / #f0f0f0
+    Also fixes the same dropdown issue under dark mode, which was previously
+    white against a dark topbar.
+2026-10-23 21:37  4.6.1: add sci-fi theme skin
+    A third visual theme alongside light and dark, selectable in Settings.
+    Presentational only: no layout, behaviour or markup changes.
+    - styles.css: [data-theme=scifi] token block plus a broad button treatment
+    (cyan glow border, squared corners, luminous text) that covers every
+    button class rather than enumerating the ~20 that exist across pages
+    - form controls, sidebar links, panels and selection get matching cyan edges
+    - destructive buttons keep their red semantics via [class*=danger]
+    - ghost buttons stay transparent
+    - honours prefers-reduced-motion
+    Theme persistence now accepts scifi in the inline bootstrap of all 60 pages,
+    in settings.js applyTheme and in app.js restore.
+    Light and dark are untouched: every new rule is scoped to
+    [data-theme=scifi], so with the attribute absent nothing applies.
+2026-10-23 13:12  更新 image-grade.js
+2026-10-23 13:08  更新 image-grade.js
+2026-10-23 07:40  4.6.0-null: 收利息10
+2026-10-23 07:37  4.6.0-null: 收利息9
+2026-10-23 07:28  4.6.0-null: 收利息8
+2026-10-23 07:26  4.6.0-null: 收利息7
+2026-10-23 07:06  4.6.0-null: 收利息6
+2026-10-22 23:05  4.6.0-null: 收利息5
+2026-10-22 23:00  4.5.9-null: 收利息4
+2026-10-22 22:57  4.5.9-null: 收利息3
+2026-10-22 22:51  4.5.9-null: 收利息2
+2026-10-22 22:44  4.5.9-null: 收利息
+2026-10-22 20:59  4.6.0-release: Updated tour.
+2026-10-22 20:49  4.5.9-fix.2: forgot to declare some trash var
+2026-10-22 20:41  4.5.9-fix.1: fixed missing html
+2026-10-22 20:37  4.5.9-dev: make better display of usage
+2026-10-22 20:31  4.5.8-dev: add more details in admin page
+2026-10-22 20:21  4.5.7-dev: released public
+2026-10-22 20:12  docs: rewrite guides in English, split endpoint reference out of the repository
+    PAGEDETAIL.md is rewritten as an end-user guide: signing in, finding and
+    answering problems, reading results, tracking progress, contests and matches,
+    settings, and common questions. All developer-facing material removed — no
+    commands, no file paths, no administrator pages.
+    dev/PAGEDETAIL.md is translated to English and keeps only page-level
+    implementation notes, each section with its own anchor index.
+    The endpoint reference was moved out to dev/API.md, which is excluded from
+    version control: it documents the full interface surface including
+    administrative actions, and is not appropriate for a public repository.
+2026-10-22 20:04  docs: split page documentation into public guide and developer reference
+    PAGEDETAIL.md (root) is rewritten as an orientation guide for newcomers:
+    how the system is composed, the page map by user-facing purpose, what
+    happens behind a submission, and the four rules to follow before changing
+    anything. Administrator pages are excluded entirely.
+    dev/PAGEDETAIL.md is new and holds the per-page technical reference:
+    load order, the core/ layer, authentication, cache versioning, and the
+    implementation detail of each non-administrator page including data flow,
+    polling behaviour and known constraints.
+    README directory layout updated to reflect both documents.
+2026-10-22 19:34  chore: remove internal documentation from repository
+    Internal handover notes, development conventions, and collaboration guides
+    are now kept outside the repository (private/readmes/). The public repository
+    retains a single README at the root.
+    Removed:
+    README/{README,rules,CONTRIBUTING}.md
+    _template/README.md
+    grader/README.md
+    .gitignore blocks these paths so they cannot be re-added accidentally.
+2026-10-22 19:29  chore: remove bio/ subproject from repository
+    bio/ (Bio Infoday) is a standalone subsite with no shared logic with the
+    mathematics platform, and its endpoints connect to the same production
+    database. It has been migrated out of this repository.
+    Removed from the working tree:
+    bio/infoday/{index,admin,leaderboard}.html
+    assets/js/pages/bio-infoday-*.js
+    Source retained locally under private/bio-system/ (not tracked).
+    .gitignore now blocks bio/, api/bio/, and the bio-infoday page assets.
+2026-10-22 19:19  docs: rewrite README in formal English for public release
+    Replaces the previous README with a formal specification-style document:
+    overview, scope of the repository, functional scope, technical
+    architecture, repository layout, and design constraints.
+    Removes marketing language and informal tone. States explicitly which
+    resources are excluded from the repository (problem content, student
+    records, grading rubrics, credentials).
+2026-10-22 18:58  chore: 开源前清理、修复双心跳、新增首页 README
+    - README.md：新增面向开源的首页说明（GitHub 首页显示的就是它）
+    - assets/js/pk-invite.js 全文注释：该文件是 heartbeat.js 的完整逐行副本，
+    不含任何 PK 邀请逻辑，却被注入全部 24 个页面，与 heartbeat.js 同时执行
+    导致每页两次 POST /api/heartbeat。保留文件仅为兼容历史引用。
+    - 题库数据移出仓库至 private/：_problems_cur.json、_problems_upd.json、
+    all-scripts.txt、_difficulty_changes.md、temp/problems_1.js
+    - .gitignore：永久拦截上述题库文件与 temp/ 目录
+2026-10-22 18:34  4.5.6-fix.2: fixed endl eaten
+2026-10-22 18:21  4.5.6-fix.1: bruh forgot to bump version
+2026-10-22 18:18  4.5.6-dev: continue fix trash image submit
+2026-10-22 18:11  Merge branch 'main' of github.com:wyk-maths-team/source-code
+2026-10-22 18:11  4.5.6-alpha: fixing ai marking
+2026-10-22 14:03  LICENSE
+2026-10-22 07:24  4.5.5-fix.1:url error
+2026-10-22 07:20  4.5.5: new function on submissions page and fix bugs
+2026-10-22 06:46  4.5.4-fix.7: more fix on latex
+2026-10-22 06:42  4.5.4-fix.6: Fixed latex display
+2026-10-21 19:35  chore: 在 .gitignore 中永久拦截已清除的敏感文件
+    hunt.mjs 曾含硬编码的 MongoDB 生产连接串（凭据已轮换），
+    offenders.json / offenders.md 是学生违规记录，属个人资料。
+    三者已用 git filter-repo 从全部历史移除，此处防止再次误提交。
+2026-10-21 18:23  4.5.4-fix.5: unable to open token details
+2026-10-21 18:19  4.5.4-fix.4: details in token
+2026-10-21 07:11  4.5.4-fix.3: fixed mobile display
+2026-10-21 07:06  4.5.4-fix.2: fixed mobile display
+2026-10-20 23:25  4.5.4-fix.1: fixed one line
+2026-10-20 23:18  4.5.4-dev: Finalized logic
+2026-10-20 23:04  4.5.3: rounding
+2026-10-20 22:54  4.5.3: better token display
+2026-10-20 22:48  4.5.2: better token UI, better management page
+2026-10-20 22:37  4.5.1-fix.4: async display token
+2026-10-20 22:35  4.5.1-fix.3: async display token
+2026-10-20 22:31  4.5.1-fix.2: cannot award token
+2026-10-20 22:23  4.5.1-fix: root changed to normal submit
+2026-10-20 22:18  4.5.1-dev: fixed bugs
+2026-10-20 22:02  4.4.0-release: add currency for AI usage
+2026-10-20 07:39  4.4.10-fix.2: fixed judging time
+2026-10-20 07:35  4.4.10-fix.1: fixed judging time
+2026-10-19 20:44  4.4.10-dev: add AI token display, fixed judging time display
+2026-10-19 20:38  4.4.9-dev: add AI token useage record
+2026-10-19 19:11  4.4.8-fix.2: sync version number
+2026-10-19 19:09  4.4.8-fix.1: fixed root,admin cannot kill themselves.
+2026-10-19 18:55  4.4.8-dev: modified admin user page
+2026-10-19 18:20  4.4.7-dev: changed model source
+2026-10-19 18:14  4.4.6-dev: Add more bans
+2026-10-19 18:03  4.4.5-dev: make violation
+2026-10-19 15:48  4.4.4-dev: make system msg better
+2026-10-19 15:21  test
+2026-10-19 00:40  4.4.3-dev: add system messages
+2026-10-18 22:03  dont use agent to code. risks>benefits
+2026-10-18 19:22  fix: 修复 escapeHtml 返回函数对象导致源码泄漏到页面（线上 bug）
+    现象：
+    页面上出现 <img src="function esc(s) {...}">，函数源码被当成属性值渲染。
+    根因：
+    M4-1b 的转义迁移用错了写法：
+    function esc(s) { return (window.DSHUI && DSHUI.esc) || function (s) {...}); }
+    这里的 return 返回的是「函数本身」，没有 (s) 调用。
+    于是模板字符串 `${escapeHtml(x)}` 会把函数 toString() 成源码插进 HTML。
+    修复：
+    改为
+    function esc(s) { return ((window.DSHUI && DSHUI.esc) || function (s) {...})(s); }
+    33 个文件 / 33 处全部修正（都在抽离后的 assets/js/pages/ 下）。
+    tools/migrate-escape.mjs 的 FALLBACK 同步改正，并在注释里写清楚
+    这个坑，避免以后重新生成时再犯。
+    tools/fix-escape-call.mjs 为一次性修复脚本（幂等，已是正确形态则跳过）。
+    验证：
+    - 33 个文件 node --check 全通过
+    - Node 侧验证返回值类型为 string（而非 Function），5 字符转义完整，
+    有 DSHUI 时同样返回字符串
+    - 浏览器实测 6 个页面：img src 无污染、页面内无函数源码泄漏、零 JS 错误
+2026-10-18 19:14  fix: 重新计算资源版本号（换行符混合导致指纹漂移）
+    问题：
+    core.autocrlf=true 且仓库没有 .gitattributes，导致文件里同时存在
+    CRLF（git checkout 写入）与 LF（工具脚本写入），内容指纹随之变化，
+    合并后出现 63 个页面的 ?v= 与 assets 内容不一致。
+    处理：
+    按当前工作区内容重算版本号 1435c556 -> 384db02f。
+    这不影响功能（?v= 只要变化浏览器就会重新下载），但属于需要根治的隐患。
+    根治方案（待办）：
+    新增 .gitattributes 固定 eol=lf，让仓库与工作区换行符一致，
+    后续版本号才不会每次 checkout 都变。
+2026-10-18 19:10  docs: 记录内联脚本抽离后的维护方式变化
+    - 新增 5.1.1：页面脚本现在在 assets/js/pages/ 下，命名规则、
+    绝对路径引用、三处仍内联的原因、改完要重跑 version:assets
+    - 更新 5.1 日常流程表：加"改页面逻辑要改 pages/ 下的 js 而非 HTML"
+2026-10-18 19:10  refactor: 内联脚本抽离为独立文件（可被 immutable 缓存）
+    背景:
+    - 63 个页面共 16280 行内联 <script>，它们无法被浏览器缓存，
+    每次访问都要随 HTML 重新传输；HTML 本身是 no-cache，等于每次全量重发。
+    - 抽成文件后走 assets 的 immutable 策略，第二次访问 0 请求。
+    新增 tools/extract-inline.mjs:
+    - 扫描所有页面的内联 <script>，写出到 assets/js/pages/<slug>.js
+    - 路径用绝对路径 /assets/js/pages/xxx.js：
+    与页面层级无关，根目录、admin/、problems/ 下都一样正确，
+    不需要 ../ 逃离，也不受 vercel.json rewrite 改写 URL 的影响。
+    - 不包 IIFE、不加 defer：保持原有的全局作用域与同步执行顺序
+    - 幂等：已抽过的页面不再动
+    保留内联的三类（有意为之）:
+    1. window.__BUILD_V 注入 —— 由 version-assets 管理
+    2. 主题防闪白脚本 —— 在 <head> 里同步执行，抽成外部文件会多一次网络等待，
+    首屏反而更容易闪白。识别条件是「含 theme 且 ≤30 行」，
+    不能只看含不含 theme，否则 settings 这种专门管理主题的大脚本会被误杀。
+    4. 小于 15 行的碎片
+    结果:
+    - 内联脚本 16280 行 -> 473 行（减少 97%）
+    - 新增 58 个文件，共约 600 KB，全部可缓存
+    - 剩余 135 个内联块都是 BUILD_V 与主题初始化
+    验证:
+    - 58 个抽出文件全部通过 node --check
+    - 58 个引用零缺失
+    - 浏览器实测 13 个页面（含根目录、admin/、problems/ 子目录）：
+    抽出脚本均返回 200、零 404、零 JS 错误
+    - 唯一报错的 admin/editproblem.html 是缺 ?id= 时的原有业务校验，非本次引入
+2026-10-18 19:03  feat: status 加 admin 检查、移除废弃的 draw 工具、detail 按角色返回
+    1) api/status.js 增加管理员校验
+    system / vercel / 无 action 都会暴露数据库集合大小与团队账单，
+    现仅 admin / root 可访问，其余返回 403 FORBIDDEN。
+    handleOsAction（用户自己的桌面图标等数据）不受影响。
+    2) 移除废弃的几何绘图工具（用户确认已有图片上传方案）
+    - 删除 assets/js/draw.js（324 行）
+    - pd-extras.js 删除整个 Draw 块（锁滚动、观察器、toggle）96 行
+    - pd-script.js 删除 Draw 按钮
+    - admin/editproblem.html 删除 script 引用
+    - problems/[id].html 清理注释残留
+    注意：os-app-draw.js（OS 里的画板应用）是另一个文件，保留未动；
+    pd-mcq.js 的 canvas 是独立实现，也不受影响。
+    3) lib/errors.js：detail 只返回给 admin / root
+    detail 就是后端 err.message，可能含数据库主机名等内部信息。
+    之前无条件返回——前端隐藏没有意义，F12 的 Network 能看到响应体，
+    所以必须在服务端拦截。伪造成员 token 最多换来更少的报错细节，
+    拿不到任何额外权限（鉴权仍由各接口自己负责）。
+    4) 测试
+    test-errors.mjs 新增 1b 组：无 token / student / admin / root / 伪造 token
+    共 48 条断言全部通过。
+2026-10-18 18:31  docs: 更新 PAGEDETAIL.md 的迁移进度（第 1、2 层已完成）
+    - 记录 escapeHtml（33 页）与 alert（44 处）的完成情况与提交号
+    - 记录 fmtTime 跳过、裸 fetch 建议跳过的理由
+    - 补充两个迁移工具「改定义不改调用」的实现原则与幂等性
+2026-10-18 18:30  refactor(M4-1b): 44 处 alert 换成统一 toast
+    背景:
+    - 全站 46 处 alert()，阻塞式弹窗，体验割裂，也无法带错误详情
+    做法:
+    - 44 处换成 (window.DSHUI ? DSHUI.toast(msg, type) : alert(msg))
+    DSHUI 未加载时回退 alert，不会静默丢失提示
+    - 按关键字自动判定类型：失败类 -> err（红色），成功类 -> ok（绿色）
+    - 保留 2 处（setup.html 的 Invalid link / Invalid token）：
+    它们紧跟 location.href='/' 跳转，alert 会阻塞让用户看清后再跳，
+    换成非阻塞 toast 会导致提示一闪而过
+    新增工具 tools/migrate-alert.mjs:
+    - 只处理 alert，不碰 confirm / prompt
+    - 括号配对解析参数，支持嵌套与模板字符串
+    - 同行含 location 跳转的自动保留
+    - 幂等（已迁移过的不再改）
+    验证:
+    - 18 个页面的内联 JS 逐块 node --check 全通过
+    - 检查了所有整行开头的替换点，上一行均以 ; { } , 结尾，无 ASI 陷阱
+    - 浏览器实测 calendar / user / status：零 JS 错误，DSHUI.toast 可正常渲染
+    - setup 与 admin/newproblem 因缺有效 token/参数会主动跳转首页，属测试环境限制；
+    两页均已确认引用 core/ui.js，且替换带 alert 回退
+2026-10-18 18:26  refactor(M4-1): 统一 33 个页面的 HTML 转义实现
+    背景:
+    - 27+ 个页面各自实现 escapeHtml，实现还不一致：
+    16 个只转义 & < >（漏引号，属性上下文有 XSS 风险）
+    13 个转义 5 字符，3 个转义 4 字符
+    - 同一件事 30 多份实现，改一处漏一片
+    做法:
+    - 只替换函数定义体，全站 200+ 处调用点一个不动
+    - 统一走 core/ui.js 的 DSHUI.esc（5 字符转义），
+    DSHUI 未加载时回退内联实现，单独打开页面也不会坏
+    - 顺带修掉 16 个页面漏转义引号的隐患
+    新增工具:
+    - tools/audit-pages.mjs  扫描所有页面的结构化档案
+    （内联 JS/CSS 行数、API 引用、公共页、重复实现、路由）
+    - tools/migrate-escape.mjs  转义函数迁移器（支持多行与单行形态、幂等）
+    修复的坑（过程中遇到并解决）:
+    - 词法分析被正则字面量 /[&<>"']/g 干扰 -> 改用非贪婪 + 行尾 } 匹配
+    - fallback 少一个 } 导致语法错 -> 已修正
+    - 对已迁移的单行版本二次运行时，多行正则会跨过该函数、
+    继续匹配下一个函数的行尾 }，从而吞掉中间代码 ->
+    加幂等判断（函数体已含 DSHUI 则跳过）+ 函数体内含其他 function 则跳过
+    验证:
+    - 幂等：重复运行 0 改动
+    - 33 个页面的内联 JS 逐块 node --check 全部通过
+    - 浏览器实测 14 个页面：12 个零 JS 错误；
+    另 2 个（admin/editproblem、contestresults）的报错是页面自身在
+    URL 缺 ID 时主动 throw，已确认迁移前就存在，非本次引入
+    - 全站已无非 DSHUI 版本的转义函数
+    同时新增 PAGEDETAIL.md：63 个页面的档案（行数/API/鉴权/档位/重复实现）
+    与维护指南（改动流程、缓存与版本号、调试手段、已知陷阱清单、迁移路线）
+2026-10-18 18:10  chore: 删除失效的页面过渡（page transition）相关死代码
+    判断结论：这段是「部分死、部分活」。
+    死掉的部分:
+    - assets/js/pageload.js —— 402 行中有效代码 0 行，整个 IIFE 被注释掉了，
+    但仍有 52 个页面在白白加载它
+    - 内联脚本里的 3 行：pageTransition 开关判断、sessionStorage.__pt 判断、
+    documentElement.style.background 遮罩色设置
+    - settings.html 的 "Page transitions & fade effects" 开关（UI + 初始化 + 绑定）
+    注意：它调用的 isPageTransitionEnabled / setPageTransition 只定义在被注释的
+    pageload.js 里，typeof 检查永远为假，存下来的 localStorage 值无人消费
+    - login.html 的 sessionStorage.setItem('__pt','in')（注释写着"主页那边要用来揭幕"，
+    但揭幕方已随 pageload.js 失效）
+    保留的部分（关键）:
+    - 内联脚本的前两行主题设置必须留着：
+    var t = localStorage.getItem('theme') || 'light';
+    if (t === 'dark') documentElement.setAttribute('data-theme','dark');
+    它在 head 里同步执行，是暗色模式的防闪白逻辑，删了会白屏闪一下。
+    只把原来依赖 t 的遮罩色赋值删掉，t 仍被 data-theme 使用。
+    改动范围:
+    - 删除 assets/js/pageload.js（13919 B / 402 行纯注释）
+    - 51 个页面移除 pageload.js 的 script 标签
+    - 63 个页面内联脚本瘦身（共删 200 行）
+    - settings.html 删除开关与两段逻辑
+    - login.html 删除 __pt 写入
+    - 重跑 version:assets（版本号 60e75531 -> 80adb1e1，773 处引用更新）
+    验证:
+    - 63 个页面 script 标签全部配对
+    - 5 个改过页面的内联 JS 通过 node --check
+    - 暗色主题：DOMContentLoaded 时 data-theme 已是 dark（防闪白生效）
+    - 亮色主题：data-theme 为空，未被污染
+    - 12 个页面回归：零 JS 错误、零 404、无任何 pageload.js 请求
+    - settings.html 的 pageTransitionToggle 已移除，其余 10 个设置项完好
+2026-10-18 17:57  feat(M3): 页面模板与脚手架 — 加页面从 2 小时变 2 分钟
+    新增 _template/:
+    - page.html  干净模板（core 4 件套、共享脚本、PWA、主题初始化）
+    - page.js    业务骨架（Page.boot + API + DSHUI.esc + 错误兜底）
+    - README.md  用法与三条约定、两个易踩的坑
+    新增 tools/new-page.mjs:
+    一条命令生成页面并自动接好 4 处：
+    1) 根目录的页面 html
+    2) assets/js/pages/ 下的页面脚本
+    3) assets/js/sidebar.js 的 EXTRA_NAV 条目（含自动高亮）
+    4) vercel.json 的短路径 rewrite（插在 404 兜底规则之前）
+    支持 --title / --path / --icon / --public / --admin / --no-nav / --no-route / --dry
+    支撑改动:
+    - sidebar.js 新增 EXTRA_NAV 数据驱动扩展点 + renderExtraNav()，
+    当前页高亮从硬编码 if-else 改为按 match/href 前缀自动匹配
+    - auth.js 支持 meta requires-auth=false 声明，
+    新页面不必再回来改公开页白名单（本次踩到的坑）
+    - version-assets.mjs 的 SKIP_DIRS 排除 _template（模板不是产物）
+    - package.json 加 new:page
+    验证:
+    - 端到端生成 stats-demo：/stats-demo 返回 200、标题正确、
+    侧栏条目出现且高亮、core 4 件套就位、零 JS 错误
+    - 对照组：未声明为公开的 template.html，未登录时仍被正确重定向到首页
+    - dry-run 不写任何文件；清理后 sidebar/vercel 无残留、JSON 合法
+    - 7 个现有页面回归：侧栏 9 条链接渲染正常、零 JS 错误
+2026-10-18 17:38  feat(cache): 静态资源内容版本化 + 本地服务器工具
+    背景（实测确认）:
+    - 生产 /assets/*.js|css 返回 public, max-age=31536000, immutable（正常）
+    - 但 vercel dev 对本项目不应用 vercel.json 的 headers，
+    返回 max-age=0,must-revalidate，故本地每次刷新都重新请求
+    真正的问题（本次修复）:
+    immutable + 固定文件名 => 改了 JS 部署后，学生浏览器仍用旧缓存，
+    且 settings 的 Clear Cache 清的是 Cache Storage，清不掉 HTTP 磁盘缓存。
+    版本错配会导致页面白屏或功能异常。
+    方案:
+    - tools/version-assets.mjs：对 assets/ 下 42 个 js/css 算内容指纹，
+    给 63 个 HTML 的 824 处引用加/更新 ?v=<hash>，并向 <head> 注入
+    window.__BUILD_V 供动态加载使用
+    - 已挂到 package.json 的 build：Vercel 每次部署自动执行，开发者不必记得跑
+    - 幂等：内容不变时重复运行 0 改动；改任一文件后版本号变化
+    - 无版本号时自动降级，不会产生 ?v=undefined
+    动态加载同步:
+    - os-system.js 14 个 os-app-*.js 的 scriptUrl 追加 assetV()
+    - pd-script.js 的 pd-mcq/pd-extras、pd-extras.js 的 draw.js 同样处理
+    工具:
+    - tools/serve.mjs 本地服务器（读 vercel.json 的 headers/rewrites，
+    可选择 --no-cache），供需要本地缓存行为时使用；日常开发仍用 vercel dev
+    - npm scripts: build / version:assets / check:versions / serve / test:errors
+    验证:
+    - 幂等性与变更检测通过（改 styles.css: 60e75531 -> ecb6fccf -> 还原）
+    - 浏览器实测 6 个页面共 152 个资源请求，100% 带版本号，零 JS 错误
+    - os-app 动态加载 URL 构造与可达性（HTTP 200）验证通过
+2026-10-18 17:18  feat(M2): 统一 API 错误规范 + 前端共享层 core/
+    后端 lib/errors.js:
+    - wrapHandler() 兜底所有未捕获异常，33 个 API 各改 3 行即接入
+    - 劫持 res.json，为所有 4xx/5xx 响应自动补 code / requestId（无需改动既有 res.status().json()）
+    - 错误码表 ERR：BAD_REQUEST/UNAUTHORIZED/FORBIDDEN/NOT_FOUND/CONFLICT/
+    RATE_LIMITED/CONFIG/DB_ERROR/GRADE_ERROR/INTERNAL/UPSTREAM/TIMEOUT
+    - 保留 message 字段向后兼容；detail 给真实错误，stack 需 API_DEBUG=1
+    前端 assets/js/core/:
+    - ui.js   toast + 错误详情面板（可复制错误码/请求ID/详情）
+    - net.js  劫持 fetch 自动捕获 /api/ 失败：5xx 弹可点开的 toast，4xx 只进 console，
+    ?apiDebug=1 时全部弹详情并记住设置
+    - api.js  API.get/post/put/del 封装，失败抛 ApiError(status/code/message/detail/requestId)
+    - page.js 页面启动器（标题/登录校验/骨架屏/错误边界），供 M3 模板使用
+    - 63 个页面统一注入这 4 个模块
+    测试:
+    - tools/test-errors.mjs 42 条断言全通过（覆盖兜底、补码、向后兼容、已发响应、
+    requestId 复用、数组响应不被污染）
+    - Playwright 实测 10 个页面零 JS 错误；模拟 500 响应时面板正确显示
+    code/message/detail/requestId
+2026-10-18 17:01  refactor(M1): 统一前端真相源 — 共享脚本/CSS 收回本地 assets/
+    - 新增 assets/js (31) + assets/css (7)，取自线上 resources 仓库实际运行版本
+    - 62 个页面共 508 处引用从 CDN/相对路径改为 /assets/
+    - os-system.js 动态加载基址 CDN_BASE -> /assets/js/
+    - pd-script.js 的 pd-mcq/pd-extras 路径、pd-extras.js 的 draw.js 改为本地
+    - admin/editproblem.html 修复本来就 404 的 /draw.js 引用
+    - 归档 escript/、script/、css/ 及根目录 app/auth/topbar/sidebar/styles 等重复副本
+    - 教材/题图仍托管 resources CDN（tr-images 未改）
+2026-10-18 16:44  chore: ignore .backup/ and .acl-recovery/ (重构备份目录)
+2026-10-17 21:59  4.4.2-dev: tour updated, fixed mobile
+2026-10-17 16:36  4.4.1: add website tour
+2026-10-17 15:54  4.4.0-dev: full function mobile version
+2026-10-17 08:24  changed mobile version
+2026-10-16 22:56  4.3.0-fix: restored difficulty, will modify later
+2026-10-16 22:35  4.3.0-dev: add better difficulty adjustment by DSH
+2026-10-16 19:23  4.2.3-fix.9: pd-extra length increased 2
+2026-10-16 18:36  4.2.3-fix.8: pd-extra length increased
+2026-10-16 18:03  4.2.3-fix.7: ai emergency adjust
+2026-10-16 13:25  更新 steps-grade.js
+2026-10-16 13:07  更新 submissions.js
+2026-10-16 13:04  Test admin: cannot see ans in list
+2026-10-16 11:56  更新 admin.js
+2026-10-16 07:29  4.2.3-fix.6: fixed image submissions
+2026-10-15 22:41  4.2.3-fix.5: fixed root cannot use bridge
+2026-10-15 22:36  4.2.3-fix.4: Finalize ai grading time
+2026-10-15 21:33  4.2.3-fix.3: Completed AI grading
+2026-10-15 21:20  4.2.3-fix.2: fixed ISE: duplcate improt
+2026-10-15 21:17  4.2.3-fix.1: model source fix
+2026-10-15 20:55  4.2.3-dev: auto model choosing
+2026-10-15 16:56  Merge branch 'dev'
+2026-10-15 16:54  add good functions
+2026-10-15 16:38  4.2.3-fix.1:fixed cache error in leaderboard
+2026-10-15 16:31  4.2.3-dev: add different modes of leaderboard
+2026-10-15 15:34  Update steps-grade.js
+2026-10-15 15:26  Enhance grading feedback guidelines in grade-prompt.js
+    Updated grading prompt rules to provide more detailed feedback based on scores.
+2026-10-15 15:16  Update pd-extras.js
+2026-10-15 15:09  Update steps-grade.js
+2026-10-15 15:09  Create grade-prompt.js
+2026-10-15 15:09  Create deepseek-api.js
+2026-10-15 14:07  创建 deepseek-api.js
+2026-10-15 13:09  resumed AI marking function
+2026-10-15 10:42  Handle AI service unavailability with 502 response
+    Return a 502 error response when the AI service is unavailable.
+2026-10-15 10:35  Emergency fix on banning ai gateway
+2026-10-14 22:36  4.2.2-fix: styles.css died
+2026-10-14 22:33  4.2.2-dev: add CMO question, unlocked CMO badge
+2026-10-14 22:09  4.2.1-fix.3: edit pid ,再写我就是勾
+2026-10-14 19:40  fixed banner page notice
+2026-10-14 17:14  test: dev branch should skip build
+2026-10-14 16:53  4.2.1-fix.2 add ruleset for deploy
+2026-10-13 22:59  4.2.1-fix: problems page losting styles?
+2026-10-13 22:50  4.2.0-release: Add something for my own studying
+2026-10-13 22:19  4.2.0-dev: Add something for my own studying
+2026-10-12 23:13  4.1.13-release: 退隐通知：除了重大错误/网站崩塌，本人将不会进行日常维护。
+2026-10-12 21:33  4.1.13-dev: Fixed: unable to uplaod image, add: AI image marking
+2026-10-12 20:01  4.1.12-dev: fixed failed to upload image
+2026-10-12 10:27  更新 problems.html
+2026-10-11 22:43  4.1.11-alpha: refined rating system.
+2026-10-11 17:18  4.1.11-dev: Add rating system
+2026-10-11 16:32  4.1.10-dev: EM fix cooldown
+2026-10-11 10:54  4.1.9-dev: stage 2: add force image/AI mode
+2026-10-11 09:43  4.1.9-dev: stage 2: add mini block functions
+2026-10-10 20:23  4.1.8-fix: Extended output length to 3k
+2026-10-10 19:14  4.1.8-dev: add admin api endpoint check
+2026-10-10 14:26  4.1.7-fix.8: emergency fix on problems
+2026-10-10 14:21  4.1.7-fix.7: emergency fix on problems
+2026-10-10 14:20  4.1.7-fix.6: emergency fix on problems
+2026-10-10 14:13  4.1.7-fix.5: updated api and name limits
+2026-10-10 12:13  4.1.7-fix.4: remdermath on comments
+2026-10-10 11:06  4.1.7-fix.3: fix credits
+2026-10-10 00:23  4.1.7-fix.2: Fix cache problem render error
+2026-10-09 21:57  4.1.7-fix.1: Fix report list
+2026-10-09 21:49  4.1.7-dev: Finished project structure
+2026-10-09 21:43  Merge branch 'main' of https://github.com/wyk-maths-team/source-code
+2026-10-09 21:40  4.1.7-dev: Finished project structure
+2026-10-09 11:45  更新 pd-script.js
+2026-10-08 21:17  4.1.6-alpha.3: fixed minor styling
+2026-10-08 21:13  4.1.6-alpha.2: optimized loading for problems page.
+2026-10-08 21:11  4.1.6-alpha.2: optimized loading for problems page.
+2026-10-08 08:41  更新 pd-script.js
+2026-10-07 22:42  4.1.6-alpha.1: Add AI marking system beta styling
+2026-10-07 22:33  4.1.6-dev: Add AI marking system beta
+2026-10-07 07:23  4.1.5.dev.fix-1 Add AI marking system
+2026-10-06 22:50  4.1.5.dev: Add AI marking system TESTING
+2026-10-06 19:58  4.1.3-alpha.4.fix-2: People can see live progress of competition.
+2026-10-06 19:55  4.1.3-alpha.4.fix: People can see live progress of competition.
+2026-10-06 19:51  4.1.3-alpha.4: People can see live progress of competition.
+2026-10-06 00:21  4.1.4-pre: test AI
+2026-10-05 21:13  4.1.3-alpha.3: fixed a function from submissions.js
+2026-10-05 20:51  4.1.3-alpha.2: fixed a function from submissions.js
+2026-10-05 20:48  4.1.3-alpha.1: Deleted a function from submissions
+2026-10-05 20:42  4.1.3-release: optimized many queries
+2026-10-05 00:05  4.1.2-release-fix-5
+2026-10-04 23:56  4.1.2-release-fix-4
+2026-10-04 23:50  4.1.2-release-fix-3
+2026-10-04 23:21  4.1.2-release-fix-2
+2026-10-04 21:22  4.1.2-release-fix-1
+2026-10-04 21:17  4.1.2-release
+2026-10-04 19:20  add pk
+2026-10-04 16:12  add online system
+2026-10-04 16:11  add online system
+2026-10-04 16:10  add online system
+2026-10-04 10:42  test 2
+2026-10-04 10:39  add test page
+2026-10-04 10:38  add test page
+2026-10-03 17:46  fix arch. bugs
+2026-10-03 10:37  temp page
+2026-10-03 10:32  temp page
+2026-10-03 10:08  temp page
+2026-10-03 10:06  temp page
+2026-10-03 10:00  temp page
+2026-10-03 09:53  temp page
+2026-10-01 18:56  fix?
+2026-10-01 18:21  lol gitignore
+2026-10-01 11:19  fix some bugs
+2026-10-01 10:03  fix report system
+2026-09-30 20:59  add transition styling 2
+2026-09-30 20:53  add transition styling 2
+2026-09-30 20:48  add transition styling
+2026-09-30 20:46  add transition styling
+2026-09-30 20:44  add transition styling
+2026-09-30 20:40  add transition styling
+2026-09-30 20:35  add transition styling
+2026-09-30 07:38  add reset password
+2026-09-30 07:25  add reset password
+2026-09-30 07:05  add reset password
+2026-09-30 07:03  add reset password
+2026-09-30 06:59  add reset password
+2026-09-30 06:59  add reset password
+2026-09-30 06:56  add reset password
+2026-09-30 00:02  fix some bugs
+2026-09-29 23:43  add auto backup database 2
+2026-09-29 23:32  add auto backup database
+2026-09-29 23:21  add database rollback
+2026-09-29 23:10  opt build time
+2026-09-29 23:07  opt build time
+2026-09-29 23:02  opt build time and add fix upload dir
+2026-09-29 22:53  ah
+2026-09-29 22:30  finally fixed!!
+2026-09-29 22:05  fix?
+2026-09-29 21:54  add sth
+2026-09-29 21:10  sync version
+2026-09-28 20:38  add achievement system
+2026-09-28 20:33  add achievement system
+2026-09-28 20:06  add achievement system
+2026-09-28 19:59  add achievement system
+2026-09-27 18:31  fix some tags
+2026-09-27 13:18  update problems page
+2026-09-27 11:14  update problems page
+2026-09-27 11:06  update problems page
+2026-09-27 10:41  update problems page
+2026-09-27 10:38  update problems page
+2026-09-27 10:18  fix admin page
+2026-09-27 08:20  fix severe bug at admin submissions
+2026-09-27 06:43  add audit log notifications6 and optimize image upload
+2026-09-26 22:07  add audit log notifications6
+2026-09-26 22:04  add audit log notifications4
+2026-09-26 21:58  add audit log notifications4
+2026-09-26 21:31  add audit log notifications2
+2026-09-26 21:16  add audit log notifications2
+2026-09-26 21:09  add audit log notifications
+2026-09-26 19:42  fix severe bugs
+2026-09-26 18:01  image source changed to github fix1
+2026-09-26 17:57  image source changed to github
+2026-09-26 17:21  submissions UI fix
+2026-09-26 17:15  add more logging fix
+2026-09-26 16:52  add more logging fix
+2026-09-26 16:48  add more logging
+2026-09-26 15:41  minor fix on image folder 2
+2026-09-26 12:12  minor fix on image folder
+2026-09-26 11:52  minor fix
+2026-09-25 19:54  give up, make mobile version improved much better 2
+2026-09-25 16:44  give up, make mobile version improved much better
+2026-09-25 16:39  give up, make mobile version improved much better
+2026-09-25 16:29  give up, make mobile version improved much better
+2026-09-25 16:20  give up, make mobile version improved much better
+2026-09-25 16:20  give up, make mobile version improved much better
+2026-09-25 16:12  give up, make mobile version improved much better
+2026-09-25 15:59  give up, make mobile version improved
+2026-09-25 15:38  give up, make mobile version
+2026-09-25 15:23  give up, make mobile version
+2026-09-25 15:20  give up, make mobile version
+2026-09-25 15:12  give up, make mobile version
+2026-09-25 15:09  give up, make mobile version
+2026-09-25 15:01  give up, make mobile version
+2026-09-25 14:58  give up, make mobile version
+2026-09-25 14:54  give up, make mobile version
+2026-09-25 09:30  add a brand new contest mode 11-fix  bugs
+2026-09-25 09:23  add a brand new contest mode 10-fix  bugs
+2026-09-25 09:16  add a brand new contest mode 9-fix  bugs
+2026-09-25 09:09  add a brand new contest mode 8-fix  bugs
+2026-09-25 08:59  add a brand new contest mode 7-fix  bugs
+2026-09-25 08:50  add a brand new contest mode 6-fix shit bugs
+2026-09-25 08:13  add a brand new contest mode 5
+2026-09-25 00:05  add a brand new contest mode 3
+2026-09-25 00:02  add a brand new contest mode 3
+2026-09-24 23:52  add a brand new contest mode 2
+2026-09-24 23:46  add a brand new contest mode 1
+2026-09-24 23:42  add a brand new contest mode
+2026-09-24 21:23  update edit mode
+2026-09-24 21:07  update edit mode
+2026-09-24 20:56  update edit mode
+2026-09-24 20:45  try new submit mode
+2026-09-24 16:41  更新 manifest.json
+2026-09-24 12:10  更新 contestresults.html
+2026-09-24 12:06  更新 contestresults.html
+    修复一些bug
+2026-09-24 12:04  更新 contestresults.html
+    修复一些bug
+2026-09-24 07:15  add mysterious system
+2026-09-23 22:34  add mysterious system
+2026-09-23 22:26  add mysterious system
+2026-09-23 22:19  add mysterious system
+2026-09-23 21:49  add mysterious system
+2026-09-23 21:40  add mysterious system
+2026-09-23 21:34  add mysterious system
+2026-09-23 21:27  add mysterious system
+2026-09-22 21:43  add music
+2026-09-22 21:05  fix security bugs
+2026-09-22 20:46  change contest style
+2026-09-22 20:36  optimize pfp loading
+2026-09-22 20:27  fix some contest bugs 7
+2026-09-22 20:22  fix some contest bugs 6 and change cdn
+2026-09-22 20:11  fix some contest bugs 5
+2026-09-22 20:07  fix some contest bugs 4
+2026-09-22 20:00  fix some contest bugs 3
+2026-09-22 19:57  fix some contest bugs 2
+2026-09-22 19:47  fix some contest bugs
+2026-09-22 15:41  更新 submit.js fix severe bug
+2026-09-22 14:05  更新 contest.html
+2026-09-22 12:23  更新 contestresults.html
+2026-09-22 12:09  更新 [id].html
+2026-09-21 23:04  fah
+2026-09-21 22:50  final fix today, fking tired
+2026-09-21 22:39  fix charts, removed the critical css
+2026-09-21 22:29  fix CLS 2
+2026-09-21 22:25  fix CLS 2
+2026-09-21 22:23  fix CLS
+2026-09-21 22:17  fix transition
+2026-09-21 22:13  fix transition
+2026-09-21 22:08  add some optimizations
+2026-09-21 22:01  fixing shit things
+2026-09-21 21:57  bug fix
+2026-09-21 21:53  fix styling
+2026-09-21 21:44  fix styling
+2026-09-21 21:31  rewrote the styling
+2026-09-21 21:24  add some artistic work
+2026-09-21 21:20  add some artistic work
+2026-09-21 21:12  fixed A LOT OF BUGS
+2026-09-21 20:55  fixed bug in submissions
+2026-09-21 12:11  更新 submissions.html
+2026-09-21 12:10  更新 submissions.js
+2026-09-21 11:56  更新 submissions.html
+2026-09-21 07:36  fix rejudge
+2026-09-20 20:55  fix late call of connectdatabase
+2026-09-20 18:46  emergency fix on submit
+2026-09-20 15:37  Deketed hint msg in OS
+2026-09-20 13:07  add fullscreen for ipad mode
+2026-09-20 12:57  Add color for microsoft login
+2026-09-20 12:54  fix recursive open home page in /os
+2026-09-20 12:51  Updated difficulty-ran script
+2026-09-20 12:06  test deploy of changelog
+2026-09-20 11:45  init: restored code
