@@ -561,8 +561,8 @@
       "destination": "/status.html"
     },
     {
-      "source":"/tokens",
-      "destination":"/token-hub.html"
+      "source": "/tokens",
+      "destination": "/token-hub.html"
     },
     {
       "source": "/port/1308250238502613513507813709509238092874092846",
@@ -665,6 +665,10 @@
     {
       "path": "/api/cron?action=dailyOnlineSnapshot",
       "schedule": "30 18 * * *"
+    },
+    {
+      "path": "/api/cron?action=settleSolutionLikes",
+      "schedule": "20 18 * * *"
     }
   ]
 }

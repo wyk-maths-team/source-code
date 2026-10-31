@@ -347,6 +347,9 @@
                 <button type="button" class="wb-tab" data-mode="steps" role="tab" title="Steps (AI grading)">
                   <i class="fas fa-wand-magic-sparkles"></i><br>AI
                 </button>
+                ${opts.state === 'passed' ? `<button type="button" class="wb-tab" data-mode="solution" role="tab" title="Solutions">
+                  <i class="fas fa-book-open"></i><br>Solution
+                </button>` : ''}
               </div>
               ${fsForced ? '<div class="wb-hint" style="display:block;"><i class="fas fa-circle-info"></i> This problem contains proof, You should use the third mode to submit</div>' : ''}
             `;
@@ -385,6 +388,12 @@
                 maxlength="10000"></textarea>
               <div class="wb-counter"><span id="stepsCount">0</span> / 10000</div>
             </div>
+
+            <div class="wb-pane" data-pane="solution">
+              <div id="solutionPane" class="solution-pane">
+                <div class="solution-loading"><span class="spinner"></span> Loading solutions…</div>
+              </div>
+            </div>
           </div>
 
           <div class="wb-footer">
@@ -408,6 +417,8 @@
           <div class="split-divider" id="splitDivider" style="display:none"></div>
           <div class="drawpad-wrapper" id="drawpadWrapper" style="display:none"></div>
         </div>
+
+        <div id="hintsSection" class="pd-hints" style="display:none;"></div>
 
         <div id="nekoContainer" style="display:none;margin:1rem 0;text-align:center;">
           <div id="nekoStatus" style="font-size:.9rem;color:var(--text-secondary);padding:.5rem;">Loading...</div>
@@ -903,7 +914,9 @@ async function renderRichText(target, text) {
 
     _currentMode() {
       const wb = window.PD && window.PD.workbench;
-      return (wb && wb.mode && wb.mode !== 'none') ? wb.mode : null;
+      const m = wb && wb.mode;
+      // solution 不是提交模式，不要讓冷卻邏輯把 Submit 按鈕重新啟用
+      return (m && m !== 'none' && m !== 'solution') ? m : null;
     },
 
     /**

@@ -185,6 +185,11 @@
                 For proof problems: Text submit banned.
               </small>
             </div>
+            <div class="form-group">
+              <label>Hints (optional, shown under the statement; students pay tokens to unlock)</label>
+              <div id="hintsEditor" style="display:flex;flex-direction:column;gap:8px;"></div>
+              <button type="button" id="addHintBtn" class="btn btn-secondary" style="margin-top:8px;">+ Add hint</button>
+            </div>
             <div style="margin-top:1.5rem;">
               <button type="submit" class="btn btn-primary">Create Problem</button>
               <a href="/admin/problems" class="btn btn-secondary">Back to List</a>
@@ -201,6 +206,28 @@
       const highlightPre = document.getElementById('newHighlight');
       const toolbar = document.getElementById('newToolbar');
       initCodeEditor(textarea, lineNumbers, highlightPre, toolbar);
+
+      // ---- Hints 編輯器 ----
+      (function initHints() {
+        const hintsEditor = document.getElementById('hintsEditor');
+        let seq = 0;
+        function addRow() {
+          seq++;
+          const row = document.createElement('div');
+          row.className = 'hint-row';
+          row.dataset.hid = 'h' + seq;
+          row.style.cssText = 'display:flex;gap:8px;align-items:flex-start;border:1px solid var(--border-color);border-radius:6px;padding:8px;';
+          row.innerHTML =
+            '<textarea class="hint-content-input" rows="2" placeholder="Hint text (LaTeX supported)" ' +
+              'style="flex:1;min-height:44px;font-family:ui-monospace,Menlo,monospace;"></textarea>' +
+            '<input type="number" min="0" step="1000" class="hint-price-input" placeholder="price" value="0" ' +
+              'style="width:110px;" title="Price in tokens">' +
+            '<button type="button" class="btn btn-danger hint-remove" title="Remove this hint">✕</button>';
+          row.querySelector('.hint-remove').addEventListener('click', () => row.remove());
+          hintsEditor.appendChild(row);
+        }
+        document.getElementById('addHintBtn').addEventListener('click', addRow);
+      })();
 
       // 圖片上傳
       (function initImageUpload() {//IIFE
@@ -427,6 +454,13 @@
         const isPublic = document.getElementById('newPublic').checked;
         const logic = document.getElementById('newLogic').value.trim();
         const FS = document.getElementById('newFS').checked;
+        const hints = [...document.querySelectorAll('#hintsEditor .hint-row')]
+          .map((row, i) => ({
+            id: row.dataset.hid || ('h' + (i + 1)),
+            content: row.querySelector('.hint-content-input').value.trim(),
+            price: Number(row.querySelector('.hint-price-input').value) || 0,
+          }))
+          .filter((h) => h.content);
         if (!id || !name || !statement || !ans) {
           const msgEl = document.getElementById('message');
           msgEl.textContent = 'Please fill in all required fields.';
@@ -436,7 +470,7 @@
 
         try {
           const result = await apiCall('/api/problem?action=adminProblems', 'POST', {
-            id, name, statement, ans, difficulty, tags, public: isPublic, logic,FS
+            id, name, statement, ans, difficulty, tags, public: isPublic, logic, FS, hints
           });
           const msgEl = document.getElementById('message');
           msgEl.textContent = result.message;

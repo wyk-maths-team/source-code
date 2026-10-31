@@ -1,4 +1,4 @@
-﻿// api/problem.js
+// api/problem.js
 import { connectToDatabase } from './_db.js';
 import { auditLog } from '../lib/audit.js';
 import { verifyToken } from '../lib/auth.js';
@@ -94,6 +94,23 @@ async function auditProblemDelete(db, operator, problem) {
   }, operator, 'danger');
 }
 
+// 题目提示：{ id, content, price }[]，按顺序展示
+function normalizeHints(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  raw.forEach((h, i) => {
+    if (!h || typeof h !== 'object') return;
+    const content = String(h.content || '').trim();
+    if (!content) return;
+    out.push({
+      id: String(h.id || 'h' + (i + 1)),
+      content,
+      price: Math.max(0, Math.round(Number(h.price) || 0)),
+    });
+  });
+  return out;
+}
+
 async function bumpProblemsVersion(db) {
   await db.collection('metadata').updateOne(
     { _key: 'problemsVersion' },
@@ -157,7 +174,7 @@ async function handler(req, res) {
       }
 
       if (req.method === 'POST') {
-        const { id, name, statement, ans, difficulty, tags, public: isPublic, logic, FS } = req.body || {};
+        const { id, name, statement, ans, difficulty, tags, public: isPublic, logic, FS, hints } = req.body || {};
         if (!id || !name || !statement || ans === undefined) {
           return res.status(400).json({ success: false, message: 'Missing fields' });
         }
@@ -175,6 +192,7 @@ async function handler(req, res) {
           public: isPublic === false ? false : true,
           logic: logic || '',
           FS: FS === true,
+          hints: normalizeHints(hints),
         };
         await db.collection('problems').insertOne(newProblem);
         await bumpProblemsVersion(db);
@@ -188,7 +206,7 @@ async function handler(req, res) {
       }
 
       if (req.method === 'PUT') {
-        const { id, ids, name, statement, ans, difficulty, tags, public: isPublic, logic, FS } = req.body || {};
+        const { id, ids, name, statement, ans, difficulty, tags, public: isPublic, logic, FS, hints } = req.body || {};
 
         // 批量更新 public
         if (Array.isArray(ids) && ids.length && isPublic !== undefined) {
@@ -221,6 +239,7 @@ async function handler(req, res) {
         if (isPublic !== undefined) upd.public = isPublic === false ? false : true;
         if (logic !== undefined) upd.logic = logic;
         if (FS !== undefined) upd.FS = FS === true;
+        if (hints !== undefined) upd.hints = normalizeHints(hints);
 
         if (Object.keys(upd).length === 0) {
           return res.status(400).json({ success: false, message: 'No fields to update' });

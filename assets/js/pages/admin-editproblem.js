@@ -424,6 +424,14 @@
                 Proof problems: Text submit banned.
               </small>
             </div>
+            <div class="form-group">
+              <label>Hints (shown under the statement; students pay tokens to unlock)</label>
+              <div id="hintsEditor" style="display:flex;flex-direction:column;gap:8px;"></div>
+              <button type="button" id="addHintBtn" class="btn btn-secondary" style="margin-top:8px;">+ Add hint</button>
+              <small style="color:#666;display:block;margin-top:.3rem;">
+                Leave the text empty to drop a hint. Price 0 = free.
+              </small>
+            </div>
             <div style="margin-top:1.5rem;">
               <button type="submit" class="btn btn-primary">Save Changes</button>
               <a href="/admin/problems" class="btn btn-secondary">Cancel</a>
@@ -447,6 +455,28 @@
       textarea.value = rawStatement;
       initCodeEditor(textarea, lineNumbers, highlightPre, toolbar);
       document.getElementById('editLogic').value = problem.logic || '';
+
+      // ---- Hints 編輯器 ----
+      const hintsEditor = document.getElementById('hintsEditor');
+      let hintSeq = 0;
+      function addHintRow(hint) {
+        hintSeq++;
+        hint = hint || {};
+        const row = document.createElement('div');
+        row.className = 'hint-row';
+        row.dataset.hid = hint.id || ('h' + hintSeq);
+        row.style.cssText = 'display:flex;gap:8px;align-items:flex-start;border:1px solid var(--border-color);border-radius:6px;padding:8px;';
+        row.innerHTML =
+          '<textarea class="hint-content-input" rows="2" placeholder="Hint text (LaTeX supported)" ' +
+            'style="flex:1;min-height:44px;font-family:ui-monospace,Menlo,monospace;">' + escapeHtml(hint.content || '') + '</textarea>' +
+          '<input type="number" min="0" step="1000" class="hint-price-input" placeholder="price" ' +
+            'value="' + (Number(hint.price) || 0) + '" style="width:110px;" title="Price in tokens">' +
+          '<button type="button" class="btn btn-danger hint-remove" title="Remove this hint">✕</button>';
+        row.querySelector('.hint-remove').addEventListener('click', () => row.remove());
+        hintsEditor.appendChild(row);
+      }
+      (Array.isArray(problem.hints) ? problem.hints : []).forEach(addHintRow);
+      document.getElementById('addHintBtn').addEventListener('click', () => addHintRow({}));
             // ⭐ 檢測 paper-mount → 渲染答案表格
       (function detectPaper() {
         const m = String(rawStatement || '').match(/<div[^>]*class=["'][^"']*paper-mount[^"']*["'][^>]*>/i);
@@ -763,9 +793,16 @@
         const isPublic = document.getElementById('editPublic').checked;
         const logic = document.getElementById('editLogic').value.trim();
         const FS = document.getElementById('editFS').checked;
+        const hints = [...document.querySelectorAll('#hintsEditor .hint-row')]
+          .map((row, i) => ({
+            id: row.dataset.hid || ('h' + (i + 1)),
+            content: row.querySelector('.hint-content-input').value.trim(),
+            price: Number(row.querySelector('.hint-price-input').value) || 0,
+          }))
+          .filter((h) => h.content);
         try {
           const result = await apiCall('/api/problem?action=adminProblems', 'PUT', {
-            id: problemId, name, statement, ans, difficulty, tags, public: isPublic, logic,FS
+            id: problemId, name, statement, ans, difficulty, tags, public: isPublic, logic, FS, hints
           });
           const msgEl = document.getElementById('message');
           msgEl.textContent = result.message;

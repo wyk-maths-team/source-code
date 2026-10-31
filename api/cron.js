@@ -126,6 +126,44 @@ async function handler(req, res) {
       return res.status(200).json({ success: true, userCount: Object.keys(snapshot.users).length, url: r.githubUrl });
     }
 
+    // ── 题解点赞结算：每个赞给作者 +1,000 token，每天一次 ──
+    if (action === 'settleSolutionLikes') {
+      const LIKE_REWARD = 1000;
+      const col = db.collection('solutionLikes');
+      const pending = await col.find({ settled: { $ne: true } }).limit(5000).toArray();
+
+      if (!pending.length) {
+        return res.status(200).json({ success: true, likes: 0, authors: 0, paid: 0 });
+      }
+
+      const byAuthor = new Map();
+      for (const l of pending) {
+        if (!l.author) continue;
+        byAuthor.set(l.author, (byAuthor.get(l.author) || 0) + 1);
+      }
+
+      let paid = 0;
+      for (const [author, count] of byAuthor) {
+        const amount = count * LIKE_REWARD;
+        const r = await db.collection('users').updateOne(
+          { username: author },
+          { $inc: { 'token.global': amount } }
+        );
+        if (r.matchedCount) paid += amount;
+      }
+
+      await col.updateMany(
+        { _id: { $in: pending.map((l) => l._id) } },
+        { $set: { settled: true, settledAt: new Date() } }
+      );
+
+      await auditLog(db, 'settle_solution_likes', {
+        likes: pending.length, authors: byAuthor.size, paid,
+      }, 'system', 'info').catch(() => {});
+
+      return res.status(200).json({ success: true, likes: pending.length, authors: byAuthor.size, paid });
+    }
+
     if (action === 'adjustDifficulty') {
       const { sweepDifficulties } = await import('../lib/difficulty-sweep.js');
       const summary = await sweepDifficulties(db);

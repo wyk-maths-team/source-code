@@ -172,7 +172,7 @@ document.addEventListener('drawtool:open',  () => setDrawLock(true));
 document.addEventListener('drawtool:close', () => setDrawLock(false));
 
 // ============ Workbench ============
-const WB_HINTS = { none: { icon: 'fa-hand-pointer', text: '' }, text: { icon: 'fa-bolt', text: '' }, photo: { icon: 'fa-camera', text: '' }, steps: { icon: 'fa-pen-fancy', text: '' } };
+const WB_HINTS = { none: { icon: 'fa-hand-pointer', text: '' }, text: { icon: 'fa-bolt', text: '' }, photo: { icon: 'fa-camera', text: '' }, steps: { icon: 'fa-pen-fancy', text: '' }, solution: { icon: 'fa-book-open', text: '' } };
 const WB_DRAFTS_KEY = 'pd_workbench_drafts';
 
 const workbench = {
@@ -199,8 +199,10 @@ const workbench = {
     const checkBtn = document.getElementById('checkAnswerBtn');
     const label = document.getElementById('wbSubmitLabel');
     if (!checkBtn || !label) return;
-    if (newMode === 'none') { checkBtn.disabled = true; label.textContent = 'Submit'; }
-    else {
+    if (newMode === 'none' || newMode === 'solution') {
+      checkBtn.disabled = true;
+      label.textContent = 'Submit';
+    } else {
       checkBtn.disabled = false;
       if (newMode === 'text')  label.textContent = 'Submit';
       if (newMode === 'photo') label.textContent = 'Upload & Grade';
@@ -222,6 +224,11 @@ const workbench = {
     this.mode = newMode;
     restoreWorkbenchStatus();
     if (window.PD.cooldown) window.PD.cooldown.refresh();
+
+    // 題解面板：第一次切過去時才載入
+    if (newMode === 'solution' && window.PDSolution) {
+      try { window.PDSolution.activate(); } catch (e) { console.warn('[solution]', e); }
+    }
   },
 };
 
