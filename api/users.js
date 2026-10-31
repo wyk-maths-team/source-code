@@ -8,6 +8,7 @@ import { calculateUserRating, getTier } from '../lib/rating.js';
 import { wrapHandler } from '../lib/errors.js';
 // ⭐ 排行榜內存緩存（30 秒）
 let _leaderboardCache = { data: null, expireAt: 0 };
+const _tokenBoardCache = new Map();   // 财富榜缓存：key -> { data, expireAt }
 const LEADERBOARD_TTL = 10_000;
 // ⭐ Charts 內存緩存（24 小時）
 let _chartCache = { data: null, expireAt: 0 };
@@ -518,6 +519,91 @@ async function handler(req, res) {
       const period = String(req.query.period || 'overall').toLowerCase();
 const VALID_PERIODS = new Set(['daily', 'weekly', 'monthly']);
 const isPeriodMode = VALID_PERIODS.has(period);
+
+// ─────────── 财富榜（tokens）───────────
+// overall：直接按当前 daily + global 排
+// daily/weekly/monthly：用 tokenHistory 的每日快照算增量
+if (String(req.query.sort || '').toLowerCase() === 'tokens') {
+  const TTL = 30_000;
+  const key = 'tokens:' + (isPeriodMode ? period : 'overall');
+  const hit = _tokenBoardCache.get(key);
+  if (hit && hit.expireAt > Date.now()) {
+    return res.status(200).json(hit.data);
+  }
+
+  const HEARTBEAT_MS = Number(process.env.ONLINE_HEARTBEAT_MS) || 5 * 60 * 1000;
+  const TIMEOUT_MS = Number(process.env.ONLINE_TIMEOUT_MS) || HEARTBEAT_MS * 2;
+  const serverNow = Date.now();
+
+  const users = await db.collection('users').find(
+    {},
+    {
+      projection: {
+        username: 1, displayName: 1, realName: 1, pfp: 1, role: 1, banned: 1,
+        lastSeenAt: 1, explicitlyOffline: 1, token: 1,
+      },
+    }
+  ).toArray();
+
+  const base = users
+    .filter((u) => u.banned !== true && u.role !== 'team' && !/^\d+$/.test(u.username))
+    .map((u) => {
+      const daily = Number(u.token?.daily) || 0;
+      const global = Number(u.token?.global) || 0;
+      const lastSeenMs = u.lastSeenAt ? new Date(u.lastSeenAt).getTime() : 0;
+      return {
+        username: u.username,
+        displayName: u.displayName || u.username,
+        realName: u.realName || '',
+        pfp: u.pfp || '',
+        daily,
+        global,
+        total: daily + global,
+        online: !u.explicitlyOffline && lastSeenMs > 0 && (serverNow - lastSeenMs) < TIMEOUT_MS,
+        lastSeenAt: u.lastSeenAt || null,
+        explicitlyOffline: !!u.explicitlyOffline,
+      };
+    });
+
+  let rows;
+
+  if (!isPeriodMode) {
+    rows = base
+      .sort((a, b) => (b.total - a.total) || a.username.localeCompare(b.username))
+      .map((u, i) => ({ ...u, tokens: u.total, rank: i + 1, change: null }));
+  } else {
+    // 周期榜 = 当前值 − 期初快照
+    const daysBack = period === 'daily' ? 1 : period === 'weekly' ? 7 : 30;
+    const startDate = new Date(Date.now() + 8 * 3600_000 - daysBack * 86400_000)
+      .toISOString().slice(0, 10);
+
+    const snaps = await db.collection('tokenHistory')
+      .find({ date: startDate }, { projection: { username: 1, total: 1 } })
+      .toArray();
+    const snapMap = new Map(snaps.map((s) => [s.username, Number(s.total) || 0]));
+
+    rows = base
+      .map((u) => {
+        const start = snapMap.get(u.username);
+        return { ...u, tokens: start === undefined ? 0 : u.total - start, startTotal: start };
+      })
+      .filter((u) => u.tokens !== 0)
+      .sort((a, b) => (b.tokens - a.tokens) || a.username.localeCompare(b.username))
+      .map((u, i) => ({ ...u, rank: i + 1, change: null }));
+  }
+
+  const payload = {
+    success: true,
+    sort: 'tokens',
+    period: isPeriodMode ? period : 'overall',
+    leaderboard: rows,
+    serverNow,
+    heartbeatMs: HEARTBEAT_MS,
+    timeoutMs: TIMEOUT_MS,
+  };
+  _tokenBoardCache.set(key, { data: payload, expireAt: Date.now() + TTL });
+  return res.status(200).json(payload);
+}
 
 // ─────────── 缓存 key 也要按 period 区分 ───────────
 // 现有 _leaderboardCache 是单槽，用 Map 更稳：

@@ -127,6 +127,7 @@
             <div class="btn-group">
               <button class="btn btn-info" data-sort="solves">By Solves</button>
               <button class="btn" data-sort="rating">By Rating</button>
+              <button class="btn" data-sort="tokens">By Tokens</button>
               <a href="/charts" class="btn">Chart</a>
               <button class="btn" id="refreshBtn" title="Refresh leaderboard">
                 <i class="fas fa-rotate"></i> Refresh <span class="rf-time" id="refreshTime"></span>
@@ -225,8 +226,28 @@
     // ═══════════════ Leaderboard ═══════════════
     let isLoadingLeaderboard = false;
     let periodMode = 'overall';   // 'overall' | 'monthly' | 'weekly' | 'daily'
-    let sortMode = 'solves';      // 'solves' | 'rating'
+    let sortMode = 'solves';      // 'solves' | 'rating' | 'tokens'
     let lastData = null;
+
+    // 财富显示：M / K / B / T，最多一位小数，数字+单位不超过 6 个字符
+    function formatTokens(n) {
+      const num = Number(n) || 0;
+      const sign = num < 0 ? '-' : '';
+      let abs = Math.abs(num);
+      const units = ['', 'K', 'M', 'B', 'T'];
+      let i = 0;
+
+      while (abs >= 1000 && i < units.length - 1) { abs /= 1000; i++; }
+      if (i === 0) return sign + String(Math.round(abs));
+
+      let v = abs.toFixed(1);
+      // 999,999,999 这类会被四舍五入成 "1000.0M"，进一位变成 1.0B
+      if (Number(v) >= 1000 && i < units.length - 1) {
+        v = (Number(v) / 1000).toFixed(1);
+        i++;
+      }
+      return sign + v + units[i];
+    }
 
     function formatTime(d) {
       const p = n => String(n).padStart(2, '0');
@@ -235,6 +256,7 @@
 
     // ⭐ 只有 overall 才允许按 rating 排序，其余周期榜强制按 solves
     function sortedEntries(entries) {
+      if (sortMode === 'tokens') return entries;   // 后端已按 tokens 排好
       if (periodMode !== 'overall' || sortMode !== 'rating') return entries;
       return [...entries]
         .sort((a, b) => (b.rating - a.rating) || (b.solves - a.solves) || a.username.localeCompare(b.username))
@@ -249,7 +271,8 @@
 
     function updateSortButtons() {
       document.querySelectorAll('[data-sort]').forEach(btn => {
-        const active = btn.dataset.sort === sortMode && periodMode === 'overall';
+        const active = btn.dataset.sort === sortMode;
+        // 周期榜只对 rating 无效，tokens 和 solves 都可以
         const forcedDisabled = (periodMode !== 'overall' && btn.dataset.sort === 'rating');
         btn.classList.toggle('btn-info', active);
         btn.disabled = active || forcedDisabled;
@@ -257,7 +280,9 @@
 
       const mh = document.getElementById('metricHead');
       if (mh) {
-        if (periodMode !== 'overall') {
+        if (sortMode === 'tokens') {
+          mh.textContent = 'Tokens';
+        } else if (periodMode !== 'overall') {
           const label = { monthly: 'This Month', weekly: 'This Week', daily: 'Today' }[periodMode] || 'Solves';
           mh.textContent = label;
         } else {
@@ -270,7 +295,12 @@
       const tbody = document.getElementById('leaderboardBody');
       if (!tbody) return;
       if (!data || !data.leaderboard || data.leaderboard.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" class="text-center">No solves yet.</td></tr>';
+        const emptyMsg = sortMode === 'tokens'
+          ? (periodMode === 'overall'
+              ? 'No token data yet.'
+              : 'No snapshot from the start of this period yet — the board fills in as daily snapshots accumulate.')
+          : 'No solves yet.';
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center">' + emptyMsg + '</td></tr>';
         updateSortButtons();
         return;
       }
@@ -281,7 +311,7 @@
       let rendered = 0;
 
       entries.forEach(entry => {
-        if (entry.solves === 0) return;   // 跳过 0 solves
+        if (sortMode !== 'tokens' && entry.solves === 0) return;   // 财富榜不按解题数过滤
         rendered++;
         leaderboardUserMap[entry.username] = entry;
         const isMe = (currentUsername && entry.username === currentUsername);
@@ -289,7 +319,11 @@
 
         // 右侧指标单元格
         let metricCell;
-        if (periodMode === 'overall' && sortMode === 'rating' && hasRating) {
+        if (sortMode === 'tokens') {
+          const total = Number(entry.tokens) || 0;
+          metricCell = '<span title="' + total.toLocaleString('en-US') + ' tokens">' +
+            formatTokens(total) + '</span>';
+        } else if (periodMode === 'overall' && sortMode === 'rating' && hasRating) {
           metricCell = ratingBadge(entry.rating, entry.tierColor, entry.tierGlow);
         } else {
           metricCell = entry.solves;
@@ -313,7 +347,8 @@
       });
 
       if (rendered === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" class="text-center">No solves in this period.</td></tr>';
+        const msg = sortMode === 'tokens' ? 'No token history for this period yet.' : 'No solves in this period.';
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center">' + msg + '</td></tr>';
         updateSortButtons();
         return;
       }
@@ -351,6 +386,9 @@
         if (periodMode !== 'overall') {
           url += `&period=${encodeURIComponent(periodMode)}`;
         }
+        if (sortMode === 'tokens') {
+          url += '&sort=tokens';
+        }
         const data = await apiCall(url);
         lastData = data;
         renderLeaderboardBody(data);
@@ -375,8 +413,8 @@
         const p = periodBtn.dataset.period;
         if (p === periodMode || isLoadingLeaderboard) return;
         periodMode = p;
-        // 周期榜强制按 solves；切换时重置 sort
-        if (p !== 'overall') sortMode = 'solves';
+        // 周期榜不支持 rating，其余（solves / tokens）保留
+        if (p !== 'overall' && sortMode === 'rating') sortMode = 'solves';
         updatePeriodButtons();
         updateSortButtons();
         loadLeaderboard();
@@ -399,8 +437,14 @@
         // 周期榜不允许切到 rating
         if (periodMode !== 'overall' && mode === 'rating') return;
         if (mode === sortMode) return;
+        const prev = sortMode;
         sortMode = mode;
-        if (lastData) renderLeaderboardBody(lastData);
+        // tokens 的数据只在这条请求里出现，进出 tokens 都要重新拉
+        if (mode === 'tokens' || prev === 'tokens') {
+          loadLeaderboard();
+        } else if (lastData) {
+          renderLeaderboardBody(lastData);
+        }
       }
     });
 

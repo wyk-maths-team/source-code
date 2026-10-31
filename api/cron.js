@@ -164,6 +164,41 @@ async function handler(req, res) {
       return res.status(200).json({ success: true, likes: pending.length, authors: byAuthor.size, paid });
     }
 
+    // ── 每日 token 快照（财富榜的周/月/日榜靠它算增量）──
+    if (action === 'snapshotTokens') {
+      const today = new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10);
+      const users = await db.collection('users').find(
+        {},
+        { projection: { username: 1, token: 1 } }
+      ).toArray();
+
+      const ops = users
+        .filter((u) => u.username && !/^\d+$/.test(u.username))
+        .map((u) => ({
+          updateOne: {
+            filter: { _id: today + ':' + u.username },
+            update: {
+              $set: {
+                date: today,
+                username: u.username,
+                total: (Number(u.token?.daily) || 0) + (Number(u.token?.global) || 0),
+                at: new Date(),
+              },
+            },
+            upsert: true,
+          },
+        }));
+
+      let written = 0;
+      for (let i = 0; i < ops.length; i += 500) {
+        const r = await db.collection('tokenHistory').bulkWrite(ops.slice(i, i + 500), { ordered: false });
+        written += (r.upsertedCount || 0) + (r.modifiedCount || 0);
+      }
+
+      await auditLog(db, 'snapshot_tokens', { date: today, users: ops.length, written }, 'system', 'info').catch(() => {});
+      return res.status(200).json({ success: true, date: today, users: ops.length, written });
+    }
+
     if (action === 'adjustDifficulty') {
       const { sweepDifficulties } = await import('../lib/difficulty-sweep.js');
       const summary = await sweepDifficulties(db);
