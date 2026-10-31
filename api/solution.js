@@ -57,15 +57,25 @@ async function listSolutions(db, problemId, username) {
   if (!rows.length) return [];
 
   const ids = rows.map((r) => r._id);
-  const likes = await db.collection('solutionLikes')
-    .find({ username, solutionId: { $in: ids.map(String) } }, { projection: { solutionId: 1 } })
-    .toArray();
+  const authors = [...new Set(rows.map((r) => r.username))];
+
+  const [likes, authorDocs] = await Promise.all([
+    db.collection('solutionLikes')
+      .find({ username, solutionId: { $in: ids.map(String) } }, { projection: { solutionId: 1 } })
+      .toArray(),
+    db.collection('users')
+      .find({ username: { $in: authors } }, { projection: { username: 1, pfp: 1 } })
+      .toArray(),
+  ]);
+
   const liked = new Set(likes.map((x) => x.solutionId));
+  const pfpMap = new Map(authorDocs.map((u) => [u.username, u.pfp || '']));
 
   return rows.map((r) => ({
     _id: String(r._id),
     username: r.username,
     displayName: r.displayName || r.username,
+    pfp: pfpMap.get(r.username) || '',
     content: r.content,
     likes: Number(r.likes) || 0,
     createdAt: r.createdAt,
@@ -199,6 +209,7 @@ async function handler(req, res) {
         _id: String(result.insertedId),
         username,
         displayName: doc.displayName,
+        pfp: (await db.collection('users').findOne({ username }, { projection: { pfp: 1 } }))?.pfp || '',
         content: doc.content,
         likes: 0,
         createdAt: doc.createdAt,

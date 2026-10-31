@@ -69,6 +69,22 @@
     }
   }
 
+  // 作者：头像 + 可点开的用户名（跳到个人主页）
+  function avatarHtml(s) {
+    const initial = esc(String(s.displayName || s.username || '?').trim().charAt(0).toUpperCase() || '?');
+    const href = '/users/' + encodeURIComponent(s.username || '');
+    const name = esc(s.displayName || s.username);
+    const mine = s.mine ? ' <em>(you)</em>' : '';
+    const avatar = s.pfp
+      ? '<img class="solution-avatar" src="' + esc(s.pfp) + '" alt="" loading="lazy" ' +
+        'onerror="this.style.display=\'none\';var f=this.nextElementSibling;if(f)f.style.display=\'inline-flex\';">' +
+        '<span class="solution-avatar solution-avatar-fb" style="display:none">' + initial + '</span>'
+      : '<span class="solution-avatar solution-avatar-fb">' + initial + '</span>';
+
+    return '<a class="solution-user" href="' + href + '" target="_blank" rel="noopener" title="' + esc(s.username || '') + '">' +
+      avatar + '<span class="solution-name">' + name + '</span>' + mine + '</a>';
+  }
+
   function render() {
     const pane = document.getElementById('solutionPane');
     if (!pane) return;
@@ -80,7 +96,7 @@
           return (
             '<div class="solution-card">' +
               '<div class="solution-card-head">' +
-                '<span class="solution-author"><i class="fas fa-user-circle"></i> ' + esc(s.displayName) + (s.mine ? ' <em>(you)</em>' : '') + '</span>' +
+                avatarHtml(s) +
                 '<span class="solution-meta">' + when(s.createdAt) + '</span>' +
               '</div>' +
               '<div class="solution-content">' + s.content + '</div>' +
@@ -102,7 +118,7 @@
       '<div class="solution-editor" id="solEditor" hidden>' +
         '<textarea id="solInput" class="solution-input" spellcheck="false" placeholder="Write your solution here… LaTeX with $...$ is supported.&#10;&#10;Line breaks are kept as typed."></textarea>' +
         '<div class="solution-preview-wrap">' +
-          '<div class="solution-preview-label"><i class="fas fa-eye"></i> Preview</div>' +
+          '<div class="solution-preview-label"><i class="fas fa-eye"></i> Preview <span class="solution-preview-status" id="solPreviewStatus"></span></div>' +
           '<div class="solution-preview" id="solPreview"><span class="solution-preview-empty">Nothing to preview yet…</span></div>' +
         '</div>' +
         '<div class="solution-editor-actions">' +
@@ -145,20 +161,90 @@
     if (editor) editor.hidden = true;
   }
 
+  let _previewTimer = null;
+
   function onInput() {
     const input = document.getElementById('solInput');
+    if (!input) return;
+
+    try { localStorage.setItem('sol_draft_' + problemId, input.value); } catch {}
+
+    clearTimeout(_previewTimer);
+    _previewTimer = setTimeout(() => renderPreview(input.value), 150);
+  }
+
+  // 把文本拆成「普通文字 / 行内公式 / 行间公式」，方便逐段渲染并定位错误
+  function splitMath(text) {
+    const out = [];
+    const re = /\$\$([\s\S]+?)\$\$|\$([^$\n]+?)\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)/g;
+    let last = 0;
+    let m;
+    while ((m = re.exec(text))) {
+      if (m.index > last) out.push({ type: 'text', value: text.slice(last, m.index) });
+      const raw = m[0];
+      if (m[1] !== undefined) out.push({ type: 'display', value: m[1], raw });
+      else if (m[2] !== undefined) out.push({ type: 'inline', value: m[2], raw });
+      else if (m[3] !== undefined) out.push({ type: 'display', value: m[3], raw });
+      else out.push({ type: 'inline', value: m[4], raw });
+      last = re.lastIndex;
+    }
+    if (last < text.length) out.push({ type: 'text', value: text.slice(last) });
+    return out;
+  }
+
+  // 预览：逐段用 KaTeX 渲染，出错的那一段标红显示，状态栏告诉学生错在哪
+  function renderPreview(text) {
     const preview = document.getElementById('solPreview');
-    if (!input || !preview) return;
-    const text = input.value;
+    const status = document.getElementById('solPreviewStatus');
+    if (!preview) return;
 
-    try { localStorage.setItem('sol_draft_' + problemId, text); } catch {}
-
-    if (!text.trim()) {
+    if (!text || !text.trim()) {
       preview.innerHTML = '<span class="solution-preview-empty">Nothing to preview yet…</span>';
+      if (status) status.innerHTML = '';
       return;
     }
-    preview.innerHTML = toHtml(text);
-    renderMath(preview);
+
+    if (!window.katex || typeof window.katex.renderToString !== 'function') {
+      if (status) status.innerHTML = '<span class="st-wait"><i class="fas fa-spinner fa-spin"></i> loading maths…</span>';
+      setTimeout(() => renderPreview(text), 400);
+      return;
+    }
+
+    let errors = 0;
+    let formulas = 0;
+
+    const html = splitMath(text).map((part) => {
+      if (part.type === 'text') return esc(part.value).replace(/\n/g, '<br>');
+      formulas++;
+      try {
+        return window.katex.renderToString(part.value, {
+          displayMode: part.type === 'display',
+          throwOnError: true,
+          strict: false,
+          output: 'html',
+        });
+      } catch (err) {
+        errors++;
+        return '<span class="solution-latex-err" title="' +
+          esc(err && err.message ? err.message : 'LaTeX error') + '">' +
+          esc(part.raw) + ' <i class="fas fa-triangle-exclamation"></i></span>';
+      }
+    }).join('');
+
+    preview.innerHTML = html;
+
+    const dollarCount = (text.match(/\$/g) || []).length;
+
+    if (errors) {
+      status.innerHTML = '<span class="st-bad"><i class="fas fa-circle-exclamation"></i> ' +
+        errors + ' formula' + (errors > 1 ? 's' : '') + ' failed</span>';
+    } else if (dollarCount % 2 === 1) {
+      status.innerHTML = '<span class="st-bad"><i class="fas fa-circle-exclamation"></i> unclosed $ — formula not rendered</span>';
+    } else if (formulas > 0) {
+      status.innerHTML = '<span class="st-ok"><i class="fas fa-check"></i> rendered · ' + formulas + ' formula' + (formulas > 1 ? 's' : '') + '</span>';
+    } else {
+      status.innerHTML = '<span class="st-ok"><i class="fas fa-check"></i> rendered</span>';
+    }
   }
 
   async function publish() {

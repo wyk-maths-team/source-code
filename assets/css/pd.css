@@ -261,3 +261,15 @@ body.draw-mode-active{touch-action:none}
 .hint-locked { color: var(--text-secondary); font-size: .85rem; margin-bottom: 10px; }
 .hint-buy { background: #f1c40f; color: #1a1a2e; border: none; border-radius: 6px; padding: 6px 14px; font-weight: 700; cursor: pointer; }
 .hint-buy:disabled { opacity: .6; cursor: default; }
+/* ═══════════════ 题解作者（头像 + 用户名链接）═══════════════ */
+.solution-user { display: inline-flex; align-items: center; gap: 7px; text-decoration: none; color: inherit; min-width: 0; }
+.solution-user:hover .solution-name { text-decoration: underline; }
+.solution-avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex: 0 0 auto; border: 1px solid var(--border-color); background: var(--bg-color); }
+.solution-avatar-fb { display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #3498db, #9b59b6); color: #fff; font-size: .72rem; font-weight: 700; }
+.solution-name { font-weight: 600; color: var(--text-primary); }
+
+/* 预览状态：让学生一眼看出 LaTeX 有没有渲染成功 */
+.solution-preview-status { margin-left: 8px; font-size: .7rem; letter-spacing: normal; text-transform: none; }
+.solution-preview-status .st-ok { color: #2ecc71; }
+.solution-preview-status .st-bad { color: #e74c3c; }
+.solution-preview-status .st-wait { color: var(--text-secondary); }
