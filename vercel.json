@@ -533,8 +533,16 @@
       "destination": "/team.html"
     },
     {
+      "source": "/terms",
+      "destination": "/terms.html"
+    },
+    {
       "source": "/messages",
       "destination": "/messages.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "privacy.html"
     },
     {
       "source": "/users/edit",

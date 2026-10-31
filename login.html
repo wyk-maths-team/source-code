@@ -1,25 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>window.__BUILD_V='499ddc21';</script>
-
-<script src="/assets/js/arch-render.js?v=499ddc21"></script>
-<!-- <script>
-(function(){
-  try {
-    if (window.top !== window.self) return;
-    // if (sessionStorage.getItem('desktopPreferred')) return;   // 用戶手動選桌面版
-    var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (!isMobile) return;
-    if (location.pathname.indexOf('/mobile') === 0) return;
-    // if (location.pathname.indexOf('/os') === 0) return;
-    if (location.pathname.indexOf('/admin') === 0) return;
-    location.replace('/mobile/' + location.search + location.hash);
-  } catch(e){}
-})();
-</script> -->
-
-  
+<script>window.__BUILD_V='39ed8638';</script>
+<script src="/assets/js/arch-render.js?v=39ed8638"></script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -34,13 +17,9 @@
   <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.amcharts.com">
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=499ddc21" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=39ed8638" />
   <style>
-    /* ── 中性色变量（由 tools/extract-colors.mjs 生成）──────────────
-       原先写死在内联样式里的浅色背景 / 深色文字 / 浅灰边框，抽取成
-       变量后暗色与科幻主题只需覆盖取值，不必逐条重写规则。
-       语义色（成功绿、错误红、警告橙）与代码高亮色刻意保留，
-       它们在深色背景下依然成立。 */
+    /* ── 中性色变量（由 tools/extract-colors.mjs 生成）────────────── */
     :root {
       --c-surface: #ffffff;
       --c-surface-sunken: #f8f9fa;
@@ -131,7 +110,8 @@
       font-weight: 500;
       color: var(--text-secondary);
     }
-    .form-group input {
+    .form-group input[type="text"],
+    .form-group input[type="password"] {
       width: 100%;
       padding: 0.6rem 0.8rem;
       border: 1px solid var(--border-color);
@@ -153,7 +133,7 @@
       cursor: pointer;
       transition: background 0.2s;
     }
-    .login-btn:hover {
+    .login-btn:hover:not(:disabled) {
       background: #286090;
     }
     .login-btn:disabled {
@@ -222,88 +202,91 @@
     .back-link:hover {
       color: var(--accent);
     }
-    .success-msg {
-      color: #155724;
-      background: #d4edda;
-      padding: 0.5rem;
-      border-radius: 4px;
-      text-align: center;
-      margin-bottom: 1rem;
+    
+    /* ⭐ 加载状态 */
+    .login-btn.loading {
+      background: #7a99b8;
+      cursor: wait;
+      position: relative;
+    }
+    .login-btn.loading::after {
+      content: '';
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      margin-left: 8px;
+      border: 2px solid rgba(255,255,255,.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      vertical-align: -2px;
+      animation: loginSpin .7s linear infinite;
+    }
+    @keyframes loginSpin { to { transform: rotate(360deg); } }
+
+    /* ⭐ 登录成功过渡 */
+    .login-card {
+      transition: transform .35s cubic-bezier(.4,0,.2,1), opacity .35s ease;
+    }
+    .login-card.sinking {
+      transform: scale(.94) translateY(8px);
+      opacity: .65;
+    }
+
+    #loginVeil {
+      position: fixed; inset: 0; z-index: 99999;
+      background: var(--accent, #337ab7);
+      pointer-events: none;
       display: none;
     }
-    .fp-link:hover { color: var(--accent) !important; }
-    /* ⭐ 加载状态 */
-.login-btn.loading {
-  background: #7a99b8;
-  cursor: wait;
-  position: relative;
-}
-.login-btn.loading::after {
-  content: '';
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  margin-left: 8px;
-  border: 2px solid rgba(255,255,255,.4);
-  border-top-color: #fff;
-  border-radius: 50%;
-  vertical-align: -2px;
-  animation: loginSpin .7s linear infinite;
-}
-@keyframes loginSpin { to { transform: rotate(360deg); } }
-.login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.login-btn.loading {
-  background: #7a99b8; cursor: wait;
-}
-.login-btn.loading::after {
-  content: ''; display: inline-block;
-  width: 12px; height: 12px; margin-left: 8px;
-  border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
-  border-radius: 50%; vertical-align: -2px;
-  animation: loginSpin .7s linear infinite;
-}
-@keyframes loginSpin { to { transform: rotate(360deg); } }
-/* ⭐ 登录成功过渡 */
-.login-card {
-  transition: transform .35s cubic-bezier(.4,0,.2,1),
-              opacity .35s ease;
-}
-.login-card.sinking {
-  transform: scale(.94) translateY(8px);
-  opacity: .65;
-}
+    #loginVeil.active {
+      display: block;
+      animation: veilExpand .65s cubic-bezier(.4,0,.2,1) forwards;
+    }
+    @keyframes veilExpand {
+      0%   { clip-path: circle(0% at var(--fx, 50%) var(--fy, 50%)); }
+      100% { clip-path: circle(160% at var(--fx, 50%) var(--fy, 50%)); }
+    }
 
-#loginVeil {
-  position: fixed; inset: 0; z-index: 99999;
-  background: var(--accent, #337ab7);
-  pointer-events: none;
-  display: none;
-}
-#loginVeil.active {
-  display: block;
-  animation: veilExpand .65s cubic-bezier(.4,0,.2,1) forwards;
-}
-@keyframes veilExpand {
-  0%   { clip-path: circle(0% at var(--fx, 50%) var(--fy, 50%)); }
-  100% { clip-path: circle(160% at var(--fx, 50%) var(--fy, 50%)); }
-}
+    #loginVeil::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(circle at var(--fx,50%) var(--fy,50%), rgba(255,255,255,.28) 0%, transparent 55%);
+      opacity: .9;
+    }
 
-/* 光晕叠加，让遮罩不那么单调 */
-#loginVeil::before {
-  content: '';
-  position: absolute; inset: 0;
-  background: radial-gradient(circle at var(--fx,50%) var(--fy,50%),
-                              rgba(255,255,255,.28) 0%, transparent 55%);
-  opacity: .9;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  #loginVeil.active { animation-duration: .01s; }
-  .login-card { transition: none; }
-}
+    @media (prefers-reduced-motion: reduce) {
+      #loginVeil.active { animation-duration: .01s; }
+      .login-card { transition: none; }
+    }
+    
+    /* ⭐ Checkbox 样式 */
+    .terms-group {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 1.5rem;
+      font-size: 0.82rem;
+      line-height: 1.4;
+      color: var(--text-secondary);
+    }
+    .terms-group input[type="checkbox"] {
+      margin-top: 3px;
+      cursor: pointer;
+      accent-color: var(--accent);
+    }
+    .terms-group label {
+      cursor: pointer;
+      user-select: none;
+    }
+    .terms-group a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .terms-group a:hover {
+      text-decoration: underline;
+    }
   </style>
 
-  <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#1a1a2e">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
@@ -312,10 +295,10 @@
   <meta name="apple-mobile-web-app-title" content="WYK Maths">
   <meta name="mobile-web-app-capable" content="yes">
 
-<script src="/assets/js/core/ui.js?v=499ddc21"></script>
-<script src="/assets/js/core/net.js?v=499ddc21"></script>
-<script src="/assets/js/core/api.js?v=499ddc21"></script>
-<script src="/assets/js/core/page.js?v=499ddc21"></script>
+<script src="/assets/js/core/ui.js?v=39ed8638"></script>
+<script src="/assets/js/core/net.js?v=39ed8638"></script>
+<script src="/assets/js/core/api.js?v=39ed8638"></script>
+<script src="/assets/js/core/page.js?v=39ed8638"></script>
 </head>
 <body class="index-body">
   <div id="loginVeil"></div>
@@ -336,7 +319,18 @@
               <label for="password">Password</label>
               <input type="password" id="password" name="password" placeholder="Your password" required autocomplete="current-password" />
             </div>
-            <button type="submit" class="login-btn" id="loginBtn">Sign In</button>
+            
+            <!-- ⭐ 新增：合规免责声明复选框 -->
+            <div class="terms-group">
+              <input type="checkbox" id="agreeTerms">
+              <label for="agreeTerms">
+                I agree to the <a href="/terms" target="_blank">Terms of Service</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.
+              </label>
+            </div>
+
+            <!-- ⭐ 初始状态为 disabled -->
+            <button type="submit" class="login-btn" id="loginBtn" disabled>Sign In</button>
+            
             <div style="text-align:right; margin-top:0.5rem; margin-bottom:0.5rem;">
               <a href="/auth/forgot-password" style="font-size:0.82rem; color:var(--text-secondary); text-decoration:none;">
                 Forgot password?
@@ -345,7 +339,9 @@
             <div class="divider">
               <span>OR</span>
             </div>
-            <a href="/api/auth?action=microsoft" class="microsoft-btn" style="text-decoration: none;">
+            
+            <!-- ⭐ 给 A 标签加上了 id 用于 JS 拦截 -->
+            <a href="/api/auth?action=microsoft" id="msLoginBtn" class="microsoft-btn" style="text-decoration: none; pointer-events: none; opacity: 0.5;">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 23 23">
                 <path fill="#f35325" d="M1 1h10v10H1z"/>
                 <path fill="#81bc06" d="M12 1h10v10H12z"/>
@@ -362,15 +358,14 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=499ddc21"></script>
-  <script src="/assets/js/app.js?v=499ddc21"></script>
-  <script src="/assets/js/topbar.js?v=499ddc21"></script>
-  
-<script src="/assets/js/sidebar.js?v=499ddc21"></script>
-<script src="/assets/js/heartbeat.js?v=499ddc21"></script>
-<script src="/assets/js/pk-invite.js?v=499ddc21"></script>
+  <script src="/assets/js/auth.js?v=39ed8638"></script>
+  <script src="/assets/js/app.js?v=39ed8638"></script>
+  <script src="/assets/js/topbar.js?v=39ed8638"></script>
+  <script src="/assets/js/sidebar.js?v=39ed8638"></script>
+  <script src="/assets/js/heartbeat.js?v=39ed8638"></script>
+  <script src="/assets/js/pk-invite.js?v=39ed8638"></script>
 
-  <script src="/assets/js/pages/login.js?v=499ddc21"></script>
-<script src="/assets/js/pk-notify.js?v=499ddc21"></script>
+  <script src="/assets/js/pages/login.js?v=39ed8638"></script>
+  <script src="/assets/js/pk-notify.js?v=39ed8638"></script>
 </body>
 </html>

@@ -1,13 +1,50 @@
-    // 如果已登录，直接跳转
-    if (typeof isLoggedIn === 'function' && isLoggedIn()) {
-      window.location.href = '/';
-    }
+// 如果已登录，直接跳转
+if (typeof isLoggedIn === 'function' && isLoggedIn()) {
+  window.location.href = '/';
+}
 
-    const loginForm = document.getElementById('loginForm');
-    const loginError = document.getElementById('loginError');
+const loginForm = document.getElementById('loginForm');
+const loginError = document.getElementById('loginError');
+const agreeTerms = document.getElementById('agreeTerms'); // ⭐ 新增：免责声明复选框
+const msLoginBtn = document.getElementById('msLoginBtn'); // ⭐ 新增：微软登录按钮
+
+// 控制登录按钮的状态
+function updateAuthState() {
+  const btn = document.getElementById('loginBtn');
+  if (!agreeTerms) return;
+
+  if (agreeTerms.checked) {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
+    if (msLoginBtn) {
+      msLoginBtn.style.pointerEvents = 'auto';
+      msLoginBtn.style.opacity = '1';
+    }
+  } else {
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    btn.style.cursor = 'not-allowed';
+    if (msLoginBtn) {
+      msLoginBtn.style.pointerEvents = 'none';
+      msLoginBtn.style.opacity = '0.5';
+    }
+  }
+}
+
+// 初始化状态，并监听复选框
+if (agreeTerms) {
+  agreeTerms.addEventListener('change', updateAuthState);
+  updateAuthState();
+}
 
 loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
+
+  if (!agreeTerms || !agreeTerms.checked) {
+    showError('You must agree to the Terms of Service and Privacy Policy to continue.');
+    return;
+  }
 
   const username = document.getElementById('username').value.trim();
   const password = document.getElementById('password').value.trim();
@@ -44,7 +81,6 @@ loginForm.addEventListener('submit', async (e) => {
       veil.style.setProperty('--fy', (rect.top  + rect.height / 2) + 'px');
       veil.classList.add('active');
 
-
       // ⭐ 4. 动画跑完再跳
       setTimeout(() => { window.location.href = redirect; }, 680);
       return;   // ⚠️ 走这条路不恢复按钮
@@ -61,12 +97,12 @@ loginForm.addEventListener('submit', async (e) => {
   btn.classList.remove('loading');
   btn.textContent = 'Sign In';
 });
+
 function showError(msg) {
-      loginError.textContent = msg;
-      loginError.style.display = 'block';
-    }
-    function hideError() {
-      loginError.textContent = '';
-      loginError.style.display = 'none';
-    }
-  
+  loginError.textContent = msg;
+  loginError.style.display = 'block';
+}
+function hideError() {
+  loginError.textContent = '';
+  loginError.style.display = 'none';
+}

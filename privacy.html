@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>window.__BUILD_V='39ed8638';</script>
+<script src="/assets/js/arch-render.js?v=39ed8638"></script>
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+<!-- content="false" 表示公开页（不需要登录）；null/true 则沿用 auth.js 的白名单判断 -->
+<meta name="requires-auth" content="{{REQUIRES_AUTH}}" />
+<title>{{TITLE}} - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+
+<link rel="stylesheet" href="/assets/css/styles.css?v=39ed8638" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+
+<!-- ═══ core：统一错误提示 / 请求封装 / 页面启动器 ═══ -->
+<!-- 顺序不能变：ui -> net -> api -> page -->
+<script src="/assets/js/core/ui.js?v=39ed8638"></script>
+<script src="/assets/js/core/net.js?v=39ed8638"></script>
+<script src="/assets/js/core/api.js?v=39ed8638"></script>
+<script src="/assets/js/core/page.js?v=39ed8638"></script>
+
+<!-- PWA（必须静态写入 head，不能靠 JS 注入） -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1a1a2e">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WYK Maths">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+  .legal-doc {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  line-height: 1.7;
+  color: var(--text-primary, #333);
+}
+.legal-doc h1 {
+  border-bottom: 2px solid var(--border-color, #ddd);
+  padding-bottom: 10px;
+  margin-bottom: 24px;
+}
+.legal-doc h2 {
+  margin-top: 32px;
+  margin-bottom: 16px;
+  font-size: 1.25rem;
+}
+.legal-doc ul {
+  padding-left: 20px;
+  margin-bottom: 16px;
+}
+.legal-doc li {
+  margin-bottom: 10px;
+}
+.legal-doc b {
+  color: var(--danger, #d93025); /* 把所有重要警告标成红色 */
+}
+</style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+
+    <main class="main-content" id="mainContent">
+      <div class="legal-doc">
+  <h1>Privacy Policy</h1>
+  <p><em><b>Last Updated:</b> October 31, 2026</em></p>
+  <p>This Privacy Policy explains how the WYK Maths Team platform ("we", "us", or "our") collects, uses, and discloses your information when you use our service.</p>
+
+  <h2>1. Information We Collect</h2>
+  <ul>
+    <li><b>1.1 Authentication Data:</b> We collect your school email address, username, and Microsoft OAuth details upon login.</li>
+    <li><b>1.2 Academic Data:</b> We collect and store your problem submissions, code, uploaded images, and AI grading feedback.</li>
+    <li><b>1.3 Usage Data:</b> We monitor system interactions (such as heartbeat timestamps and IP addresses) to maintain server security and manage traffic.</li>
+  </ul>
+
+  <h2>2. Public Visibility of Information (CRITICAL)</h2>
+  <ul>
+    <li><b>2.1 Real Names and Identifiers:</b> By registering and using the Platform, you acknowledge and agree that <b>your Real Name (extracted from the Microsoft OAuth profile) and Username will be visible to all other logged-in users</b> across the Platform, including but not limited to Leaderboards, Submission History, and Public Profiles.</li>
+    <li><b>2.2 Public Submissions:</b> All your code and problem submissions are publicly viewable by all authenticated users of the Platform. If you are not the first to solve a problem, your code may be visible to others after you have passed the problem.</li>
+  </ul>
+
+  <h2>3. How We Use Your Information</h2>
+  <ul>
+    <li><b>3.1</b> We use your data to provide, maintain, and improve the Platform (e.g., calculating ratings, organizing contests, and enabling AI grading).</li>
+    <li><b>3.2</b> We use usage data (such as IP addresses and timestamps) strictly for security, auditing, and preventing abuse (e.g., preventing DDoS attacks or alt-account farming).</li>
+  </ul>
+
+  <h2>4. Data Sharing and Disclosure</h2>
+  <ul>
+    <li><b>4.1 No Commercial Sale:</b> We do <b>NOT</b> sell, rent, or trade your personal information to any third parties.</li>
+    <li><b>4.2 Third-Party Services:</b> We use Microsoft for authentication, MongoDB for data storage, and DeepSeek/Anthropic APIs for AI grading. Your data is processed by these services solely for functional purposes.</li>
+  </ul>
+
+  <h2>5. Data Security</h2>
+  <p>We implement reasonable security measures (including access controls and encrypted credentials) to protect your data. However, as a student-run open-source project, we cannot guarantee absolute security against all cyber threats.</p>
+
+  <h2>6. Your Rights</h2>
+  <p>If you wish to have your account deleted or your data removed from the public-facing parts of the Platform, please contact the Platform administrators. Note that deleting your account will result in the permanent loss of all Tokens, submissions, and achievements.</p>
+</div>
+    </main>
+  </div>
+
+  <!-- ═══ 共享脚本 ═══ -->
+  <script src="/assets/js/auth.js?v=39ed8638"></script>
+  <script src="/assets/js/app.js?v=39ed8638"></script>
+  <script src="/assets/js/topbar.js?v=39ed8638"></script>
+  <script src="/assets/js/sidebar.js?v=39ed8638"></script>
+  <script src="/assets/js/heartbeat.js?v=39ed8638"></script>
+  <script src="/assets/js/pk-invite.js?v=39ed8638"></script>
+
+  <!-- ═══ 本页脚本 ═══ -->
+  <script src="{{PAGE_JS}}"></script>
+</body>
+</html>
