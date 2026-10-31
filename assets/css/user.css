@@ -1,0 +1,824 @@
+
+    :root {
+      --c-surface: #ffffff;
+      --c-surface-sunken: #f8f9fa;
+      --c-surface-raised: #f0f0f0;
+      --c-surface-muted: #e9ecef;
+      --c-border: #dddddd;
+      --c-border-strong: #bbbbbb;
+      --c-text: #333333;
+      --c-text-muted: #666666;
+      --c-text-subtle: #999999;
+    }
+    :root[data-theme="dark"] {
+      --c-surface: #161b22;
+      --c-surface-sunken: #0d1117;
+      --c-surface-raised: #21262d;
+      --c-surface-muted: #21262d;
+      --c-border: #30363d;
+      --c-border-strong: #484f58;
+      --c-text: #c9d1d9;
+      --c-text-muted: #8b949e;
+      --c-text-subtle: #6e7681;
+    }
+    :root[data-theme="scifi"] {
+      --c-surface: #09101a;
+      --c-surface-sunken: #070d15;
+      --c-surface-raised: #0f2231;
+      --c-surface-muted: #101b26;
+      --c-border: #14313f;
+      --c-border-strong: #1e4a5e;
+      --c-text: #c6eeff;
+      --c-text-muted: #6c8fa3;
+      --c-text-subtle: #546f80;
+    }
+
+    .profile-container {
+      background: var(--card-bg);
+      border-radius: 4px;
+      padding: 1.5rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* ========== 头部信息 ========== */
+    .profile-header {
+      display: flex;
+      gap: 1.5rem;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      padding-bottom: 1.2rem;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 1.2rem;
+    }
+    .profile-avatar {
+      flex-shrink: 0;
+    }
+    .profile-avatar img,
+    .profile-avatar .placeholder {
+      width: 130px;
+      height: 130px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--accent);
+      display: block;
+    }
+    .profile-avatar .placeholder {
+      background: var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3.5rem;
+      color: var(--text-secondary);
+    }
+    .profile-info {
+      flex: 1;
+      min-width: 200px;
+    }
+    .profile-info h1 {
+      margin: 0 0 0.3rem 0;
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .profile-realname {
+      font-size: 1rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+    .profile-meta {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin: 0.6rem 0;
+    }
+    .profile-meta .meta-badge {
+      background: var(--border-color);
+      color: var(--text-primary);
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .profile-meta .btn-link {
+      background: var(--accent);
+      color: #fff;
+      padding: 4px 14px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: opacity 0.15s;
+    }
+    .profile-meta .btn-link:hover {
+      opacity: 0.88;
+    }
+    .profile-meta .btn-link.purple {
+      background: #7d5bb0;
+    }
+    .profile-meta .btn-link.purple.offline {
+      background: #8a7a9a;   /* 灰紫，視覺上弱一點但不至於像 disabled */
+      opacity: 0.75;
+    }
+    .profile-meta .btn-link.purple.offline:hover {
+      opacity: 1;
+    }
+    .profile-stats {
+      display: flex;
+      gap: 1.2rem;
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-top: 0.4rem;
+      color: var(--text-primary);
+    }
+    .profile-stats .passed {
+      color: #2e7d32;
+    }
+    [data-theme="dark"] .profile-stats .passed {
+      color: #8fce9f;
+    }
+
+    /* ========== 已解题目网格（HKOI 风格，用 flex 而非 table） ========== */
+    .section-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 0.8rem 0;
+    }
+    .profile-solved {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      margin-bottom: 1rem;
+    }
+    .profile-solved a {
+      display: inline-block;
+      min-width: 5.5em;
+      padding: 5px 8px;
+      text-align: center;
+      border: 1px solid var(--border-color);
+      border-radius: 3px;
+      background: var(--c-surface-sunken);
+      color: var(--text-primary);
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: monospace;
+      text-decoration: none;
+      transition: transform 0.12s ease, background 0.15s, border-color 0.15s;
+    }
+    .profile-solved a:hover {
+      transform: translateY(-1px);
+      border-color: var(--accent);
+      background: #e8f2ff;
+    }
+    .profile-solved a.state-passed {
+      background: #d4edda;
+      color: #155724;
+      border-color: #b1dfbb;
+    }
+    .profile-solved a.state-passed:hover {
+      background: #a5d6a7;
+    }
+    .profile-solved a.state-failed {
+      background: #f8d7da;
+      color: #721c24;
+      border-color: #f1b0b7;
+    }
+    .profile-solved a.state-failed:hover {
+      background: #ef9a9a;
+    }
+
+    /* ========== Dark mode ========== */
+    [data-theme="dark"] .profile-solved a {
+      background: #161b22;
+      color: var(--text-primary);
+      border-color: var(--border-color);
+    }
+    [data-theme="dark"] .profile-solved a:hover {
+      background: #21262d;
+      border-color: var(--accent);
+    }
+    [data-theme="dark"] .profile-solved a.state-passed {
+      background: #1a3a2a;
+      color: #8fce9f;
+      border-color: #2a5a3a;
+    }
+    
+    /* ========== Sci-Fi mode ========== */
+    [data-theme="scifi"] .profile-solved a {
+      background: #0b1420;
+      color: #a8d8ea;
+      border-color: #14313f;
+    }
+    [data-theme="scifi"] .profile-solved a:hover {
+      background: #0f2231;
+      border-color: var(--accent);
+    }
+    [data-theme="scifi"] .profile-solved a.state-passed {
+      background: #0b2a24;
+      color: #7ef2c8;
+      border-color: #14524a;
+    }
+    [data-theme="scifi"] .profile-solved a.state-failed {
+      background: #2a1118;
+      color: #ff9db8;
+      border-color: #5a2430;
+    }
+    .edit-realname-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 3px 7px;
+  border-radius: 4px;
+  transition: background 0.15s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+.edit-realname-btn:hover {
+  background: rgba(74, 144, 217, 0.12);
+}
+    /* ===== 只顯示 attempted 的開關 ===== */
+    .section-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin: 0 0 0.8rem 0;
+    }
+    .section-header-row .section-title { margin: 0; }
+    .attempted-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      user-select: none;
+      padding: 4px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      background: var(--card-bg);
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .attempted-toggle:hover { border-color: var(--accent); color: var(--accent); }
+    .attempted-toggle input[type="checkbox"] {
+      cursor: pointer;
+      accent-color: var(--accent);
+      margin: 0;
+    }
+        /* ═══════════════ Achievements ═══════════════ */
+    .ach-section {
+      margin-top: 1.5rem;
+      padding-top: 1.2rem;
+      border-top: 1px solid var(--border-color);
+    }
+    .ach-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: .5rem;
+      margin-bottom: 1rem;
+    }
+    .ach-header h2 {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .ach-progress {
+      font-size: .85rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+    .ach-progress b {
+      color: var(--accent);
+      font-size: 1rem;
+    }
+
+    /* ─── 网格 ─── */
+    .ach-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: .7rem;
+    }
+    @media (max-width: 500px) {
+      .ach-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    }
+
+    /* ─── 卡片 ─── */
+    .ach-card {
+      position: relative;
+      padding: .8rem .7rem;
+      border: 1.5px solid var(--border-color);
+      border-radius: 8px;
+      background: var(--card-bg);
+      text-align: center;
+      transition: transform .15s, box-shadow .15s, border-color .15s;
+      cursor: default;
+      min-height: 150px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: .35rem;
+    }
+    .ach-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,.08);
+    }
+    .ach-card.locked {
+      opacity: .45;
+      filter: grayscale(1);
+    }
+    .ach-card.locked:hover {
+      opacity: .65;
+    }
+
+    .ach-icon-wrap {
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: rgba(74,144,217,.1);
+      margin-bottom: .1rem;
+      flex-shrink: 0;
+    }
+    .ach-icon-wrap i {
+      font-size: 1.5rem;
+    }
+    .ach-name {
+      font-size: .88rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+    .ach-desc {
+      font-size: .72rem;
+      color: var(--text-secondary);
+      line-height: 1.35;
+      flex: 1;
+    }
+    .ach-date {
+      font-size: .68rem;
+      color: var(--text-secondary);
+      font-family: 'Consolas', monospace;
+      margin-top: auto;
+      opacity: .85;
+    }
+    .ach-rarity-tag {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      font-size: .6rem;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 8px;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+
+    /* ── 进度条（未解锁的成就显示距离目标还差多少）── */
+    .ach-bar-wrap {
+      margin-top: 6px;
+      width: 100%;
+    }
+    .ach-bar {
+      height: 5px;
+      border-radius: 3px;
+      background: rgba(127, 127, 127, .22);
+      overflow: hidden;
+    }
+    .ach-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: var(--accent);
+      transition: width .25s ease;
+    }
+    .ach-bar-label {
+      font-size: .64rem;
+      color: var(--text-secondary);
+      margin-top: 3px;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+    .ach-card.rarity-legendary .ach-bar-fill { background: #FFAA00; }
+    .ach-card.rarity-epic      .ach-bar-fill { background: #AA00AA; }
+    .ach-card.rarity-rare      .ach-bar-fill { background: #4A90D9; }
+    .ach-card.rarity-uncommon  .ach-bar-fill { background: #008000; }
+
+    /* 未解锁时显示的奖励金额 */
+    .ach-reward {
+      font-size: .66rem;
+      font-weight: 700;
+      color: #2ecc71;
+      font-variant-numeric: tabular-nums;
+      margin-top: 2px;
+    }
+
+    /* 头部已获得的 token 总额 */
+    .ach-earned {
+      font-size: .8rem;
+      font-weight: 700;
+      color: #2ecc71;
+      margin-left: .6rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ─── 稀有度配色（图标 + 边框 + tag） ─── */
+    .ach-card.rarity-common    { border-color: rgba(128,128,128,.4); }
+    .ach-card.rarity-common    .ach-icon-wrap { background: rgba(128,128,128,.15); color: #808080; }
+    .ach-card.rarity-common    .ach-rarity-tag { background: rgba(128,128,128,.15); color: #808080; }
+
+    .ach-card.rarity-uncommon  { border-color: rgba(0,128,0,.45); }
+    .ach-card.rarity-uncommon  .ach-icon-wrap { background: rgba(0,128,0,.14); color: #008000; }
+    .ach-card.rarity-uncommon  .ach-rarity-tag { background: rgba(0,128,0,.15); color: #008000; }
+
+    .ach-card.rarity-rare      { border-color: rgba(0,0,255,.45); }
+    .ach-card.rarity-rare      .ach-icon-wrap { background: rgba(0,0,255,.12); color: #0000FF; }
+    .ach-card.rarity-rare      .ach-rarity-tag { background: rgba(0,0,255,.12); color: #0000FF; }
+
+    .ach-card.rarity-epic      { border-color: rgba(170,0,170,.5); }
+    .ach-card.rarity-epic      .ach-icon-wrap { background: rgba(170,0,170,.14); color: #AA00AA; }
+    .ach-card.rarity-epic      .ach-rarity-tag { background: rgba(170,0,170,.14); color: #AA00AA; }
+
+    .ach-card.rarity-legendary {
+      border-color: rgba(255,170,0,.7);
+      box-shadow: 0 0 12px rgba(255,170,0,.18);
+    }
+    .ach-card.rarity-legendary .ach-icon-wrap { background: rgba(255,170,0,.18); color: #FFAA00; }
+    .ach-card.rarity-legendary .ach-rarity-tag { background: rgba(255,170,0,.2); color: #B37700; }
+
+    /* dark 模式微调 */
+    [data-theme="dark"] .ach-card.locked { opacity: .3; }
+    [data-theme="dark"] .ach-card.rarity-common .ach-rarity-tag { color: #aaa; }
+    [data-theme="dark"] .ach-card.rarity-uncommon .ach-rarity-tag { color: #6dbf6d; }
+    [data-theme="dark"] .ach-card.rarity-uncommon .ach-icon-wrap { color: #6dbf6d; }
+    [data-theme="dark"] .ach-card.rarity-rare .ach-rarity-tag { color: #7d9dff; }
+    [data-theme="dark"] .ach-card.rarity-rare .ach-icon-wrap { color: #7d9dff; }
+    [data-theme="dark"] .ach-card.rarity-epic .ach-rarity-tag { color: #d68cd6; }
+    [data-theme="dark"] .ach-card.rarity-epic .ach-icon-wrap { color: #d68cd6; }
+
+    /* ─── 空状态 ─── */
+    .ach-empty {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--text-secondary);
+      font-style: italic;
+    }
+        /* 已解锁的右上角绿色勾 */
+    .ach-card.unlocked::before {
+      content: '\f00c';  /* FontAwesome check */
+      font-family: 'Font Awesome 6 Free';
+      font-weight: 900;
+      position: absolute;
+      top: -6px;
+      left: -6px;
+      width: 20px;
+      height: 20px;
+      background: #2e7d32;
+      color: #fff;
+      border-radius: 50%;
+      font-size: .7rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,.15);
+      z-index: 1;
+    }
+  /* ⭐ 在线时长 */
+.profile-online-row {
+  display: flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+  margin-top: .7rem;
+  font-size: .85rem;
+}
+  /* ⭐ 在线时长 & 最后可见（重构版） */
+  .profile-online-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+  }
+  .profile-online-row .item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* 左右分布，对齐更工整 */
+    padding: 8px 12px;
+    background: var(--c-surface-sunken);
+    border: 1px solid var(--c-border);
+    border-radius: 6px; /* 改成跟 badge 统一的微圆角 */
+    color: var(--c-text-muted);
+    font-size: .85rem;
+    transition: border-color 0.15s, background 0.15s, transform 0.15s;
+  }
+  .profile-online-row .item:hover {
+    border-color: var(--accent);
+    background: var(--c-surface-raised);
+    transform: translateY(-1px);
+  }
+  
+  .profile-online-row .item-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .profile-online-row .item i {
+    color: var(--c-text-subtle);
+    font-size: .9rem;
+  }
+  .profile-online-row .item b {
+    color: var(--c-text);
+    font-family: 'Consolas', monospace;
+    font-weight: 700;
+    font-size: .95rem;
+  }
+
+  /* ── 在线状态的特殊修饰 ── */
+  .profile-online-row .item.online {
+    background: rgba(46,204,113,.05);
+    border-color: rgba(46,204,113,.25);
+  }
+  .profile-online-row .item.online i {
+    color: #2ecc71;
+  }
+  .profile-online-row .item.online b {
+    color: #2e7d32;
+  }
+  
+  /* ── Dark 模式 ── */
+  [data-theme="dark"] .profile-online-row .item {
+    background: var(--c-surface-sunken);
+    border-color: var(--c-border);
+  }
+  [data-theme="dark"] .profile-online-row .item:hover {
+    background: var(--c-surface-raised);
+    border-color: var(--accent);
+  }
+  [data-theme="dark"] .profile-online-row .item b {
+    color: var(--c-text);
+  }
+  [data-theme="dark"] .profile-online-row .item.online {
+    background: rgba(46,204,113,.1);
+    border-color: rgba(46,204,113,.3);
+  }
+  [data-theme="dark"] .profile-online-row .item.online b {
+    color: #8fdf8f;
+  }
+
+  /* ── Sci-Fi 模式 ── */
+  [data-theme="scifi"] .profile-online-row .item {
+    background: #0b1420;
+    border-color: #14313f;
+  }
+  [data-theme="scifi"] .profile-online-row .item:hover {
+    background: #0f2231;
+    border-color: var(--accent);
+  }
+  [data-theme="scifi"] .profile-online-row .item i {
+    color: #1e4a5e;
+  }
+  [data-theme="scifi"] .profile-online-row .item b {
+    color: #c6eeff;
+  }
+  [data-theme="scifi"] .profile-online-row .item.online {
+    background: rgba(126,242,200,.05);
+    border-color: #14524a;
+  }
+  [data-theme="scifi"] .profile-online-row .item.online i,
+  [data-theme="scifi"] .profile-online-row .item.online b {
+    color: #7ef2c8;
+  }
+
+.profile-container.theme-cyberpunk {
+  background: linear-gradient(135deg, #0d0221 0%, #ff00cc 100%) !important;
+  color: #00ffff !important;
+  border: 1px solid #00ffff;
+}
+.profile-container.theme-cyberpunk h1, 
+.profile-container.theme-cyberpunk .profile-realname, 
+.profile-container.theme-cyberpunk .profile-stats, 
+.profile-container.theme-cyberpunk .section-title {
+  color: #00ffff !important;
+  text-shadow: 0 0 5px rgba(0,255,255,0.5);
+}
+
+.profile-container.theme-sakura {
+  background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%) !important;
+  color: #e91e63 !important;
+}
+.profile-container.theme-sakura h1, 
+.profile-container.theme-sakura .profile-realname, 
+.profile-container.theme-sakura .profile-stats, 
+.profile-container.theme-sakura .section-title {
+  color: #e91e63 !important;
+}
+
+.profile-container.theme-matrix {
+  background: #000000 !important;
+  color: #00ff00 !important;
+  border: 1px solid #00ff00;
+  box-shadow: 0 0 15px rgba(0,255,0,0.2);
+}
+.profile-container.theme-matrix h1, 
+.profile-container.theme-matrix .profile-realname, 
+.profile-container.theme-matrix .profile-stats, 
+.profile-container.theme-matrix .section-title {
+  color: #00ff00 !important;
+  font-family: monospace;
+}
+
+.profile-container.theme-scifi {
+  background: linear-gradient(135deg, #09101a 0%, #14313f 100%) !important;
+  color: #c6eeff !important;
+  border: 1px solid #1e4a5e;
+}
+.profile-container.theme-scifi h1, 
+.profile-container.theme-scifi .profile-realname, 
+.profile-container.theme-scifi .profile-stats, 
+.profile-container.theme-scifi .section-title {
+  color: #c6eeff !important;
+}
+
+.profile-container.theme-ocean {
+  background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%) !important;
+  color: #006064 !important;
+  border: 1px solid #4dd0e1;
+}
+.profile-container.theme-ocean h1,
+.profile-container.theme-ocean .profile-realname,
+.profile-container.theme-ocean .profile-stats,
+.profile-container.theme-ocean .section-title {
+  color: #006064 !important;
+}
+
+.profile-container.theme-forest {
+  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%) !important;
+  color: #1b5e20 !important;
+  border: 1px solid #81c784;
+}
+.profile-container.theme-forest h1,
+.profile-container.theme-forest .profile-realname,
+.profile-container.theme-forest .profile-stats,
+.profile-container.theme-forest .section-title {
+  color: #1b5e20 !important;
+}
+
+.profile-container.theme-sunset {
+  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%) !important;
+  color: #e65100 !important;
+  border: 1px solid #ffb74d;
+}
+.profile-container.theme-sunset h1,
+.profile-container.theme-sunset .profile-realname,
+.profile-container.theme-sunset .profile-stats,
+.profile-container.theme-sunset .section-title {
+  color: #e65100 !important;
+}
+
+.profile-container.theme-midnight {
+  background: linear-gradient(135deg, #0b1020 0%, #1b2440 100%) !important;
+  color: #8ab4ff !important;
+  border: 1px solid #2b3b63;
+  box-shadow: 0 0 15px rgba(138,180,255,0.12);
+}
+.profile-container.theme-midnight h1,
+.profile-container.theme-midnight .profile-realname,
+.profile-container.theme-midnight .profile-stats,
+.profile-container.theme-midnight .section-title {
+  color: #8ab4ff !important;
+}
+
+.profile-container.theme-nord {
+  background: linear-gradient(135deg, #2e3440 0%, #3b4252 100%) !important;
+  color: #88c0d0 !important;
+  border: 1px solid #4c566a;
+}
+.profile-container.theme-nord h1,
+.profile-container.theme-nord .profile-realname,
+.profile-container.theme-nord .profile-stats,
+.profile-container.theme-nord .section-title {
+  color: #88c0d0 !important;
+}
+
+.profile-container.theme-mono {
+  background: linear-gradient(135deg, #111111 0%, #333333 100%) !important;
+  color: #f5f5f5 !important;
+  border: 1px solid #555555;
+}
+.profile-container.theme-mono h1,
+.profile-container.theme-mono .profile-realname,
+.profile-container.theme-mono .profile-stats,
+.profile-container.theme-mono .section-title {
+  color: #f5f5f5 !important;
+}
+/* ═══════════════ ⭐ 全主题动态增强（纯CSS高性能特效） ═══════════════ */
+
+/* ── 1. Cyberpunk：霓虹呼吸光晕 ── */
+@keyframes cyberPulse {
+  0% { box-shadow: 0 0 10px rgba(0,255,255,0.2), inset 0 0 10px rgba(255,0,204,0.1); }
+  50% { box-shadow: 0 0 25px rgba(0,255,255,0.6), inset 0 0 20px rgba(255,0,204,0.3); }
+  100% { box-shadow: 0 0 10px rgba(0,255,255,0.2), inset 0 0 10px rgba(255,0,204,0.1); }
+}
+.profile-container.theme-cyberpunk {
+  animation: cyberPulse 3s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+.profile-container.theme-cyberpunk::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,255,0.05) 3px);
+  z-index: 1;
+}
+
+/* ── 2. Sakura：樱花漂浮呼吸感 ── */
+@keyframes sakuraFloat {
+  0% { transform: translateY(0px); box-shadow: 0 10px 20px rgba(233,30,99,0.05); }
+  50% { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(233,30,99,0.15); }
+  100% { transform: translateY(0px); box-shadow: 0 10px 20px rgba(233,30,99,0.05); }
+}
+.profile-container.theme-sakura {
+  animation: sakuraFloat 6s ease-in-out infinite;
+}
+
+/* ── 3. Matrix：代码雨背景滚动 ── */
+@keyframes matrixRain {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 100vh; }
+}
+.profile-container.theme-matrix {
+  background: #000 url('data:image/svg+xml;utf8,<svg width="10" height="10" xmlns="http://www.w3.org/2000/svg"><text x="0" y="10" fill="%2300ff00" font-size="10" opacity="0.3">1</text></svg>') repeat !important;
+  animation: matrixRain 10s linear infinite;
+  position: relative;
+}
+
+/* ── 4. Sci-Fi：扫描线全息效果 ── */
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+.profile-container.theme-scifi {
+  position: relative;
+  overflow: hidden;
+}
+.profile-container.theme-scifi::after {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 50px;
+  background: linear-gradient(to bottom, transparent, rgba(198,238,255,0.2), transparent);
+  animation: scanline 4s linear infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ── 5. Ocean：波浪渐变背景流动 ── */
+@keyframes oceanWave {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.profile-container.theme-ocean {
+  background-size: 200% 200% !important;
+  animation: oceanWave 8s ease infinite;
+}
+
+/* ── 6. Sunset：晚霞渐变缓动 ── */
+.profile-container.theme-sunset {
+  background-size: 200% 200% !important;
+  animation: oceanWave 12s ease infinite; /* 复用渐变动画 */
+}
+
+/* ── 7. Midnight：星空微光闪烁 ── */
+@keyframes starTwinkle {
+  0%, 100% { box-shadow: 0 0 10px rgba(138,180,255,0.1); }
+  50% { box-shadow: 0 0 20px rgba(138,180,255,0.3); }
+}
+.profile-container.theme-midnight {
+  animation: starTwinkle 4s ease-in-out infinite;
+}
+
+/* ── 8. Nord：极光背景平移 ── */
+.profile-container.theme-nord {
+  background-size: 150% 150% !important;
+  animation: oceanWave 15s ease infinite;
+}
+
+/* ── 9. Mono：老式终端呼吸边框 ── */
+@keyframes monoBlink {
+  0%, 100% { border-color: #555555; }
+  50% { border-color: #ffffff; }
+}
+.profile-container.theme-mono {
+  animation: monoBlink 2s step-end infinite;
+}
+
+/* ⭐ 确保内容层在特效之上 */
+.profile-container > * {
+  position: relative;
+  z-index: 3;
+}
+  
