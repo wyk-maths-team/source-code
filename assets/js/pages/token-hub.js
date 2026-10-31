@@ -3,13 +3,34 @@
 
   Page.boot({ title: 'Token Hub', requireAuth: true, skeleton: true });
 
+  // dark: true 的主题会把整站切到暗色模式（题目列表那些白色小方块就不会刺眼）
   const THEMES = {
-    default:   { name: 'Default',   bg: 'var(--card-bg)', color: 'var(--text-primary)' },
-    cyberpunk: { name: 'Cyberpunk', bg: 'linear-gradient(135deg, #0d0221 0%, #ff00cc 100%)', color: '#00ffff' },
-    sakura:    { name: 'Sakura',    bg: 'linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%)', color: '#e91e63' },
-    matrix:    { name: 'Matrix',    bg: '#000000', color: '#00ff00' },
-    scifi:     { name: 'Sci-Fi',    bg: 'linear-gradient(135deg, #09101a 0%, #14313f 100%)', color: '#c6eeff' }
+    default:   { name: 'Default',   dark: false, bg: 'var(--card-bg)', color: 'var(--text-primary)' },
+    sakura:    { name: 'Sakura',    dark: false, bg: 'linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%)', color: '#e91e63' },
+    ocean:     { name: 'Ocean',     dark: false, bg: 'linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%)', color: '#006064' },
+    forest:    { name: 'Forest',    dark: false, bg: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)', color: '#1b5e20' },
+    sunset:    { name: 'Sunset',    dark: false, bg: 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)', color: '#e65100' },
+    cyberpunk: { name: 'Cyberpunk', dark: true,  bg: 'linear-gradient(135deg, #0d0221 0%, #ff00cc 100%)', color: '#00ffff' },
+    matrix:    { name: 'Matrix',    dark: true,  bg: '#000000', color: '#00ff00' },
+    scifi:     { name: 'Sci-Fi',    dark: true,  bg: 'linear-gradient(135deg, #09101a 0%, #14313f 100%)', color: '#c6eeff' },
+    midnight:  { name: 'Midnight',  dark: true,  bg: 'linear-gradient(135deg, #0b1020 0%, #1b2440 100%)', color: '#8ab4ff' },
+    nord:      { name: 'Nord',      dark: true,  bg: 'linear-gradient(135deg, #2e3440 0%, #3b4252 100%)', color: '#88c0d0' },
+    mono:      { name: 'Mono',      dark: true,  bg: 'linear-gradient(135deg, #111111 0%, #333333 100%)', color: '#f5f5f5' }
   };
+
+  // 把主题应用到整站：暗色主题会让所有页面进入 data-theme 暗色模式
+  function applySiteTheme(key) {
+    const theme = THEMES[key] || THEMES.default;
+    // scifi 有自己的一套变量，保持原样；其余暗色主题统一走 dark
+    const ui = theme.dark ? (key === 'scifi' ? 'scifi' : 'dark') : 'light';
+    try {
+      localStorage.setItem('theme', ui);
+      localStorage.setItem('profileTheme', key);
+    } catch (e) { /* 隐身模式等 */ }
+
+    if (ui === 'light') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', ui);
+  }
 
   let state = null;
   let busy = false;        // Claiming in progress — block double-clicks
@@ -71,6 +92,8 @@
     renderStreak();
     renderThemes();
     updatePreview(res.theme);
+    // 暗色主题顺带把整站切到暗色，题目列表的小方块不再刺眼
+    applySiteTheme(res.theme);
   }
 
   // ── Top summary ──
@@ -241,9 +264,10 @@
     grid.innerHTML = Object.keys(THEMES).map((key) => {
       const t = THEMES[key];
       const isActive = state.theme === key;
+      const badge = t.dark ? ' <span class="theme-dark-badge">DARK</span>' : '';
       return '<div class="theme-card ' + (isActive ? 'active' : '') + '" data-theme="' + key + '">' +
         '<div class="theme-preview" style="background: ' + t.bg + '; border: 1px solid var(--border-color);"></div>' +
-        '<div style="font-weight: bold; font-size: 0.9rem;">' + t.name + '</div>' +
+        '<div style="font-weight: bold; font-size: 0.9rem;">' + t.name + badge + '</div>' +
       '</div>';
     }).join('');
 
@@ -253,10 +277,13 @@
         if (themeKey === state.theme) return;
 
         updatePreview(themeKey);
-        if (confirm('Apply "' + THEMES[themeKey].name + '" theme for 300,000 tokens?')) {
+        const darkNote = THEMES[themeKey].dark
+          ? '\n\nThis is a dark theme — the whole site will switch to dark mode.'
+          : '';
+        if (confirm('Apply "' + THEMES[themeKey].name + '" theme for 300,000 tokens?' + darkNote)) {
           buyTheme(themeKey);
         } else {
-          updatePreview(state.theme);
+          updatePreview(state.theme || 'default');
         }
       });
     });
@@ -279,6 +306,7 @@
       const res = await API.post('/api/token-hub', { action: 'buy_theme', theme: themeKey });
       if (!res.success) throw new Error(res.message || 'Purchase failed');
       DSHUI.toast(res.message, 'ok');
+      applySiteTheme(themeKey);
       await loadData({ silent: true });
     } catch (e) {
       DSHUI.toast(e.message || 'Purchase failed', 'err');

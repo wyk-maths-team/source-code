@@ -24,7 +24,10 @@ import {
 } from '../lib/quests.js';
 
 const THEME_COST = 300000;
-const AVAILABLE_THEMES = ['default', 'cyberpunk', 'sakura', 'matrix', 'scifi'];
+const AVAILABLE_THEMES = [
+  'default', 'sakura', 'ocean', 'forest', 'sunset',
+  'cyberpunk', 'matrix', 'scifi', 'midnight', 'nord', 'mono',
+];
 
 function tokenSnapshot(token) {
   const t = token || {};
