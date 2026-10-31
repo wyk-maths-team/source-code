@@ -42,6 +42,21 @@
   }
   .btn-submit:hover { opacity: 0.9; }
   .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+  .ac-wrap { position: relative; }
+  .ac-dropdown {
+    position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.15);
+    max-height: 240px; overflow-y: auto; margin-top: 2px;
+  }
+  .ac-item { padding: 7px 10px; cursor: pointer; border-bottom: 1px solid var(--border-color); font-size: .85rem; }
+  .ac-item:last-child { border-bottom: none; }
+  .ac-item:hover, .ac-item.active { background: var(--sidebar-hover-bg, rgba(127,127,127,.12)); }
+  .ac-name { font-weight: 600; color: var(--text-primary); }
+  .ac-sub { color: var(--text-secondary); font-size: .78rem; }
+  .ac-empty { padding: 8px 10px; color: var(--text-secondary); font-size: .82rem; }
+  .ac-hint { display: block; margin-top: 6px; font-size: .8rem; color: var(--text-secondary); }
+
   .preview-box {
     margin-top: 20px; padding: 16px; border-radius: 8px;
     background: rgba(74,144,217,0.08); border-left: 4px solid var(--accent);
@@ -58,11 +73,12 @@
         <h2><i class="fas fa-paper-plane"></i> Send System Message</h2>
         
         <div class="form-group">
-          <label>Search User</label>
-          <input type="text" id="userSearch" placeholder="Type to filter by username..." autocomplete="off" style="margin-bottom: 8px;">
-          
           <label>Target User</label>
-          <select id="targetUser"><option value="">Loading users...</option></select>
+          <div class="ac-wrap">
+            <input type="text" id="userSearch" placeholder="Type a username or display name..." autocomplete="off">
+            <div id="acDropdown" class="ac-dropdown" style="display:none;"></div>
+          </div>
+          <small id="selectedUserHint" class="ac-hint">No user selected</small>
         </div>
 
         <div class="form-group">
@@ -99,88 +115,121 @@
       }
 
       const form = document.getElementById('adminMsgForm');
-      const targetUserSelect = document.getElementById('targetUser');
       const userSearchInput = document.getElementById('userSearch');
+      const acDropdown = document.getElementById('acDropdown');
+      const selectedUserHint = document.getElementById('selectedUserHint');
       const templateType = document.getElementById('templateType');
       const dynamicVars = document.getElementById('dynamicVars');
       const previewBox = document.getElementById('previewBox');
       const sendBtn = document.getElementById('sendBtn');
 
-      let allUsers = []; // 存储所有用户
-            // 检查 URL 参数
+      // 检查 URL 参数
       const urlParams = new URLSearchParams(window.location.search);
       const prefillUser = urlParams.get('username');
-      const prefillProblemId = urlParams.get('problemid') || ''; // 如果没传，暂用硬编码或空
+      const prefillProblemId = urlParams.get('problemid') || '';
       const prefillSubid = urlParams.get('subid') || '';
       const prefillFlag = urlParams.get('flag');
-      // ⭐ 渲染用户下拉列表
-      function renderUserOptions(filterText = '') {
-        const query = filterText.toLowerCase().trim();
-        // 1. 过滤
-        const filtered = allUsers.filter(u => 
-          u.username.toLowerCase().includes(query) || 
-          (u.displayName && u.displayName.toLowerCase().includes(query))
-        );
-        
-        // 2. 排序（按 username 字母顺序）
-        filtered.sort((a, b) => a.username.localeCompare(b.username));
 
-        // 3. 渲染
-        if (filtered.length === 0) {
-          targetUserSelect.innerHTML = '<option value="">No users found</option>';
-        } else {
-          // 记住当前选中的值
-          const currentVal = targetUserSelect.value;
-          targetUserSelect.innerHTML = '<option value="">-- Select User --</option>' + 
-            filtered.map(u => `<option value="${DSHUI.esc(u.username)}">${DSHUI.esc(u.username)} (${DSHUI.esc(u.displayName || '')})</option>`).join('');
-          
-          // 尝试恢复选中状态
-          if (filtered.some(u => u.username === currentVal)) {
-            targetUserSelect.value = currentVal;
-          }
-        }
+      let selectedUsername = '';
+      function setSelected(username) {
+        selectedUsername = username || '';
+        selectedUserHint.textContent = selectedUsername
+          ? 'Sending to: ' + selectedUsername
+          : 'No user selected';
+        selectedUserHint.style.color = selectedUsername ? 'var(--accent)' : 'var(--text-secondary)';
       }
 
-      // 1. 拉取用户列表
-      try {
-        userSearchInput.disabled = true;
-        const usersData = await API.get('/api/users?action=adminList');
-        allUsers = usersData.users || [];
-        
-        renderUserOptions(); // 初始渲染
-        userSearchInput.disabled = false;
-        if (prefillUser) {
-          targetUserSelect.value = prefillUser;
-          // 如果列表里没有这个用户，尝试直接塞进去一个 option
-          if (targetUserSelect.value !== prefillUser) {
-             targetUserSelect.innerHTML += `<option value="${DSHUI.esc(prefillUser)}" selected>${DSHUI.esc(prefillUser)} (Auto)</option>`;
-          }
+      // ⭐ 用户自动补全（与 /submissions 页的选择方式一致）
+      let acTimer = null;
+      let acIndex = -1;
+
+      function renderAc(list) {
+        acIndex = -1;
+        if (!list || !list.length) {
+          acDropdown.innerHTML = '<div class="ac-empty">No users found</div>';
+          acDropdown.style.display = 'block';
+          return;
         }
-        if (prefillFlag) {
-          // 自动切到 Custom Message
-          templateType.value = 'custom';
-          renderTemplateVars();
-          setTimeout(() => {
-            const textarea = document.getElementById('varCustomText');
-            if (textarea) {
-               if (prefillFlag === 'red') {
-                 textarea.value = `[RED CARD WARNING] Your account has been flagged for severe violation (obscene/inappropriate content) regarding submission ${prefillSubid}. Your progress on this problem has been reset. This is a final warning before account suspension. Thank you.`;
-               } else {
-                 textarea.value = `[YELLOW CARD WARNING] Your submission ${prefillSubid} has been flagged for inappropriate content or AI usage. Your progress on this problem has been reset. Please follow the rules. Thank you.`;
-               }
-               updatePreview();
-            }
-          }, 50); // 等待 DOM 渲染
-        }
-      } catch (e) {
-        targetUserSelect.innerHTML = '<option value="">Failed to load users</option>';
-        DSHUI.toast('Failed to load user list', 'err');
+        acDropdown.innerHTML = list.map((u) => (
+          '<div class="ac-item" data-val="' + DSHUI.esc(u.username) + '">' +
+            '<div class="ac-name">' + DSHUI.esc(u.username) + '</div>' +
+            '<div class="ac-sub">' + DSHUI.esc(u.displayName || u.username) +
+              (u.realName ? ' (' + DSHUI.esc(u.realName) + ')' : '') + '</div>' +
+          '</div>'
+        )).join('');
+        acDropdown.style.display = 'block';
       }
 
-      // 2. 监听搜索输入
-      userSearchInput.addEventListener('input', (e) => {
-        renderUserOptions(e.target.value);
+      userSearchInput.addEventListener('input', () => {
+        setSelected('');
+        const kw = userSearchInput.value.trim();
+        if (acTimer) clearTimeout(acTimer);
+        if (!kw) { acDropdown.style.display = 'none'; return; }
+        acTimer = setTimeout(async () => {
+          try {
+            const res = await apiCall('/api/search?action=search_user&keyword=' + encodeURIComponent(kw));
+            renderAc(res && res.success ? res.data : []);
+          } catch (e) {
+            console.error('search users failed', e);
+          }
+        }, 250);
       });
+
+      userSearchInput.addEventListener('keydown', (e) => {
+        const items = acDropdown.querySelectorAll('.ac-item[data-val]');
+        if (!items.length || acDropdown.style.display === 'none') return;
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          acIndex = (acIndex + 1) % items.length;
+          items.forEach((it, i) => it.classList.toggle('active', i === acIndex));
+          items[acIndex].scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          acIndex = (acIndex - 1 + items.length) % items.length;
+          items.forEach((it, i) => it.classList.toggle('active', i === acIndex));
+          items[acIndex].scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (acIndex >= 0 && items[acIndex]) items[acIndex].click();
+        } else if (e.key === 'Escape') {
+          acDropdown.style.display = 'none';
+        }
+      });
+
+      acDropdown.addEventListener('click', (e) => {
+        const item = e.target.closest('.ac-item[data-val]');
+        if (!item) return;
+        userSearchInput.value = item.dataset.val;
+        setSelected(item.dataset.val);
+        acDropdown.style.display = 'none';
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!userSearchInput.contains(e.target) && !acDropdown.contains(e.target)) {
+          acDropdown.style.display = 'none';
+        }
+      });
+
+      // URL 预填（从 submissions 页跳过来时带 username）
+      if (prefillUser) {
+        userSearchInput.value = prefillUser;
+        setSelected(prefillUser);
+      }
+      if (prefillFlag) {
+        templateType.value = 'custom';
+        renderTemplateVars();
+        setTimeout(() => {
+          const textarea = document.getElementById('varCustomText');
+          if (textarea) {
+            if (prefillFlag === 'red') {
+              textarea.value = `[RED CARD WARNING] Your account has been flagged for severe violation (obscene/inappropriate content) regarding submission ${prefillSubid}. Your progress on this problem has been reset. This is a final warning before account suspension. Thank you.`;
+            } else {
+              textarea.value = `[YELLOW CARD WARNING] Your submission ${prefillSubid} has been flagged for inappropriate content or AI usage. Your progress on this problem has been reset. Please follow the rules. Thank you.`;
+            }
+            updatePreview();
+          }
+        }, 50);
+      }
 
       form.style.display = 'block';
       Page.hideSkeleton();
@@ -228,7 +277,7 @@
 
       // ⭐ 5. 发送消息
       sendBtn.addEventListener('click', async () => {
-        const target = targetUserSelect.value;
+        const target = selectedUsername || userSearchInput.value.trim();
         if (!target) return DSHUI.toast('Please select a target user', 'warn');
         
         const template = templateType.value;
