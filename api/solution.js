@@ -24,6 +24,16 @@ function isAdmin(user) {
   return !!user && (user.role === 'admin' || user.role === 'root');
 }
 
+// 成就检查（题解 / 点赞会解锁社区类成就）
+async function fireAchievements(db, username) {
+  try {
+    const { checkAchievements } = await import('../lib/achievements.js');
+    await checkAchievements(db, username, { trigger: 'action' });
+  } catch (e) {
+    console.error('[achievements]', e);
+  }
+}
+
 async function hasSolved(db, username, problemId) {
   const stats = await db.collection('userstats').findOne(
     { username },
@@ -188,6 +198,9 @@ async function handler(req, res) {
         { returnDocument: 'after' }
       );
 
+      // 点赞者可能解锁 Patron，作者可能解锁 Well Liked
+      await Promise.all([fireAchievements(db, username), fireAchievements(db, sol.username)]);
+
       const doc = updated && (updated.value !== undefined ? updated.value : updated);
       return res.status(200).json({
         success: true,
@@ -226,6 +239,7 @@ async function handler(req, res) {
       createdAt: new Date(),
     };
     const result = await db.collection('solutions').insertOne(doc);
+    await fireAchievements(db, username);
 
     return res.status(201).json({
       success: true,

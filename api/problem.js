@@ -533,6 +533,15 @@ async function handler(req, res) {
       };
       const result = await db.collection('discussions').insertOne(newPost);
       newPost._id = result.insertedId;
+
+      // Debater 成就
+      (async () => {
+        try {
+          const { checkAchievements } = await import('../lib/achievements.js');
+          await checkAchievements(db, req.user.username, { trigger: 'action' });
+        } catch (e) { console.error('[achievements]', e); }
+      })();
+
       return res.status(201).json({ success: true, discussion: newPost });
     }
 

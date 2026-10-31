@@ -134,6 +134,10 @@ async function updateUserStats(db, username, pid, correct) {
     set[`states.${pid}`] = 'failed';
   }
 
+  // 连续答错计数（Butterfingers 彩蛋用）
+  if (correct) set.consecutiveFail = 0;
+  else inc.consecutiveFail = 1;
+
   const update = { $set: set, $setOnInsert: { username } };
   if (Object.keys(inc).length) update.$inc = inc;
 
@@ -233,6 +237,17 @@ async function finishSubmit(db, username, result, context = {}) {
     const { updateStreak, checkAchievements, expandAchievementInfo } =
       await import('../lib/achievements.js');
 
+    // 先看上次活跃日期（updateStreak 会把它改成今天）
+    const prev = await db.collection('users').findOne(
+      { username }, { projection: { lastActiveDate: 1 } }
+    );
+    const longAbsence = (() => {
+      const last = prev?.lastActiveDate;
+      if (!last) return false;
+      const days = (Date.now() - new Date(last).getTime()) / 86400000;
+      return days > 30;
+    })();
+
     await updateStreak(db, username);
 
     if (context.justAC && context.problemId && context.problemSubmitCount === undefined) {
@@ -242,7 +257,7 @@ async function finishSubmit(db, username, result, context = {}) {
       });
     }
 
-    const { unlocked, rewarded } = await checkAchievements(db, username, { trigger: 'submit', ...context });
+    const { unlocked, rewarded } = await checkAchievements(db, username, { trigger: 'submit', longAbsence, ...context });
 
     // ⭐ 展开成完整对象返回给前端
     if (unlocked.length) {
@@ -264,8 +279,16 @@ async function sendSuccess(db, username, res, result, context = {}) {
     const bg = (async () => {
       try {
         const { updateStreak, checkAchievements } = await import('../lib/achievements.js');
+        const prev = await db.collection('users').findOne(
+          { username }, { projection: { lastActiveDate: 1 } }
+        );
+        const longAbsence = (() => {
+          const last = prev?.lastActiveDate;
+          if (!last) return false;
+          return (Date.now() - new Date(last).getTime()) / 86400000 > 30;
+        })();
         await updateStreak(db, username);
-        await checkAchievements(db, username, { trigger: 'submit', ...context });
+        await checkAchievements(db, username, { trigger: 'submit', longAbsence, ...context });
       } catch (e) {
         console.error('[achievements bg]', e);
       }

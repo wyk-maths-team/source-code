@@ -27,6 +27,15 @@ function normalizeHints(raw) {
   return out;
 }
 
+async function fireAchievements(db, username) {
+  try {
+    const { checkAchievements } = await import('../lib/achievements.js');
+    await checkAchievements(db, username, { trigger: 'action' });
+  } catch (e) {
+    console.error('[achievements]', e);
+  }
+}
+
 async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
 
@@ -126,6 +135,8 @@ async function handler(req, res) {
     } catch (e) {
       if (!(e && e.code === 11000)) throw e;   // 并发重复购买：当作已购买
     }
+
+    await fireAchievements(db, username);
 
     return res.status(200).json({
       success: true,
