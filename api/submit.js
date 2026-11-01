@@ -217,6 +217,7 @@ async function detectTeamContext(db, username, pid, now) {
 async function findUserActiveContests(db, username, now) {
   return db.collection('contests').find({
     participants: username,
+    retired: { $ne: username },   // 提前結束的用戶不再算在比賽裡
     startTime: { $lte: now },
     $expr: {
       $gte: [
@@ -612,7 +613,7 @@ async function handleSingleSubmit(ctx) {
           { $set: { lastSubmissionTime: now } }
         );
       } else if (jr.correct) {
-        // First AC → apply penalty
+        // 首次 AC：服务器记的是扣过惩罚的分数（0.9^wrongAttempts）
         currentScore = Math.max(0, 100 * Math.pow(0.9, prevWrong));
         await db.collection('contest_results').updateOne(
           { contestId: activeContest.id, username: effectiveUsername, problemId: pid },
@@ -620,6 +621,17 @@ async function handleSingleSubmit(ctx) {
           { upsert: true }
         );
         await updateUserStats(db, effectiveUsername, pid, true);
+
+        // 竞赛里首次 AC 也照常发 token 奖励（以前只有普通提交才发）
+        try {
+          const guestRegex = /^G\d{3}$/;
+          if (!guestRegex.test(rawUsername)) {
+            const { rewardAC } = await import('../lib/token.js');
+            await rewardAC(db, effectiveUsername, problem.difficulty || 1);
+          }
+        } catch (e) {
+          console.error('[submit] contest reward failed:', e);
+        }
       } else if (jr.score > 0) {
         // Partial
         currentScore = Math.max(resultDoc?.score || 0, jr.score);
@@ -645,7 +657,8 @@ async function handleSingleSubmit(ctx) {
           { upsert: true }
         );
       }
-      submissionData.score = currentScore;
+      // 注意：不要把 submissionData.score 改成衰减后的分数 ——
+      // 提交记录保留真实判分，衰减只作用于 contest_results 里的排名分
     }
 
     return sendSuccess(db, rawUsername, res, {
@@ -653,7 +666,8 @@ async function handleSingleSubmit(ctx) {
       subid: submissionData.subid,
       correct: jr.correct,
       systemError: jr.systemError,
-      score: currentScore,         // 或 score: jr.score
+      score: jr.score,             // 给客户端的是真实分数
+      contestScore: currentScore,  // 服务器计分（带惩罚）另外给一份，便于调试/展示排名
       message: jr.systemError
         ? 'Logic execution failed'
         : (jr.marked ? 'Judged by custom logic' : undefined),

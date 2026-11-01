@@ -209,7 +209,7 @@
           : `<button id="joinBtn" class="cd-btn success"><i class="fas fa-right-to-bracket"></i> Join Contest</button>`;
       } else if (status === 'ongoing') {
         if (isParticipant) {
-          actionHtml = `<button id="quitBtn" class="cd-btn danger" disabled title="Cannot quit after contest started"><i class="fas fa-lock"></i> In Progress</button>`;
+          actionHtml = `<button id="retireBtn" class="cd-btn success" title="Only available after you AC every problem"><i class="fas fa-flag-checkered"></i> Finish Early</button>`;
         } else {
           actionHtml = `<button id="joinBtn" class="cd-btn success"><i class="fas fa-right-to-bracket"></i> Join Live Contest</button>`;
         }
@@ -405,6 +405,8 @@
       if (joinBtn) joinBtn.addEventListener('click', () => joinContest(joinBtn));
       const quitBtn = document.getElementById('quitBtn');
       if (quitBtn && !quitBtn.disabled) quitBtn.addEventListener('click', () => quitContest(quitBtn));
+      const retireBtn = document.getElementById('retireBtn');
+      if (retireBtn) retireBtn.addEventListener('click', () => retireContest(retireBtn));
     }
 
     async function reload() {
@@ -425,6 +427,25 @@
       } catch (err) {
         (window.DSHUI ? DSHUI.toast('Network error: ' + err.message, 'err') : alert('Network error: ' + err.message));
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> Join Contest'; }
+      }
+    }
+
+    // 提前結束：必須所有題目都 AC 過（不限提交次數）
+    async function retireContest(btn) {
+      if (!confirm('Finish the contest now?\n\nOnly allowed once you have AC\'d every problem.')) return;
+      if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Finishing…'; }
+      try {
+        const res = await apiCall('/api/contests?action=retire', 'POST', { contestId });
+        if (res.success) {
+          (window.DSHUI ? DSHUI.toast('Contest finished', 'ok') : null);
+          await reload();
+        } else {
+          (window.DSHUI ? DSHUI.toast(res.message || 'Failed to finish contest', 'err') : alert(res.message || 'Failed'));
+          if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-flag-checkered"></i> Finish Early'; }
+        }
+      } catch (err) {
+        (window.DSHUI ? DSHUI.toast(err.message || 'Failed to finish contest', 'err') : alert(err.message || 'Failed'));
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-flag-checkered"></i> Finish Early'; }
       }
     }
 

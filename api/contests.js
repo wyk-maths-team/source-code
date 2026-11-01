@@ -313,6 +313,59 @@ async function handler(req, res) {
     }
   }
 
+  // ========== 提前结束（所有题目都 AC 才能用）==========
+  if (action === 'retire') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    const { contestId } = req.body || {};
+    if (!contestId) return res.status(400).json({ success: false, message: 'Missing contestId' });
+
+    try {
+      const contest = await db.collection('contests').findOne({ id: Number(contestId) });
+      if (!contest) return res.status(404).json({ success: false, message: 'Contest not found' });
+
+      const now = new Date();
+      const start = new Date(contest.startTime);
+      const end = new Date(start.getTime() + (Number(contest.duration) || 0) * 60000);
+      if (now < start) return res.status(400).json({ success: false, message: 'Contest has not started yet' });
+      if (now > end) return res.status(400).json({ success: false, message: 'Contest already ended' });
+
+      if (!(contest.participants || []).includes(username)) {
+        return res.status(400).json({ success: false, message: 'You are not in this contest' });
+      }
+
+      const problemIds = (contest.problems || [])
+        .map((p) => (typeof p === 'object' && p && p.problemId ? String(p.problemId) : String(p)))
+        .filter(Boolean);
+      if (!problemIds.length) {
+        return res.status(400).json({ success: false, message: 'Contest has no problems' });
+      }
+
+      const rows = await db.collection('contest_results').find(
+        { contestId: contest.id, username, problemId: { $in: problemIds }, solved: true },
+        { projection: { problemId: 1 } }
+      ).toArray();
+      const solvedSet = new Set(rows.map((r) => r.problemId));
+      const missing = problemIds.filter((id) => !solvedSet.has(id));
+
+      if (missing.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'AC every problem before finishing early',
+          missing,
+        });
+      }
+
+      await db.collection('contests').updateOne(
+        { id: contest.id },
+        { $addToSet: { retired: username } }
+      );
+
+      return res.status(200).json({ success: true, message: 'Contest finished early' });
+    } catch (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
+
   // ========== 結果 ==========
   if (action === 'results') {
     const { id } = req.query;
