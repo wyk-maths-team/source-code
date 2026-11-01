@@ -582,5 +582,3461 @@
       "price": 7500,
       "order": 0
     }
+  ],
+  "IP0901": [
+    {
+      "id": "h1",
+      "content": "Expand and compare coefficients (or telescope).",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP0902": [
+    {
+      "id": "h1",
+      "content": "Angles in a regular pentagon; show $\\triangle ABP$ is equilateral.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0903": [
+    {
+      "id": "h1",
+      "content": "Work backwards from the final equal shares.",
+      "price": 3000,
+      "order": 0
+    }
+  ],
+  "IP0904": [
+    {
+      "id": "h1",
+      "content": "Write $9997n=10000n-(n+3)$ and look at the ten-thousands digit.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP0905": [
+    {
+      "id": "h1",
+      "content": "Telescope: rewrite each term as a difference.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0906": [
+    {
+      "id": "h1",
+      "content": "$\\triangle PHK\\sim\\triangle ABC$; use the midpoint of $BC$.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP0907": [
+    {
+      "id": "h1",
+      "content": "Cosine rule for $AD$, then $r=\\frac{\\Delta}{s}$ for the inradius.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0908": [
+    {
+      "id": "h1",
+      "content": "Set $CR=CS=n$; chase the three similar triangles.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP0909": [
+    {
+      "id": "h1",
+      "content": "Lattice points on a segment: $\\gcd(|\\Delta x|,|\\Delta y|)-1$.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP0910": [
+    {
+      "id": "h1",
+      "content": "Put all 8 players in a random row and count valid positions.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0911": [
+    {
+      "id": "h1",
+      "content": "Use differences of arcs tangents.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP0912": [
+    {
+      "id": "h1",
+      "content": "Colour the board as a chessboard and compare parities.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP0913": [
+    {
+      "id": "h1",
+      "content": "Set $AE=DC=1$, $EB=x$ and use $\\triangle CDG\\sim\\triangle ABG$.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP0914": [
+    {
+      "id": "h1",
+      "content": "Let $m$ be the number of students and bound 2009 in terms of $m$.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0915": [
+    {
+      "id": "h1",
+      "content": "Each summand is 2009 plus a small correction term.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP0916": [
+    {
+      "id": "h1",
+      "content": "Shift $a,b,c$ by 1 to get a non-negative solution count.",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP0917": [
+    {
+      "id": "h1",
+      "content": "Split into cases by how many colours are used.",
+      "price": 9000,
+      "order": 0
+    }
+  ],
+  "IP0918": [
+    {
+      "id": "h1",
+      "content": "Rotate $P$ by $90^\\circ$ about $A$; the image makes a cyclic quadrilateral.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP0919": [
+    {
+      "id": "h1",
+      "content": "Express $w,z,y$ in terms of $t$ and $x$, then substitute.",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP0920": [
+    {
+      "id": "h1",
+      "content": "Every number is $3^m7^n$; pigeonhole on the exponents.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP1101": [
+    {
+      "id": "h1",
+      "content": "Group the fractions into pairs with a simple sum.",
+      "price": 3000,
+      "order": 0
+    }
+  ],
+  "IP1102": [
+    {
+      "id": "h1",
+      "content": "The unit digit of any 20 consecutive integers sums to 0.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP1103": [
+    {
+      "id": "h1",
+      "content": "The digit product is at most $k$, so $k\\le 113$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP1104": [
+    {
+      "id": "h1",
+      "content": "Recognise $14641=11^4$ and $121=11^2$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP1105": [
+    {
+      "id": "h1",
+      "content": "Split into \"all distinct\" and \"two equal letters\" cases.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP1106": [
+    {
+      "id": "h1",
+      "content": "Write it as a function of $x$ and compare coefficients.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP1107": [
+    {
+      "id": "h1",
+      "content": "A rectangle needs two pairs of diametrically opposite points.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP1108": [
+    {
+      "id": "h1",
+      "content": "Drop $D$ on $BC$ with $DA=DB$, then use the cosine rule.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP1109": [
+    {
+      "id": "h1",
+      "content": "With $P=(0,a)$, $Q=(1,b)$ the circles meet iff $|a-b|\\le\\sqrt3$.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP1110": [
+    {
+      "id": "h1",
+      "content": "Angle bisector theorem for $BD:DC$, then the tangent-chord theorem.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP1111": [
+    {
+      "id": "h1",
+      "content": "Altitudes are inversely proportional to the sides.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP1112": [
+    {
+      "id": "h1",
+      "content": "$BPQC$ is cyclic and $\\angle C=90^\\circ$, so $\\angle BPQ=90^\\circ$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP1113": [
+    {
+      "id": "h1",
+      "content": "Only the last three digits matter.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP1114": [
+    {
+      "id": "h1",
+      "content": "Any 4 consecutive cards contain at most one 3.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP1115": [
+    {
+      "id": "h1",
+      "content": "Group students by surname and compare group sizes.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP1116": [
+    {
+      "id": "h1",
+      "content": "Let $m$ be the common root; subtract the two equations.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP1117": [
+    {
+      "id": "h1",
+      "content": "Scale so $AC=1$, $AB=2$, then apply the cosine rule.",
+      "price": 8500,
+      "order": 0
+    }
+  ],
+  "IP1118": [
+    {
+      "id": "h1",
+      "content": "Split by whether green and blue balls are adjacent.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP1119": [
+    {
+      "id": "h1",
+      "content": "Inclusion-exclusion on passwords with three identical digits.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP1120": [
+    {
+      "id": "h1",
+      "content": "Divide the first equation by the second.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP1201": [
+    {
+      "id": "h1",
+      "content": "The digit sum of $n^2$ is under 36 — count two-digit $n$ by hand.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP1202": [
+    {
+      "id": "h1",
+      "content": "Factor $n^2-1=(n-1)(n+1)$; one factor must be prime.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP1204": [
+    {
+      "id": "h1",
+      "content": "A number and its digit sum are congruent mod 9.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP1205": [
+    {
+      "id": "h1",
+      "content": "Let $b_i,g_i$ be the counts in each class, then use the totals.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP1207": [
+    {
+      "id": "h1",
+      "content": "Split into whether $n$ is of the form $2^a-2^b$.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP1208": [
+    {
+      "id": "h1",
+      "content": "Complete the square: $f(x)=(x+6)^2-6$.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP1210": [
+    {
+      "id": "h1",
+      "content": "Square both equations and use $\\sin^2+\\cos^2=1$.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP1211": [
+    {
+      "id": "h1",
+      "content": "Write $x=10c+d$ and express the shifted number.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP1213": [
+    {
+      "id": "h1",
+      "content": "Let $OP$ meet $AD$ at $Q$; $\\angle OPB+\\angle PCB=90^\\circ$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP1214": [
+    {
+      "id": "h1",
+      "content": "Write $d=a+3x$ for the common difference.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP1215": [
+    {
+      "id": "h1",
+      "content": "Let the four areas be $n,n+1,n+2,n+3$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP1216": [
+    {
+      "id": "h1",
+      "content": "Extend $CD$ to $E$ with $DE=DC$; $\\triangle BDE\\cong\\triangle BDC$.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP1217": [
+    {
+      "id": "h1",
+      "content": "Extend $CP$ to meet the circumcircle at $D$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP1218": [
+    {
+      "id": "h1",
+      "content": "Every three consecutive terms must be congruent mod 3.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP1219": [
+    {
+      "id": "h1",
+      "content": "Factor $x^8+14x^4+1$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP1220": [
+    {
+      "id": "h1",
+      "content": "Heron's formula plus the triangle inequality.",
+      "price": 9500,
+      "order": 0
+    }
+  ],
+  "IP1301": [
+    {
+      "id": "h1",
+      "content": "From $a^3=b^3=c^3$ get the ratio $a:b:c$.",
+      "price": 3000,
+      "order": 0
+    }
+  ],
+  "IP1302": [
+    {
+      "id": "h1",
+      "content": "Try every common difference from $-4$ to $4$.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP1304": [
+    {
+      "id": "h1",
+      "content": "Bound $2x+3y+4z$ using $x+y+z$ and the constraint $13$.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP1305": [
+    {
+      "id": "h1",
+      "content": "Sum the wins: $22+20+32=74$ days.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP1307": [
+    {
+      "id": "h1",
+      "content": "Both $a+c+d$ and $b+c+d$ are divisible by 39.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP1308": [
+    {
+      "id": "h1",
+      "content": "Rewrite as $\\sqrt{(x-2)^2+1}+\\sqrt{(x-4)^2+9}$ — a distance sum.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP1310": [
+    {
+      "id": "h1",
+      "content": "The two 0's cannot sit at either end.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP1311": [
+    {
+      "id": "h1",
+      "content": "Use $\\alpha+\\beta+\\gamma=0$.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP1313": [
+    {
+      "id": "h1",
+      "content": "Cosine rule for $\\cos A$, then $\\angle BHC=180^\\circ-\\angle A$.",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP1314": [
+    {
+      "id": "h1",
+      "content": "Let $[ABE]=x$ and push the ratios through.",
+      "price": 8500,
+      "order": 0
+    }
+  ],
+  "IP1315": [
+    {
+      "id": "h1",
+      "content": "Extend $CA$ to $D$ with $AD=AI$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP1316": [
+    {
+      "id": "h1",
+      "content": "Let $CN=CM=r$ and compare $[BNC]$ with $[BMC]$.",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP1317": [
+    {
+      "id": "h1",
+      "content": "Write $50688=2^9\\cdot 99$.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP1318": [
+    {
+      "id": "h1",
+      "content": "Let $p_n,q_n$ count $n$-digit good numbers ending in 1 or not.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP1319": [
+    {
+      "id": "h1",
+      "content": "Multiply the inequality by 81.",
+      "price": 10000,
+      "order": 0
+    }
+  ],
+  "IP1320": [
+    {
+      "id": "h1",
+      "content": "Rewrite as $(a+b)^2+(a-b)^2=16$; set $a+b=4\\cos x$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP1401": [
+    {
+      "id": "h1",
+      "content": "Group as a cube of a sum minus a cross term.",
+      "price": 3000,
+      "order": 0
+    }
+  ],
+  "IP1402": [
+    {
+      "id": "h1",
+      "content": "Multiply by 4 and read it as a distance sum.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP1404": [
+    {
+      "id": "h1",
+      "content": "Substitute $x=0$ and $x=1$ into $f(f(x))$.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP1405": [
+    {
+      "id": "h1",
+      "content": "$\\sin P>0,\\sin Q>0$ forces the triangle to be acute.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP1407": [
+    {
+      "id": "h1",
+      "content": "Let $AD=x$ and use the compound-angle formula.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP1408": [
+    {
+      "id": "h1",
+      "content": "Call a group pure if all balls share one colour; case-split.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP1410": [
+    {
+      "id": "h1",
+      "content": "Let $D$ be the midpoint of $AC$; then $OD\\perp AC$.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP1411": [
+    {
+      "id": "h1",
+      "content": "Only 44 two-digit numbers are left out.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP1413": [
+    {
+      "id": "h1",
+      "content": "Try the case where $BE\\perp CD$.",
+      "price": 8500,
+      "order": 0
+    }
+  ],
+  "IP1414": [
+    {
+      "id": "h1",
+      "content": "Factor $2013\\cdot2014=2\\cdot3\\cdot11\\cdot19\\cdot53\\cdot61$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP1415": [
+    {
+      "id": "h1",
+      "content": "Use $x^3\\equiv1\\pmod{x^2+x+1}$.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP1416": [
+    {
+      "id": "h1",
+      "content": "Bound every term like $\\frac{a}{1+a^2}\\le\\frac12$.",
+      "price": 8500,
+      "order": 0
+    }
+  ],
+  "IP1417": [
+    {
+      "id": "h1",
+      "content": "Use $(a+b)^3=a^3+b^3+3ab(a+b)$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP1418": [
+    {
+      "id": "h1",
+      "content": "Let $a_i$ be the number who shook exactly $i$ hands.",
+      "price": 10500,
+      "order": 0
+    }
+  ],
+  "IP1419": [
+    {
+      "id": "h1",
+      "content": "Look at two consecutive circles and their centres.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP1420": [
+    {
+      "id": "h1",
+      "content": "Factors of $60^{60}$ have the form $2^a3^b5^c$.",
+      "price": 8500,
+      "order": 0
+    }
+  ],
+  "IP1501": [
+    {
+      "id": "h1",
+      "content": "Count total presses $5n$ and track each lamp's parity.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP1502": [
+    {
+      "id": "h1",
+      "content": "$BD$ and $EG$ are perpendicular bisectors.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP1503": [
+    {
+      "id": "h1",
+      "content": "Build the isosceles trapezium $ABPD$ with $AB\\parallel DP$.",
+      "price": 10500,
+      "order": 0
+    }
+  ],
+  "IP1505": [
+    {
+      "id": "h1",
+      "content": "The circle touches $AD$ and $BC$, so $PE=PF$.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP1506": [
+    {
+      "id": "h1",
+      "content": "Substitute $a+b$ into the equation and rearrange.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP1507": [
+    {
+      "id": "h1",
+      "content": "Group the terms with $x$, $x^2$, $x^3$ over $1+x+x^2$.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP1509": [
+    {
+      "id": "h1",
+      "content": "Let $m$ be an integer root and rearrange.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP1510": [
+    {
+      "id": "h1",
+      "content": "$AD$ bisects $\\angle A$, so $\\triangle DBC\\sim\\triangle ABC$.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP1511": [
+    {
+      "id": "h1",
+      "content": "Let $p\\mid n+1$; then $p\\mid n(2n+15)$.",
+      "price": 9500,
+      "order": 0
+    }
+  ],
+  "IP1513": [
+    {
+      "id": "h1",
+      "content": "Write $A=(\\alpha,\\alpha+k)$ and $B=(\\beta,\\beta+k)$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP1514": [
+    {
+      "id": "h1",
+      "content": "For $1\\le a\\le 10$, $ax\\equiv b\\pmod{11}$ has exactly one solution.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP1515": [
+    {
+      "id": "h1",
+      "content": "Use $a^3+b^3=(a+b)(a^2-ab+b^2)$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP1516": [
+    {
+      "id": "h1",
+      "content": "If $d$ is odd, every two consecutive terms include an even one.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP1517": [
+    {
+      "id": "h1",
+      "content": "Split the 12 students into four equilateral-triangle groups.",
+      "price": 9000,
+      "order": 0
+    }
+  ],
+  "IP1518": [
+    {
+      "id": "h1",
+      "content": "Define $g(x)=f(3x)-f(x)$; it vanishes at $1,3,9,27,81$.",
+      "price": 9000,
+      "order": 0
+    }
+  ],
+  "IP1519": [
+    {
+      "id": "h1",
+      "content": "Set $b_n=a_n+9$ and simplify the recurrence.",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP1520": [
+    {
+      "id": "h1",
+      "content": "Pick one man: 7 choices for his partner.",
+      "price": 11000,
+      "order": 0
+    }
+  ],
+  "IP1613": [
+    {
+      "id": "h1",
+      "content": "Handle the rectangle case $OB=AC$ first, then the general one.",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP1614": [
+    {
+      "id": "h1",
+      "content": "Group $a^3+3a^2b+3ab^2+b^3$ and its $-3ab^2$ relatives.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP1615": [
+    {
+      "id": "h1",
+      "content": "Two types: $AAA$ or $(A-1)A(A+1)$ — case-split by counts.",
+      "price": 9000,
+      "order": 0
+    }
+  ],
+  "IP1616": [
+    {
+      "id": "h1",
+      "content": "Write $a+c=2b$ and use the cosine rule.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP1617": [
+    {
+      "id": "h1",
+      "content": "Let $a_n$ count valid hat assignments for $n$ boys and build a recurrence.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP1618": [
+    {
+      "id": "h1",
+      "content": "$\\triangle ABN\\sim\\triangle ACB$ from the tangent.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP1619": [
+    {
+      "id": "h1",
+      "content": "For integer polynomials, $(m-n)\\mid(f(m)-f(n))$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP1620": [
+    {
+      "id": "h1",
+      "content": "Let $BP=x$, $CQ=y$ so $AB=9x$, $AC=16y$; use the tangent-chord theorem.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP1701": [
+    {
+      "id": "h1",
+      "content": "Look at the remainders of $a^n$ modulo 7.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP1702": [
+    {
+      "id": "h1",
+      "content": "Factor the difference of the two sides.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP1703": [
+    {
+      "id": "h1",
+      "content": "Each $f(n)$ has 2016 terms; compare consecutive values.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP1705": [
+    {
+      "id": "h1",
+      "content": "Handle $n=2$ separately, then reduce to $x_1x_2$.",
+      "price": 9000,
+      "order": 0
+    }
+  ],
+  "IP1706": [
+    {
+      "id": "h1",
+      "content": "Rewrite the equation in terms of $\\log_{2017}$.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP1707": [
+    {
+      "id": "h1",
+      "content": "Write $x,y,z$ as $2^a3^b5^c$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP1709": [
+    {
+      "id": "h1",
+      "content": "Let $AB$ and $CD$ meet at $P$; $\\triangle PBC\\sim\\triangle PDB$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP1710": [
+    {
+      "id": "h1",
+      "content": "Rotate $P$ about $B$ through $90^\\circ$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP1711": [
+    {
+      "id": "h1",
+      "content": "Case-split on the first four votes.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP1713": [
+    {
+      "id": "h1",
+      "content": "Treat $k=1$ separately, then use the discriminant.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP1714": [
+    {
+      "id": "h1",
+      "content": "Two roots come from $Q(x)=1$, the other two from $Q(x)=-1$.",
+      "price": 8500,
+      "order": 0
+    }
+  ],
+  "IP1715": [
+    {
+      "id": "h1",
+      "content": "Apply the cosine rule in $\\triangle ADE$ and $\\triangle ABC$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP1716": [
+    {
+      "id": "h1",
+      "content": "Let $m$ be the number of children.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP1718": [
+    {
+      "id": "h1",
+      "content": "Each $X_i$ has $\\binom42=6$ blue lines.",
+      "price": 9000,
+      "order": 0
+    }
+  ],
+  "IP1719": [
+    {
+      "id": "h1",
+      "content": "Use the inradius $r$ and semi-perimeter $s$.",
+      "price": 10000,
+      "order": 0
+    }
+  ],
+  "IP1720": [
+    {
+      "id": "h1",
+      "content": "If $n$ is good for a $k$-element set, both $n$ and $n+k$ lie in it.",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP1717": [
+    {
+      "id": "h1",
+      "content": "Tangents at $B,C$ meet on the $A$-symmedian, so $DB:DC=AB^2:AC^2$.",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP1801": [
+    {
+      "id": "h1",
+      "content": "17, 19 and 23 can only pair with 1.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP1802": [
+    {
+      "id": "h1",
+      "content": "Write the six-digit number as $1000m+n$.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP1803": [
+    {
+      "id": "h1",
+      "content": "Let $F$ be on the extension of $CB$; compute $\\angle DBA$ from the given angles.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP1805": [
+    {
+      "id": "h1",
+      "content": "Compare the LCM of $1..n$ with that of $101..n$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP1806": [
+    {
+      "id": "h1",
+      "content": "For $p>3$, $p$ is odd and both $p-1,p+1$ are even.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP1807": [
+    {
+      "id": "h1",
+      "content": "Fix the position of 5 first (9 ways).",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP1809": [
+    {
+      "id": "h1",
+      "content": "Note $9^2+12^2=15^2$, so $\\angle BAC=90^\\circ$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP1810": [
+    {
+      "id": "h1",
+      "content": "If $x+y<1010$ then $[x]+[y]\\le 1009$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP1811": [
+    {
+      "id": "h1",
+      "content": "Reduce $C_m-1$ modulo 8.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP1813": [
+    {
+      "id": "h1",
+      "content": "Use the power of $D$ and $E$ with respect to the circumcircle.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP1814": [
+    {
+      "id": "h1",
+      "content": "Factor $2016=2^5\\cdot3^2\\cdot7$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP1815": [
+    {
+      "id": "h1",
+      "content": "Show that $A,E,B,D$ are concyclic.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP1816": [
+    {
+      "id": "h1",
+      "content": "Let $P=AC\\cap BD$ and use $\\frac12ab\\sin C$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP1817": [
+    {
+      "id": "h1",
+      "content": "Factor the cubic.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP1818": [
+    {
+      "id": "h1",
+      "content": "Group $0,3,6,9$ together.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP1819": [
+    {
+      "id": "h1",
+      "content": "There are only seven possible jump vectors.",
+      "price": 11500,
+      "order": 0
+    }
+  ],
+  "IP1820": [
+    {
+      "id": "h1",
+      "content": "Rewrite as $x^2+x+1-6x(x-1)$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP1901": [
+    {
+      "id": "h1",
+      "content": "Reduce $2019^{2019}$ modulo $11111$ using $10^5\\equiv -9$.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP1902": [
+    {
+      "id": "h1",
+      "content": "Choose 5 of the 9 positions for the green cards.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP1903": [
+    {
+      "id": "h1",
+      "content": "The circle has centre $O(0,0)$ and radius 5; compute the power of $A(6,8)$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP1904": [
+    {
+      "id": "h1",
+      "content": "Set $x-y=d$ and substitute.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP1906": [
+    {
+      "id": "h1",
+      "content": "$\\triangle HBD\\sim\\triangle CAD$.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP1907": [
+    {
+      "id": "h1",
+      "content": "Write $P(x)=(x-\\alpha)(x-\\beta)(x-\\gamma)$.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP1908": [
+    {
+      "id": "h1",
+      "content": "Pick one boy and one girl: 6 colour assignments.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP1909": [
+    {
+      "id": "h1",
+      "content": "Let the roots be $a-d,a,a+d$.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP1911": [
+    {
+      "id": "h1",
+      "content": "Extend the lines to $S,T$ and apply Menelaus' theorem.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP1912": [
+    {
+      "id": "h1",
+      "content": "Each row and column needs 1 or 3 odd numbers.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP1913": [
+    {
+      "id": "h1",
+      "content": "Use the extended sine rule on $AS$ and $TC$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP1914": [
+    {
+      "id": "h1",
+      "content": "Set $y=\\sqrt{x^2+4}+\\sqrt{x^2+3}$; note $y\\ne0$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP1916": [
+    {
+      "id": "h1",
+      "content": "At most three of the six values can equal 16.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP1917": [
+    {
+      "id": "h1",
+      "content": "The first triangle divides the plane into 2 regions.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP1918": [
+    {
+      "id": "h1",
+      "content": "Let $t=xyz$ and substitute.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP1919": [
+    {
+      "id": "h1",
+      "content": "Use $\\tan\\frac{\\theta}{2}=\\frac{\\sin\\theta}{1+\\cos\\theta}$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP1920": [
+    {
+      "id": "h1",
+      "content": "Look at the centres of the eight faces of the octahedron.",
+      "price": 8500,
+      "order": 0
+    }
+  ],
+  "IP2001": [
+    {
+      "id": "h1",
+      "content": "Expand $(10^{2020}+2020)^2$ and count the nonzero digits.",
+      "price": 3000,
+      "order": 0
+    }
+  ],
+  "IP2002": [
+    {
+      "id": "h1",
+      "content": "Factor as $x(1+y+yz)=37$, and 37 is prime.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP2003": [
+    {
+      "id": "h1",
+      "content": "After removing $n$ bricks you get $n^2-n$, trapped between $(n-1)^2$ and $n^2$.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP2004": [
+    {
+      "id": "h1",
+      "content": "Show $I=1$ first.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP2006": [
+    {
+      "id": "h1",
+      "content": "Cosine rule: $6^2=7^2+8^2-2\\cdot7\\cdot8\\cos C$.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP2007": [
+    {
+      "id": "h1",
+      "content": "Square both sides to get a polynomial in $x$.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP2008": [
+    {
+      "id": "h1",
+      "content": "Use $1000\\equiv-1\\pmod{77}$.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP2009": [
+    {
+      "id": "h1",
+      "content": "Note $3y+2z=180^\\circ$ and build angles from it.",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP2011": [
+    {
+      "id": "h1",
+      "content": "Set $x=y+2$ to kill the quadratic term.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP2012": [
+    {
+      "id": "h1",
+      "content": "First bound $S\\le 258$.",
+      "price": 9500,
+      "order": 0
+    }
+  ],
+  "IP2013": [
+    {
+      "id": "h1",
+      "content": "The five numbers $-1,1,3,5,7$ already work.",
+      "price": 12000,
+      "order": 0
+    }
+  ],
+  "IP2014": [
+    {
+      "id": "h1",
+      "content": "$[ABC]=[ABD]+[CBD]$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP2016": [
+    {
+      "id": "h1",
+      "content": "Take $E$ the midpoint of $AB$, so $AE=3$.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP2017": [
+    {
+      "id": "h1",
+      "content": "Add the four equations together.",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP2018": [
+    {
+      "id": "h1",
+      "content": "Interior angles sum to $180^\\circ\\times 9$; at most 8 can be reflex.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP2019": [
+    {
+      "id": "h1",
+      "content": "Arrange the women in $4!$ ways first.",
+      "price": 9000,
+      "order": 0
+    }
+  ],
+  "IP2020": [
+    {
+      "id": "h1",
+      "content": "Find the period of $F_n$ modulo 8 and 125.",
+      "price": 10500,
+      "order": 0
+    }
+  ],
+  "IP2101": [
+    {
+      "id": "h1",
+      "content": "Among numbers above 89, only 97 is prime.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP2102": [
+    {
+      "id": "h1",
+      "content": "No digit of $n$ can be 0.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP2103": [
+    {
+      "id": "h1",
+      "content": "Multiply both equations by $ab$.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP2104": [
+    {
+      "id": "h1",
+      "content": "There are 25 primes below 100.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP2106": [
+    {
+      "id": "h1",
+      "content": "$BM=3GM$, so $B$ is three times as far from $AC$ as $G$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP2107": [
+    {
+      "id": "h1",
+      "content": "Use $\\frac1a+\\frac1b=\\frac{S}{P}$.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP2108": [
+    {
+      "id": "h1",
+      "content": "An odd sum of two powers of 2 needs one of them to be $2^0$.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP2109": [
+    {
+      "id": "h1",
+      "content": "Favourable pairs are $k$ and $2^nk$.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP2111": [
+    {
+      "id": "h1",
+      "content": "Rewrite as $f(21x+20y)=-f(x)$ for $f(t)=t^{2021}+22t$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP2112": [
+    {
+      "id": "h1",
+      "content": "Let $\\angle OAC=\\theta$ and chase angles.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP2114": [
+    {
+      "id": "h1",
+      "content": "Students 1 and 21 never present.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP2116": [
+    {
+      "id": "h1",
+      "content": "Factor $a^3+b^3+c^3-3abc$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP2117": [
+    {
+      "id": "h1",
+      "content": "$AF=AE=4$ and $CD=CE=2$.",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP2118": [
+    {
+      "id": "h1",
+      "content": "The orthocentre construction gives similar triangles.",
+      "price": 10000,
+      "order": 0
+    }
+  ],
+  "IP2119": [
+    {
+      "id": "h1",
+      "content": "Squares are $0$ or $1\\pmod 3$.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP2113": [
+    {
+      "id": "h1",
+      "content": "Work modulo $10^4$ and take the cube root of 2021.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP2120": [
+    {
+      "id": "h1",
+      "content": "Use coordinates (or similar triangles) with $G$ the midpoint of $BC$.",
+      "price": 9000,
+      "order": 0
+    }
+  ],
+  "IP2201": [
+    {
+      "id": "h1",
+      "content": "Square $\\frac{x+y}{x-y}$ and simplify.",
+      "price": 3500,
+      "order": 0
+    }
+  ],
+  "IP2202": [
+    {
+      "id": "h1",
+      "content": "Substitute $a=u^3$, $b=v^3$; then $u^2,v^2$ are roots of one quadratic.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP2203": [
+    {
+      "id": "h1",
+      "content": "2022 is not a square, so $n$ is a square: write $n=k^2$.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP2204": [
+    {
+      "id": "h1",
+      "content": "Use $1001\\mid 22!$ and $1000\\equiv-1\\pmod{1001}$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP2206": [
+    {
+      "id": "h1",
+      "content": "Convert between base 8 and base 11.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP2207": [
+    {
+      "id": "h1",
+      "content": "Trace $n\\to p\\to q\\to r\\to0$ backwards.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP2208": [
+    {
+      "id": "h1",
+      "content": "Set $u=\\sqrt{2x+3}$ to factor the equation.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP2209": [
+    {
+      "id": "h1",
+      "content": "Put $B$ at the origin and $C$ at $(0,1)$.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP2211": [
+    {
+      "id": "h1",
+      "content": "Set $x=\\frac{1}{\\sqrt{22}}\\sec\\theta$ and $y=\\frac{1}{\\sqrt{22}}\\tan\\theta$.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP2212": [
+    {
+      "id": "h1",
+      "content": "Sum the geometric series $1+a+a^2+\\cdots$.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP2213": [
+    {
+      "id": "h1",
+      "content": "Subtract the triples that break the triangle inequality from $\\binom{50}{3}$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP2214": [
+    {
+      "id": "h1",
+      "content": "If $m=ABCBA$, then $n$ is one of $BCBA,ACBA,ABBA,ABCA,ABCB$.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP2216": [
+    {
+      "id": "h1",
+      "content": "Let $P,Q,R$ be the touch points and use the power of a point.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP2217": [
+    {
+      "id": "h1",
+      "content": "Exactly three of the four numbers are even.",
+      "price": 8500,
+      "order": 0
+    }
+  ],
+  "IP2218": [
+    {
+      "id": "h1",
+      "content": "Fix one participant with 137 handshakes, then iterate.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP2219": [
+    {
+      "id": "h1",
+      "content": "Angle bisector theorem for $BD:DC$.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP2220": [
+    {
+      "id": "h1",
+      "content": "Use $\\sin\\angle DAB=\\sin\\angle DCB$ with the area formula.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP2301": [
+    {
+      "id": "h1",
+      "content": "The fraction is the recurring decimal $0.\\overline{076923}$; the block sums to 27.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP2302": [
+    {
+      "id": "h1",
+      "content": "Note $\\sqrt{2023}=17\\sqrt7$.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP2303": [
+    {
+      "id": "h1",
+      "content": "Track the parities of the red and blue numbers.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP2304": [
+    {
+      "id": "h1",
+      "content": "Count how multiples of 6 and 8 remove values of $n$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP2306": [
+    {
+      "id": "h1",
+      "content": "Use $1^3+\\cdots+n^3=\\frac{n^2(n+1)^2}{4}$.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP2307": [
+    {
+      "id": "h1",
+      "content": "Write $\\sqrt m=p\\sqrt7$ and $\\sqrt n=q\\sqrt7$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP2308": [
+    {
+      "id": "h1",
+      "content": "Sketch $y=\\log_3x$ and $y=3\\sin(3\\pi x)$.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP2309": [
+    {
+      "id": "h1",
+      "content": "Both cube roots vanish at $x=1$; use the factor theorem.",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP2311": [
+    {
+      "id": "h1",
+      "content": "List the recipients: $1,2,4,5,10,11,13,14,\\dots$",
+      "price": 9000,
+      "order": 0
+    }
+  ],
+  "IP2312": [
+    {
+      "id": "h1",
+      "content": "Drop perpendiculars through $P$ to $BC$ and $AD$.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP2313": [
+    {
+      "id": "h1",
+      "content": "Note $AB:AC=DB:DC$, so $BD$ is an angle bisector.",
+      "price": 9000,
+      "order": 0
+    }
+  ],
+  "IP2314": [
+    {
+      "id": "h1",
+      "content": "74 and 111 share 37; 87 and 124 are 13 more.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP2316": [
+    {
+      "id": "h1",
+      "content": "There are $2^{12}=4096$ possible outcomes.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP2317": [
+    {
+      "id": "h1",
+      "content": "Translate $\\triangle APD$ to $\\triangle BQC$.",
+      "price": 8500,
+      "order": 0
+    }
+  ],
+  "IP2318": [
+    {
+      "id": "h1",
+      "content": "Fix a contestant who played 100 games against one group.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP2319": [
+    {
+      "id": "h1",
+      "content": "Call students with even class numbers 'even students'.",
+      "price": 10500,
+      "order": 0
+    }
+  ],
+  "IP2320": [
+    {
+      "id": "h1",
+      "content": "Choose $v$ and $w$; $u$ is then forced. Note $289=17^2$.",
+      "price": 10500,
+      "order": 0
+    }
+  ],
+  "IP2401": [
+    {
+      "id": "h1",
+      "content": "Write $m=64n-65$ and compare the two numbers.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP2402": [
+    {
+      "id": "h1",
+      "content": "Square units digits are only $0,1,4,5,6,9$.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP2403": [
+    {
+      "id": "h1",
+      "content": "Multiply both sides by $2^6=64$.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP2404": [
+    {
+      "id": "h1",
+      "content": "Mike's average is 2; count how many sit below and above.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP2406": [
+    {
+      "id": "h1",
+      "content": "Choose $A$ in the first quadrant.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP2407": [
+    {
+      "id": "h1",
+      "content": "Split $\\angle PAQ$ using $\\angle PAB+\\angle QAD=45^\\circ$.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP2408": [
+    {
+      "id": "h1",
+      "content": "All the listed angles equal $\\angle B$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP2409": [
+    {
+      "id": "h1",
+      "content": "Only $(v,c)=(2,3)$ or $(3,2)$ can occur.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP2411": [
+    {
+      "id": "h1",
+      "content": "Follow the first jump of the frog.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP2412": [
+    {
+      "id": "h1",
+      "content": "Add $2x^2+1$ to both sides of $x^4-4x=1$.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP2413": [
+    {
+      "id": "h1",
+      "content": "Consecutive terms differ by 6 or 7.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP2414": [
+    {
+      "id": "h1",
+      "content": "Factor $2024=2^3\\cdot11\\cdot23$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP2415": [
+    {
+      "id": "h1",
+      "content": "Compute $a_2,\\dots,a_5$ and compare with $n$.",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP2416": [
+    {
+      "id": "h1",
+      "content": "Let $BD$ and $CE$ meet at $O$.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP2417": [
+    {
+      "id": "h1",
+      "content": "Pretend all the balls are drawn and returned.",
+      "price": 8500,
+      "order": 0
+    }
+  ],
+  "IP2418": [
+    {
+      "id": "h1",
+      "content": "Let $CE=4k$ and $ED=DF=3k$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP2419": [
+    {
+      "id": "h1",
+      "content": "Count the triangles by symmetry.",
+      "price": 9000,
+      "order": 0
+    }
+  ],
+  "IP2420": [
+    {
+      "id": "h1",
+      "content": "Let $f(k)=n^{k-1}+k^2$.",
+      "price": 10000,
+      "order": 0
+    }
+  ],
+  "IP2501": [
+    {
+      "id": "h1",
+      "content": "Factor $10!=2^8\\cdot3^4\\cdot5^2\\cdot7$.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP2502": [
+    {
+      "id": "h1",
+      "content": "Note $2025=45^2$.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP2503": [
+    {
+      "id": "h1",
+      "content": "Set $q=m-n$; then $m=q^2$ and $n=q^2-q$.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP2504": [
+    {
+      "id": "h1",
+      "content": "Factor as $(x^2-2\\sqrt3x)(x^2-3)$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP2506": [
+    {
+      "id": "h1",
+      "content": "Let $b=pa$, $c=qa$, so $a(1+p+q)=300$.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP2507": [
+    {
+      "id": "h1",
+      "content": "Let $\\angle BAM=\\theta$ and $\\angle BDM=3\\theta$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP2508": [
+    {
+      "id": "h1",
+      "content": "The reflex angle $\\angle AOC=300^\\circ$.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP2509": [
+    {
+      "id": "h1",
+      "content": "Same-colour pairs number $\\binom m2+\\binom n2$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP2511": [
+    {
+      "id": "h1",
+      "content": "Angle $C=103^\\circ$; use the circumcentre of $\\triangle ACY$.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP2512": [
+    {
+      "id": "h1",
+      "content": "Study one full pass of the buttons along the line $PQ$.",
+      "price": 8500,
+      "order": 0
+    }
+  ],
+  "IP2513": [
+    {
+      "id": "h1",
+      "content": "The count is $H^4_n$; check $n=7$.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP2514": [
+    {
+      "id": "h1",
+      "content": "Relate $V$ and $E$ for the polyhedron.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP2516": [
+    {
+      "id": "h1",
+      "content": "Digits of $m$ are $2,3,5,7$; digits of $n$ are $4,6,8,9$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP2517": [
+    {
+      "id": "h1",
+      "content": "The decomposition is unique.",
+      "price": 11000,
+      "order": 0
+    }
+  ],
+  "IP2518": [
+    {
+      "id": "h1",
+      "content": "Use the given polynomial identity for $\\sum k^9$.",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP2519": [
+    {
+      "id": "h1",
+      "content": "Take $a=\\sqrt2$, $b=3+\\sqrt3$, $c=2\\sqrt2+\\sqrt6$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP2520": [
+    {
+      "id": "h1",
+      "content": "Let $v(m)$ be the 3-adic valuation of $m$.",
+      "price": 10000,
+      "order": 0
+    }
+  ],
+  "IP2601": [
+    {
+      "id": "h1",
+      "content": "Both are perfect powers: $a=s^2$ and $c=t^4$.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP2602": [
+    {
+      "id": "h1",
+      "content": "Minimise the distance from the origin to that circle.",
+      "price": 3500,
+      "order": 0
+    }
+  ],
+  "IP2603": [
+    {
+      "id": "h1",
+      "content": "Split by whether $\\gcd(i,j)$ is even or odd.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP2604": [
+    {
+      "id": "h1",
+      "content": "Reduce mod 2 and 3 first, then sieve by $\\gcd$.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP2605": [
+    {
+      "id": "h1",
+      "content": "The right side is even, so one of $p,q,r$ is 2.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP2606": [
+    {
+      "id": "h1",
+      "content": "Sum the three and count lattice points in the resulting hexagon.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP2607": [
+    {
+      "id": "h1",
+      "content": "Factor $20^{26}=2^{52}5^{26}$ and require at least $10^{13}$.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP2608": [
+    {
+      "id": "h1",
+      "content": "Non-real roots come in conjugate pairs.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP2609": [
+    {
+      "id": "h1",
+      "content": "The radius is $\\sqrt{2026}$; use the cyclic quadrilateral relation.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP2610": [
+    {
+      "id": "h1",
+      "content": "Rotate by $60^\\circ$ to relate $AD$ and $BE$.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP2611": [
+    {
+      "id": "h1",
+      "content": "Group the cube roots symmetrically about $x=4$.",
+      "price": 8500,
+      "order": 0
+    }
+  ],
+  "IP2612": [
+    {
+      "id": "h1",
+      "content": "Apply the angle bisector theorem to $\\triangle ADC$ at $A$.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP2613": [
+    {
+      "id": "h1",
+      "content": "Partial fractions on $\\frac{n+2}{n(n+1)(n+3)}$.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP2614": [
+    {
+      "id": "h1",
+      "content": "Count by digit sum and digit product.",
+      "price": 9500,
+      "order": 0
+    }
+  ],
+  "IP2615": [
+    {
+      "id": "h1",
+      "content": "Track the carries behind $S(5n)=S(n)+2S(2n)$.",
+      "price": 9000,
+      "order": 0
+    }
+  ],
+  "IP2616": [
+    {
+      "id": "h1",
+      "content": "Set $d=m+n$ and reduce to divisors of $20^{26}$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP2617": [
+    {
+      "id": "h1",
+      "content": "Every column is arithmetic; use the median.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP2618": [
+    {
+      "id": "h1",
+      "content": "Use $\\tan$ of a triple angle (or coordinates at $A$).",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP2619": [
+    {
+      "id": "h1",
+      "content": "Count points with $0\\le x\\le4$, $0\\le y\\le5$, excluding the origin.",
+      "price": 10000,
+      "order": 0
+    }
+  ],
+  "IP2620": [
+    {
+      "id": "h1",
+      "content": "Write $b$ and $w$ for the counts and compare $\\binom{}{}$ ratios.",
+      "price": 9500,
+      "order": 0
+    }
+  ],
+  "IP0201": [
+    {
+      "id": "h1",
+      "content": "Consider $\\frac n5\\cdot\\frac n2=\\frac n{10}$.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP0202": [
+    {
+      "id": "h1",
+      "content": "The hands overlap 11 times in 12 hours.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0203": [
+    {
+      "id": "h1",
+      "content": "Sum $700+\\cdots+799=\\frac{(700+799)\\cdot100}{2}$.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP0204": [
+    {
+      "id": "h1",
+      "content": "Each correct answer is worth 4 marks.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP0205": [
+    {
+      "id": "h1",
+      "content": "A four-digit palindrome is $\\overline{abba}$.",
+      "price": 2500,
+      "order": 0
+    }
+  ],
+  "IP0206": [
+    {
+      "id": "h1",
+      "content": "1000 lines through $B$ create 2000 regions; see how each new line through $A$ splits them.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0207": [
+    {
+      "id": "h1",
+      "content": "Join $YN$; then $BA\\parallel YN$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0208": [
+    {
+      "id": "h1",
+      "content": "Check $\\log 12=\\log 2+\\log 3$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP0209": [
+    {
+      "id": "h1",
+      "content": "Group as $\\frac{x^2+y^2}{5xy}$ and use $x^2+y^2\\ge2xy$.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP0210": [
+    {
+      "id": "h1",
+      "content": "The only factorisations of 15 are $1\\times15$ and $3\\times5$.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP0211": [
+    {
+      "id": "h1",
+      "content": "Every odd number is a difference of squares.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP0212": [
+    {
+      "id": "h1",
+      "content": "Let $AC$ and $BD$ meet at $O$; use similar triangles.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0213": [
+    {
+      "id": "h1",
+      "content": "Apply the cosine rule in $\\triangle BCP$ and $\\triangle PCE$.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP0214": [
+    {
+      "id": "h1",
+      "content": "Construct $D$ on $AB$ with $\\angle ACD=\\angle BAC$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0215": [
+    {
+      "id": "h1",
+      "content": "Take $AB=10$, $BC=2x$, $CA=2y$.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP0216": [
+    {
+      "id": "h1",
+      "content": "Let $x,y$ be the numbers of blue vertices and blue faces.",
+      "price": 8500,
+      "order": 0
+    }
+  ],
+  "IP0217": [
+    {
+      "id": "h1",
+      "content": "Reuse the form $\\frac{3a_n-1}{a_n+3}$ and set $a_n=\\tan\\theta_n$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP0218": [
+    {
+      "id": "h1",
+      "content": "Factor $2002=2\\cdot7\\cdot11\\cdot13$.",
+      "price": 9000,
+      "order": 0
+    }
+  ],
+  "IP0219": [
+    {
+      "id": "h1",
+      "content": "Count the lines produced at each step.",
+      "price": 9000,
+      "order": 0
+    }
+  ],
+  "IP0220": [
+    {
+      "id": "h1",
+      "content": "Let $AB=a$, $BC=b$ with $a\\le b$.",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP0301": [
+    {
+      "id": "h1",
+      "content": "Set $y=\\sqrt[3]{2}$ and simplify.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP0302": [
+    {
+      "id": "h1",
+      "content": "Each day 3 pairs are on duty out of $\\binom{15}{2}$.",
+      "price": 3000,
+      "order": 0
+    }
+  ],
+  "IP0303": [
+    {
+      "id": "h1",
+      "content": "If $n=\\overline{1ABC}$ has no digit 0, then $n+1$ ends in zeros.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0304": [
+    {
+      "id": "h1",
+      "content": "Among $4n,4n+1,4n+2,4n+3$, look at the last two.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP0305": [
+    {
+      "id": "h1",
+      "content": "Count $\\overline{ABCA}$ with $C$ the largest digit.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP0306": [
+    {
+      "id": "h1",
+      "content": "The sides are $3k,5k,7k$; compute the angles.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0307": [
+    {
+      "id": "h1",
+      "content": "Check the odd-number constraint for 729 apples.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP0308": [
+    {
+      "id": "h1",
+      "content": "Bound $\\frac ab$ between $0.9$ and $0.91$.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP0309": [
+    {
+      "id": "h1",
+      "content": "Set $y=x+1$.",
+      "price": 3500,
+      "order": 0
+    }
+  ],
+  "IP0310": [
+    {
+      "id": "h1",
+      "content": "Those angles form a regular pentagon on the unit circle.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0311": [
+    {
+      "id": "h1",
+      "content": "At least 6 unions must form.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP0312": [
+    {
+      "id": "h1",
+      "content": "The sequence $7,9,31,\\dots,1999$ is arithmetic with difference 12.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0313": [
+    {
+      "id": "h1",
+      "content": "Let $A,\\dots,H$ be the averages.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP0314": [
+    {
+      "id": "h1",
+      "content": "A diameter from $A$ splits the remaining 200 vertices in half.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP0315": [
+    {
+      "id": "h1",
+      "content": "Let $AX=a$, $XB=b$; then $AD=10a$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP0316": [
+    {
+      "id": "h1",
+      "content": "Use $EC^2=BC^2-BE^2$.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0317": [
+    {
+      "id": "h1",
+      "content": "Angle chase with the orthocentre.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0318": [
+    {
+      "id": "h1",
+      "content": "Start from $A=\\{1\\}$ and run the greedy algorithm.",
+      "price": 9000,
+      "order": 0
+    }
+  ],
+  "IP0319": [
+    {
+      "id": "h1",
+      "content": "Assume $m\\ge n$ and use the $\\log m$ bound.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP0320": [
+    {
+      "id": "h1",
+      "content": "Let $M$ be the midpoint of $BC$ and $K$ the foot from $A$.",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP0401": [
+    {
+      "id": "h1",
+      "content": "There are $\\binom83=56$ triangles among the cuboid's vertices.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0402": [
+    {
+      "id": "h1",
+      "content": "Let the total weight be 100.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0403": [
+    {
+      "id": "h1",
+      "content": "From the first equation, $[y]=N-x^2$ must be an integer.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0404": [
+    {
+      "id": "h1",
+      "content": "Note $\\overline{abcba}=101(99a+10b+c)$.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0405": [
+    {
+      "id": "h1",
+      "content": "Split $\\frac{1}{k!(k+2)}$ into a difference.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP0406": [
+    {
+      "id": "h1",
+      "content": "Substitute $x=a+b$, $y=b+c$, $z=c+a$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0407": [
+    {
+      "id": "h1",
+      "content": "Draw $E$ so that $ABCE$ is a parallelogram.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP0408": [
+    {
+      "id": "h1",
+      "content": "Use $999973=10^6-27$.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP0409": [
+    {
+      "id": "h1",
+      "content": "The five primes $5,11,17,23,29$ already work.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP0410": [
+    {
+      "id": "h1",
+      "content": "Normalise with $p(0)=1$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP0411": [
+    {
+      "id": "h1",
+      "content": "Use $\\frac{1}{k(k+1)}=\\frac1k-\\frac1{k+1}$.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP0412": [
+    {
+      "id": "h1",
+      "content": "An odd product needs both digits odd.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0413": [
+    {
+      "id": "h1",
+      "content": "The graph is symmetric in both axes.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP0414": [
+    {
+      "id": "h1",
+      "content": "Use $a^3+b^3+c^3-3abc=\\frac12(a+b+c)\\big((a-b)^2+\\cdots\\big)$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0415": [
+    {
+      "id": "h1",
+      "content": "Let $f(n)$ count the significant digits of $2^n$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0416": [
+    {
+      "id": "h1",
+      "content": "Reduce $3n$ modulo 3.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0417": [
+    {
+      "id": "h1",
+      "content": "Write $b=n-1$ and express $a$.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP0418": [
+    {
+      "id": "h1",
+      "content": "Apply AM-GM to $9\\tan x+\\cot x$.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP0419": [
+    {
+      "id": "h1",
+      "content": "Let $[DEF]=2$ and scale by the ratios.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP0420": [
+    {
+      "id": "h1",
+      "content": "$f(n)=n-g(n)$ with $g$ counting 1's in binary.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP0501": [
+    {
+      "id": "h1",
+      "content": "2005 is odd, so every $a_i$ is odd.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0502": [
+    {
+      "id": "h1",
+      "content": "Extend $AD$ to $G$ and $BE$ to $H$ with parallels.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0503": [
+    {
+      "id": "h1",
+      "content": "Factor $k^4+k^2+1=(k^2+k+1)(k^2-k+1)$.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP0504": [
+    {
+      "id": "h1",
+      "content": "Let the banner be $x\\times y$.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0505": [
+    {
+      "id": "h1",
+      "content": "There are 16 integer pairs with $1\\le x,y\\le4$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP0506": [
+    {
+      "id": "h1",
+      "content": "Compare with the reduced form of $m^2+4$ over $m+7$.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP0507": [
+    {
+      "id": "h1",
+      "content": "At the centroid, $CG:GF=2:1$.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0508": [
+    {
+      "id": "h1",
+      "content": "Factor the $2^{2x}5^{2y}$ terms.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP0509": [
+    {
+      "id": "h1",
+      "content": "Note $\\angle QCP=150^\\circ$.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP0510": [
+    {
+      "id": "h1",
+      "content": "Set $x=y=z=1$, then $x=1$, $y=z=0$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP0511": [
+    {
+      "id": "h1",
+      "content": "Sums range over $n$ to $6n$.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0512": [
+    {
+      "id": "h1",
+      "content": "Let $I,J$ be the centres of the two squares.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0513": [
+    {
+      "id": "h1",
+      "content": "Track the parity of the three coordinates.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0514": [
+    {
+      "id": "h1",
+      "content": "Show student 333 is good first.",
+      "price": 10500,
+      "order": 0
+    }
+  ],
+  "IP0515": [
+    {
+      "id": "h1",
+      "content": "Rotate $\\triangle ACP$ by $60^\\circ$ about $C$.",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP0516": [
+    {
+      "id": "h1",
+      "content": "Write $n=802k+502$.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP0517": [
+    {
+      "id": "h1",
+      "content": "Let $a_n$ be the number held by child $n$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP0518": [
+    {
+      "id": "h1",
+      "content": "Group the exponents symmetrically in $a,b,c$.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP0519": [
+    {
+      "id": "h1",
+      "content": "Set $S_n=l_1+\\cdots+l_n$.",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP0520": [
+    {
+      "id": "h1",
+      "content": "Use the product-to-sum formula.",
+      "price": 7000,
+      "order": 0
+    }
+  ],
+  "IP0601": [
+    {
+      "id": "h1",
+      "content": "Factor $xy-x-y=2006$ as $(x-1)(y-1)=2007$.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0602": [
+    {
+      "id": "h1",
+      "content": "Rewrite each $n^{2006}$ term as a difference.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP0603": [
+    {
+      "id": "h1",
+      "content": "Let $x$ be the walking speed and $u$ the escalator speed.",
+      "price": 2500,
+      "order": 0
+    }
+  ],
+  "IP0604": [
+    {
+      "id": "h1",
+      "content": "Show $AC=1$ by comparing $\\triangle DAC$.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP0605": [
+    {
+      "id": "h1",
+      "content": "Show $X$ is the circumcentre of $\\triangle ABC$.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP0606": [
+    {
+      "id": "h1",
+      "content": "Set $\\cos x=\\theta$ and use $\\sin(\\theta+\\frac\\pi4)$.",
+      "price": 2500,
+      "order": 0
+    }
+  ],
+  "IP0607": [
+    {
+      "id": "h1",
+      "content": "Both $S_n$ and $T_n$ are sums of an arithmetic sequence.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP0608": [
+    {
+      "id": "h1",
+      "content": "The condition on $G$ says chord $AB$ subtends a fixed angle.",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP0609": [
+    {
+      "id": "h1",
+      "content": "Let $a,b,c$ be the amounts placed in funds A, B, C.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP0610": [
+    {
+      "id": "h1",
+      "content": "Choose 4 of the 10 boxes for A, B, C, D.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0611": [
+    {
+      "id": "h1",
+      "content": "Take $P'$ with $\\triangle APP'$ equilateral.",
+      "price": 9500,
+      "order": 0
+    }
+  ],
+  "IP0612": [
+    {
+      "id": "h1",
+      "content": "Each face is an equilateral triangle of side 6.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0613": [
+    {
+      "id": "h1",
+      "content": "Compare $f(n)$ with $f(n+1)$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0614": [
+    {
+      "id": "h1",
+      "content": "Digit sum $0+1+\\cdots+9=45$ forces divisibility by 9.",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP0615": [
+    {
+      "id": "h1",
+      "content": "Either $C$ or $F$ has $y$-coordinate 4.",
+      "price": 10000,
+      "order": 0
+    }
+  ],
+  "IP0616": [
+    {
+      "id": "h1",
+      "content": "Use $y<21$ and the triangle inequality $y+y>21-y$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP0617": [
+    {
+      "id": "h1",
+      "content": "Take $BC=3$, $AC=4$, $AB=5$, so $\\angle C=90^\\circ$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP0618": [
+    {
+      "id": "h1",
+      "content": "Use $\\gcd(m,n)=\\gcd(m,n+km)$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP0619": [
+    {
+      "id": "h1",
+      "content": "Let $M=\\operatorname{lcm}(a_1,\\dots,a_{11})$ and $m_i=M/a_i$.",
+      "price": 10500,
+      "order": 0
+    }
+  ],
+  "IP0620": [
+    {
+      "id": "h1",
+      "content": "Follow the orbit $1,f(1),f(f(1)),\\dots$.",
+      "price": 9500,
+      "order": 0
+    }
+  ],
+  "IP0701": [
+    {
+      "id": "h1",
+      "content": "Zeros do not affect the digit sum; count the rest.",
+      "price": 2500,
+      "order": 0
+    }
+  ],
+  "IP0702": [
+    {
+      "id": "h1",
+      "content": "Use $7^{143}\\times1001$ to get the period mod 1000.",
+      "price": 3500,
+      "order": 0
+    }
+  ],
+  "IP0703": [
+    {
+      "id": "h1",
+      "content": "By Pythagoras, $\\sqrt{50^2-30^2}=40$.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP0704": [
+    {
+      "id": "h1",
+      "content": "Here 'distance' means the total length of the train.",
+      "price": 2500,
+      "order": 0
+    }
+  ],
+  "IP0705": [
+    {
+      "id": "h1",
+      "content": "Let the heights of $\\triangle AEF$ and $\\triangle EBC$ be $k$ and $1-k$ times that of $\\triangle ABC$.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0706": [
+    {
+      "id": "h1",
+      "content": "Use $[x]>x-1$ and $x+\\frac1x\\ge2$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP0707": [
+    {
+      "id": "h1",
+      "content": "Note $2008=10^{2008}-1$.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP0708": [
+    {
+      "id": "h1",
+      "content": "Set $2x+5y=a$ and $3x+y=b$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP0709": [
+    {
+      "id": "h1",
+      "content": "Use $\\overline{abc}+222(a+b+c)=2017$.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP0710": [
+    {
+      "id": "h1",
+      "content": "Write $n=2^kp(n)$ with $p(n)$ odd.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0711": [
+    {
+      "id": "h1",
+      "content": "Group the $A_i$ symmetrically.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0712": [
+    {
+      "id": "h1",
+      "content": "Note that $B,P,I,C$ are concyclic.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP0713": [
+    {
+      "id": "h1",
+      "content": "Bound each $x_i$ term and use $\\sum x_i=300$.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP0714": [
+    {
+      "id": "h1",
+      "content": "Use $PE^2=PB$ and let $QD=QE=x$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP0715": [
+    {
+      "id": "h1",
+      "content": "Both $AP$ and $BP$ must stay below the same bound.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP0716": [
+    {
+      "id": "h1",
+      "content": "Write $a=dx$, $c=dy$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0717": [
+    {
+      "id": "h1",
+      "content": "The ball numbers sum to $2^{15}-1$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP0718": [
+    {
+      "id": "h1",
+      "content": "Discriminant $28-4\\cdot3\\cdot3>0$ in $\\tan x$.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP0719": [
+    {
+      "id": "h1",
+      "content": "Iterate $f_0,f_1,f_2$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0720": [
+    {
+      "id": "h1",
+      "content": "Rewrite the equation in symmetric form.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP0801": [
+    {
+      "id": "h1",
+      "content": "Multiply by $xy$ and complete the square; $290=11^2+13^2$.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP0802": [
+    {
+      "id": "h1",
+      "content": "Set $a+b=x^2$, $a+c=y^2$, $b+c=z^2$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP0803": [
+    {
+      "id": "h1",
+      "content": "Split by how many questions are correct, then filter with the time bonus.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0804": [
+    {
+      "id": "h1",
+      "content": "The difference $\\overline{xy}-\\overline{yx}=9(x-y)$.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0805": [
+    {
+      "id": "h1",
+      "content": "Use the cosine rule on the two triangles cut by the diagonals.",
+      "price": 5500,
+      "order": 0
+    }
+  ],
+  "IP0806": [
+    {
+      "id": "h1",
+      "content": "Apply AM-GM to bound $xy$ from $69x+54y\\le 2008$.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0807": [
+    {
+      "id": "h1",
+      "content": "Factor $n^6+8=(n^2)^3+2^3$.",
+      "price": 4500,
+      "order": 0
+    }
+  ],
+  "IP0808": [
+    {
+      "id": "h1",
+      "content": "$f(n)=\\lfloor n/5\\rfloor+\\lfloor n/25\\rfloor+\\cdots$.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP0809": [
+    {
+      "id": "h1",
+      "content": "Produce $AD$ to $E$ so that $AB\\parallel CE$.",
+      "price": 4000,
+      "order": 0
+    }
+  ],
+  "IP0810": [
+    {
+      "id": "h1",
+      "content": "Write $0.\\overline{xyz}=\\frac{xyz}{999}$ and count coprimes to $3^3\\cdot37$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP0811": [
+    {
+      "id": "h1",
+      "content": "Count same-colour pairs $\\binom x2+\\binom y2$ and set it equal to $xy$.",
+      "price": 6000,
+      "order": 0
+    }
+  ],
+  "IP0812": [
+    {
+      "id": "h1",
+      "content": "Let $O_1,O_2$ be the circumcentres; show $A,B,O_2$ are collinear.",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP0813": [
+    {
+      "id": "h1",
+      "content": "Fix $P(0,t)$: the locus is a circle of radius $PA$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP0814": [
+    {
+      "id": "h1",
+      "content": "Subtract $\\frac13$ times the series from itself, twice.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0815": [
+    {
+      "id": "h1",
+      "content": "Write $L$ in prime powers and see which factors $n$ removes.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP0816": [
+    {
+      "id": "h1",
+      "content": "The triangles $OAP,OBQ,OCR$ are similar isosceles.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0817": [
+    {
+      "id": "h1",
+      "content": "Take reciprocals: $\\frac{55}{72}>\\frac qp>\\frac{13}{18}$.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0818": [
+    {
+      "id": "h1",
+      "content": "Heron for the area, then add the three cosine-rule equations.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP0819": [
+    {
+      "id": "h1",
+      "content": "Set $x=\\sin50^\\circ$ and use $\\sin3\\theta=3\\sin\\theta-4\\sin^3\\theta$.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP0820": [
+    {
+      "id": "h1",
+      "content": "Use $(1+x)^{p^r}\\equiv1+x^{p^r}\\pmod p$.",
+      "price": 8500,
+      "order": 0
+    }
+  ],
+  "IP0721": [
+    {
+      "id": "h1",
+      "content": "4950 $=2\\cdot3^2\\cdot5^2\\cdot11$: last digit 0, digit sum divisible by 9, alternating sum by 11.",
+      "price": 6500,
+      "order": 0
+    }
+  ],
+  "IP0722": [
+    {
+      "id": "h1",
+      "content": "The set has $3\\times4\\times5=60$ points.",
+      "price": 5000,
+      "order": 0
+    }
+  ],
+  "IP0723": [
+    {
+      "id": "h1",
+      "content": "Each radical is a distance; complete the square inside.",
+      "price": 7500,
+      "order": 0
+    }
+  ],
+  "IP0724": [
+    {
+      "id": "h1",
+      "content": "Track the parity of the number of red balls.",
+      "price": 8000,
+      "order": 0
+    }
+  ],
+  "IP0725": [
+    {
+      "id": "h1",
+      "content": "Let $s=\\sin x+\\cos x$ and rewrite everything in $s$.",
+      "price": 8000,
+      "order": 0
+    }
   ]
 }

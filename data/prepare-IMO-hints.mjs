@@ -21,7 +21,8 @@ for (const [pid, list] of Object.entries(src)) {
   const cap = Math.floor(reward * 0.5);
   const price = Math.min(cap, Math.round(reward * 0.15 / 500) * 500);
 
-  out[pid] = list.slice(0, 2).map((h, i) => ({
+  const arr = Array.isArray(list) ? list : (typeof list === 'string' ? [{ content: list }] : [list]);
+  out[pid] = arr.slice(0, 2).map((h, i) => ({
     id: 'h' + (i + 1),
     content: h.content,
     price,
