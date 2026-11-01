@@ -7,6 +7,7 @@ import { sanitizeHTML } from '../lib/sanitize.js';
 // import { sanitizeDiscussion } from '../lib/sanitize.js';
 import { ObjectId } from 'mongodb';
 import { wrapHandler } from '../lib/errors.js';
+import { findUserActiveContests } from '../lib/submission.js';
 //説明：所有的題目相關的操作都在這裏。
 // ============== 輔助函數 ==============
 // ============== 輔助函數 ==============
@@ -857,6 +858,27 @@ async function handler(req, res) {
 
       // 剝離 ans + logic
       const { ans, logic, _id, ...safeProblem } = problem;
+
+      // 比賽期間：題目要按競賽設定的作答方式（admin/newcontest 裡 id 末尾加 ; = 圖片題）
+      // 這裡「暫時性」地把圖片題視為 FS=true，避免學生用文字交
+      try {
+        const nowMs = new Date();
+        const activeContests = await findUserActiveContests(db, req.user.username, nowMs);
+        for (const c of activeContests) {
+          const cp = (c.problems || []).find((p) => {
+            const pid = (typeof p === 'object' && p.problemId) ? String(p.problemId) : String(p);
+            return pid === id;
+          });
+          if (!cp) continue;
+
+          const evalType = (typeof cp === 'object' && cp.evalType) ? cp.evalType : 'numeric';
+          safeProblem.contestEvalType = evalType;
+          if (evalType === 'image_model') safeProblem.FS = true;   // 只能拍照作答
+          break;
+        }
+      } catch (e) {
+        console.error('[problem] contest evalType lookup failed:', e);
+      }
 
       // 只回傳當前題的狀態與收藏狀態
       const state = statsDoc?.states?.[id] || 'not_started';

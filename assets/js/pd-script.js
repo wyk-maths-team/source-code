@@ -949,6 +949,18 @@ async function renderRichText(target, text) {
         }
       }
 
+      // 比賽期間的圖片題（admin/newcontest 裡 id 末尾加 ;）：只留 Image
+      if (S.problem && S.problem.contestEvalType === 'image_model') {
+        document.querySelectorAll('.wb-tab[data-mode="text"], .wb-tab[data-mode="steps"]').forEach((tab) => {
+          tab.disabled = true;
+          tab.setAttribute('aria-disabled', 'true');
+          tab.style.opacity = '.35';
+          tab.style.cursor = 'not-allowed';
+        });
+        const photoTab = document.querySelector('.wb-tab[data-mode="photo"]');
+        if (photoTab && typeof photoTab.click === 'function') photoTab.click();
+      }
+
       // 寫回快取
       setCachedProblem(problemId, problem);
 

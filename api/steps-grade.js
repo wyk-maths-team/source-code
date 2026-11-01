@@ -10,6 +10,13 @@ import { getModelChain, getModelInfo, pickThinkingEffort } from '../lib/model-ro
 import { consumeTokens } from '../lib/token.js';
 import crypto from 'crypto';
 import { wrapHandler } from '../lib/errors.js';
+import {
+  updateUserStats,
+  rewardFirstAC,
+  runPostSubmit,
+  findActiveContestForProblem,
+  applyContestScore,
+} from '../lib/submission.js';
 
 const MAX_STEPS_LEN = 10000;
 const TASK_TTL_MS   = 30 * 60_000;
@@ -156,11 +163,29 @@ async function handleCreate(req, res, db, decoded) {
         judgingMs: result.elapsed, judgingModel: modelKey, tokenUsage: result.tokenUsage || tokenCost
       });
 
-      // 更新 userstats
-      const statsCol = db.collection('userstats');
-      await statsCol.updateOne({ username: decoded.username }, { $setOnInsert: { username: decoded.username, states: {} } }, { upsert: true });
-      if (finalScore === 100) await statsCol.updateOne({ username: decoded.username }, { $set: { [`states.${problemId}`]: 'passed' } });
-      else await statsCol.updateOne({ username: decoded.username, [`states.${problemId}`]: { $ne: 'passed' } }, { $set: { [`states.${problemId}`]: 'failed' } });
+      // 更新 userstats（统一管线：todayAC / firstTryCount / rating 缓存）
+      const isFirstAC = await updateUserStats(db, decoded.username, String(problemId), finalScore === 100);
+      if (isFirstAC) {
+        await rewardFirstAC(db, { username: decoded.username, rawUsername: decoded.username, problem });
+      }
+
+      // 竞赛里也用 steps 作答时，一样计入竞赛成绩
+      let contestScore = null;
+      const contest = await findActiveContestForProblem(db, decoded.username, String(problemId), new Date());
+      if (contest) {
+        const applied = await applyContestScore(db, {
+          contestId: contest.id,
+          username: decoded.username,
+          problemId: String(problemId),
+          correct: finalScore === 100,
+          score: finalScore,
+          isSpecial: !!contest.special,
+          now: new Date(),
+        });
+        contestScore = applied.score;
+      }
+
+      await runPostSubmit(db, decoded.username, { justAC: finalScore === 100, problemId: String(problemId) });
 
       // 扣除 Token
       const newTokens = await consumeTokens(db, decoded.username, result.tokenUsage || tokenCost);
@@ -168,7 +193,7 @@ async function handleCreate(req, res, db, decoded) {
       auditLog(db, 'steps_grade', { problemId, score: finalScore, taskId, model: modelKey, handledBy: 'api' }, decoded.username, 'info').catch(() => {});
 
       // ⭐ 同步返回完成结果
-      return res.status(200).json({ success: true, status: 'done', result: { score: finalScore, comment: result.comment }, subid ,tokens: newTokens});
+      return res.status(200).json({ success: true, status: 'done', result: { score: finalScore, comment: result.comment }, subid, tokens: newTokens, contestScore });
 
     } catch (err) {
       const msg = String(err.message || err).slice(0, 200);
@@ -215,6 +240,7 @@ async function handlePoll(req, res, db, decoded) {
     const isAIError = rawScoreRaw === -100 || typeof rawScoreRaw !== 'number' || !Number.isFinite(rawScoreRaw);
     let subid = claimed.subid || null;
 
+    let contestScore = null;
     if (!isAIError) {
       const finalScore = Math.max(0, Math.min(100, Math.round(rawScoreRaw)));
       if (!subid) subid = genSubid();
@@ -227,16 +253,35 @@ async function handlePoll(req, res, db, decoded) {
           answer: claimed.steps, markedAt: new Date(), aiGraded: true, handledBy: claimed.handledBy || 'bridge',
           usedModel: claimed.usedModel || null, taskId, judgingMs: claimed.elapsedMs || null, tokenUsage: claimed.result?.tokenUsage || tokenCost
         });
-        const statsCol = db.collection('userstats');
-        await statsCol.updateOne({ username: claimed.username }, { $setOnInsert: { username: claimed.username, states: {} } }, { upsert: true });
-        if (finalScore === 100) await statsCol.updateOne({ username: claimed.username }, { $set: { [`states.${claimed.problemId}`]: 'passed' } });
-        else await statsCol.updateOne({ username: claimed.username, [`states.${claimed.problemId}`]: { $ne: 'passed' } }, { $set: { [`states.${claimed.problemId}`]: 'failed' } });
+        const pid = String(claimed.problemId);
+        const isFirstAC = await updateUserStats(db, claimed.username, pid, finalScore === 100);
+        if (isFirstAC) {
+          const prob = await db.collection('problems').findOne({ id: pid }, { projection: { id: 1, difficulty: 1 } });
+          await rewardFirstAC(db, { username: claimed.username, rawUsername: claimed.username, problem: prob });
+        }
+
+        // 競賽成績
+        const contest = await findActiveContestForProblem(db, claimed.username, pid, new Date());
+        if (contest) {
+          const applied = await applyContestScore(db, {
+            contestId: contest.id,
+            username: claimed.username,
+            problemId: pid,
+            correct: finalScore === 100,
+            score: finalScore,
+            isSpecial: !!contest.special,
+            now: new Date(),
+          });
+          contestScore = applied.score;
+        }
+
+        await runPostSubmit(db, claimed.username, { justAC: finalScore === 100, problemId: pid });
 
         await consumeTokens(db, claimed.username, claimed.result?.tokenUsage || tokenCost);
       } catch (e) { console.error('[steps-grade] poll write failed:', e); }
 
       if (subid) await db.collection('steps_grading_tasks').updateOne({ taskId }, { $set: { subid } });
-      return res.status(200).json({ success: true, status: 'done', result: { score: finalScore, comment }, subid });
+      return res.status(200).json({ success: true, status: 'done', result: { score: finalScore, comment }, subid, contestScore });
     }
     return res.status(200).json({ success: true, status: 'done', result: { score: -100, comment: 'AI error' }, subid: null });
   }
