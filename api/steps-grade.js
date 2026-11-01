@@ -108,15 +108,17 @@ async function handleCreate(req, res, db, decoded) {
   const problem = await db.collection('problems').findOne({ id: String(problemId) }, { projection: { id: 1, statement: 1, ans: 1, difficulty: 1 } });
   if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
     // ⭐ 前置余额校验
-  const tokenCost = problem.difficulty*3000;
+  // 门槛 = 一次判题的大致最低消耗（不是最终扣费额）
+  //   真正的扣费在判分结束后按 AI 返回的 usage 结算
+  const tokenCost = Math.max(3000, Math.round((Number(problem.difficulty) || 1) * 1000));
   const { getTokenBalance } = await import('../lib/token.js');
   const currentToken = await getTokenBalance(db, decoded.username);
   const available = (currentToken.daily || 0) + (currentToken.global || 0);
-  
+
   if (available < tokenCost) {
-    return res.status(400).json({ 
-      success: false, 
-      message: `Insufficient tokens. You need ${tokenCost.toLocaleString()}, but only have ${available.toLocaleString()}. Please solve easier problems to earn tokens.` 
+    return res.status(400).json({
+      success: false,
+      message: `Insufficient tokens. You need at least ${tokenCost.toLocaleString()} to run AI grading, but only have ${available.toLocaleString()}. Please solve easier problems to earn tokens.`
     });
   }
   const taskId = genTaskId();
@@ -187,13 +189,23 @@ async function handleCreate(req, res, db, decoded) {
 
       await runPostSubmit(db, decoded.username, { justAC: finalScore === 100, problemId: String(problemId) });
 
-      // 扣除 Token
-      const newTokens = await consumeTokens(db, decoded.username, result.tokenUsage || tokenCost);
+      // 扣除 Token：以 AI 返回的真实用量结算
+      const realUsage = Number(result.tokenUsage) || 0;
+      const charged = realUsage > 0 ? realUsage : tokenCost;
+      const newTokens = await consumeTokens(db, decoded.username, charged);
 
       auditLog(db, 'steps_grade', { problemId, score: finalScore, taskId, model: modelKey, handledBy: 'api' }, decoded.username, 'info').catch(() => {});
 
       // ⭐ 同步返回完成结果
-      return res.status(200).json({ success: true, status: 'done', result: { score: finalScore, comment: result.comment }, subid, tokens: newTokens, contestScore });
+      return res.status(200).json({
+        success: true,
+        status: 'done',
+        result: { score: finalScore, comment: result.comment },
+        subid,
+        tokens: newTokens,
+        charged,
+        contestScore,
+      });
 
     } catch (err) {
       const msg = String(err.message || err).slice(0, 200);
@@ -244,7 +256,7 @@ async function handlePoll(req, res, db, decoded) {
     if (!isAIError) {
       const finalScore = Math.max(0, Math.min(100, Math.round(rawScoreRaw)));
       if (!subid) subid = genSubid();
-      const tokenCost = (claimed.difficulty >= 5) ? 30000 : 3000;
+      const tokenCost = Math.max(3000, Math.round((Number(claimed.difficulty) || 1) * 1000));
 
       try {
         await db.collection('submissions').insertOne({
@@ -277,7 +289,8 @@ async function handlePoll(req, res, db, decoded) {
 
         await runPostSubmit(db, claimed.username, { justAC: finalScore === 100, problemId: pid });
 
-        await consumeTokens(db, claimed.username, claimed.result?.tokenUsage || tokenCost);
+        const realUsage = Number(claimed.result?.tokenUsage) || 0;
+        await consumeTokens(db, claimed.username, realUsage > 0 ? realUsage : tokenCost);
       } catch (e) { console.error('[steps-grade] poll write failed:', e); }
 
       if (subid) await db.collection('steps_grading_tasks').updateOne({ taskId }, { $set: { subid } });
