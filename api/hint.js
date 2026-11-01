@@ -68,9 +68,10 @@ async function handler(req, res) {
         hints: hints.map((h) => ({
           id: h.id,
           price: h.price,
-          purchased: isAdmin(user) || owned.has(h.id),
+          // 管理员也要先买（前端一致）；要绕过请直接看数据库
+          purchased: owned.has(h.id),
           // 没买过就不发内容
-          content: (isAdmin(user) || owned.has(h.id)) ? h.content : null,
+          content: owned.has(h.id) ? h.content : null,
         })),
       });
     }
@@ -103,7 +104,8 @@ async function handler(req, res) {
       });
     }
 
-    if (hint.price > 0 && !isAdmin(user)) {
+    // 管理员也要付费（前后端一致；要绕过请直接改库）
+    if (hint.price > 0) {
       const balance = await getTokenBalance(db, username);
       const charged = deductTokens(balance, hint.price);
       if (!charged) {
