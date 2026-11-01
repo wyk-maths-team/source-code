@@ -73,6 +73,7 @@
       const showTags = $('showTagsToggle').checked;
       const pkInvite = $('pkInviteToggle').checked;
       const stmtImage = $('stmtImageToggle').checked;
+      const prevGenshinIcons = localStorage.getItem('genshinIcons');
 
       localStorage.setItem('theme', theme);
       localStorage.setItem('fontSize', fontSize);
@@ -84,7 +85,10 @@
       localStorage.setItem('hideDifficulty', hideDifficulty);
       localStorage.setItem('showTags', showTags);
       localStorage.setItem('pkInviteEnabled', pkInvite);
-      localStorage.setItem('stmtAsImage', stmtImage);
+      localStorage.setItem('stmtAsImage', stmtImage ? '1' : '0');
+
+      const prevGenshin = prevGenshinIcons === null ? 'false' : prevGenshinIcons;
+      const needsReload = prevGenshin !== String(genshinIcons);
 
       this.applyTheme();
       this.applyFontSize();
@@ -93,21 +97,13 @@
       this.applyUi3d(ui3d);
 
       showMsg('saveMessage', '✅ Saved!', true);
+
+      // 頂欄圖標在渲染時就決定了，換了得刷新一次
+      if (needsReload) setTimeout(() => location.reload(), 600);
     },
 
     bind() {
-      $('themeSelect').addEventListener('change', () => this.applyTheme());
-      $('fontSizeSelect').addEventListener('change', () => this.applyFontSize());
-      // 3D 开关即时生效（不必等按 Save），同时也写进 localStorage
-      $('ui3dToggle').addEventListener('change', (e) => {
-        this.applyUi3d(e.target.checked);
-        localStorage.setItem('ui3d', e.target.checked);
-      });
-      // 顶栏的 token 图标在渲染时就决定了，改完刷新一次才能换过来
-      $('genshinIconsToggle').addEventListener('change', (e) => {
-        localStorage.setItem('genshinIcons', e.target.checked);
-        location.reload();
-      });
+      // 所有設定都只在按 Save 之後才套用
       $('saveSettingsBtn').addEventListener('click', () => this.save());
 
 

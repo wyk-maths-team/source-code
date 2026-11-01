@@ -275,15 +275,14 @@ body.draw-mode-active{touch-action:none}
 .solution-preview-status .st-ok { color: #2ecc71; }
 .solution-preview-status .st-bad { color: #e74c3c; }
 .solution-preview-status .st-wait { color: var(--text-secondary); }
-/* 題面圖片化後：整塊不可選取、不可拖曳 */
-.statement-content.is-image,
-.statement-content.is-image * { user-select: none; -webkit-user-select: none; }
+/* 題面圖片化：圖還是可以被長按 / 右鍵另存（手機用戶要能複製或存下來） */
+.statement-content.is-image { user-select: auto; -webkit-user-select: auto; }
 img.stmt-shot {
   display: block;
   width: 100%;
   height: auto;
-  pointer-events: none;
-  -webkit-user-drag: none;
-  user-select: none;
   border-radius: 4px;
+  -webkit-touch-callout: default;
+  -webkit-user-drag: auto;
+  cursor: default;
 }
