@@ -156,6 +156,8 @@ async function handler(req, res) {
         duration: Number(contest.duration) || 0,
         status,
         isParticipant,
+        // 提前结束过的人：前端要把按钮换成「Finished」
+        hasRetired: Array.isArray(contest.retired) && contest.retired.includes(username),
         participantCount: Array.isArray(contest.participants) ? contest.participants.length : 0,
         participants: Array.isArray(contest.participants) ? contest.participants : [],
         public: contest.public !== false,

@@ -209,7 +209,9 @@
           : `<button id="joinBtn" class="cd-btn success"><i class="fas fa-right-to-bracket"></i> Join Contest</button>`;
       } else if (status === 'ongoing') {
         if (isParticipant) {
-          actionHtml = `<button id="retireBtn" class="cd-btn success" title="Only available after you AC every problem"><i class="fas fa-flag-checkered"></i> Finish Early</button>`;
+          actionHtml = contest.hasRetired
+            ? `<button class="cd-btn" disabled title="You already finished this contest"><i class="fas fa-flag-checkered"></i> Finished</button>`
+            : `<button id="retireBtn" class="cd-btn success" title="Only available after you AC every problem"><i class="fas fa-flag-checkered"></i> Finish Early</button>`;
         } else {
           actionHtml = `<button id="joinBtn" class="cd-btn success"><i class="fas fa-right-to-bracket"></i> Join Live Contest</button>`;
         }
