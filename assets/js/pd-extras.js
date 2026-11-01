@@ -180,7 +180,14 @@ const workbench = {
   imageData: '',
   _draftKey() { return `${WB_DRAFTS_KEY}:${problemId}`; },
   _readDrafts() { try { return JSON.parse(localStorage.getItem(this._draftKey()) || '{}'); } catch { return {}; } },
-  saveDraft(mode, val) { if (!val && val !== 0) return; const d = this._readDrafts(); d[mode] = String(val); try { localStorage.setItem(this._draftKey(), JSON.stringify(d)); } catch {} },
+  saveDraft(mode, val) {
+    const d = this._readDrafts();
+    const s = String(val == null ? '' : val);
+    // 空值 = 用户清空，删掉这个键，刷新后不要又冒出来
+    if (!s) delete d[mode];
+    else d[mode] = s;
+    try { localStorage.setItem(this._draftKey(), JSON.stringify(d)); } catch {}
+  },
   loadDraft(mode) { return this._readDrafts()[mode] || ''; },
   setMode(newMode) {
     if (!WB_HINTS[newMode]) return;
@@ -210,7 +217,11 @@ const workbench = {
     }
     if (newMode === 'text') {
       const input = document.getElementById('answerInput');
-      if(input) { input.value = this.loadDraft('text'); updateExprPreview(); }
+      // 单一口径：answersStore 是跨会话的草稿，工作台草稿只作兜底
+      if (input) {
+        const saved = answersStore.get(problemId) || this.loadDraft('text');
+        if (saved !== input.value) { input.value = saved; updateExprPreview(); }
+      }
     } else if (newMode === 'steps') {
       const st = document.getElementById('stepsInput');
       if(st) { st.value = this.loadDraft('steps'); updateStepsCounter(); }
@@ -442,7 +453,11 @@ function bindAnswerInteractions() {
   
   const answerInput = document.getElementById('answerInput');
   if(answerInput) {
-    answerInput.addEventListener('input', () => { saveAnswerDebounced(problemId, answerInput.value); updateExprPreview(); });
+    answerInput.addEventListener('input', () => {
+      saveAnswerDebounced(problemId, answerInput.value);      // 跨会话草稿（防抖）
+      workbench.saveDraft('text', answerInput.value);         // 切换 tab / 题目时的即时兜底
+      updateExprPreview();
+    });
     // ⭐ 修复了原本少括号的问题
     answerInput.addEventListener('blur', () => saveAnswerNow(problemId, answerInput.value));
   }
@@ -850,8 +865,18 @@ window.__PD_EXTRAS__ = {
       try { const res = await apiCall('/api/users?action=favorite', 'POST', { problemId }); if (!res.success) revert(); } catch { revert(); }
     });
 
-    const saved = answersStore.get(problemId);
-    if (saved) { const ansEl = document.getElementById('answerInput'); if (ansEl && !ansEl.value) { ansEl.value = saved; ansEl.title = '上次提交的答案'; ansEl.style.background = 'rgba(74,144,217,.08)'; ansEl.addEventListener('input', () => { ansEl.style.background = ''; ansEl.title = ''; }, { once: true }); } }
+    // 恢复这道题上次未提交的草稿（answersStore 是唯一口径）
+    const saved = answersStore.get(problemId) || workbench.loadDraft('text');
+    if (saved) {
+      const ansEl = document.getElementById('answerInput');
+      if (ansEl && !ansEl.value) {
+        ansEl.value = saved;
+        ansEl.title = 'Saved draft';
+        ansEl.style.background = 'rgba(74,144,217,.08)';
+        ansEl.addEventListener('input', () => { ansEl.style.background = ''; ansEl.title = ''; }, { once: true });
+        updateExprPreview();
+      }
+    }
 
     document.getElementById('backToListBtn')?.addEventListener('click', () => history.back());
     document.getElementById('submissionsBtn')?.addEventListener('click', () => window.location.href = `/submissions/problem/${problemId}`);

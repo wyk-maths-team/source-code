@@ -120,11 +120,12 @@
     _write(o) { try { localStorage.setItem(ANSWERS_KEY, JSON.stringify(o)); } catch {} },
     get(pid)  { return this._read()[pid] || ''; },
     set(pid, val) {
-      if (!pid || !val) return;
-      const t = String(val).trim();
-      if (!t) return;
+      if (!pid) return;
+      const t = String(val == null ? '' : val).trim();
       const o = this._read();
-      o[pid] = t;
+      // 空值 = 用户主动清空，也要记住（否则刷新后旧答案又冒出来）
+      if (!t) delete o[pid];
+      else o[pid] = t;
       this._write(o);
     },
   };
