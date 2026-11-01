@@ -10,6 +10,15 @@ import { wrapHandler } from '../lib/errors.js';
 import { deductTokens } from '../lib/wallet.js';
 import { getTokenBalance } from '../lib/token.js';
 
+/** 用户是否已经 AC 过这道题（states.<pid> === 'passed'） */
+async function isSolved(db, username, problemId) {
+  const stats = await db.collection('userstats').findOne(
+    { username },
+    { projection: { [`states.${problemId}`]: 1 } }
+  );
+  return stats?.states?.[problemId] === 'passed';
+}
+
 function isAdmin(user) {
   return !!user && (user.role === 'admin' || user.role === 'root');
 }
@@ -63,11 +72,17 @@ async function handler(req, res) {
         .toArray();
       const owned = new Set(purchases.map((p) => p.hintId));
 
+      // AC 过的题，hint 免费
+      const solved = await isSolved(db, username, problemId);
+
       return res.status(200).json({
         success: true,
+        freeForYou: solved,
         hints: hints.map((h) => ({
           id: h.id,
-          price: h.price,
+          price: solved ? 0 : h.price,
+          originalPrice: h.price,
+          freeForYou: solved,
           // 管理员也要先买（前端一致）；要绕过请直接看数据库
           purchased: owned.has(h.id),
           // 没买过就不发内容
@@ -104,8 +119,9 @@ async function handler(req, res) {
       });
     }
 
-    // 管理员也要付费（前后端一致；要绕过请直接改库）
-    if (hint.price > 0) {
+    // AC 过这道题之后，hint 免费；其余情况照价收费（管理员也一样）
+    const solved = await isSolved(db, username, problemId);
+    if (hint.price > 0 && !solved) {
       const balance = await getTokenBalance(db, username);
       const charged = deductTokens(balance, hint.price);
       if (!charged) {
@@ -131,7 +147,8 @@ async function handler(req, res) {
         problemId,
         hintId: hint.id,
         username,
-        price: hint.price,
+        price: solved ? 0 : hint.price,   // AC 后是 0
+        freeBecauseSolved: solved,
         createdAt: new Date(),
       });
     } catch (e) {

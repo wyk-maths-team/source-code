@@ -395,12 +395,18 @@
         '</div>'
       );
     }
+    // AC 过这道题 → 免费
+    const free = h.freeForYou === true || h.price === 0;
     return (
       '<div class="hint-card locked" data-id="' + esc(h.id) + '">' +
         '<div class="hint-head"><span class="hint-label">' + label + '</span>' +
-          '<span class="hint-price"><i class="fas fa-coins"></i> ' + (h.price > 0 ? fmt(h.price) : 'Free') + '</span></div>' +
-        '<div class="hint-locked"><i class="fas fa-lock"></i> Unlock this hint to read it.</div>' +
-        '<button class="hint-buy" data-id="' + esc(h.id) + '">' + (h.price > 0 ? 'Unlock · ' + fmt(h.price) + ' tokens' : 'Reveal') + '</button>' +
+          '<span class="hint-price"><i class="fas fa-coins"></i> ' + (free ? 'Free' : fmt(h.price)) + '</span></div>' +
+        '<div class="hint-locked"><i class="fas fa-lock"></i> ' +
+          (free ? 'Free for you — you have solved this problem.' : 'Unlock this hint to read it.') +
+        '</div>' +
+        '<button class="hint-buy" data-id="' + esc(h.id) + '">' +
+          (free ? 'Reveal · Free' : 'Unlock · ' + fmt(h.price) + ' tokens') +
+        '</button>' +
       '</div>'
     );
   }
