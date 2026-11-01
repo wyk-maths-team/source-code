@@ -657,12 +657,103 @@ async function renderStatement(statement) {
     // KaTeX 刚塞完节点，量一次宽度做自适应；之后宽度变化由 observer 负责
     fitWideFormulas(stmt);
     observeStatementWidth(stmt);
+
+    // 渲染完再拍成图片，学生没法直接框选复制题面
+    imageifyStatement(stmt).catch((e) => console.warn('[stmt-image]', e));
     return true;
   } catch (e) {
     console.error('[math] renderMathInElement failed:', e);
     return false;
   }
 }
+// ═══════════════ 題面圖片化 ═══════════════
+// 把渲染好的 statement 用 html2canvas 拍成圖片取代 DOM，達到「不可選取」。
+// 失敗（跨域圖片、庫沒載到、題面含 iframe/PDF 閱讀器）時靜默保留原本的 DOM。
+
+function waitForImages(el, timeout = 8000) {
+  const imgs = [...el.querySelectorAll('img')];
+  return Promise.all(imgs.map((img) => {
+    if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = () => { if (done) return; done = true; resolve(); };
+      img.addEventListener('load', finish, { once: true });
+      img.addEventListener('error', finish, { once: true });
+      setTimeout(finish, timeout);
+    });
+  }));
+}
+
+function waitForHtml2Canvas(timeout = 6000) {
+  if (typeof window.html2canvas === 'function') return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const timer = setInterval(() => {
+      if (typeof window.html2canvas === 'function') {
+        clearInterval(timer);
+        resolve(true);
+        return;
+      }
+      if (Date.now() - started > timeout) {
+        clearInterval(timer);
+        resolve(false);
+      }
+    }, 100);
+  });
+}
+
+async function imageifyStatement(el) {
+  if (!el || el.dataset.imaged === '1' || el.dataset.imaging === '1') return;
+
+  // 這些內容截圖會失真或截不到（PDF 閱讀器、iframe、canvas、video），乾脆不處理
+  if (el.querySelector('iframe, canvas, video, .paper-mount, [data-pdf]')) return;
+
+  el.dataset.imaging = '1';
+  try {
+    if (!(await waitForHtml2Canvas())) return;
+
+    await waitForImages(el);
+    // 等兩幀，讓 KaTeX 的佈局與字體都穩定下來
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    const rect = el.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    if (rect.height > 12000) return;   // 太高的題面不拍，避免 canvas 超限
+
+    const bodyBg = getComputedStyle(document.body).backgroundColor;
+    const bg = (!bodyBg || bodyBg === 'rgba(0, 0, 0, 0)')
+      ? (document.documentElement.getAttribute('data-theme') ? '#0d1117' : '#ffffff')
+      : bodyBg;
+
+    const scale = Math.min(Math.max(window.devicePixelRatio || 1, 1), 2);
+
+    const canvas = await window.html2canvas(el, {
+      useCORS: true,
+      allowTaint: false,
+      backgroundColor: bg,
+      logging: false,
+      scale,
+      windowWidth: document.documentElement.clientWidth,
+    });
+
+    const dataUrl = canvas.toDataURL('image/png');
+    const img = document.createElement('img');
+    img.className = 'stmt-shot';
+    img.src = dataUrl;
+    img.alt = 'Problem statement';
+    img.draggable = false;
+
+    el.innerHTML = '';
+    el.appendChild(img);
+    el.classList.add('is-image');
+    el.dataset.imaged = '1';
+  } catch (e) {
+    console.warn('[stmt-image] capture failed, keeping DOM:', e);
+  } finally {
+    el.dataset.imaging = '0';
+  }
+}
+
 /**
  * 對「已經在 DOM 中」的元素做 KaTeX 渲染
  * 適用：任何已經 innerHTML 完成、需要遍歷 $...$ 的容器
