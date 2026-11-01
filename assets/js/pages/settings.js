@@ -3,7 +3,6 @@
 
   if (!isLoggedIn()) { window.location.href = '/index.html'; return; }
 
-  // ═══════════════ 工具 ═══════════════
   const $ = id => document.getElementById(id);
 
   function showMsg(id, text, ok = true) {
@@ -16,11 +15,25 @@
     el._t = setTimeout(() => { el.style.display = 'none'; }, 3500);
   }
 
+  // ⭐ 侧边栏切换逻辑
+  const NAV = {
+    init() {
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+          // 移除所有 active
+          document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+          document.querySelectorAll('.tab-pane').forEach(t => t.classList.remove('active'));
+          
+          // 添加当前 active
+          item.classList.add('active');
+          $(`tab-${item.dataset.tab}`).classList.add('active');
+        });
+      });
+    }
+  };
+
   // ═══════════════ [A] Appearance ═══════════════
   const APPEARANCE = {
-    keys: ['theme', 'fontSize', 'compactMode', 'animations',
-           'randomAnimation', 'hideDifficulty', 'showTags', 'pkInviteEnabled', 'stmtAsImage'],
-
     load() {
       $('themeSelect').value = localStorage.getItem('theme') || 'light';
       $('fontSizeSelect').value = localStorage.getItem('fontSize') || '16';
@@ -33,90 +46,51 @@
       $('showTagsToggle').checked = localStorage.getItem('showTags') !== 'false';
       $('pkInviteToggle').checked = localStorage.getItem('pkInviteEnabled') !== 'false';
       $('stmtImageToggle').checked = localStorage.getItem('stmtAsImage') !== '0';
-
     },
 
     applyTheme() {
       const t = $('themeSelect').value;
-      // 'scifi' is a visual skin, not a colour scheme; store and apply it the
-      // same way as 'dark' so every page picks it up via data-theme.
       if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
       else document.documentElement.removeAttribute('data-theme');
     },
-
-    applyFontSize() {
-      document.documentElement.style.fontSize = $('fontSizeSelect').value + 'px';
-    },
-
-    applyCompact(on) {
-      document.body.classList.toggle('compact-mode', on);
-    },
-
-    applyAnimations(on) {
-      document.body.classList.toggle('no-animations', !on);
-    },
-
-    // 3D 按钮是纯视觉偏好，用 body 上的类切换，CSS 里全部规则都挂在 .ui-3d 下
-    applyUi3d(on) {
-      document.body.classList.toggle('ui-3d', on);
-    },
+    applyFontSize() { document.documentElement.style.fontSize = $('fontSizeSelect').value + 'px'; },
+    applyCompact(on) { document.body.classList.toggle('compact-mode', on); },
+    applyAnimations(on) { document.body.classList.toggle('no-animations', !on); },
+    applyUi3d(on) { document.body.classList.toggle('ui-3d', on); },
 
     save() {
-      const theme = $('themeSelect').value;
-      const fontSize = $('fontSizeSelect').value;
-      const compact = $('compactToggle').checked;
-      const animations = $('animationToggle').checked;
-      const ui3d = $('ui3dToggle').checked;
-      const genshinIcons = $('genshinIconsToggle').checked;
-      const randomAnim = $('randomAnimToggle').checked;
-      const hideDifficulty = $('hideDifficultyToggle').checked;
-      const showTags = $('showTagsToggle').checked;
-      const pkInvite = $('pkInviteToggle').checked;
-      const stmtImage = $('stmtImageToggle').checked;
-      const prevGenshinIcons = localStorage.getItem('genshinIcons');
-
-      localStorage.setItem('theme', theme);
-      localStorage.setItem('fontSize', fontSize);
-      localStorage.setItem('compactMode', compact);
-      localStorage.setItem('animations', animations);
-      localStorage.setItem('ui3d', ui3d);
-      localStorage.setItem('genshinIcons', genshinIcons);
-      localStorage.setItem('randomAnimation', randomAnim);
-      localStorage.setItem('hideDifficulty', hideDifficulty);
-      localStorage.setItem('showTags', showTags);
-      localStorage.setItem('pkInviteEnabled', pkInvite);
-      localStorage.setItem('stmtAsImage', stmtImage ? '1' : '0');
-
-      const prevGenshin = prevGenshinIcons === null ? 'false' : prevGenshinIcons;
-      const needsReload = prevGenshin !== String(genshinIcons);
+      localStorage.setItem('theme', $('themeSelect').value);
+      localStorage.setItem('fontSize', $('fontSizeSelect').value);
+      localStorage.setItem('compactMode', $('compactToggle').checked);
+      localStorage.setItem('animations', $('animationToggle').checked);
+      localStorage.setItem('ui3d', $('ui3dToggle').checked);
+      localStorage.setItem('genshinIcons', $('genshinIconsToggle').checked);
+      localStorage.setItem('randomAnimation', $('randomAnimToggle').checked);
+      localStorage.setItem('hideDifficulty', $('hideDifficultyToggle').checked);
+      localStorage.setItem('showTags', $('showTagsToggle').checked);
+      localStorage.setItem('pkInviteEnabled', $('pkInviteToggle').checked);
+      localStorage.setItem('stmtAsImage', $('stmtImageToggle').checked ? '1' : '0');
 
       this.applyTheme();
       this.applyFontSize();
-      this.applyCompact(compact);
-      this.applyAnimations(animations);
-      this.applyUi3d(ui3d);
+      this.applyCompact($('compactToggle').checked);
+      this.applyAnimations($('animationToggle').checked);
+      this.applyUi3d($('ui3dToggle').checked);
 
       showMsg('saveMessage', '✅ Saved!', true);
-
-      // 頂欄圖標在渲染時就決定了，換了得刷新一次
-      if (needsReload) setTimeout(() => location.reload(), 600);
+      
+      // 图标换了需要刷新
+      setTimeout(() => location.reload(), 600);
     },
 
     bind() {
-      // 所有設定都只在按 Save 之後才套用
       $('saveSettingsBtn').addEventListener('click', () => this.save());
-
-
-      // ⭐ 彩蛋：連續點 Animations 5 次 → /settings/extra
+      
+      // 彩蛋
       let clicks = 0, timer = null;
       $('animationToggle').addEventListener('click', () => {
-        if (!timer) {
-          timer = setTimeout(() => { clicks = 0; timer = null; }, 2000);
-        }
-        if (++clicks >= 5) {
-          clearTimeout(timer);
-          window.location.href = '/settings/extra';
-        }
+        if (!timer) timer = setTimeout(() => { clicks = 0; timer = null; }, 2000);
+        if (++clicks >= 5) { clearTimeout(timer); window.location.href = '/settings/extra'; }
       });
     },
   };
@@ -124,60 +98,38 @@
   // ═══════════════ [B] Display Name ═══════════════
   const DISPLAY_NAME = {
     init() {
-      const input = $('displayNameInput');
-      if (currentUser && currentUser.displayName) {
-        input.value = currentUser.displayName;
-      }
+      if (currentUser && currentUser.displayName) $('displayNameInput').value = currentUser.displayName;
     },
-
     async submit() {
       const newname = $('displayNameInput').value.trim();
-
-      // ⭐ 前端只檢查空值，其餘全部交給後端
-      if (!newname) {
-        showMsg('nameMessage', 'Display name cannot be empty.', false);
-        return;
-      }
-
+      if (!newname) return showMsg('nameMessage', 'Display name cannot be empty.', false);
       try {
         const result = await apiCall('/api/users?action=changename', 'POST', { newname });
-
         if (result.success) {
           showMsg('nameMessage', 'Display name updated!', true);
           if (currentUser) currentUser.displayName = newname;
           const span = $('currentUsername');
           if (span) span.textContent = newname;
         } else {
-          // ⭐ 直接顯示後端消息
           showMsg('nameMessage', result.message || 'Update failed.', false);
         }
       } catch (err) {
-        const msg = err?.data?.message || err?.message || 'Network error. Please try again.';
-        showMsg('nameMessage', msg, false);
+        showMsg('nameMessage', err?.message || 'Network error.', false);
       }
     },
-
-    bind() {
-      $('changeNameBtn').addEventListener('click', () => this.submit());
-    },
+    bind() { $('changeNameBtn').addEventListener('click', () => this.submit()); },
   };
 
   // ═══════════════ [C] Profile Picture ═══════════════
   const PFP = {
-    base64: '',
-    MAX_BYTES: 2 * 1024 * 1024,
-
+    base64: '', MAX_BYTES: 2 * 1024 * 1024,
     init() {
       const self = this;
       $('pfpSelectBtn').addEventListener('click', () => $('pfpInput').click());
-
       $('pfpInput').addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        if (file.size > self.MAX_BYTES) {
-          showMsg('pfpMessage', 'Image too large (max 2MB)', false);
-          return;
-        }
+        if (file.size > self.MAX_BYTES) return showMsg('pfpMessage', 'Image too large (max 2MB)', false);
         const reader = new FileReader();
         reader.onload = (ev) => {
           self.base64 = ev.target.result;
@@ -187,35 +139,23 @@
         };
         reader.readAsDataURL(file);
       });
-
       $('pfpSaveBtn').addEventListener('click', () => self.save());
     },
-
     async save() {
       if (!this.base64) return;
-      if (!confirm(
-        'Please ensure this image does NOT contain any pornographic, ' +
-        'violent, religious or political content.'
-      )) return;
-
+      if (!confirm('Ensure this image contains no inappropriate content.')) return;
       const btn = $('pfpSaveBtn');
-      btn.disabled = true;
-      btn.textContent = 'Saving...';
-
+      btn.disabled = true; btn.textContent = 'Saving...';
       try {
         const res = await apiCall('/api/users?action=pfp', 'POST', { image: this.base64 });
         if (res.success) {
           showMsg('pfpMessage', 'Profile picture saved!', true);
           if (currentUser) currentUser.pfp = res.pfp || '';
-        } else {
-          showMsg('pfpMessage', res.message || 'Upload failed', false);
-        }
+        } else showMsg('pfpMessage', res.message || 'Upload failed', false);
       } catch (err) {
-        const msg = err?.data?.message || err?.message || 'Network error';
-        showMsg('pfpMessage', msg, false);
+        showMsg('pfpMessage', err?.message || 'Network error', false);
       } finally {
-        btn.disabled = false;
-        btn.textContent = 'Save Image';
+        btn.disabled = false; btn.textContent = 'Save Image';
       }
     },
   };
@@ -223,59 +163,41 @@
   // ═══════════════ [D] Change Password ═══════════════
   const PASSWORD = {
     MIN_LEN: 8,
-
-    bind() {
-      $('changePasswordBtn').addEventListener('click', () => this.submit());
-    },
-
+    bind() { $('changePasswordBtn').addEventListener('click', () => this.submit()); },
     async submit() {
-      const oldPassword = $('oldPassword').value.trim();
-      const newPassword = $('newPassword').value.trim();
-      const confirmPassword = $('confirmPassword').value.trim();
+      const oldPw = $('oldPassword').value.trim();
+      const newPw = $('newPassword').value.trim();
+      const confirmPw = $('confirmPassword').value.trim();
 
-      if (!oldPassword || !newPassword || !confirmPassword) {
-        return showMsg('passwordMessage', 'All fields are required.', false);
-      }
-      if (newPassword !== confirmPassword) {
-        return showMsg('passwordMessage', 'New passwords do not match.', false);
-      }
-      if (newPassword.length < this.MIN_LEN) {
-        return showMsg('passwordMessage',
-          `Password must be at least ${this.MIN_LEN} characters.`, false);
-      }
+      if (!oldPw || !newPw || !confirmPw) return showMsg('passwordMessage', 'All fields required.', false);
+      if (newPw !== confirmPw) return showMsg('passwordMessage', 'New passwords do not match.', false);
+      if (newPw.length < this.MIN_LEN) return showMsg('passwordMessage', `Must be at least ${this.MIN_LEN} chars.`, false);
 
       try {
-        const result = await apiCall('/api/users?action=changepassword', 'POST', {
-          oldPassword, newPassword,
-        });
+        const result = await apiCall('/api/users?action=changepassword', 'POST', { oldPassword: oldPw, newPassword: newPw });
         if (result.success) {
-          showMsg('passwordMessage', 'Password changed successfully!', true);
-          $('oldPassword').value = '';
-          $('newPassword').value = '';
-          $('confirmPassword').value = '';
-        } else {
-          showMsg('passwordMessage', result.message || 'Update failed.', false);
-        }
+          showMsg('passwordMessage', 'Password changed!', true);
+          $('oldPassword').value = ''; $('newPassword').value = ''; $('confirmPassword').value = '';
+        } else showMsg('passwordMessage', result.message || 'Update failed.', false);
       } catch (err) {
-        const msg = err?.data?.message || err?.message || 'Network error. Please try again.';
-        showMsg('passwordMessage', msg, false);
+        showMsg('passwordMessage', err?.message || 'Network error.', false);
       }
     },
   };
 
-  // ═══════════════ [E] Advanced ═══════════════
-  const ADVANCED = {
+  // ═══════════════ [E] Advanced / System ═══════════════
+  const SYSTEM = {
     bind() {
       $('clearCacheBtn').addEventListener('click', () => this.clearCache());
+      $('clearLocalStorageBtn').addEventListener('click', () => this.clearLocalStorage());
     },
 
+    // 1. 彻底清除缓存
     async clearCache() {
-      if (!confirm('Confirm?\n\nThis will re-download all scripts')) return;
-
+      if (!confirm('Clear browser cache? This will force re-downloading all scripts and styles, and unregister the Service Worker.')) return;
       const btn = $('clearCacheBtn');
-      const origHTML = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Clearing...';
+      const orig = btn.innerHTML;
+      btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Clearing...';
 
       try {
         if ('caches' in window) {
@@ -286,19 +208,45 @@
           const regs = await navigator.serviceWorker.getRegistrations();
           await Promise.all(regs.map(r => r.unregister()));
         }
+        // 强制刷新，加个随机参数绕过 HTTP 缓存
         const url = new URL(location.href);
         url.searchParams.set('_t', Date.now().toString());
         location.replace(url.toString());
       } catch (err) {
-        (window.DSHUI ? DSHUI.toast('Failed: ' + err.message, 'err') : alert('Failed: ' + err.message));
-        btn.disabled = false;
-        btn.innerHTML = origHTML;
+        alert('Failed: ' + err.message);
+        btn.disabled = false; btn.innerHTML = orig;
       }
     },
+
+    // 2. 删除本地数据（⚠️ 保护 auth_token）
+    clearLocalStorage() {
+      if (!confirm('This will delete drawpads, cached problem lists, and all preferences (like themes). You will remain logged in. Proceed?')) return;
+      
+      try {
+        // 先备份 token
+        const token = localStorage.getItem('auth_token');
+        
+        // 清空所有 localStorage
+        localStorage.clear();
+        
+        // 把 token 塞回去
+        if (token) {
+          localStorage.setItem('auth_token', token);
+        }
+
+        // 给出提示并刷新
+        alert('Local data cleared. Refreshing page...');
+        location.reload();
+      } catch (err) {
+        alert('Failed to clear local storage: ' + err.message);
+      }
+    }
   };
 
   // ═══════════════ [Init] ═══════════════
   function init() {
+    NAV.init();
+    
     APPEARANCE.load();
     APPEARANCE.applyTheme();
     APPEARANCE.applyFontSize();
@@ -311,9 +259,8 @@
     DISPLAY_NAME.bind();
     PFP.init();
     PASSWORD.bind();
-    ADVANCED.bind();
+    SYSTEM.bind();
   }
 
-  // DOM 已經 ready（script 放在 body 最後）
   init();
 })();
