@@ -561,6 +561,10 @@
       "destination": "/settings.html"
     },
     {
+      "source": "/charge",
+      "destination": "/charge.html"
+    },
+    {
       "source": "/settings/extra",
       "destination": "/extra.html"
     },

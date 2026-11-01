@@ -703,6 +703,11 @@ function waitForHtml2Canvas(timeout = 6000) {
 }
 
 async function imageifyStatement(el) {
+  // 設定裡可以關掉（預設開啟）
+  let enabled = true;
+  try { enabled = localStorage.getItem('stmtAsImage') !== '0'; } catch (e) { /* ignore */ }
+  if (!enabled) return;
+
   if (!el || el.dataset.imaged === '1' || el.dataset.imaging === '1') return;
 
   // 這些內容截圖會失真或截不到（PDF 閱讀器、iframe、canvas、video），乾脆不處理

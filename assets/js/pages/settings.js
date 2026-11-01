@@ -19,7 +19,7 @@
   // ═══════════════ [A] Appearance ═══════════════
   const APPEARANCE = {
     keys: ['theme', 'fontSize', 'compactMode', 'animations',
-           'randomAnimation', 'hideDifficulty', 'showTags', 'pkInviteEnabled'],
+           'randomAnimation', 'hideDifficulty', 'showTags', 'pkInviteEnabled', 'stmtAsImage'],
 
     load() {
       $('themeSelect').value = localStorage.getItem('theme') || 'light';
@@ -32,6 +32,7 @@
       $('hideDifficultyToggle').checked = localStorage.getItem('hideDifficulty') === 'true';
       $('showTagsToggle').checked = localStorage.getItem('showTags') !== 'false';
       $('pkInviteToggle').checked = localStorage.getItem('pkInviteEnabled') !== 'false';
+      $('stmtImageToggle').checked = localStorage.getItem('stmtAsImage') !== '0';
 
     },
 
@@ -71,6 +72,7 @@
       const hideDifficulty = $('hideDifficultyToggle').checked;
       const showTags = $('showTagsToggle').checked;
       const pkInvite = $('pkInviteToggle').checked;
+      const stmtImage = $('stmtImageToggle').checked;
 
       localStorage.setItem('theme', theme);
       localStorage.setItem('fontSize', fontSize);
@@ -82,6 +84,7 @@
       localStorage.setItem('hideDifficulty', hideDifficulty);
       localStorage.setItem('showTags', showTags);
       localStorage.setItem('pkInviteEnabled', pkInvite);
+      localStorage.setItem('stmtAsImage', stmtImage);
 
       this.applyTheme();
       this.applyFontSize();
