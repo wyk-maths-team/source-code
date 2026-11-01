@@ -11,8 +11,22 @@
 (function () {
   'use strict';
 
-  const STORAGE_KEY = 'drawToolCanvas_v1';
+  // 每道题独立画布：key 里带 problemId，换题不会互相覆盖
+  const STORAGE_PREFIX = 'drawToolCanvas_v1';
   const ERASER_SCALE = 4;        // 橡皮半径 = 笔宽 × 这个倍数
+
+  function currentProblemId() {
+    try {
+      const m = location.pathname.match(/^\/problems\/([^/?#]+)/);
+      if (m) return decodeURIComponent(m[1]);
+      return new URLSearchParams(location.search).get('id') || '';
+    } catch { return ''; }
+  }
+
+  function storageKey() {
+    const pid = currentProblemId();
+    return pid ? STORAGE_PREFIX + ':' + pid : STORAGE_PREFIX;
+  }
 
   let overlay = null;
   let canvas = null;
@@ -50,12 +64,12 @@
     if (!canvas || !ctx) return;
     try {
       if (isCanvasBlank()) {
-        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(storageKey());
         return;
       }
       const dataUrl = canvas.toDataURL('image/png');
       if (dataUrl && dataUrl.length < 2_000_000) {
-        localStorage.setItem(STORAGE_KEY, dataUrl);
+        localStorage.setItem(storageKey(), dataUrl);
       } else {
         console.warn('[draw] canvas too large to save:', dataUrl.length);
       }
@@ -69,10 +83,26 @@
     saveTimer = setTimeout(() => { saveTimer = null; save(); }, 400);
   }
 
+  /**
+   * 切到另一道题时调用：丢掉还没落盘的旧画布，清空画面，再载入新题目的画布。
+   * 必须在 URL 已经指向新题目之后调用。
+   */
+  function reload() {
+    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+    if (!canvas || !ctx) return;
+    try {
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
+    } catch {}
+    load();
+  }
+
   function load() {
     if (!canvas || !ctx) return;
     let dataUrl = '';
-    try { dataUrl = localStorage.getItem(STORAGE_KEY) || ''; } catch { dataUrl = ''; }
+    try { dataUrl = localStorage.getItem(storageKey()) || ''; } catch { dataUrl = ''; }
     if (!dataUrl) return;
 
     const img = new Image();
@@ -365,5 +395,7 @@
     clear: clearCanvas,
     setTool: (t) => setTool(t === 'eraser' ? 'eraser' : 'pen'),
     isOpen: () => !!overlay,
+    reload,           // 换题时调用：清空并载入这道题自己的画布
+    problemId: currentProblemId,
   };
 })();

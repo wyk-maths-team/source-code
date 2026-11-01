@@ -830,6 +830,10 @@ window.__PD_EXTRAS__ = {
   workbench, cleanup, fetchNekoAndShow, toggleTimer, openSimilar, loadDiscussions,
   async init() {
     const problem = S.problem; if (!problem) return;
+
+    // 画板是按题目存的：换题时先丢掉上一题的笔迹，再载入这道题自己的
+    try { window.DrawTool && window.DrawTool.reload && window.DrawTool.reload(); } catch (e) { /* 未加载画板时忽略 */ }
+
     const isAdmin = getCurrentUser()?.role === 'admin' || getCurrentUser()?.role === 'root';
     const state = S.userStates[problemId] || 'not_started';
     const hasAccess = isAdmin || state === 'passed';
