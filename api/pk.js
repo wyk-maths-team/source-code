@@ -117,10 +117,49 @@ async function handler(req, res) {
   // ── 正在进行中的 PK 对（排行榜用来标色）──
   if (action === 'activeRooms') {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-    const rooms = await db.collection('pk_rooms').find(
-      { status: 'playing' },
-      { projection: { _id: 0, id: 1, host: 1, guest: 1, hostDisplay: 1, guestDisplay: 1, createdAt: 1 } }
-    ).sort({ createdAt: -1 }).limit(200).toArray();
+
+    // 两种房间都算：pk_bet_rooms(active) 是下注对战，pk_rooms(playing) 是普通对战
+    const [betRooms, plainRooms] = await Promise.all([
+      db.collection('pk_bet_rooms').find(
+        { status: 'active' },
+        { projection: { _id: 0, id: 1, players: 1, createdAt: 1 } }
+      ).sort({ createdAt: -1 }).limit(200).toArray(),
+      db.collection('pk_rooms').find(
+        { status: 'playing' },
+        { projection: { _id: 0, id: 1, host: 1, guest: 1, hostDisplay: 1, guestDisplay: 1, createdAt: 1 } }
+      ).sort({ createdAt: -1 }).limit(200).toArray(),
+    ]);
+
+    const rooms = [];
+
+    for (const r of betRooms) {
+      const ps = Array.isArray(r.players) ? r.players : [];
+      const [a, b] = ps;
+      if (!a || !b || !a.username || !b.username) continue;
+      rooms.push({
+        id: r.id,
+        kind: 'bet',
+        host: a.username,
+        guest: b.username,
+        hostDisplay: a.displayName || a.username,
+        guestDisplay: b.displayName || b.username,
+        createdAt: r.createdAt,
+      });
+    }
+
+    for (const r of plainRooms) {
+      if (!r.host || !r.guest) continue;
+      rooms.push({
+        id: r.id,
+        kind: 'plain',
+        host: r.host,
+        guest: r.guest,
+        hostDisplay: r.hostDisplay || r.host,
+        guestDisplay: r.guestDisplay || r.guest,
+        createdAt: r.createdAt,
+      });
+    }
+
     return res.status(200).json({ success: true, rooms });
   }
 

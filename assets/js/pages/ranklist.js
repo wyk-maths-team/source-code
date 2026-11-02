@@ -343,7 +343,7 @@
         const pkStyle = pk ? ' style="background:' + pk.color + ';"' : '';
         // 注意：不能用 <a>，外层 user-link 已经是 <a>，嵌套会被浏览器拆开
         const pkEye = pk
-          ? '<span class="pk-eye" role="button" tabindex="0" data-pk-room="' + escapeHtml(pk.roomId) +
+          ? '<span class="pk-eye" role="button" tabindex="0" data-pk-url="' + escapeHtml(pk.url) +
             '" title="Watching this PK — open the room">' +
             '<i class="fas fa-eye"></i></span>'
           : '';
@@ -407,10 +407,26 @@
       try {
         const res = await apiCall('/api/pk?action=activeRooms');
         const next = {};
-        (res.rooms || []).forEach((r, i) => {
+        const claimed = new Set();
+        let i = 0;
+        (res.rooms || []).forEach((r) => {
+          if (!r.host || !r.guest) return;
+          // 一个人只可能在一个房间里；历史脏数据可能让人同时出现在两间，
+          // 这里按「先到先得」直接跳过冲突的房间，避免半桌人颜色对不上
+          if (claimed.has(r.host) || claimed.has(r.guest)) return;
+          claimed.add(r.host);
+          claimed.add(r.guest);
+
           const color = PK_COLORS[i % PK_COLORS.length];
-          if (r.host)  next[r.host]  = { roomId: r.id, color, idx: i };
-          if (r.guest) next[r.guest] = { roomId: r.id, color, idx: i };
+          const entry = {
+            roomId: r.id,
+            color,
+            idx: i,
+            url: (r.kind === 'bet' ? '/pk-bet-room.html?id=' : '/pk-room.html?id=') + encodeURIComponent(r.id),
+          };
+          next[r.host] = entry;
+          next[r.guest] = entry;
+          i++;
         });
         pkPairs = next;
       } catch (e) {
@@ -422,18 +438,18 @@
     document.addEventListener('click', (e) => {
       const eye = e.target.closest && e.target.closest('.pk-eye');
       if (!eye) return;
-      const room = eye.dataset.pkRoom;
-      if (!room) return;
+      const url = eye.dataset.pkUrl;
+      if (!url) return;
       e.preventDefault();
       e.stopPropagation();
-      location.href = '/pk-room.html?id=' + encodeURIComponent(room);
+      location.href = url;
     });
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
       const eye = e.target.closest && e.target.closest('.pk-eye');
-      if (!eye || !eye.dataset.pkRoom) return;
+      if (!eye || !eye.dataset.pkUrl) return;
       e.preventDefault();
-      location.href = '/pk-room.html?id=' + encodeURIComponent(eye.dataset.pkRoom);
+      location.href = eye.dataset.pkUrl;
     });
 
     async function loadLeaderboard() {
