@@ -580,12 +580,23 @@ async function collectAttempts(db, room) {
     let timeSec = Math.floor((new Date(s.timestamp) - new Date(room.startAt)) / 1000) + 1;
     timeSec = Math.max(1, Math.min(DURATION_SEC, timeSec));
     const score = Number.isFinite(Number(s.score)) ? Number(s.score) : (s.correct ? 100 : 0);
+
+    // 单题得分 = (log10(3601 - 秒) + 1) × 难度² × 答案分数
+    //   - 越早交，log10(3601-秒) 越大；3601 保证真数恒为正
+    //   - 难度用房间创建时定下的 problemDifficulties
+    const pidIdx = (room.problemIds || []).indexOf(pid);
+    const diff = Number((room.problemDifficulties || [])[pidIdx]) || 2;
+    const timeFactor = Math.log10(Math.max(1, 3601 - timeSec)) + 1;
+    const weighted = Math.round(timeFactor * diff * diff * score);
+
     out.push({
       username: user,
       problemId: pid,
       score,
       timeSec,
-      weighted: Math.round((DURATION_SEC - timeSec) * score),
+      difficulty: diff,
+      timeFactor,
+      weighted,
       submittedAt: s.timestamp,
     });
   }
