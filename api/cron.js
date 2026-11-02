@@ -199,6 +199,35 @@ async function handler(req, res) {
       return res.status(200).json({ success: true, date: today, users: ops.length, written });
     }
 
+    // ── 到点没结算的 PK 房间（一天一次兜底）──
+    // 正常情况下玩家打完会自己 settle；这里处理「两个人都不在线/没人收尾」的僵尸房间。
+    if (action === 'expirePkRooms') {
+      const now = new Date();
+      const stale = await db.collection('pk_bet_rooms')
+        .find({ status: 'active', endAt: { $lt: now } })
+        .limit(50)
+        .toArray();
+
+      let settled = 0;
+      const failed = [];
+      const { settleRoom } = await import('./pk-bet.js');
+
+      for (const room of stale) {
+        try {
+          await settleRoom(db, room);
+          settled++;
+        } catch (e) {
+          failed.push({ id: room.id, error: String(e.message || e).slice(0, 120) });
+        }
+      }
+
+      await auditLog(db, 'expire_pk_rooms', {
+        checked: stale.length, settled, failed: failed.length,
+      }, 'system', 'info').catch(() => {});
+
+      return res.status(200).json({ success: true, checked: stale.length, settled, failed });
+    }
+
     // ── 每日 rating 快照（rating 周/月/日榜靠它算提升）──
     if (action === 'snapshotRatings') {
       const today = new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10);

@@ -119,9 +119,11 @@ async function handler(req, res) {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
     // 两种房间都算：pk_bet_rooms(active) 是下注对战，pk_rooms(playing) 是普通对战
+    const now = new Date();
     const [betRooms, plainRooms] = await Promise.all([
+      // 已经过了 endAt 但 cron 还没收的房间，不要当成「正在打」
       db.collection('pk_bet_rooms').find(
-        { status: 'active' },
+        { status: 'active', endAt: { $gt: now } },
         { projection: { _id: 0, id: 1, players: 1, createdAt: 1 } }
       ).sort({ createdAt: -1 }).limit(200).toArray(),
       db.collection('pk_rooms').find(

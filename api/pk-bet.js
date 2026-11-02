@@ -722,4 +722,6 @@ async function settleRoom(db, room) {
   return { room: { ...room, status: 'settled', resultId: result.id }, result };
 }
 
+export { settleRoom };
+
 export default wrapHandler(handler);
