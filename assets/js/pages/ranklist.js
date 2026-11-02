@@ -338,8 +338,18 @@
           metricCell = entry.solves;
         }
 
+        // 正在 PK 的两个人：同一底色 + 名字后的眼睛
+        const pk = pkPairs[entry.username];
+        const pkStyle = pk ? ' style="background:' + pk.color + ';"' : '';
+        // 注意：不能用 <a>，外层 user-link 已经是 <a>，嵌套会被浏览器拆开
+        const pkEye = pk
+          ? '<span class="pk-eye" role="button" tabindex="0" data-pk-room="' + escapeHtml(pk.roomId) +
+            '" title="Watching this PK — open the room">' +
+            '<i class="fas fa-eye"></i></span>'
+          : '';
+
         html += `
-          <tr${isMe ? ' class="mine"' : ''}>
+          <tr${isMe ? ' class="mine"' : ''}${pkStyle}>
             <td class="text-center">${entry.rank}</td>
             <td>
               <a href="/users/${encodeURIComponent(entry.username)}"
@@ -349,6 +359,7 @@
                 ${avatarHtml(entry, 24)}
                 <span>${escapeHtml(entry.username)} - ${escapeHtml(entry.displayName || entry.username)}</span>
                 ${periodMode === 'overall' && hasRating ? ratingBadge(entry.rating, entry.tierColor, entry.tierGlow) : ''}
+                ${pkEye}
               </a>
             </td>
             <td class="text-center">${metricCell}</td>
@@ -378,6 +389,53 @@
       });
     }
 
+    // ── 正在进行的 PK ──
+    // 同一对用同一种底色；名字后面的眼睛图标点进去就是 PK 房间
+    let pkPairs = {};
+    const PK_COLORS = [
+      'rgba(231, 76, 60, .13)',
+      'rgba(52, 152, 219, .13)',
+      'rgba(46, 204, 113, .13)',
+      'rgba(155, 89, 182, .13)',
+      'rgba(241, 196, 15, .16)',
+      'rgba(26, 188, 156, .13)',
+      'rgba(230, 126, 34, .13)',
+      'rgba(149, 165, 166, .16)',
+    ];
+
+    async function loadActivePk() {
+      try {
+        const res = await apiCall('/api/pk?action=activeRooms');
+        const next = {};
+        (res.rooms || []).forEach((r, i) => {
+          const color = PK_COLORS[i % PK_COLORS.length];
+          if (r.host)  next[r.host]  = { roomId: r.id, color, idx: i };
+          if (r.guest) next[r.guest] = { roomId: r.id, color, idx: i };
+        });
+        pkPairs = next;
+      } catch (e) {
+        pkPairs = {};
+      }
+    }
+
+    // 点眼睛 → 进 PK 房间（委托，避免和外层 user-link 抢点击）
+    document.addEventListener('click', (e) => {
+      const eye = e.target.closest && e.target.closest('.pk-eye');
+      if (!eye) return;
+      const room = eye.dataset.pkRoom;
+      if (!room) return;
+      e.preventDefault();
+      e.stopPropagation();
+      location.href = '/pk-room.html?id=' + encodeURIComponent(room);
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const eye = e.target.closest && e.target.closest('.pk-eye');
+      if (!eye || !eye.dataset.pkRoom) return;
+      e.preventDefault();
+      location.href = '/pk-room.html?id=' + encodeURIComponent(eye.dataset.pkRoom);
+    });
+
     async function loadLeaderboard() {
       if (isLoadingLeaderboard) return;
       isLoadingLeaderboard = true;
@@ -400,7 +458,7 @@
         } else if (sortMode === 'rating' && periodMode !== 'overall') {
           url += '&sort=rating';
         }
-        const data = await apiCall(url);
+        const [data] = await Promise.all([apiCall(url), loadActivePk()]);
         lastData = data;
         renderLeaderboardBody(data);
 

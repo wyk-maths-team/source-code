@@ -114,6 +114,16 @@ async function handler(req, res) {
   const action = req.query.action;
   const username = decoded.username;
 
+  // ── 正在进行中的 PK 对（排行榜用来标色）──
+  if (action === 'activeRooms') {
+    if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+    const rooms = await db.collection('pk_rooms').find(
+      { status: 'playing' },
+      { projection: { _id: 0, id: 1, host: 1, guest: 1, hostDisplay: 1, guestDisplay: 1, createdAt: 1 } }
+    ).sort({ createdAt: -1 }).limit(200).toArray();
+    return res.status(200).json({ success: true, rooms });
+  }
+
   // ── 发起邀请 ──
   if (action === 'invite') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });

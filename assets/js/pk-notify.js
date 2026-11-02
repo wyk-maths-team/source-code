@@ -87,16 +87,25 @@
     var stake = Number(invite.stake) || 0;
     var secLeft = Math.max(0, Math.ceil((new Date(invite.expiresAt).getTime() - Date.now()) / 1000));
 
+    // 跟着站点主题走：暗色用深紫渐变，浅色用淡紫渐变
+    var dark = document.documentElement.getAttribute('data-theme');
+    var bg = dark
+      ? 'linear-gradient(135deg,#221a38 0%,#171226 100%)'
+      : 'linear-gradient(135deg,#ffffff 0%,#f4eefc 100%)';
+    var textColor = dark ? '#e8e2f7' : '#2b2340';
+    var subColor = dark ? 'rgba(232,226,247,.65)' : '#6b6183';
+
     var wrap = document.createElement('div');
     wrap.id = 'pkNotifyOverlay';
     wrap.style.cssText = [
       'position:fixed', 'right:18px', 'bottom:18px', 'z-index:99999',
       'width:320px', 'max-width:calc(100vw - 36px)',
-      'background:var(--card-bg,#fff)',
-      'color:var(--text-primary,#222)',
-      'border:1px solid var(--border-color,#ddd)',
-      'border-radius:10px',
-      'box-shadow:0 10px 30px rgba(0,0,0,.28)',
+      'background:' + bg,
+      'color:' + textColor,
+      'border:1px solid rgba(125,91,176,.35)',
+      'border-left:4px solid #8e5cf7',
+      'border-radius:12px',
+      'box-shadow:0 12px 34px rgba(93,58,168,.28)',
       'padding:14px 14px 12px',
       'font-size:14px',
       'animation:pkNotifyIn .18s ease-out'
@@ -104,14 +113,14 @@
 
     wrap.innerHTML =
       '<div style="display:flex;align-items:flex-start;gap:10px;">' +
-        '<div style="font-size:20px;line-height:1;color:#7d5bb0;"><i class="fas fa-swords"></i></div>' +
+        '<div style="font-size:20px;line-height:1;color:#8e5cf7;"><i class="fas fa-swords"></i></div>' +
         '<div style="flex:1;min-width:0;">' +
           '<div style="font-weight:700;margin-bottom:2px;">PK invitation</div>' +
-          '<div style="font-size:13px;color:var(--text-secondary,#666);word-break:break-word;">' +
+          '<div style="font-size:13px;color:' + subColor + ';word-break:break-word;">' +
             esc(from) + ' wants to challenge you' +
           '</div>' +
           (stake ? '<div style="font-size:13px;margin-top:3px;">Stake: <b>' + stake.toLocaleString() + '</b> tokens</div>' : '') +
-          '<div id="pkNotifyTtl" style="font-size:12px;color:var(--text-secondary,#666);margin-top:4px;">' +
+          '<div id="pkNotifyTtl" style="font-size:12px;color:' + subColor + ';margin-top:4px;">' +
             (secLeft > 0 ? ('expires in ' + secLeft + 's') : 'expired') +
           '</div>' +
         '</div>' +
@@ -119,8 +128,12 @@
           'style="background:none;border:none;color:var(--text-secondary,#888);cursor:pointer;font-size:16px;line-height:1;padding:0 2px;">×</button>' +
       '</div>' +
       '<div style="display:flex;gap:8px;margin-top:12px;">' +
-        '<button id="pkNotifyAccept" class="btn btn-primary" type="button" style="flex:1;padding:7px 0;">Accept</button>' +
-        '<button id="pkNotifyDecline" class="btn" type="button" style="flex:1;padding:7px 0;">Decline</button>' +
+        '<button id="pkNotifyAccept" class="btn" type="button" ' +
+          'style="flex:1;padding:8px 0;border:none;border-radius:8px;font-weight:700;color:#fff;' +
+          'background:linear-gradient(135deg,#9b6cf7,#6a3fc9);box-shadow:0 4px 12px rgba(106,63,201,.35);">Accept</button>' +
+        '<button id="pkNotifyDecline" class="btn" type="button" ' +
+          'style="flex:1;padding:8px 0;border-radius:8px;font-weight:600;color:' + (dark ? '#e8e2f7' : '#5b4a7d') + ';' +
+          'background:transparent;border:1px solid rgba(125,91,176,.45);">Decline</button>' +
       '</div>';
 
     if (!document.getElementById('pkNotifyStyle')) {
