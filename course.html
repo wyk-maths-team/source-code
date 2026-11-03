@@ -3,7 +3,7 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='62167330';</script>
+<script>window.__BUILD_V='17a8d274';</script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -12,15 +12,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Course - WYK Maths Team</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="/assets/css/styles.css?v=62167330" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=17a8d274" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" />
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
-<script src="/assets/js/core/ui.js?v=62167330"></script>
-<script src="/assets/js/core/net.js?v=62167330"></script>
-<script src="/assets/js/core/api.js?v=62167330"></script>
-<script src="/assets/js/core/page.js?v=62167330"></script>
+<script src="/assets/js/core/ui.js?v=17a8d274"></script>
+<script src="/assets/js/core/net.js?v=17a8d274"></script>
+<script src="/assets/js/core/api.js?v=17a8d274"></script>
+<script src="/assets/js/core/page.js?v=17a8d274"></script>
 <style>
   .course-wrap { max-width: 1080px; margin: 24px auto; padding: 0 18px; }
 
@@ -119,6 +119,51 @@
   }
   [data-theme="dark"] .c-box { background:rgba(142,92,247,.24); color:#cbb4ff; }
 
+  /* 块级提示卡：<div class="c-callout">…</div> */
+  .c-callout {
+    margin:18px 0; padding:13px 16px; border-radius:8px;
+    border-left:4px solid var(--accent);
+    background:rgba(142,92,247,.08);
+  }
+  [data-theme="dark"] .c-callout { background:rgba(142,92,247,.14); }
+
+  /* 警示卡：<div class="c-warn">…</div> */
+  .c-warn {
+    margin:18px 0; padding:13px 16px; border-radius:8px;
+    border-left:4px solid var(--danger, #d93025);
+    background:rgba(217,48,37,.06);
+  }
+  [data-theme="dark"] .c-warn { background:rgba(217,48,37,.12); }
+
+  /* 旁注 / 题目提示：<blockquote class="c-quote"> / <blockquote class="c-hint"> */
+  .c-quote, .c-hint {
+    margin:12px 0; padding:8px 0 8px 12px;
+    border-left:2px solid rgba(127,140,141,.55);
+    color:var(--text-secondary); font-size:.92em;
+  }
+
+  /* 每道题的外框：<div class="c-problem-block"> */
+  .c-problem-block {
+    margin:22px 0; padding:14px 16px; border-radius:10px;
+    border:1px solid var(--border-color);
+    background:rgba(0,0,0,.02);
+  }
+  [data-theme="dark"] .c-problem-block { background:rgba(255,255,255,.02); }
+  .c-problem-block > p:first-child { margin-top:0; }
+  .c-problem-block .inline-problem { margin:12px 0 0; }
+
+  /* 纯间距：<div class="c-gap"></div> */
+  .c-gap { height:20px; }
+
+  /* 正文里的表格 / 列表基础样式，省得作者写 inline */
+  .course-content ul, .course-content ol { padding-left:22px; line-height:1.75; }
+  .course-content li { margin:4px 0; }
+  .course-content table { width:100%; border-collapse:collapse; margin:14px 0; font-size:.92em; }
+  .course-content th, .course-content td { padding:7px 10px; border-bottom:1px solid var(--border-color); text-align:left; }
+  .course-content th { font-weight:700; color:var(--text-secondary); font-size:.85em; text-transform:uppercase; letter-spacing:.04em; }
+  .course-content p { line-height:1.75; }
+  .course-content hr { border:none; border-top:1px solid var(--border-color); margin:22px 0; }
+
   /* ── 内嵌题 ── */
   .inline-problem {
     margin:22px 0; border:1px solid var(--border-color); border-radius:12px;
@@ -173,13 +218,13 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=62167330"></script>
-  <script src="/assets/js/app.js?v=62167330"></script>
-  <script src="/assets/js/topbar.js?v=62167330"></script>
-  <script src="/assets/js/sidebar.js?v=62167330"></script>
-  <script src="/assets/js/heartbeat.js?v=62167330"></script>
-  <script src="/assets/js/pk-invite.js?v=62167330"></script>
-  <script src="/assets/js/pages/course.js?v=62167330"></script>
-  <script src="/assets/js/pk-notify.js?v=62167330"></script>
+  <script src="/assets/js/auth.js?v=17a8d274"></script>
+  <script src="/assets/js/app.js?v=17a8d274"></script>
+  <script src="/assets/js/topbar.js?v=17a8d274"></script>
+  <script src="/assets/js/sidebar.js?v=17a8d274"></script>
+  <script src="/assets/js/heartbeat.js?v=17a8d274"></script>
+  <script src="/assets/js/pk-invite.js?v=17a8d274"></script>
+  <script src="/assets/js/pages/course.js?v=17a8d274"></script>
+  <script src="/assets/js/pk-notify.js?v=17a8d274"></script>
 </body>
 </html>

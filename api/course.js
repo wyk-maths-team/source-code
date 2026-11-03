@@ -74,13 +74,22 @@ async function handler(req, res) {
 
       const prog = await progressOf(db, user.username, track);
 
+      // 同步：题库里已经 AC 过的题也算课程进度（历史记录不必再刷一遍）
+      const stats = await db.collection('userstats').findOne(
+        { username: user.username }, { projection: { states: 1, _id: 0 } }
+      );
+      const passed = (stats && stats.states) || {};
+
       return res.status(200).json({
         success: true,
         track,
         trackLabel: TRACK_LABELS[track],
         courses: courses.map((c) => {
           const pids = Array.isArray(c.pids) ? c.pids : [];
-          const solved = prog[c.id] || new Set();
+          const solved = new Set(prog[c.id] || []);
+          for (const pid of pids) {
+            if (passed[pid] === 'passed') solved.add(pid);
+          }
           const done = pids.filter((p) => solved.has(p)).length;
           return {
             id: c.id,
@@ -109,6 +118,14 @@ async function handler(req, res) {
       const prog = await db.collection('courseProgress')
         .findOne({ username: user.username, track, courseId: id }, { projection: { solved: 1, _id: 0 } });
       const solved = new Set(Array.isArray(prog?.solved) ? prog.solved : []);
+
+      // 同步：userstats 里 AC 过的题也算（含课程上线之前的历史提交）
+      const statsDoc = await db.collection('userstats')
+        .findOne({ username: user.username }, { projection: { states: 1, _id: 0 } });
+      const passedStates = (statsDoc && statsDoc.states) || {};
+      for (const pid of pids) {
+        if (passedStates[pid] === 'passed') solved.add(pid);
+      }
 
       return res.status(200).json({
         success: true,

@@ -217,16 +217,32 @@
     });
 
     // 把 <div pid="X"></div> 换成题目卡片
+    // 有的课有上百道题，一次性全部拉取会把接口打爆 —— 进入视口前 400px 才加载
     const placeholders = [...contentEl.querySelectorAll('[pid]')];
+
+    const observer = ('IntersectionObserver' in window)
+      ? new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            observer.unobserve(entry.target);
+            const card = entry.target;
+            loadInlineProblem(card, card.dataset.pid, card.dataset.solved === '1');
+          });
+        }, { rootMargin: '400px 0px' })
+      : null;
+
     placeholders.forEach((ph) => {
       const pid = ph.getAttribute('pid');
       if (!pid) return;
       const card = document.createElement('div');
       card.className = 'inline-problem';
       card.dataset.pid = pid;
-      card.innerHTML = '<div class="ip-head"><span class="ip-tag">' + esc(pid) + '</span><span class="ip-status">Loading…</span></div>';
+      card.dataset.solved = solved.has(pid) ? '1' : '0';
+      card.innerHTML = '<div class="ip-head"><span class="ip-tag">' + esc(pid) + '</span><span class="ip-status">Waiting…</span></div>';
       ph.replaceWith(card);
-      loadInlineProblem(card, pid, solved.has(pid));
+
+      if (observer) observer.observe(card);
+      else loadInlineProblem(card, pid, solved.has(pid));
     });
   }
 
