@@ -378,6 +378,13 @@
                   <textarea id="editStatement" rows="10" required></textarea>
                 </div>
               </div>
+              <div class="stmt-preview-wrap">
+                <div class="stmt-preview-head">
+                  <i class="fas fa-eye"></i> Preview
+                  <span class="pv-note">HTML + KaTeX, updates as you type</span>
+                </div>
+                <div class="stmt-preview" id="stmtPreview"><span class="stmt-preview-empty">Nothing to preview yet.</span></div>
+              </div>
               <div class="img-up-panel" id="imgUpPanel" style="margin-top:1rem;">
                 <div class="img-up-bar">
                   <input type="file" id="imgUpInput" accept="image/*" style="display:none">
@@ -556,6 +563,50 @@
       const toolbar = document.getElementById('editToolbar');
       textarea.value = rawStatement;
       initCodeEditor(textarea, lineNumbers, highlightPre, toolbar);
+
+      // ---- Statement 实时预览（HTML + KaTeX）----
+      const stmtPreview = document.getElementById('stmtPreview');
+      let previewTimer = null;
+
+      function renderStmtPreview() {
+        if (!stmtPreview) return;
+        const val = String(textarea.value || '').trim();
+        if (!val) {
+          stmtPreview.innerHTML = '<span class="stmt-preview-empty">Nothing to preview yet.</span>';
+          return;
+        }
+        stmtPreview.innerHTML = val;
+
+        const applyMath = () => {
+          if (typeof window.renderMathInElement !== 'function') return false;
+          try {
+            window.renderMathInElement(stmtPreview, {
+              delimiters: [
+                { left: '$$', right: '$$', display: true },
+                { left: '\\[', right: '\\]', display: true },
+                { left: '\\(', right: '\\)', display: false },
+                { left: '$', right: '$', display: false },
+              ],
+              throwOnError: false,
+              ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+            });
+          } catch (e) { /* 单个公式坏了不影响整体 */ }
+          return true;
+        };
+
+        if (!applyMath()) {
+          let tries = 0;
+          const timer = setInterval(() => {
+            if (applyMath() || ++tries > 50) clearInterval(timer);
+          }, 100);
+        }
+      }
+
+      textarea.addEventListener('input', () => {
+        clearTimeout(previewTimer);
+        previewTimer = setTimeout(renderStmtPreview, 250);
+      });
+      renderStmtPreview();
       document.getElementById('editLogic').value = problem.logic || '';
 
       // ---- Hints 編輯器 ----
