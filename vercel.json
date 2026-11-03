@@ -665,10 +665,6 @@
       "destination": "/ex.html"
     },
     {
-      "source": "/(.*)",
-      "destination": "/404.html"
-    },
-    {
       "source": "/course",
       "destination": "/course.html"
     },
@@ -691,6 +687,10 @@
     {
       "source": "/admin/course/:id",
       "destination": "/admin/editcourse.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/404.html"
     }
   ],
   "crons": [
