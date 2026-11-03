@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta name="robots" content="noindex, nofollow" />
+<script>window.__BUILD_V='78cd798d';</script>
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Course - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=78cd798d" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" />
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
+<script src="/assets/js/core/ui.js?v=78cd798d"></script>
+<script src="/assets/js/core/net.js?v=78cd798d"></script>
+<script src="/assets/js/core/api.js?v=78cd798d"></script>
+<script src="/assets/js/core/page.js?v=78cd798d"></script>
+<style>
+  .course-wrap { max-width: 1080px; margin: 24px auto; padding: 0 18px; }
+
+  /* ── 面包屑 ── */
+  .course-crumbs { display:flex; align-items:center; gap:8px; font-size:.88rem; color:var(--text-secondary); margin-bottom:18px; flex-wrap:wrap; }
+  .course-crumbs a { color: var(--accent); text-decoration:none; }
+  .course-crumbs a:hover { text-decoration: underline; }
+
+  /* ── 三个领域卡片 ── */
+  .course-tracks { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+  @media (max-width: 780px) { .course-tracks { grid-template-columns:1fr; } }
+
+  .track-card {
+    position:relative; display:block; text-decoration:none; color:#fff;
+    border-radius:14px; padding:26px 22px; min-height:150px;
+    overflow:hidden; transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .track-card:hover { transform: translateY(-3px); box-shadow:0 14px 32px rgba(0,0,0,.22); }
+  .track-card::after {
+    content:''; position:absolute; inset:0;
+    background:radial-gradient(circle at 88% 12%, rgba(255,255,255,.35), transparent 55%);
+    pointer-events:none;
+  }
+  .track-card .tc-code { font-size:.78rem; letter-spacing:.14em; text-transform:uppercase; opacity:.85; }
+  .track-card .tc-name { font-size:1.45rem; font-weight:800; margin-top:6px; }
+  .track-card .tc-sub { font-size:.82rem; opacity:.9; margin-top:8px; }
+  .track-card .tc-count { margin-top:14px; font-size:.8rem; opacity:.95; }
+
+  .track-M  { background:linear-gradient(135deg,#1e9e60,#15803d); }
+  .track-M2 { background:linear-gradient(135deg,#e0a10b,#b45309); }
+  .track-MO { background:linear-gradient(135deg,#d33b3b,#9b1c1c); }
+
+  /* ── 课程表格 ── */
+  .course-table { width:100%; border-collapse:collapse; background:var(--card-bg); border-radius:10px; overflow:hidden; }
+  .course-table th {
+    text-align:left; padding:11px 14px; font-size:.78rem; letter-spacing:.06em;
+    text-transform:uppercase; color:var(--text-secondary);
+    border-bottom:1px solid var(--border-color);
+  }
+  .course-table td { padding:12px 14px; border-bottom:1px solid var(--border-color); vertical-align:middle; }
+  .course-table tr:last-child td { border-bottom:none; }
+  .course-table tbody tr:hover { background:rgba(0,0,0,.04); }
+  [data-theme="dark"] .course-table tbody tr:hover { background:rgba(255,255,255,.04); }
+
+  .course-table .col-id { width:90px; font-family:ui-monospace,Menlo,monospace; color:var(--text-secondary); }
+  .course-table .col-topic { width:60%; }
+  .course-table .col-topic a { color:var(--text-primary); font-weight:600; text-decoration:none; }
+  .course-table .col-topic a:hover { color:var(--accent); }
+  .course-table .col-progress { width:190px; }
+  .course-table .col-diff { width:120px; }
+
+  .progbar { height:9px; border-radius:6px; background:rgba(127,140,141,.22); overflow:hidden; }
+  .progbar > i { display:block; height:100%; border-radius:6px; transition:width .3s ease; }
+  .progbar.p-red   > i { background:#e74c3c; }
+  .progbar.p-yellow> i { background:#e0a10b; }
+  .progbar.p-green > i { background:#27ae60; }
+  .progbar-text { font-size:.72rem; color:var(--text-secondary); margin-top:5px; }
+
+  .diff-chip {
+    display:inline-block; padding:3px 10px; border-radius:999px;
+    font-size:.74rem; font-weight:700; letter-spacing:.03em; color:#fff;
+  }
+  .diff-easy       { background:#27ae60; }
+  .diff-medium     { background:#2980b9; }
+  .diff-hard       { background:#8e44ad; }
+  .diff-challenging{ background:#e74c3c; }
+  .diff-insane     { background:#111; border:1px solid #444; }
+
+  /* ── 教程正文 ── */
+  .course-body {
+    background:var(--card-bg); border-radius:12px; padding:26px 28px;
+    border:1px solid var(--border-color);
+  }
+  .course-title-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:6px; }
+  .course-topic { font-size:1.6rem; font-weight:800; margin:0; }
+
+  /* Content 里可用的四个类 */
+  .c-header {
+    font-size:1.35rem; font-weight:800; margin:26px 0 10px;
+    padding-bottom:6px; border-bottom:2px solid var(--accent);
+  }
+  .c-subheader { font-size:1.05rem; font-weight:700; margin:18px 0 8px; color:var(--text-primary); }
+  .c-red { color:#d93025; font-weight:600; }
+  .c-box {
+    display:inline-block; padding:2px 9px; border-radius:6px;
+    background:rgba(142,92,247,.16); border:1px solid rgba(142,92,247,.35);
+    color:#6a3fc9; font-weight:700; font-size:.95em;
+  }
+  [data-theme="dark"] .c-box { background:rgba(142,92,247,.24); color:#cbb4ff; }
+
+  /* ── 内嵌题 ── */
+  .inline-problem {
+    margin:22px 0; border:1px solid var(--border-color); border-radius:12px;
+    background:linear-gradient(180deg, rgba(142,92,247,.06), transparent 60%);
+    overflow:hidden;
+  }
+  .ip-head {
+    display:flex; align-items:center; gap:10px; padding:12px 16px;
+    border-bottom:1px solid var(--border-color); font-weight:700; font-size:.92rem;
+  }
+  .ip-head .ip-tag { font-family:ui-monospace,Menlo,monospace; color:var(--accent); }
+  .ip-head .ip-badge { margin-left:auto; font-size:.72rem; padding:2px 8px; border-radius:999px; }
+  .ip-badge.solved { background:rgba(39,174,96,.16); color:#1e9e60; }
+  .ip-badge.todo   { background:rgba(127,140,141,.16); color:var(--text-secondary); }
+
+  .ip-statement { padding:14px 16px; line-height:1.75; }
+  .ip-statement img { max-width:100%; height:auto; }
+
+  .ip-input-row { padding:0 16px 14px; }
+  .ip-input-row textarea {
+    width:100%; min-height:96px; resize:vertical; padding:10px 12px;
+    border:1px solid var(--border-color); border-radius:8px;
+    background:var(--bg-color); color:var(--text-primary);
+    font-family:inherit; font-size:.94rem; line-height:1.6;
+  }
+  .ip-actions { display:flex; align-items:center; gap:10px; padding:0 16px 16px; flex-wrap:wrap; }
+  .ip-actions button {
+    padding:9px 18px; border-radius:8px; border:none; cursor:pointer;
+    font-weight:700; color:#fff; background:linear-gradient(135deg,#9b6cf7,#6a3fc9);
+  }
+  .ip-actions button:disabled { opacity:.5; cursor:not-allowed; }
+  .ip-status { font-size:.84rem; color:var(--text-secondary); }
+  .ip-status.err { color:#e74c3c; }
+  .ip-status.ok { color:#27ae60; }
+
+  .ip-result {
+    margin:0 16px 16px; padding:12px 14px; border-radius:10px;
+    background:rgba(39,174,96,.10); border:1px solid rgba(39,174,96,.28);
+    font-size:.9rem; line-height:1.6;
+  }
+  .ip-result a { color:var(--accent); font-weight:700; text-decoration:none; margin-left:6px; }
+
+  .course-empty { text-align:center; padding:50px 20px; color:var(--text-secondary); }
+</style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="course-wrap" id="courseRoot"></div>
+    </main>
+  </div>
+
+  <script src="/assets/js/auth.js?v=78cd798d"></script>
+  <script src="/assets/js/app.js?v=78cd798d"></script>
+  <script src="/assets/js/topbar.js?v=78cd798d"></script>
+  <script src="/assets/js/sidebar.js?v=78cd798d"></script>
+  <script src="/assets/js/heartbeat.js?v=78cd798d"></script>
+  <script src="/assets/js/pk-invite.js?v=78cd798d"></script>
+  <script src="/assets/js/pages/course.js?v=78cd798d"></script>
+  <script src="/assets/js/pk-notify.js?v=78cd798d"></script>
+</body>
+</html>

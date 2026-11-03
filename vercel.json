@@ -667,6 +667,30 @@
     {
       "source": "/(.*)",
       "destination": "/404.html"
+    },
+    {
+      "source": "/course",
+      "destination": "/course.html"
+    },
+    {
+      "source": "/course/:track",
+      "destination": "/course.html"
+    },
+    {
+      "source": "/course/:track/:id",
+      "destination": "/course.html"
+    },
+    {
+      "source": "/admin/course",
+      "destination": "/admin/courses.html"
+    },
+    {
+      "source": "/admin/create/course",
+      "destination": "/admin/newcourse.html"
+    },
+    {
+      "source": "/admin/course/:id",
+      "destination": "/admin/editcourse.html"
     }
   ],
   "crons": [
