@@ -158,12 +158,31 @@
           <h1 class="course-topic">${esc(c.topic || c.id)}</h1>
           <span class="diff-chip diff-${esc(c.difficulty)}">${esc(DIFF_LABEL[c.difficulty] || c.difficulty)}</span>
           <span style="margin-left:auto;font-size:.8rem;color:var(--text-secondary);">${solved.size} / ${pids.length} problems solved</span>
+          <button type="button" class="course-reset" title="Clear this lesson's progress">
+            <i class="fas fa-rotate-left"></i> Reset
+          </button>
         </div>
         <div class="course-content" id="courseContent">${c.content || ''}</div>
       </div>`;
 
     const contentEl = document.getElementById('courseContent');
     renderMath(contentEl);
+
+    // 重置这门课的进度
+    root.querySelector('.course-reset')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      if (!confirm('Reset progress for this lesson?')) return;
+      btn.disabled = true;
+      try {
+        const res = await API.post('/api/course?action=reset', { track, id });
+        if (!res.success) throw new Error(res.message || 'Reset failed');
+        if (window.DSHUI) DSHUI.toast('Progress reset', 'ok');
+        location.reload();
+      } catch (err) {
+        if (window.DSHUI) DSHUI.toast(err.message || 'Reset failed', 'err');
+        btn.disabled = false;
+      }
+    });
 
     // 把 <div pid="X"></div> 换成题目卡片
     const placeholders = [...contentEl.querySelectorAll('[pid]')];
