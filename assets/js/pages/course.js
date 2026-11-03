@@ -270,7 +270,7 @@
     box.className = 'ip-result';
     box.innerHTML = '<strong>' + (ok ? 'Accepted' : 'Scored ' + (Number.isFinite(score) ? score : '?')) + '</strong>'
       + (result && result.comment ? '<div style="margin-top:6px;opacity:.9;">' + esc(result.comment) + '</div>' : '')
-      + (subid ? '<a href="/submissions/detail/' + encodeURIComponent(subid) + '">View submission <i class="fas fa-arrow-right"></i></a>' : '');
+      + (subid ? '<a href="/submissions/' + encodeURIComponent(subid)+'/detail' + '">View submission <i class="fas fa-arrow-right"></i></a>' : '');
     card.appendChild(box);
 
     const btn = card.querySelector('.ip-submit');
