@@ -25,19 +25,30 @@
     msg.className = 'ce-msg' + (kind ? ' ' + kind : '');
   }
 
+  // KaTeX 是 defer 脚本，第一次预览时可能还没就绪
   function renderMath(node) {
-    if (!node || typeof window.renderMathInElement !== 'function') return;
-    try {
-      window.renderMathInElement(node, {
-        delimiters: [
-          { left: '$$', right: '$$', display: true },
-          { left: '$', right: '$', display: false },
-          { left: '\\[', right: '\\]', display: true },
-          { left: '\\(', right: '\\)', display: false },
-        ],
-        throwOnError: false,
-      });
-    } catch (e) { /* ignore */ }
+    if (!node) return;
+    const once = () => {
+      if (typeof window.renderMathInElement !== 'function') return false;
+      try {
+        window.renderMathInElement(node, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '\\[', right: '\\]', display: true },
+            { left: '\\(', right: '\\)', display: false },
+            { left: '$', right: '$', display: false },
+          ],
+          throwOnError: false,
+          ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+        });
+      } catch (e) { /* ignore */ }
+      return true;
+    };
+    if (once()) return;
+    let tries = 0;
+    const timer = setInterval(() => {
+      if (once() || ++tries > 50) clearInterval(timer);
+    }, 100);
   }
 
   // 预览：把 <div pid> 换成占位框，保证布局和真页面一致

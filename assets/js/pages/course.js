@@ -42,19 +42,30 @@
     }).join('') + '</div>';
   }
 
+  // KaTeX 是 defer 脚本，可能在第一次渲染时还没就绪 —— 轮询等它
   function renderMath(el) {
-    if (!el || typeof window.renderMathInElement !== 'function') return;
-    try {
-      window.renderMathInElement(el, {
-        delimiters: [
-          { left: '$$', right: '$$', display: true },
-          { left: '$', right: '$', display: false },
-          { left: '\\[', right: '\\]', display: true },
-          { left: '\\(', right: '\\)', display: false },
-        ],
-        throwOnError: false,
-      });
-    } catch (e) { /* 数学渲染失败不影响正文 */ }
+    if (!el) return;
+    const once = () => {
+      if (typeof window.renderMathInElement !== 'function') return false;
+      try {
+        window.renderMathInElement(el, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '\\[', right: '\\]', display: true },
+            { left: '\\(', right: '\\)', display: false },
+            { left: '$', right: '$', display: false },
+          ],
+          throwOnError: false,
+          ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+        });
+      } catch (e) { /* 单次失败不抛给用户 */ }
+      return true;
+    };
+    if (once()) return;
+    let tries = 0;
+    const timer = setInterval(() => {
+      if (once() || ++tries > 50) clearInterval(timer);
+    }, 100);
   }
 
   // ─────────── 三张卡片 ───────────
@@ -269,9 +280,12 @@
     const box = document.createElement('div');
     box.className = 'ip-result';
     box.innerHTML = '<strong>' + (ok ? 'Accepted' : 'Scored ' + (Number.isFinite(score) ? score : '?')) + '</strong>'
-      + (result && result.comment ? '<div style="margin-top:6px;opacity:.9;">' + esc(result.comment) + '</div>' : '')
+      + (result && result.comment
+          ? '<div class="ip-comment" style="margin-top:6px;opacity:.9;">' + esc(result.comment).replace(/\n/g, '<br>') + '</div>'
+          : '')
       + (subid ? '<a href="/submissions/' + encodeURIComponent(subid)+'/detail' + '">View submission <i class="fas fa-arrow-right"></i></a>' : '');
     card.appendChild(box);
+    renderMath(box);   // AI 评语里可能有 $...$
 
     const btn = card.querySelector('.ip-submit');
     if (btn) { btn.disabled = false; }
