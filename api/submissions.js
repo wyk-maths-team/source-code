@@ -328,6 +328,123 @@ async function handler(req, res) {
     return res.status(201).json({ success: true, message: 'Report submitted' });
   }
 
+  // ---------- 管理员：让 AI 重新批改一条提交 ----------
+  // 只针对 steps 类型的提交；不向学生收任何 token
+  if (req.query.action === 'rejudge') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    if (!isAdmin) return res.status(403).json({ success: false, message: 'Admin only', code: 'NOT_ADMIN' });
+
+    const { subid } = req.body || {};
+    if (!subid) return res.status(400).json({ success: false, message: 'Missing subid', code: 'MISSING_PARAM' });
+
+    const sub = await db.collection('submissions').findOne({ subid });
+    if (!sub) return res.status(404).json({ success: false, message: 'Submission not found', code: 'SUBMISSION_NOT_FOUND' });
+    if (sub.type !== 'steps') {
+      return res.status(400).json({ success: false, message: 'Only AI-graded (steps) submissions can be rejudged' });
+    }
+
+    const steps = String(sub.answer || '').trim();
+    if (!steps) return res.status(400).json({ success: false, message: 'This submission has no written steps' });
+
+    const problem = await db.collection('problems').findOne({ id: sub.problemId });
+    if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
+
+    const { buildStepsPrompt } = await import('../lib/grade-prompt.js');
+    const { getModelChain, getModelInfo, pickThinkingEffort } = await import('../lib/model-router.js');
+    const { askDeepSeekAPI } = await import('../lib/deepseek-api.js');
+    const { askClaude } = await import('../lib/temp/claude-api.js');
+
+    function parseReply(raw) {
+      const s = String(raw || '');
+      const start = s.indexOf('{');
+      const end = s.lastIndexOf('}');
+      if (start < 0 || end <= start) return null;
+      try {
+        const obj = JSON.parse(s.slice(start, end + 1));
+        return obj && typeof obj === 'object' ? obj : null;
+      } catch { return null; }
+    }
+
+    const prompt = buildStepsPrompt({
+      statement: String(problem.statement || ''),
+      reference_answer: String(problem.ans ?? ''),
+      student_steps: steps,
+    });
+
+    const chain = getModelChain(problem.difficulty) || [];
+    let judged = null;
+    let usedModel = null;
+    const errors = [];
+
+    for (const modelKey of chain) {
+      try {
+        const info = getModelInfo(modelKey);
+        let reply;
+        if (info.provider === 'claude') {
+          reply = await askClaude(prompt, { model: modelKey, timeoutMs: 280_000, maxTokens: 8192 });
+        } else {
+          reply = await askDeepSeekAPI(prompt, {
+            model: info.id, timeoutMs: 50_000, effort: pickThinkingEffort(problem.difficulty), maxTokens: 8000,
+          });
+        }
+        const parsed = parseReply(reply.content || reply);
+        if (!parsed) throw new Error('JSON parse failed');
+        const v = parsed.score ?? parsed.Score;
+        const n = typeof v === 'number' ? v : Number(v);
+        if (!Number.isFinite(n)) throw new Error('score missing');
+        judged = {
+          score: Math.max(0, Math.min(100, Math.round(n))),
+          comment: String(parsed.comment || '').slice(0, 3000),
+        };
+        usedModel = modelKey;
+        break;
+      } catch (e) {
+        errors.push(modelKey + ': ' + String(e.message || e).slice(0, 80));
+      }
+    }
+
+    if (!judged) {
+      return res.status(502).json({ success: false, message: 'All models failed', errors });
+    }
+
+    const oldScore = Number(sub.score) || 0;
+    await db.collection('submissions').updateOne(
+      { subid },
+      {
+        $set: {
+          score: judged.score,
+          comment: judged.comment,
+          correct: judged.score === 100,
+          systemError: false,
+          marked: true,
+          regradedAt: new Date(),
+          regradedBy: decoded.username,
+          regradedFrom: oldScore,
+          usedModel,
+        },
+      }
+    );
+
+    // 分数变 100 就补记 userstats；分数降低不改已有状态（可能还有别的 AC 记录）
+    if (judged.score === 100) {
+      const { updateUserStats } = await import('../lib/submission.js');
+      await updateUserStats(db, sub.username, sub.problemId, true).catch(() => {});
+    }
+
+    await auditLog(db, 'submission_rejudge', {
+      subid, owner: sub.username, problemId: sub.problemId,
+      from: oldScore, to: judged.score, model: usedModel,
+    }, decoded.username, 'info').catch(() => {});
+
+    return res.status(200).json({
+      success: true,
+      score: judged.score,
+      comment: judged.comment,
+      previousScore: oldScore,
+      model: usedModel,
+    });
+  }
+
   // ---------- 管理员：删除一条提交 ----------
   if (req.query.action === 'delete') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });

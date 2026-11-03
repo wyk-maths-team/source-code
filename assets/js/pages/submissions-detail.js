@@ -84,6 +84,9 @@ function renderDetail(sub, problemName, attempts) {
         ${CAN_REPORT ? `<button onclick="reportSubmission('${escapeHtml(sub.subid)}')" title="Report this submission"
           style="margin-left:5px; background:#7d5bb0; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">
           <i class="fas fa-flag"></i> Report</button>` : ''}
+        ${IS_ADMIN && sub.type === 'steps' ? `<button onclick="rejudgeSubmission('${escapeHtml(sub.subid)}', this)" title="Let the AI grade this again (no token charged to the student)"
+          style="margin-left:5px; background:#2f855a; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">
+          <i class="fas fa-rotate"></i> Rejudge</button>` : ''}
         ${IS_ADMIN ? `<button onclick="deleteSubmission('${escapeHtml(sub.subid)}')" title="Delete this submission"
           style="margin-left:5px; background:#444; color:#fff; border:none; padding:4px 9px; border-radius:4px; cursor:pointer;">
           <i class="fas fa-trash"></i></button>` : ''}
@@ -161,6 +164,25 @@ window.reportSubmission = async (targetSubid) => {
   } catch (e) {
     if (window.DSHUI && DSHUI.toast) DSHUI.toast(e.message, 'err');
     else alert(e.message);
+  }
+};
+
+// 让 AI 重新批改（管理员）。不向学生收 token。
+window.rejudgeSubmission = async (targetSubid, btn) => {
+  if (!confirm('Run the AI grader again on this submission?\nThe student is not charged for this.')) return;
+  const old = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Judging…'; }
+  try {
+    const res = await apiCall('/api/submissions?action=rejudge', 'POST', { subid: targetSubid || subid });
+    if (!res.success) throw new Error(res.message || 'Rejudge failed');
+    if (window.DSHUI && DSHUI.toast) {
+      DSHUI.toast('Rejudged: ' + res.previousScore + ' → ' + res.score, 'ok');
+    }
+    setTimeout(() => window.location.reload(), 700);
+  } catch (e) {
+    if (window.DSHUI && DSHUI.toast) DSHUI.toast(e.message, 'err');
+    else alert(e.message);
+    if (btn) { btn.disabled = false; btn.innerHTML = old; }
   }
 };
 
