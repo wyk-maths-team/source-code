@@ -19,6 +19,27 @@
 
   const root = document.getElementById('courseRoot');
 
+  // 草稿：直接复用题目页 steps 输入框的存储（pd_workbench_drafts:<pid>），
+  // 所以在课程里写了一半，去题目页还能接着写，反之亦然。
+  const DRAFTS_KEY = 'pd_workbench_drafts';
+  function readStepsDraft(pid) {
+    try {
+      const raw = localStorage.getItem(DRAFTS_KEY + ':' + pid);
+      if (!raw) return '';
+      return JSON.parse(raw)?.steps || '';
+    } catch { return ''; }
+  }
+  function writeStepsDraft(pid, val) {
+    try {
+      const key = DRAFTS_KEY + ':' + pid;
+      const cur = JSON.parse(localStorage.getItem(key) || '{}') || {};
+      const s = String(val == null ? '' : val);
+      if (s) cur.steps = s; else delete cur.steps;
+      if (Object.keys(cur).length) localStorage.setItem(key, JSON.stringify(cur));
+      else localStorage.removeItem(key);
+    } catch { /* 配额满了就算了 */ }
+  }
+
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, (m) => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -235,6 +256,9 @@
       <div class="ip-input-row">
         <textarea placeholder="Write your steps here — the AI grades the reasoning, not just the answer."></textarea>
       </div>
+      <div class="ip-draft-note" style="display:none;padding:0 16px 8px;font-size:.74rem;color:var(--text-secondary);">
+        <i class="fas fa-floppy-disk"></i> Draft restored
+      </div>
       <div class="ip-actions">
         <button type="button" class="ip-submit">Submit to AI</button>
         <span class="ip-status"></span>
@@ -245,6 +269,26 @@
     const textarea = card.querySelector('textarea');
     const btn = card.querySelector('.ip-submit');
     const statusEl = card.querySelector('.ip-actions .ip-status');
+
+    // 恢复这道题上次的草稿（和题目页共用一个 key）
+    const draft = readStepsDraft(pid);
+    if (draft) {
+      textarea.value = draft;
+      const note = card.querySelector('.ip-draft-note');
+      if (note) { note.style.display = ''; note.textContent = 'Draft restored'; }
+    }
+
+    // 输入即存；清空则删掉
+    let draftTimer = null;
+    textarea.addEventListener('input', () => {
+      clearTimeout(draftTimer);
+      draftTimer = setTimeout(() => {
+        writeStepsDraft(pid, textarea.value);
+        const note = card.querySelector('.ip-draft-note');
+        if (note) note.style.display = textarea.value.trim() ? '' : 'none';
+      }, 300);
+    });
+    textarea.addEventListener('blur', () => writeStepsDraft(pid, textarea.value));
 
     btn.addEventListener('click', async () => {
       const steps = textarea.value.trim();
@@ -295,6 +339,14 @@
     if (ok) {
       const badge = card.querySelector('.ip-badge');
       if (badge) { badge.className = 'ip-badge solved'; badge.innerHTML = '<i class="fas fa-check"></i> Solved'; }
+
+      // 做对了就不用留着草稿了
+      const pid = card.dataset.pid;
+      if (pid) {
+        writeStepsDraft(pid, '');
+        const note = card.querySelector('.ip-draft-note');
+        if (note) note.style.display = 'none';
+      }
     }
   }
 
