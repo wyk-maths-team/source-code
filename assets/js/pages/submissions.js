@@ -232,7 +232,7 @@
     const refreshBtn = document.getElementById('refreshSubmissionsBtn');
     refreshBtn.addEventListener('click', async () => {
       if (refreshBtn.disabled) return; refreshBtn.disabled = true; refreshBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
-      try { await loadSubmissions(); } finally { refreshBtn.disabled = false; refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>'; }
+      try { await loadSubmissions({ force: true }); } finally { refreshBtn.disabled = false; refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>'; }
     });
 
     document.getElementById('resetFiltersBtn').addEventListener('click', resetFilters);
@@ -309,13 +309,22 @@
     }
   }
 
-  async function loadSubmissions() {
+  async function loadSubmissions(opts = {}) {
     const tbody = document.getElementById('submissionsBody'); if (!tbody) return;
     const currentKey = getFilterKey();
+
+    // 手动刷新：丢掉缓存和进行中的请求，一定要重新拉一次
+    if (opts.force) {
+      state.pagesCache.clear();
+      state.pagesInflight.clear();
+      state.hasMore = null;
+      state.maxPage = null;
+    }
+
     if (_lastFilterKey !== null && _lastFilterKey !== currentKey) {
       state.pagesCache.clear(); state.pagesInflight.clear(); state.hasMore = null; state.maxPage = null;
     }
-    const cached = state.pagesCache.get(state.page);
+    const cached = opts.force ? null : state.pagesCache.get(state.page);
     if (cached && _lastFilterKey === currentKey) {
       state.hasMore = cached.hasMore; updateMaxPage(state.page, cached); updateFilterHeader(cached.header);
       renderTable(cached.submissions); renderPagination(cached.page, cached.hasMore); _lastFilterKey = currentKey; return;
