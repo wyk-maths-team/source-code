@@ -162,32 +162,76 @@
     const host = contentInput && contentInput.closest('.ce-group, .form-group, .ce-field') || contentInput && contentInput.parentElement;
     if (!host) return;
 
+    // 页预览留在正文流里（要滚动浏览），控制条做成右下角悬浮窗
     const wrap = document.createElement('div');
     wrap.className = 'ce-pdf-panel';
     wrap.style.cssText = 'margin-top:1.4rem;border:1px solid var(--border-color);border-radius:10px;padding:14px;background:var(--card-bg);';
-    wrap.innerHTML = [
-      '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">',
-      '  <strong style="font-size:.95rem;">PDF pages</strong>',
-      '  <span style="color:var(--text-secondary);font-size:.78rem;">叠在页面上的答案框按顺序消耗下面的 ID</span>',
-      '</div>',
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">',
-      '  <input id="cePdfUrl" placeholder="https://…/paper.pdf 或 /assets/paper.pdf" style="flex:1;min-width:240px;padding:7px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-color);color:var(--text-primary);">',
-      '  <button type="button" id="cePdfLoad" class="btn btn-secondary">Load PDF</button>',
-      '</div>',
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">',
-      '  <input id="cePdfPrefix" placeholder="ID prefix, e.g. M207" style="width:170px;padding:7px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-color);color:var(--text-primary);">',
-      '  <input id="cePdfDigits" type="number" min="1" max="6" value="3" title="Digits" style="width:80px;padding:7px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-color);color:var(--text-primary);">',
-      '  <button type="button" id="cePdfAdd" class="btn btn-secondary">+ Add box</button>',
-      '  <span id="cePdfStatus" style="font-size:.8rem;color:var(--text-secondary);"></span>',
-      '</div>',
-      '<div id="cePdfPages" class="ce-pdf-pages"></div>'
-    ].join('');
+    wrap.innerHTML = '<div style="font-size:.9rem;font-weight:700;margin-bottom:8px;">PDF pages</div>'
+      + '<div id="cePdfPages" class="ce-pdf-pages"></div>';
     host.appendChild(wrap);
+
+    const dock = document.createElement('div');
+    dock.id = 'cePdfDock';
+    dock.style.cssText = [
+      'position:fixed;right:18px;bottom:18px;z-index:9998;width:300px;',
+      'background:var(--card-bg);border:1px solid var(--border-color);border-radius:12px;',
+      'box-shadow:0 10px 30px rgba(0,0,0,.22);font-size:.82rem;overflow:hidden;',
+    ].join('');
+    dock.innerHTML = [
+      '<div id="cePdfDockHead" style="display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:move;',
+      'background:rgba(142,92,247,.12);user-select:none;">',
+      '  <strong style="font-size:.82rem;flex:1;">PDF boxes</strong>',
+      '  <span id="cePdfDockCount" style="color:var(--text-secondary);font-size:.72rem;"></span>',
+      '  <button type="button" id="cePdfDockToggle" title="Collapse" style="border:none;background:transparent;',
+      'cursor:pointer;font-size:14px;line-height:1;color:var(--text-secondary);">–</button>',
+      '</div>',
+      '<div id="cePdfDockBody" style="padding:10px;display:flex;flex-direction:column;gap:7px;">',
+      '  <div style="display:flex;gap:6px;">',
+      '    <input id="cePdfUrl" placeholder="/assets/paper.pdf" style="flex:1;min-width:0;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-color);color:var(--text-primary);font-size:.78rem;">',
+      '    <button type="button" id="cePdfLoad" class="btn btn-secondary" style="padding:6px 10px;font-size:.78rem;">Load</button>',
+      '  </div>',
+      '  <div style="display:flex;gap:6px;">',
+      '    <input id="cePdfPrefix" placeholder="prefix M207" style="flex:1;min-width:0;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-color);color:var(--text-primary);font-size:.78rem;">',
+      '    <input id="cePdfDigits" type="number" min="1" max="6" value="3" title="Digits" style="width:58px;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-color);color:var(--text-primary);font-size:.78rem;">',
+      '  </div>',
+      '  <button type="button" id="cePdfAdd" class="btn btn-primary" style="padding:7px 10px;font-size:.82rem;font-weight:700;">+ Add box</button>',
+      '  <div id="cePdfStatus" style="font-size:.72rem;color:var(--text-secondary);line-height:1.35;"></div>',
+      '</div>'
+    ].join('');
+    document.body.appendChild(dock);
 
     el('cePdfLoad').addEventListener('click', () => loadPdf(el('cePdfUrl').value.trim()));
     el('cePdfAdd').addEventListener('click', toggleAddMode);
     el('cePdfPrefix').addEventListener('input', () => { syncPids(); });
     el('cePdfDigits').addEventListener('input', () => { syncPids(); });
+
+    // 折叠
+    const body = el('cePdfDockBody');
+    el('cePdfDockToggle').addEventListener('click', () => {
+      const hidden = body.style.display === 'none';
+      body.style.display = hidden ? 'flex' : 'none';
+      el('cePdfDockToggle').textContent = hidden ? '–' : '+';
+    });
+
+    // 拖动标题栏移动悬浮窗
+    const head = el('cePdfDockHead');
+    let drag = null;
+    head.addEventListener('mousedown', (e) => {
+      if (e.target.closest('button')) return;
+      const rect = dock.getBoundingClientRect();
+      drag = { dx: e.clientX - rect.left, dy: e.clientY - rect.top };
+      dock.style.right = 'auto';
+      dock.style.bottom = 'auto';
+      dock.style.left = rect.left + 'px';
+      dock.style.top = rect.top + 'px';
+      e.preventDefault();
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!drag) return;
+      dock.style.left = Math.max(0, Math.min(window.innerWidth - 80, e.clientX - drag.dx)) + 'px';
+      dock.style.top = Math.max(0, Math.min(window.innerHeight - 60, e.clientY - drag.dy)) + 'px';
+    });
+    window.addEventListener('mouseup', () => { drag = null; });
   }
 
   function pdfStatus(text, kind) {
@@ -240,7 +284,13 @@
   }
 
   function updateBoxCount() {
-    pdfStatus(pdfState.boxes.length ? pdfState.boxes.length + ' box(es) on ' + pdfState.pageEls.length + ' page(s)' : 'No boxes yet — press Add box, then click the page twice.');
+    const n = pdfState.boxes.length;
+    const pages = pdfState.pageEls.length;
+    const cnt = el('cePdfDockCount');
+    if (cnt) cnt.textContent = n + '/' + pages;
+    pdfStatus(n
+      ? n + ' box(es) on ' + pages + ' page(s)'
+      : 'Press Add box, then click the page twice (top, then bottom).');
   }
 
   function syncPids() {
