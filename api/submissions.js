@@ -339,8 +339,71 @@ async function handler(req, res) {
 
     const sub = await db.collection('submissions').findOne({ subid });
     if (!sub) return res.status(404).json({ success: false, message: 'Submission not found', code: 'SUBMISSION_NOT_FOUND' });
+
+    // ── 非 AI 提交：按正常流程重新判一遍 ──
     if (sub.type !== 'steps') {
-      return res.status(400).json({ success: false, message: 'Only AI-graded (steps) submissions can be rejudged' });
+      if (sub.type === 'image') {
+        return res.status(400).json({
+          success: false,
+          message: 'Image submissions are marked by hand — open the marking list instead',
+          code: 'IMAGE_NOT_AUTO',
+        });
+      }
+
+      const problem = await db.collection('problems').findOne({ id: sub.problemId });
+      if (!problem) return res.status(404).json({ success: false, message: 'Problem not found', code: 'PROBLEM_NOT_FOUND' });
+
+      const { judge, updateUserStats, rewardFirstAC } = await import('../lib/submission.js');
+      const jr = await judge({ problem, answer: String(sub.answer ?? '') });
+      const oldScore = Number(sub.score) || 0;
+
+      await db.collection('submissions').updateOne(
+        { subid },
+        {
+          $set: {
+            correct: !!jr.correct,
+            systemError: !!jr.systemError,
+            score: jr.systemError ? 0 : Number(jr.score) || 0,
+            comment: jr.comment || '',
+            marked: jr.marked || !jr.systemError,
+            regradedAt: new Date(),
+            regradedBy: decoded.username,
+            regradedFrom: oldScore,
+          },
+        }
+      );
+
+      // 重新判为正确时，状态和奖励都要补上（用户要求：该给的 token 要给）
+      let isFirstAC = false;
+      let rewarded = 0;
+      if (!jr.systemError) {
+        isFirstAC = await updateUserStats(db, sub.username, sub.problemId, !!jr.correct);
+        if (isFirstAC) {
+          rewarded = await rewardFirstAC(db, {
+            username: sub.username,
+            rawUsername: sub.username,
+            problem,
+          }).catch(() => 0);
+        }
+      }
+
+      await auditLog(db, 'submission_rejudge', {
+        subid, owner: sub.username, problemId: sub.problemId,
+        from: oldScore, to: jr.systemError ? 0 : Number(jr.score) || 0,
+        kind: sub.type, firstAC: isFirstAC, rewarded,
+      }, decoded.username, 'info').catch(() => {});
+
+      return res.status(200).json({
+        success: true,
+        kind: sub.type,
+        score: jr.systemError ? 0 : Number(jr.score) || 0,
+        correct: !!jr.correct,
+        systemError: !!jr.systemError,
+        comment: jr.comment || '',
+        previousScore: oldScore,
+        firstAC: isFirstAC,
+        rewarded,
+      });
     }
 
     const steps = String(sub.answer || '').trim();
