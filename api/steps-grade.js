@@ -196,9 +196,13 @@ async function handleCreate(req, res, db, decoded) {
       await runPostSubmit(db, decoded.username, { justAC: finalScore === 100, problemId: String(problemId) });
 
       // 扣除 Token：按加权用量折算（缓存命中 1 / 未缓存 50 / 输出 200，再除以常数）
+      // 高峰时段（北京时间工作日 9-12 / 14-18）成本翻倍，收费同步翻倍
       const { computeAiCharge } = await import('../lib/submission.js');
+      const { billingMultiplier, isPeakHour } = await import('../lib/pricing.js');
       const byUsage = computeAiCharge(result.usage);
-      const charged = byUsage > 0 ? byUsage : tokenCost;
+      const base = byUsage > 0 ? byUsage : tokenCost;
+      const peak = isPeakHour();
+      const charged = peak ? base * 2 : base;
       const newTokens = await consumeTokens(db, decoded.username, charged);
 
       auditLog(db, 'steps_grade', { problemId, score: finalScore, taskId, model: modelKey, handledBy: 'api' }, decoded.username, 'info').catch(() => {});
@@ -211,6 +215,7 @@ async function handleCreate(req, res, db, decoded) {
         subid,
         tokens: newTokens,
         charged,
+        peak,
         contestScore,
       });
 
@@ -304,7 +309,9 @@ async function handlePoll(req, res, db, decoded) {
         await runPostSubmit(db, claimed.username, { justAC: finalScore === 100, problemId: pid });
 
         const realUsage = Number(claimed.result?.tokenUsage) || 0;
-        await consumeTokens(db, claimed.username, realUsage > 0 ? realUsage : tokenCost);
+        const { isPeakHour } = await import('../lib/pricing.js');
+        const baseCharge = realUsage > 0 ? realUsage : tokenCost;
+        await consumeTokens(db, claimed.username, isPeakHour() ? baseCharge * 2 : baseCharge);
       } catch (e) { console.error('[steps-grade] poll write failed:', e); }
 
       if (subid) await db.collection('steps_grading_tasks').updateOne({ taskId }, { $set: { subid } });

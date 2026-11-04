@@ -3,17 +3,17 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='a33bb398';</script>
+<script>window.__BUILD_V='a6677731';</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Token Management - WYK Maths Team</title>
-  <link rel="stylesheet" href="/assets/css/styles.css?v=a33bb398">
+  <link rel="stylesheet" href="/assets/css/styles.css?v=a6677731">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
   
-  <script src="/assets/js/core/ui.js?v=a33bb398"></script>
-  <script src="/assets/js/core/net.js?v=a33bb398"></script>
-  <script src="/assets/js/core/api.js?v=a33bb398"></script>
-  <script src="/assets/js/core/page.js?v=a33bb398"></script>
+  <script src="/assets/js/core/ui.js?v=a6677731"></script>
+  <script src="/assets/js/core/net.js?v=a6677731"></script>
+  <script src="/assets/js/core/api.js?v=a6677731"></script>
+  <script src="/assets/js/core/page.js?v=a6677731"></script>
   
   <style>
     .tm-container { max-width: 1100px; margin: 20px auto; padding: 24px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border-color); box-shadow: 0 4px 24px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 20px; }
@@ -158,12 +158,12 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=a33bb398"></script>
-  <script src="/assets/js/app.js?v=a33bb398"></script>
-  <script src="/assets/js/topbar.js?v=a33bb398"></script>
-  <script src="/assets/js/sidebar.js?v=a33bb398"></script>
-  <script src="/assets/js/heartbeat.js?v=a33bb398"></script>
-  <script src="/assets/js/pk-invite.js?v=a33bb398"></script>
+  <script src="/assets/js/auth.js?v=a6677731"></script>
+  <script src="/assets/js/app.js?v=a6677731"></script>
+  <script src="/assets/js/topbar.js?v=a6677731"></script>
+  <script src="/assets/js/sidebar.js?v=a6677731"></script>
+  <script src="/assets/js/heartbeat.js?v=a6677731"></script>
+  <script src="/assets/js/pk-invite.js?v=a6677731"></script>
 
   <script>
     Page.boot({ title: 'Token Management', requireAuth: true, skeleton: true });
@@ -216,7 +216,7 @@
         if (!res.success) throw new Error(res.message || 'Failed to load');
 
         const { totalBalance, grantedBalance, toppedUpBalance, estTokens, estUnit, available, currency,
-                totalUsd, currencyUsd, usdSource } = res;
+                totalUsd, currencyUsd, usdSource, estUnitUsd } = res;
         
         // ⭐ 存入全局变量
         globalEstTokens = estTokens;
@@ -264,7 +264,13 @@ function formatTokens(n) {
             <div class="tm-bal-stat" style="border-left: 1px solid var(--border-color); padding-left: 24px;">
               <div class="tm-bal-label">Estimated Reserve</div>
               <div class="tm-bal-value" style="color: var(--text-primary); font-size: 1.5rem;">${formatTokens(estTokens)}</div>
-              <div class="tm-bal-sub"><span>At ¥${estUnit}/M tok</span></div>
+              <div class="tm-bal-sub"><span>at peak rate ${estUnitUsd ? '$' + Number(estUnitUsd).toFixed(2) : '¥' + estUnit}/M tok</span></div>
+              <div class="tm-bal-sub" style="margin-top:2px;">
+                <span style="display:inline-flex;align-items:center;gap:5px;">
+                  <span style="width:7px;height:7px;border-radius:50%;background:${res.peak ? '#e0a10b' : '#27a567'};"></span>
+                  ${res.peak ? 'Peak hours — billing ×2' : 'Off-peak — half price'}
+                </span>
+              </div>
             </div>
             <div class="tm-bal-stat" style="border-left: 1px solid var(--border-color); padding-left: 24px;">
               <div class="tm-bal-label">Breakdown</div>
@@ -497,6 +503,6 @@ function formatTokens(n) {
       }
     }
   </script>
-<script src="/assets/js/pk-notify.js?v=a33bb398"></script>
+<script src="/assets/js/pk-notify.js?v=a6677731"></script>
 </body>
 </html>
