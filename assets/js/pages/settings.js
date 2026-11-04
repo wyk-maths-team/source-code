@@ -45,7 +45,7 @@
       $('hideDifficultyToggle').checked = localStorage.getItem('hideDifficulty') === 'true';
       $('showTagsToggle').checked = localStorage.getItem('showTags') !== 'false';
       $('pkInviteToggle').checked = localStorage.getItem('pkInviteEnabled') !== 'false';
-      $('stmtImageToggle').checked = localStorage.getItem('stmtAsImage') !== '0';
+      $('stmtImageToggle').checked = localStorage.getItem('stmtAsImage') === '1';
     },
 
     applyTheme() {

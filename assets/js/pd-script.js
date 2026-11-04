@@ -704,9 +704,9 @@ function waitForHtml2Canvas(timeout = 6000) {
 }
 
 async function imageifyStatement(el) {
-  // 設定裡可以關掉（預設開啟）
-  let enabled = true;
-  try { enabled = localStorage.getItem('stmtAsImage') !== '0'; } catch (e) { /* ignore */ }
+  // 預設關閉：題面用文字渲染；想要圖片的使用者在設定裡自行打開
+  let enabled = false;
+  try { enabled = localStorage.getItem('stmtAsImage') === '1'; } catch (e) { /* ignore */ }
   if (!enabled) return;
 
   if (!el || el.dataset.imaged === '1' || el.dataset.imaging === '1') return;
