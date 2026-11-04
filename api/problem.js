@@ -465,7 +465,8 @@ async function handler(req, res) {
     // ----- 刪除討論 -----
     if (action === 'adminDeleteDiscussion') {
       if (req.method !== 'DELETE') return res.status(405).json({ error: 'Method not allowed' });
-      const { id } = req.body || {};
+      // DELETE 带 body 在部分运行环境（含 Vercel 的某些路径）会被丢弃，所以 query 也认
+      const id = (req.body && req.body.id) || req.query.id || req.query.discussionId;
       if (!id) return res.status(400).json({ success: false, message: 'Missing discussion id' });
       let oid;
       try { oid = new ObjectId(id); } catch { return res.status(400).json({ success: false, message: 'Invalid ID' }); }
@@ -478,8 +479,10 @@ async function handler(req, res) {
     // ----- 設定 likes -----
     if (action === 'adminSetDiscussionLikes') {
       if (req.method !== 'PUT') return res.status(405).json({ error: 'Method not allowed' });
-      const { id, likes } = req.body || {};
-      if (!id || likes === undefined) return res.status(400).json({ success: false, message: 'Missing id or likes' });
+      const id = (req.body && req.body.id) || req.query.id;
+      const likesRaw = (req.body && req.body.likes !== undefined) ? req.body.likes : req.query.likes;
+      if (!id || likesRaw === undefined) return res.status(400).json({ success: false, message: 'Missing id or likes' });
+      const likes = likesRaw;
       let oid;
       try { oid = new ObjectId(id); } catch { return res.status(400).json({ success: false, message: 'Invalid ID' }); }
       const result = await db.collection('discussions').updateOne(

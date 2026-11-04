@@ -122,7 +122,7 @@
           const id = btn.dataset.id;
           btn.disabled = true;
           try {
-            const res = await apiCall('/api/problem?action=adminDeleteDiscussion', 'DELETE', { id });
+            const res = await apiCall('/api/problem?action=adminDeleteDiscussion&id=' + encodeURIComponent(id), 'DELETE', { id });
             if (res.success) {
               const row = btn.closest('.admin-discussion-row');
               if (row) {
@@ -153,7 +153,7 @@
           const likes = parseInt(input.value, 10);
           if (isNaN(likes)) return (window.DSHUI ? DSHUI.toast('Invalid number', 'err') : alert('Invalid number'));
           try {
-            const res = await apiCall('/api/problem?action=adminSetDiscussionLikes', 'PUT', { id, likes });
+            const res = await apiCall('/api/problem?action=adminSetDiscussionLikes&id=' + encodeURIComponent(id) + '&likes=' + encodeURIComponent(likes), 'PUT', { id, likes });
             if (res.success) {
               (window.DSHUI ? DSHUI.toast('Likes updated', 'ok') : alert('Likes updated'));
               loadAdminDiscussions(problemId);
