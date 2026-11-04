@@ -22,27 +22,37 @@
   .ac-wrap { max-width: 1080px; margin: 22px auto; padding: 0 18px; }
   .ac-head { display:flex; align-items:center; gap:12px; margin-bottom:18px; }
   .ac-head h2 { margin:0; }
+  
+  /* ⭐ 干掉紫色渐变，换成系统主题色 */
   .ac-head .btn-create {
     margin-left:auto; padding:9px 18px; border-radius:8px; text-decoration:none;
-    background:linear-gradient(135deg,#9b6cf7,#6a3fc9); color:#fff; font-weight:700;
+    background: var(--accent); color:#fff; font-weight:700; transition: opacity 0.2s;
   }
-  .ac-table { width:100%; border-collapse:collapse; background:var(--card-bg); border-radius:10px; overflow:hidden; }
-  .ac-table th { text-align:left; padding:11px 14px; font-size:.76rem; letter-spacing:.06em;
-    text-transform:uppercase; color:var(--text-secondary); border-bottom:1px solid var(--border-color); }
-  .ac-table td { padding:11px 14px; border-bottom:1px solid var(--border-color); vertical-align:middle; }
+  .ac-head .btn-create:hover { opacity: 0.85; }
+
+  .ac-table { width:100%; border-collapse:collapse; background:var(--card-bg); border-radius:10px; overflow:hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+  .ac-table th { text-align:left; padding:14px; font-size:.8rem; letter-spacing:.06em;
+    text-transform:uppercase; color:var(--text-secondary); border-bottom:2px solid var(--border-color); }
+  .ac-table td { padding:14px; border-bottom:1px solid var(--border-color); vertical-align:middle; }
   .ac-table tr:last-child td { border-bottom:none; }
+  .ac-table tbody tr:hover { background: rgba(127,127,127,0.04); }
   .ac-table .mono { font-family:ui-monospace,Menlo,monospace; color:var(--text-secondary); }
-  .ac-track { font-size:.72rem; font-weight:700; padding:2px 8px; border-radius:999px; color:#fff; }
-  .ac-track.M  { background:#1e9e60; }
-  .ac-track.M2 { background:#e0a10b; }
-  .ac-track.MO { background:#d33b3b; }
-  .ac-act { display:flex; gap:6px; }
+  
+  /* 标签颜色也统一一下，别太刺眼 */
+  .ac-track { font-size:.72rem; font-weight:700; padding:4px 10px; border-radius:6px; border:1px solid; }
+  .ac-track.M  { color:#2ecc71; border-color: rgba(46,204,113,0.3); background: rgba(46,204,113,0.08); }
+  .ac-track.M2 { color:#f1c40f; border-color: rgba(241,196,15,0.3); background: rgba(241,196,15,0.08); }
+  .ac-track.MO { color:#e74c3c; border-color: rgba(231,76,60,0.3); background: rgba(231,76,60,0.08); }
+  
+  .ac-act { display:flex; gap:8px; }
   .ac-act a, .ac-act button {
-    padding:4px 10px; border-radius:6px; font-size:.8rem; text-decoration:none;
-    border:1px solid var(--border-color); background:transparent; color:var(--text-primary); cursor:pointer;
+    padding:6px 12px; border-radius:6px; font-size:.8rem; font-weight: 600; text-decoration:none;
+    border:1px solid var(--border-color); background:transparent; color:var(--text-primary); cursor:pointer; transition: all 0.2s;
   }
-  .ac-act a:hover { background:rgba(142,92,247,.12); }
-  .ac-act button:hover { background:rgba(231,76,60,.12); color:#e74c3c; }
+  
+  /* ⭐ 去掉紫色 hover */
+  .ac-act a:hover { border-color: var(--accent); color: var(--accent); background: rgba(74, 144, 217, 0.08); }
+  .ac-act button:hover { border-color: #e74c3c; color:#e74c3c; background: rgba(231,76,60,0.08); }
   .ac-empty { text-align:center; padding:40px; color:var(--text-secondary); }
 </style>
 </head>

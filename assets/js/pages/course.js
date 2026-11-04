@@ -337,6 +337,9 @@
   function showResult(card, result, subid) {
     const score = Number(result && result.score);
     const ok = score === 100;
+    if (ok) {
+      card.classList.add('solved');
+    }
     const box = document.createElement('div');
     box.className = 'ip-result';
     box.innerHTML = '<strong>' + (ok ? 'Accepted' : 'Scored ' + (Number.isFinite(score) ? score : '?')) + '</strong>'

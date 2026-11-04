@@ -36,7 +36,7 @@
   .course-crumbs a { color: var(--course-accent); text-decoration: none; transition: opacity 0.2s; }
   .course-crumbs a:hover { opacity: 0.7; }
 
-  /* ── 领域卡片 (去除了高饱和度渐变) ── */
+  /* ── 领域卡片 ── */
   .course-tracks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
   @media (max-width: 780px) { .course-tracks { grid-template-columns: 1fr; } }
 
@@ -74,7 +74,7 @@
   .progbar.p-green > i { background: #2ecc71; }
   .progbar-text { font-size: .75rem; color: var(--text-secondary); margin-top: 6px; font-weight: 600; }
 
-  /* 难度标签 (极简风) */
+  /* 难度标签 */
   .diff-chip { padding: 4px 10px; border-radius: 6px; font-size: .75rem; font-weight: 700; background: rgba(127,127,127,0.1); color: var(--text-primary); }
   .diff-easy { color: #2ecc71; border: 1px solid rgba(46,204,113,0.3); }
   .diff-medium { color: #3498db; border: 1px solid rgba(52,152,219,0.3); }
@@ -89,41 +89,74 @@
   .course-reset { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--course-border); cursor: pointer; background: transparent; color: var(--text-secondary); font-size: .8rem; font-weight: 600; transition: all 0.2s; }
   .course-reset:hover { color: #e74c3c; border-color: rgba(231,76,60,0.5); background: rgba(231,76,60,0.05); }
 
-  /* 正文标题 */
+  /* 正文排版 */
   .c-header { font-size: 1.4rem; font-weight: 800; margin: 40px 0 16px; color: var(--text-primary); }
   .c-subheader { font-size: 1.15rem; font-weight: 700; margin: 28px 0 12px; color: var(--text-primary); }
-  .c-red { color: #e74c3c; font-weight: 600; }
-  
-  /* 行内高亮框 (干掉紫色，换成系统主题色) */
   .c-box { display: inline-block; padding: 2px 8px; border-radius: 6px; background: rgba(74, 144, 217, 0.1); border: 1px solid rgba(74, 144, 217, 0.2); color: var(--course-accent); font-weight: 700; }
-  
-  /* 块级提示卡 */
   .c-callout { margin: 24px 0; padding: 16px 20px; border-radius: 12px; border-left: 4px solid var(--course-accent); background: rgba(74, 144, 217, 0.05); font-size: 0.95rem; }
   .c-warn { margin: 24px 0; padding: 16px 20px; border-radius: 12px; border-left: 4px solid #e74c3c; background: rgba(231, 76, 60, 0.05); font-size: 0.95rem; }
-
-  /* 旁注 */
   .c-quote, .c-hint { margin: 16px 0; padding: 12px 16px; border-left: 3px solid var(--course-border); color: var(--text-secondary); font-size: .9rem; background: rgba(127,127,127,0.03); border-radius: 0 8px 8px 0; }
-
-  /* 题目外框 (去掉了厚重的边框感) */
-  .c-problem-block { margin: 32px 0; padding: 20px 24px; border-radius: 12px; border: 1px solid var(--course-border); background: var(--course-bg); }
   
-  /* 阅读排版优化 */
   .course-content p { line-height: 1.8; color: var(--text-primary); margin-bottom: 16px; font-size: 1rem; }
   .course-content ul, .course-content ol { padding-left: 24px; line-height: 1.8; margin-bottom: 16px; }
   .course-content li { margin: 6px 0; }
+
+  /* ── 内嵌题目卡片 ── */
+  .inline-problem { 
+    margin: 24px 0; border: 1px solid var(--course-border); border-radius: 12px; 
+    background: var(--course-card); overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.02); 
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
   
-  /* 内嵌题目框 */
-  .inline-problem { margin: 24px 0; border: 1px solid var(--course-border); border-radius: 12px; background: var(--course-card); overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
-  .ip-head { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-bottom: 1px solid var(--course-border); background: rgba(127,127,127,0.03); font-weight: 700; font-size: .95rem; }
+  /* ⭐ 极度亮眼的 AC 变绿效果 */
+  .inline-problem.solved {
+    border-color: #2ecc71 !important;
+    background: rgba(46, 204, 113, 0.04) !important;
+    box-shadow: 0 0 16px rgba(46, 204, 113, 0.15) !important;
+  }
+  .inline-problem.solved .ip-head {
+    border-bottom-color: rgba(46, 204, 113, 0.3) !important;
+    background: rgba(46, 204, 113, 0.08) !important;
+    color: #2ecc71;
+  }
+
+  .ip-head { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-bottom: 1px solid var(--course-border); background: rgba(127,127,127,0.03); font-weight: 700; font-size: .95rem; transition: all 0.4s; }
   .ip-head .ip-tag { font-family: ui-monospace, monospace; color: var(--course-accent); }
+  .ip-badge.solved { background: rgba(39,174,96,.16); color:#1e9e60; padding: 2px 8px; border-radius: 999px; font-size: .72rem; }
+  .ip-badge.todo { background: rgba(127,140,141,.16); color:var(--text-secondary); padding: 2px 8px; border-radius: 999px; font-size: .72rem; }
+
   .ip-statement { padding: 20px; line-height: 1.8; }
-  .ip-input-row { padding: 0 20px 20px; }
   
-  .ip-input-row textarea { width: 100%; min-height: 120px; resize: vertical; padding: 14px; border: 1px solid var(--course-border); border-radius: 8px; background: var(--course-bg); color: var(--text-primary); font-family: inherit; font-size: .95rem; line-height: 1.6; transition: border 0.2s; outline: none; }
-  .ip-input-row textarea:focus { border-color: var(--course-accent); }
+  /* 修复输入框与按钮 */
+  .ip-input-row { padding: 0 20px 16px; }
+  .ip-input-row textarea { 
+    width: 100%; min-height: 120px; resize: vertical; padding: 14px; 
+    border: 1px solid var(--course-border); border-radius: 8px; 
+    background: var(--course-bg); color: var(--text-primary); 
+    font-family: inherit; font-size: .95rem; line-height: 1.6; 
+    transition: border 0.2s, box-shadow 0.2s; outline: none; box-sizing: border-box;
+  }
+  .ip-input-row textarea:focus { border-color: var(--course-accent); box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.15); }
   
-  .ip-actions button { padding: 10px 24px; border-radius: 8px; border: none; cursor: pointer; font-weight: 700; color: #fff; background: var(--course-accent); transition: opacity 0.2s; }
-  .ip-actions button:hover { opacity: 0.85; }
+  .ip-actions { display: flex; align-items: center; gap: 16px; padding: 0 20px 20px; }
+  .ip-actions button { 
+    padding: 10px 24px; border-radius: 8px; border: none; cursor: pointer; 
+    font-weight: 700; font-size: .95rem; color: #fff; 
+    background: var(--course-accent); transition: opacity 0.2s; 
+  }
+  .ip-actions button:hover:not(:disabled) { opacity: 0.85; }
+  .ip-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+  
+  .ip-status { font-size: .88rem; color: var(--text-secondary); font-weight: 600; }
+  .ip-status.err { color: #e74c3c; }
+  .ip-status.ok { color: #2ecc71; }
+
+  .ip-result {
+    margin: 0 20px 20px; padding: 16px; border-radius: 10px;
+    background: rgba(46, 204, 113, 0.08); border: 1px solid rgba(46, 204, 113, 0.25);
+    font-size: .92rem; line-height: 1.6;
+  }
+  .ip-result a { color: var(--course-accent); font-weight: 700; text-decoration: none; margin-left: 6px; }
 </style>
 </head>
 <body class="index-body">
