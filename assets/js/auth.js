@@ -267,7 +267,7 @@ window.addEventListener('storage', (e) => {
     path === '/' || path === '/index.html' || path === '/404' || path === '/404.html' ||
     path === '/credits' || path === '/credits.html' ||
     path === '/guide' || path === '/guide.html' ||
-    path === '/guides' || path === '/guides.html' || path === '/login' ||
+    path === '/guides' || path === '/guides.html' || path === '/login' || path === '/login.html' ||
     path === '/os' || path === '/os.html' || path === '/root-login' ||
     path.startsWith('/os') ||
     path === '/auth/forgot-password' || path === '/auth/reset-password' ||

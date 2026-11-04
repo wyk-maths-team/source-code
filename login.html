@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>window.__BUILD_V='40b7e0c0';</script>
-<script src="/assets/js/arch-render.js?v=40b7e0c0"></script>
+<script>window.__BUILD_V='a33bb398';</script>
+<script src="/assets/js/arch-render.js?v=a33bb398"></script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.amcharts.com">
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=40b7e0c0" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=a33bb398" />
   <style>
     /* ── 中性色变量（由 tools/extract-colors.mjs 生成）────────────── */
     :root {
@@ -285,6 +285,16 @@
     .terms-group a:hover {
       text-decoration: underline;
     }
+    /* 未勾选就点登录时抖一下 */
+    .terms-group.shake { animation: tgShake .5s ease; }
+    .terms-group.shake input[type="checkbox"] { outline: 2px solid var(--danger, #d93025); outline-offset: 2px; border-radius: 3px; }
+    @keyframes tgShake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-6px); }
+      40% { transform: translateX(6px); }
+      60% { transform: translateX(-4px); }
+      80% { transform: translateX(4px); }
+    }
   </style>
 
   <link rel="manifest" href="/manifest.json">
@@ -295,10 +305,10 @@
   <meta name="apple-mobile-web-app-title" content="WYK Maths">
   <meta name="mobile-web-app-capable" content="yes">
 
-<script src="/assets/js/core/ui.js?v=40b7e0c0"></script>
-<script src="/assets/js/core/net.js?v=40b7e0c0"></script>
-<script src="/assets/js/core/api.js?v=40b7e0c0"></script>
-<script src="/assets/js/core/page.js?v=40b7e0c0"></script>
+<script src="/assets/js/core/ui.js?v=a33bb398"></script>
+<script src="/assets/js/core/net.js?v=a33bb398"></script>
+<script src="/assets/js/core/api.js?v=a33bb398"></script>
+<script src="/assets/js/core/page.js?v=a33bb398"></script>
 </head>
 <body class="index-body">
   <div id="loginVeil"></div>
@@ -358,14 +368,14 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=40b7e0c0"></script>
-  <script src="/assets/js/app.js?v=40b7e0c0"></script>
-  <script src="/assets/js/topbar.js?v=40b7e0c0"></script>
-  <script src="/assets/js/sidebar.js?v=40b7e0c0"></script>
-  <script src="/assets/js/heartbeat.js?v=40b7e0c0"></script>
-  <script src="/assets/js/pk-invite.js?v=40b7e0c0"></script>
+  <script src="/assets/js/auth.js?v=a33bb398"></script>
+  <script src="/assets/js/app.js?v=a33bb398"></script>
+  <script src="/assets/js/topbar.js?v=a33bb398"></script>
+  <script src="/assets/js/sidebar.js?v=a33bb398"></script>
+  <script src="/assets/js/heartbeat.js?v=a33bb398"></script>
+  <script src="/assets/js/pk-invite.js?v=a33bb398"></script>
 
-  <script src="/assets/js/pages/login.js?v=40b7e0c0"></script>
-  <script src="/assets/js/pk-notify.js?v=40b7e0c0"></script>
+  <script src="/assets/js/pages/login.js?v=a33bb398"></script>
+  <script src="/assets/js/pk-notify.js?v=a33bb398"></script>
 </body>
 </html>

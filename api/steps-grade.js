@@ -84,6 +84,7 @@ async function tryOneModel({ modelKey, prompt, effort }) {
     comment: String(parsed.comment || '').slice(0, 3000),
     elapsed,
     tokenUsage: reply.usage?.total || 0,
+    usage: reply.usage || null,
     rawReply: reply.content || reply,
     modelKey,
   };
@@ -189,9 +190,10 @@ async function handleCreate(req, res, db, decoded) {
 
       await runPostSubmit(db, decoded.username, { justAC: finalScore === 100, problemId: String(problemId) });
 
-      // 扣除 Token：以 AI 返回的真实用量结算
-      const realUsage = Number(result.tokenUsage) || 0;
-      const charged = realUsage > 0 ? realUsage : tokenCost;
+      // 扣除 Token：按加权用量折算（缓存命中 1 / 未缓存 50 / 输出 200，再除以常数）
+      const { computeAiCharge } = await import('../lib/submission.js');
+      const byUsage = computeAiCharge(result.usage);
+      const charged = byUsage > 0 ? byUsage : tokenCost;
       const newTokens = await consumeTokens(db, decoded.username, charged);
 
       auditLog(db, 'steps_grade', { problemId, score: finalScore, taskId, model: modelKey, handledBy: 'api' }, decoded.username, 'info').catch(() => {});

@@ -13,23 +13,32 @@ function updateAuthState() {
   const btn = document.getElementById('loginBtn');
   if (!agreeTerms) return;
 
+  // 不真正禁用按钮：未勾选时要能点，点了把焦点送过去
+  btn.disabled = false;
   if (agreeTerms.checked) {
-    btn.disabled = false;
     btn.style.opacity = '1';
     btn.style.cursor = 'pointer';
-    if (msLoginBtn) {
-      msLoginBtn.style.pointerEvents = 'auto';
-      msLoginBtn.style.opacity = '1';
-    }
+    if (msLoginBtn) msLoginBtn.style.opacity = '1';
   } else {
-    btn.disabled = true;
     btn.style.opacity = '0.5';
     btn.style.cursor = 'not-allowed';
-    if (msLoginBtn) {
-      msLoginBtn.style.pointerEvents = 'none';
-      msLoginBtn.style.opacity = '0.5';
-    }
+    if (msLoginBtn) msLoginBtn.style.opacity = '0.5';
   }
+}
+
+/** 没勾条款时：聚焦 + 轻微抖动 + 提示 */
+function nudgeTerms() {
+  if (!agreeTerms) return;
+  try { agreeTerms.focus({ preventScroll: false }); } catch { agreeTerms.focus(); }
+  agreeTerms.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  const group = agreeTerms.closest('.terms-group');
+  if (group) {
+    group.classList.remove('shake');
+    void group.offsetWidth;          // 重启动画
+    group.classList.add('shake');
+    setTimeout(() => group.classList.remove('shake'), 600);
+  }
+  showError('Please tick the Terms of Service box first.');
 }
 
 // 初始化状态，并监听复选框
@@ -38,11 +47,35 @@ if (agreeTerms) {
   updateAuthState();
 }
 
+// 登录按钮：必须在浏览器做 required 校验之前拦住，否则表单不会提交、submit 不触发
+const loginBtnEl = document.getElementById('loginBtn');
+if (loginBtnEl) {
+  loginBtnEl.addEventListener('click', (e) => {
+    if (!agreeTerms || !agreeTerms.checked) {
+      e.preventDefault();
+      e.stopPropagation();
+      nudgeTerms();
+    }
+  }, true);
+}
+
+// 微软登录：没勾条款时点它 → 聚焦复选框而不是跳转
+if (msLoginBtn) {
+  msLoginBtn.style.pointerEvents = 'auto';
+  msLoginBtn.addEventListener('click', (e) => {
+    if (!agreeTerms || !agreeTerms.checked) {
+      e.preventDefault();
+      e.stopPropagation();
+      nudgeTerms();
+    }
+  });
+}
+
 loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
 
   if (!agreeTerms || !agreeTerms.checked) {
-    showError('You must agree to the Terms of Service and Privacy Policy to continue.');
+    nudgeTerms();
     return;
   }
 
