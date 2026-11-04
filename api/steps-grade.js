@@ -5,7 +5,7 @@ import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';
 import { askDeepSeekAPI } from '../lib/deepseek-api.js';
 import { askClaude } from '../lib/temp/claude-api.js';
-import { buildStepsPrompt } from '../lib/grade-prompt.js';
+import { buildStepsPrompt, buildM0Prompt, snapM0Score } from '../lib/grade-prompt.js';
 import { getModelChain, getModelInfo, pickThinkingEffort } from '../lib/model-router.js';
 import { consumeTokens } from '../lib/token.js';
 import crypto from 'crypto';
@@ -106,7 +106,7 @@ async function handleCreate(req, res, db, decoded) {
   if (!problemId || !steps || !steps.trim()) return res.status(400).json({ success: false, message: 'Missing or empty steps' });
   if (steps.trim().length > MAX_STEPS_LEN) return res.status(400).json({ success: false, message: 'Steps too long' });
 
-  const problem = await db.collection('problems').findOne({ id: String(problemId) }, { projection: { id: 1, statement: 1, ans: 1, difficulty: 1 } });
+  const problem = await db.collection('problems').findOne({ id: String(problemId) }, { projection: { id: 1, statement: 1, ans: 1, difficulty: 1, tags: 1 } });
   if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
     // ⭐ 前置余额校验
   // 门槛 = 一次判题的大致最低消耗（不是最终扣费额）
@@ -142,12 +142,17 @@ async function handleCreate(req, res, db, decoded) {
   const chain = getModelChain(problem.difficulty);
   const errors = [];
   const statement = cleanStatementForAI(problem.statement);
-  const prompt = buildStepsPrompt({ statement, reference_answer: String(problem.ans ?? ''), student_steps: steps.trim() });
+  // M0 题库：走轻量 prompt，省 token，只给三档分
+  const isM0 = Array.isArray(problem.tags) && problem.tags.includes('M0');
+  const prompt = isM0
+    ? buildM0Prompt({ statement, reference_answer: String(problem.ans ?? ''), student_steps: steps.trim() })
+    : buildStepsPrompt({ statement, reference_answer: String(problem.ans ?? ''), student_steps: steps.trim() });
   const effort = pickThinkingEffort(problem.difficulty);
 
   for (const modelKey of chain) {
     try {
       const result = await tryOneModel({ modelKey, prompt, effort });
+      if (isM0) result.score = snapM0Score(result.score);
       const subid = genSubid();
 
       // 成功：更新任务状态
@@ -256,7 +261,14 @@ async function handlePoll(req, res, db, decoded) {
 
     let contestScore = null;
     if (!isAIError) {
-      const finalScore = Math.max(0, Math.min(100, Math.round(rawScoreRaw)));
+      let finalScore = Math.max(0, Math.min(100, Math.round(rawScoreRaw)));
+
+      // M0 题只允许 0 / 50 / 100
+      const m0Problem = await db.collection('problems').findOne(
+        { id: String(claimed.problemId), tags: 'M0' }, { projection: { _id: 1 } }
+      );
+      if (m0Problem) finalScore = snapM0Score(finalScore);
+
       if (!subid) subid = genSubid();
       const tokenCost = Math.max(3000, Math.round((Number(claimed.difficulty) || 1) * 1000));
 

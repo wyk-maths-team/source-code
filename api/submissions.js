@@ -349,7 +349,7 @@ async function handler(req, res) {
     const problem = await db.collection('problems').findOne({ id: sub.problemId });
     if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
 
-    const { buildStepsPrompt } = await import('../lib/grade-prompt.js');
+    const { buildStepsPrompt, buildM0Prompt, snapM0Score } = await import('../lib/grade-prompt.js');
     const { getModelChain, getModelInfo, pickThinkingEffort } = await import('../lib/model-router.js');
     const { askDeepSeekAPI } = await import('../lib/deepseek-api.js');
     const { askClaude } = await import('../lib/temp/claude-api.js');
@@ -365,11 +365,19 @@ async function handler(req, res) {
       } catch { return null; }
     }
 
-    const prompt = buildStepsPrompt({
-      statement: String(problem.statement || ''),
-      reference_answer: String(problem.ans ?? ''),
-      student_steps: steps,
-    });
+    // M0 题库走轻量 prompt（与 steps-grade 一致）
+    const isM0 = Array.isArray(problem.tags) && problem.tags.includes('M0');
+    const prompt = isM0
+      ? buildM0Prompt({
+          statement: String(problem.statement || ''),
+          reference_answer: String(problem.ans ?? ''),
+          student_steps: steps,
+        })
+      : buildStepsPrompt({
+          statement: String(problem.statement || ''),
+          reference_answer: String(problem.ans ?? ''),
+          student_steps: steps,
+        });
 
     const chain = getModelChain(problem.difficulty) || [];
     let judged = null;
@@ -392,8 +400,10 @@ async function handler(req, res) {
         const v = parsed.score ?? parsed.Score;
         const n = typeof v === 'number' ? v : Number(v);
         if (!Number.isFinite(n)) throw new Error('score missing');
+        let sc = Math.max(0, Math.min(100, Math.round(n)));
+        if (isM0) sc = snapM0Score(sc);
         judged = {
-          score: Math.max(0, Math.min(100, Math.round(n))),
+          score: sc,
           comment: String(parsed.comment || '').slice(0, 3000),
         };
         usedModel = modelKey;
