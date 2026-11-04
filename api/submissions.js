@@ -350,7 +350,7 @@ async function handler(req, res) {
     if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
 
     const { buildStepsPrompt, buildM0Prompt, snapM0Score } = await import('../lib/grade-prompt.js');
-    const { getModelChain, getModelInfo, pickThinkingEffort } = await import('../lib/model-router.js');
+    const { getModelChain, getModelInfo, pickEffortForProblem } = await import('../lib/model-router.js');
     const { askDeepSeekAPI } = await import('../lib/deepseek-api.js');
     const { askClaude } = await import('../lib/temp/claude-api.js');
 
@@ -392,7 +392,7 @@ async function handler(req, res) {
           reply = await askClaude(prompt, { model: modelKey, timeoutMs: 280_000, maxTokens: 8192 });
         } else {
           reply = await askDeepSeekAPI(prompt, {
-            model: info.id, timeoutMs: 50_000, effort: pickThinkingEffort(problem.difficulty), maxTokens: 8000,
+            model: info.id, timeoutMs: 50_000, effort: pickEffortForProblem(problem), maxTokens: 8000,
           });
         }
         const parsed = parseReply(reply.content || reply);
