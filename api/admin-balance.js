@@ -64,6 +64,6 @@ export default wrapHandler(async (req, res) => {
     usdSource: usdInfo ? 'api' : 'converted',
     cnyPerUsd: CNY_PER_USD,
     estTokens,
-    estUnit: EST_UNIT,
+    estUnit,
   });
 });
