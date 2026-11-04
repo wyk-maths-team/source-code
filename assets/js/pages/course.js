@@ -200,6 +200,25 @@
     const contentEl = document.getElementById('courseContent');
     renderMath(contentEl);
 
+    // PDF 版式（如果有）+ 滚动位置
+    const scrollKey = 'courseScroll:' + track + '/' + id;
+    mountPdf(c, solved).finally(function () {
+      try {
+        const y = Number(localStorage.getItem(scrollKey) || 0);
+        if (y > 0) setTimeout(function () { window.scrollTo({ top: y, behavior: 'auto' }); }, 250);
+      } catch (e) {}
+    }).catch(function () {});
+
+    let scrollTimer = null;
+    window.removeEventListener('scroll', window.__courseScrollHandler || (function () {}));
+    window.__courseScrollHandler = function () {
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(function () {
+        try { localStorage.setItem(scrollKey, String(window.scrollY)); } catch (e) {}
+      }, 300);
+    };
+    window.addEventListener('scroll', window.__courseScrollHandler, { passive: true });
+
     // 重置这门课的进度
     root.querySelector('.course-reset')?.addEventListener('click', async (e) => {
       const btn = e.currentTarget;
@@ -332,6 +351,243 @@
         btn.disabled = false;
       }
     });
+  }
+
+
+  // ═══════════════ PDF 版式（学生端）═══════════════
+  const PDFJS_VER = '3.11.174';
+  const PDFJS_CDN = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@' + PDFJS_VER + '/build/';
+
+  function loadPdfJs() {
+    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    if (window.__pdfjsLoading) return window.__pdfjsLoading;
+    window.__pdfjsLoading = new Promise(function (resolve, reject) {
+      var s = document.createElement('script');
+      s.src = PDFJS_CDN + 'pdf.min.js';
+      s.onload = function () {
+        try { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_CDN + 'pdf.worker.min.js'; } catch (e) {}
+        resolve(window.pdfjsLib);
+      };
+      s.onerror = function () { reject(new Error('pdf.js failed to load')); };
+      document.head.appendChild(s);
+    });
+    return window.__pdfjsLoading;
+  }
+
+  const PDF_BOX_STYLE = 'position:absolute;left:10%;width:80%;border:1px solid var(--border-color);'
+    + 'border-radius:8px;background:rgba(255,255,255,.96);box-shadow:0 2px 10px rgba(0,0,0,.12);'
+    + 'display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box;';
+  const PDF_BOX_DARK = '[data-theme="dark"] .pdf-box{background:rgba(30,34,42,.97);}';
+
+  function mountPdf(course, solved) {
+    var pdf = course && course.pdf;
+    if (!pdf || !pdf.url) return Promise.resolve();
+
+    var holder = document.getElementById('coursePdf');
+    if (!holder) {
+      holder = document.createElement('div');
+      holder.id = 'coursePdf';
+      holder.className = 'course-pdf';
+      var contentEl = document.getElementById('courseContent');
+      if (contentEl && contentEl.parentNode) contentEl.parentNode.insertBefore(holder, contentEl);
+      else root.appendChild(holder);
+    }
+
+    holder.innerHTML = '<div style="padding:12px;color:var(--text-secondary);font-size:.85rem;"><span class="spinner"></span> Loading PDF…</div>';
+
+    return loadPdfJs().then(function (pdfjs) {
+      return pdfjs.getDocument({ url: pdf.url, withCredentials: false }).promise;
+    }).then(function (doc) {
+      holder.innerHTML = '';
+      var pages = [];
+      for (var i = 1; i <= doc.numPages; i++) {
+        var pageEl = document.createElement('div');
+        pageEl.className = 'pdf-page';
+        pageEl.dataset.page = String(i);
+        pageEl.style.cssText = 'position:relative;margin:16px auto;max-width:760px;background:#fff;'
+          + 'border:1px solid var(--border-color);border-radius:8px;overflow:hidden;aspect-ratio:1/1.414;';
+        var layer = document.createElement('div');
+        layer.className = 'pdf-layer';
+        layer.style.cssText = 'position:absolute;inset:0;';
+        pageEl.appendChild(layer);
+        holder.appendChild(pageEl);
+        pages.push(pageEl);
+      }
+
+      // 懒加载：只看视口附近的页
+      var io = null;
+      var paint = function (pageEl) {
+        if (pageEl.dataset.painted === '1') return;
+        pageEl.dataset.painted = '1';
+        var n = Number(pageEl.dataset.page);
+        doc.getPage(n).then(function (page) {
+          var vp = page.getViewport({ scale: 1.6 });
+          var canvas = document.createElement('canvas');
+          canvas.width = vp.width;
+          canvas.height = vp.height;
+          canvas.style.cssText = 'display:block;width:100%;height:auto;';
+          return page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise.then(function () {
+            pageEl.insertBefore(canvas, pageEl.firstChild);
+            pageEl.style.aspectRatio = vp.width + ' / ' + vp.height;
+            return page.getTextContent().then(function (tc) {
+              pageEl.dataset.text = (tc.items || []).map(function (it) { return it.str; }).join(' ').slice(0, 3500);
+            }).catch(function () {});
+          });
+        }).catch(function () {
+          pageEl.dataset.painted = '0';
+        });
+      };
+
+      if ('IntersectionObserver' in window) {
+        io = new IntersectionObserver(function (entries) {
+          entries.forEach(function (en) {
+            if (!en.isIntersecting) return;
+            io.unobserve(en.target);
+            paint(en.target);
+          });
+        }, { rootMargin: '700px 0px' });
+        pages.forEach(function (p) { io.observe(p); });
+      } else {
+        pages.forEach(paint);
+      }
+
+      // 叠加答案框
+      (pdf.boxes || []).forEach(function (box) {
+        var pageEl = pages[box.page - 1];
+        if (!pageEl) return;
+        pageEl.querySelector('.pdf-layer').appendChild(makeAnswerBox(box, pageEl, solved));
+      });
+
+      return doc;
+    }).catch(function (e) {
+      holder.innerHTML = '<div style="padding:14px;color:var(--danger);font-size:.85rem;">'
+        + 'Could not load the PDF: ' + esc(e && e.message ? e.message : String(e)) + '</div>';
+    });
+  }
+
+  function makeAnswerBox(box, pageEl, solved) {
+    var wrap = document.createElement('div');
+    wrap.className = 'pdf-box';
+    wrap.dataset.pid = box.pid;
+    wrap.style.cssText = PDF_BOX_STYLE + 'top:' + box.y + '%;height:' + box.h + '%;';
+
+    var head = document.createElement('div');
+    head.style.cssText = 'display:flex;align-items:center;gap:6px;padding:2px 6px;font-size:10px;font-weight:700;'
+      + 'color:var(--text-secondary);background:rgba(142,92,247,.10);flex:0 0 auto;';
+    head.innerHTML = '<span>' + esc(box.pid) + '</span>'
+      + (solved && solved.has(box.pid) ? '<span style="color:#27a567;">✓ solved</span>' : '');
+
+    var ta = document.createElement('textarea');
+    ta.className = 'pdf-box-input';
+    ta.placeholder = 'Your steps…';
+    ta.style.cssText = 'flex:1 1 auto;min-height:36px;resize:none;border:none;outline:none;padding:4px 6px;'
+      + 'background:transparent;color:var(--text-primary);font-size:12px;font-family:inherit;';
+
+    var foot = document.createElement('div');
+    foot.style.cssText = 'display:flex;align-items:center;gap:6px;padding:2px 6px 4px;flex:0 0 auto;';
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = 'Submit';
+    btn.style.cssText = 'padding:2px 10px;border-radius:5px;border:none;background:#8e5cf7;color:#fff;'
+      + 'font-size:11px;font-weight:700;cursor:pointer;';
+    var status = document.createElement('span');
+    status.style.cssText = 'font-size:10px;color:var(--text-secondary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+
+    var comment = document.createElement('div');
+    comment.className = 'pdf-box-comment';
+    comment.style.cssText = 'display:none;padding:4px 6px 6px;font-size:11px;color:var(--text-primary);'
+      + 'border-top:1px dashed var(--border-color);max-height:45%;overflow:auto;';
+
+    foot.appendChild(btn);
+    foot.appendChild(status);
+    wrap.appendChild(head);
+    wrap.appendChild(ta);
+    wrap.appendChild(foot);
+    wrap.appendChild(comment);
+
+    // 草稿：和题目页共用同一个 key
+    var draft = (function () {
+      try {
+        var raw = localStorage.getItem('pd_workbench_drafts:' + box.pid);
+        return raw ? (JSON.parse(raw).steps || '') : '';
+      } catch (e) { return ''; }
+    })();
+    if (draft) ta.value = draft;
+
+    var timer = null;
+    ta.addEventListener('input', function () {
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        try {
+          var key = 'pd_workbench_drafts:' + box.pid;
+          var cur = JSON.parse(localStorage.getItem(key) || '{}') || {};
+          if (ta.value) cur.steps = ta.value; else delete cur.steps;
+          if (Object.keys(cur).length) localStorage.setItem(key, JSON.stringify(cur));
+          else localStorage.removeItem(key);
+        } catch (e) {}
+      }, 300);
+    });
+
+    btn.addEventListener('click', function () {
+      var steps = ta.value.trim();
+      if (!steps) { status.textContent = 'Write something first'; return; }
+      btn.disabled = true;
+      status.textContent = 'Submitting…';
+      API.post('/api/steps-grade', {
+        problemId: box.pid,
+        steps: steps,
+        autoCreate: true,
+        statementHint: pageEl.dataset.text || '',
+      }).then(function (res) {
+        if (!res || !res.success) throw new Error(res && res.message ? res.message : 'Submit failed');
+        if (res.status === 'done') return showBoxResult(wrap, res.result, res.subid);
+        if (res.taskId) { status.textContent = 'Grading…'; return pollBox(wrap, res.taskId); }
+        throw new Error('Unexpected response');
+      }).catch(function (e) {
+        status.textContent = e.message || 'Failed';
+        btn.disabled = false;
+      });
+    });
+
+    return wrap;
+  }
+
+  function showBoxResult(wrap, result, subid) {
+    var score = Number(result && result.score);
+    var ok = score === 100;
+    var status = wrap.querySelector('span');
+    var btn = wrap.querySelector('button');
+    var box = wrap.querySelector('.pdf-box-comment');
+    if (btn) btn.disabled = false;
+
+    if (box) {
+      box.style.display = 'block';
+      box.innerHTML = '<strong>' + (ok ? 'Accepted' : 'Scored ' + (Number.isFinite(score) ? score : '?')) + '</strong>'
+        + (result && result.comment ? '<div>' + esc(result.comment).replace(/\n/g, '<br>') + '</div>' : '')
+        + (subid ? '<a href="/submissions/' + encodeURIComponent(subid) + '/detail" style="font-size:10px;">View</a>' : '');
+      renderMath(box);
+      if (ok) wrap.style.borderColor = '#27a567';
+    }
+    var st = wrap.querySelector('.pdf-box-comment');
+    var head = wrap.firstChild;
+    if (ok && head && !head.textContent.includes('✓')) {
+      head.innerHTML += '<span style="color:#27a567;">✓ solved</span>';
+    }
+    if (btn) btn.parentNode.querySelector('span').textContent = ok ? 'Solved!' : 'Submitted';
+  }
+
+  async function pollBox(wrap, taskId) {
+    var tries = 0;
+    while (tries++ < 120) {
+      await new Promise(function (r) { setTimeout(r, 2000); });
+      try {
+        var res = await API.get('/api/steps-grade?taskId=' + encodeURIComponent(taskId));
+        if (!res || !res.success) continue;
+        if (res.status === 'done') { showBoxResult(wrap, res.result, res.subid); return; }
+      } catch (e) { /* 继续等 */ }
+    }
+    var s = wrap.querySelector('button');
+    if (s) s.disabled = false;
   }
 
   function showResult(card, result, subid) {

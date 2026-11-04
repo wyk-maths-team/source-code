@@ -37,6 +37,35 @@ function extractPids(html) {
   return [...out];
 }
 
+// ── PDF 版式 ──
+// pdf = { url, idPrefix, idDigits, boxes: [{ pid, page, x, y, h }] }
+// 坐标一律存百分比，换缩放或换屏宽都不会错位。
+function normalizePdf(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const url = String(raw.url || '').trim().slice(0, 2000);
+  if (!url) return null;
+  const boxes = Array.isArray(raw.boxes) ? raw.boxes.slice(0, 500).map((b) => ({
+    pid: String(b.pid || '').slice(0, 64),
+    page: Math.max(1, Math.floor(Number(b.page) || 1)),
+    x: Math.min(100, Math.max(0, Number(b.x) || 0)),
+    y: Math.min(100, Math.max(0, Number(b.y) || 0)),
+    h: Math.min(200, Math.max(1, Number(b.h) || 8)),
+  })).filter((b) => b.pid) : [];
+  return {
+    url,
+    idPrefix: String(raw.idPrefix || '').slice(0, 32),
+    idDigits: Math.min(6, Math.max(1, Math.floor(Number(raw.idDigits) || 3))),
+    boxes,
+  };
+}
+
+/** 课程进度要把 PDF 框里的题也算进去 */
+function mergePids(fromContent, pdf) {
+  const set = new Set(fromContent);
+  if (pdf) for (const b of pdf.boxes) set.add(b.pid);
+  return [...set];
+}
+
 function isAdminRole(role) {
   return role === 'admin' || role === 'root';
 }
@@ -136,6 +165,7 @@ async function handler(req, res) {
           topic: course.topic || '',
           difficulty: course.difficulty || 'easy',
           content: course.content || '',
+          pdf: course.pdf || null,
           pids,
           solvedPids: pids.filter((p) => solved.has(p)),
         },
@@ -192,10 +222,12 @@ async function handler(req, res) {
         const exists = await db.collection('courses').findOne({ track, id }, { projection: { _id: 1 } });
         if (exists) return res.status(409).json({ success: false, message: 'id already exists in this track' });
 
+        const pdf = normalizePdf(body.pdf);
         const now = new Date();
         await db.collection('courses').insertOne({
           track, id, topic, difficulty, content,
-          pids: extractPids(content),
+          pids: mergePids(extractPids(content), pdf),
+          pdf,
           createdAt: now, updatedAt: now,
           createdBy: user.username,
         });
@@ -221,9 +253,10 @@ async function handler(req, res) {
           if (clash) return res.status(409).json({ success: false, message: 'id already exists in this track' });
         }
 
+        const pdf = normalizePdf(body.pdf);
         const upd = await db.collection('courses').updateOne(
           { track, id },
-          { $set: { id: newId, topic, difficulty, content, pids: extractPids(content), updatedAt: new Date() } }
+          { $set: { id: newId, topic, difficulty, content, pdf, pids: mergePids(extractPids(content), pdf), updatedAt: new Date() } }
         );
         if (!upd.matchedCount) return res.status(404).json({ success: false, message: 'Course not found' });
 

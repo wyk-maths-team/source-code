@@ -106,8 +106,37 @@ async function handleCreate(req, res, db, decoded) {
   if (!problemId || !steps || !steps.trim()) return res.status(400).json({ success: false, message: 'Missing or empty steps' });
   if (steps.trim().length > MAX_STEPS_LEN) return res.status(400).json({ success: false, message: 'Steps too long' });
 
-  const problem = await db.collection('problems').findOne({ id: String(problemId) }, { projection: { id: 1, statement: 1, ans: 1, difficulty: 1, tags: 1 } });
-  if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
+  let problem = await db.collection('problems').findOne({ id: String(problemId) }, { projection: { id: 1, statement: 1, ans: 1, difficulty: 1, tags: 1 } });
+
+  // PDF 课程里的框允许用尚未建档的 ID：显式传 autoCreate 时现建一条占位题。
+  // statement 用前端传来的该页文字，参考答案留空（AI 只能评推理质量）。
+  if (!problem) {
+    const { autoCreate, statementHint } = req.body || {};
+    const pid = String(problemId);
+    if (!autoCreate || !/^[A-Za-z][A-Za-z0-9_-]{1,39}$/.test(pid)) {
+      return res.status(404).json({ success: false, message: 'Problem not found' });
+    }
+    const existing = await db.collection('problems').findOne({ id: pid }, { projection: { id: 1 } });
+    if (!existing) {
+      const doc = {
+        id: pid,
+        name: 'PDF 练习 ' + pid,
+        statement: String(statementHint || '').slice(0, 4000) || '(PDF 页面 ' + pid + ')',
+        ans: '',
+        difficulty: 3,
+        tags: ['PDF'],
+        public: true,
+        autoCreated: true,
+        createdAt: new Date(),
+        createdBy: decoded.username,
+      };
+      await db.collection('problems').insertOne(doc).catch(() => {});
+      problem = await db.collection('problems').findOne({ id: pid }, { projection: { id: 1, statement: 1, ans: 1, difficulty: 1, tags: 1 } });
+    } else {
+      problem = await db.collection('problems').findOne({ id: pid }, { projection: { id: 1, statement: 1, ans: 1, difficulty: 1, tags: 1 } });
+    }
+    if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
+  }
     // ⭐ 前置余额校验
   // 门槛 = 一次判题的大致最低消耗（不是最终扣费额）
   //   真正的扣费在判分结束后按 AI 返回的 usage 结算
