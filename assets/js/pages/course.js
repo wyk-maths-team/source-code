@@ -411,13 +411,16 @@
         pageEl.dataset.page = String(i);
         pageEl.style.cssText = 'position:relative;margin:16px auto;max-width:760px;background:#fff;'
           + 'border:1px solid var(--border-color);border-radius:8px;overflow:hidden;aspect-ratio:1/1.414;';
-        var layer = document.createElement('div');
-        layer.className = 'pdf-layer';
-        layer.style.cssText = 'position:absolute;inset:0;';
-        pageEl.appendChild(layer);
+        pageEl.appendChild(document.createElement('div'));
         holder.appendChild(pageEl);
         pages.push(pageEl);
       }
+
+      // 共同覆盖层：跨页的答案框必须跳出单页容器，否则会被 overflow:hidden 裁掉
+      var overlay = document.createElement('div');
+      overlay.className = 'pdf-overlay';
+      overlay.style.cssText = 'position:absolute;left:0;right:0;top:0;bottom:0;pointer-events:none;';
+      holder.appendChild(overlay);
 
       // 懒加载：只看视口附近的页
       var io = null;
@@ -456,12 +459,58 @@
         pages.forEach(paint);
       }
 
-      // 叠加答案框
+      // 叠加答案框（统一放进 overlay，用像素坐标定位，支持跨页）
+      var boxEls = [];
       (pdf.boxes || []).forEach(function (box) {
         var pageEl = pages[box.page - 1];
         if (!pageEl) return;
-        pageEl.querySelector('.pdf-layer').appendChild(makeAnswerBox(box, pageEl, solved));
+        var el = makeAnswerBox(box, pageEl, solved);
+        el.dataset.page = String(box.page);
+        el.dataset.pageEnd = String(box.pageEnd || box.page);
+        el.dataset.y = String(box.y);
+        el.dataset.h = String(box.h);
+        el.dataset.yEnd = String(box.yEnd == null ? '' : box.yEnd);
+        el.dataset.x = String(box.x == null ? 10 : box.x);
+        el.style.position = 'absolute';
+        el.style.pointerEvents = 'auto';
+        overlay.appendChild(el);
+        boxEls.push(el);
       });
+
+      // 把百分比坐标换算成相对 overlay 的像素
+      var layoutBoxes = function () {
+        if (!overlay) return;
+        var baseTop = overlay.getBoundingClientRect().top;
+        boxEls.forEach(function (el) {
+          var startIdx = Number(el.dataset.page) - 1;
+          var endIdx = Number(el.dataset.pageEnd) - 1;
+          var pStart = pages[startIdx];
+          var pEnd = pages[endIdx] || pStart;
+          if (!pStart) return;
+          var rStart = pStart.getBoundingClientRect();
+          var rEnd = pEnd.getBoundingClientRect();
+          var y = Number(el.dataset.y) || 0;
+          var h = Number(el.dataset.h) || 8;
+          var yEndRaw = el.dataset.yEnd;
+          var isSpan = endIdx > startIdx;
+          var topPx = (rStart.top - baseTop) + rStart.height * (y / 100);
+          var bottomPx = isSpan
+            ? (rEnd.top - baseTop) + rEnd.height * ((Number(yEndRaw) || 50) / 100)
+            : (rStart.top - baseTop) + rStart.height * ((y + h) / 100);
+          if (bottomPx - topPx < 36) bottomPx = topPx + 36;
+          el.style.top = topPx + 'px';
+          el.style.height = (bottomPx - topPx) + 'px';
+          el.style.left = (Number(el.dataset.x) || 10) + '%';
+          el.style.width = (100 - 2 * (Number(el.dataset.x) || 10)) + '%';
+          el.dataset.span = isSpan ? '1' : '0';
+        });
+      };
+
+      layoutBoxes();
+      window.addEventListener('resize', layoutBoxes);
+      if ('ResizeObserver' in window) {
+        try { new ResizeObserver(layoutBoxes).observe(holder); } catch (e) {}
+      }
 
       return doc;
     }).catch(function (e) {

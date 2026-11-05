@@ -44,13 +44,24 @@ function normalizePdf(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const url = String(raw.url || '').trim().slice(0, 2000);
   if (!url) return null;
-  const boxes = Array.isArray(raw.boxes) ? raw.boxes.slice(0, 500).map((b) => ({
-    pid: String(b.pid || '').slice(0, 64),
-    page: Math.max(1, Math.floor(Number(b.page) || 1)),
-    x: Math.min(100, Math.max(0, Number(b.x) || 0)),
-    y: Math.min(100, Math.max(0, Number(b.y) || 0)),
-    h: Math.min(200, Math.max(1, Number(b.h) || 8)),
-  })).filter((b) => b.pid) : [];
+  const boxes = Array.isArray(raw.boxes) ? raw.boxes.slice(0, 500).map((b) => {
+    const page = Math.max(1, Math.floor(Number(b.page) || 1));
+    const pageEnd = Math.max(page, Math.floor(Number(b.pageEnd) || page));
+    const out = {
+      pid: String(b.pid || '').slice(0, 64),
+      page,
+      x: Math.min(100, Math.max(0, Number(b.x) || 0)),
+      y: Math.min(100, Math.max(0, Number(b.y) || 0)),
+      h: Math.min(200, Math.max(1, Number(b.h) || 8)),
+    };
+    // 跨页框：pageEnd > page，结束位置用 yEnd（落在结束页的 %）
+    if (pageEnd > page) {
+      out.pageEnd = pageEnd;
+      out.yEnd = Math.min(100, Math.max(0, Number(b.yEnd) || 50));
+      out.h = 0;
+    }
+    return out;
+  }).filter((b) => b.pid) : [];
   return {
     url,
     idPrefix: String(raw.idPrefix || '').slice(0, 32),

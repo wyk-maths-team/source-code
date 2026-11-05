@@ -242,17 +242,55 @@
   }
 
 
-  function currentBoxesContainer(pageIdx) {
-    const elPage = pdfState.pageEls[pageIdx];
-    return elPage ? elPage.querySelector('.ce-pdf-layer') : null;
+  // ── 共同覆盖层：框不再钉在单页里，才能跨页 ──
+  function pdfOverlay() {
+    const host = el('cePdfPages');
+    if (!host) return null;
+    let ov = host.querySelector('.ce-pdf-overlay');
+    if (!ov) {
+      host.style.position = 'relative';
+      ov = document.createElement('div');
+      ov.className = 'ce-pdf-overlay';
+      ov.style.cssText = 'position:absolute;left:0;right:0;top:0;bottom:0;pointer-events:none;';
+      host.appendChild(ov);
+    }
+    return ov;
+  }
+
+  // 把百分比坐标换算成相对 overlay 的像素
+  function placeBoxEl(div, box) {
+    const ov = pdfOverlay();
+    const pages = pdfState.pageEls;
+    if (!ov || !pages.length) return;
+    const startIdx = Math.max(0, Number(box.page || 1) - 1);
+    const endIdx = Math.max(startIdx, Number(box.pageEnd || box.page || 1) - 1);
+    const pStart = pages[startIdx];
+    const pEnd = pages[endIdx] || pStart;
+    if (!pStart) return;
+    const baseTop = ov.getBoundingClientRect().top;
+    const rS = pStart.getBoundingClientRect();
+    const rE = pEnd.getBoundingClientRect();
+    const y = Number(box.y) || 0;
+    const isSpan = endIdx > startIdx;
+    const topPx = (rS.top - baseTop) + rS.height * (y / 100);
+    const bottomPx = isSpan
+      ? (rE.top - baseTop) + rE.height * ((Number(box.yEnd) || 50) / 100)
+      : (rS.top - baseTop) + rS.height * (((Number(box.y) || 0) + (Number(box.h) || 8)) / 100);
+    const hPx = Math.max(36, bottomPx - topPx);
+    div.style.top = topPx + 'px';
+    div.style.height = hPx + 'px';
+    div.style.left = (Number(box.x) || 10) + '%';
+    div.style.width = (100 - 2 * (Number(box.x) || 10)) + '%';
   }
 
   function renderBoxes() {
-    pdfState.pageEls.forEach((pageEl, i) => {
-      const layer = pageEl.querySelector('.ce-pdf-layer');
-      if (!layer) return;
-      layer.querySelectorAll('.ce-pdf-box').forEach((n) => n.remove());
-      pdfState.boxes.filter((b) => b.page === i + 1).forEach((box) => layer.appendChild(makeBoxEl(box)));
+    const ov = pdfOverlay();
+    if (!ov) return;
+    ov.querySelectorAll('.ce-pdf-box').forEach((n) => n.remove());
+    pdfState.boxes.forEach((box) => {
+      const div = makeBoxEl(box);
+      ov.appendChild(div);
+      placeBoxEl(div, box);
     });
     updateBoxCount();
   }
@@ -261,11 +299,11 @@
     const div = document.createElement('div');
     div.className = 'ce-pdf-box';
     div.dataset.pid = box.pid;
-    div.style.cssText = 'position:absolute;left:' + box.x + '%;width:80%;top:' + box.y + '%;height:' + box.h + '%;'
+    div.style.cssText = 'position:absolute;pointer-events:auto;'
       + 'border:1px dashed #8e5cf7;border-radius:6px;background:rgba(142,92,247,.10);'
       + 'display:flex;align-items:flex-start;justify-content:space-between;gap:4px;padding:2px 4px;box-sizing:border-box;overflow:hidden;';
     const tag = document.createElement('span');
-    tag.textContent = box.pid;
+    tag.textContent = box.pid + (box.pageEnd && box.pageEnd > box.page ? ' (p' + box.page + '→' + box.pageEnd + ')' : '');
     tag.style.cssText = 'font-size:10px;font-weight:700;color:#6a3fc9;background:rgba(255,255,255,.85);border-radius:3px;padding:0 3px;white-space:nowrap;';
     const del = document.createElement('button');
     del.type = 'button';
@@ -286,11 +324,12 @@
   function updateBoxCount() {
     const n = pdfState.boxes.length;
     const pages = pdfState.pageEls.length;
+    const spanN = pdfState.boxes.filter((b) => b.pageEnd && b.pageEnd > b.page).length;
     const cnt = el('cePdfDockCount');
     if (cnt) cnt.textContent = n + '/' + pages;
     pdfStatus(n
-      ? n + ' box(es) on ' + pages + ' page(s)'
-      : 'Press Add box, then click the page twice (top, then bottom).');
+      ? n + ' box(es) on ' + pages + ' page(s)' + (spanN ? ' · ' + spanN + ' spanning' : '')
+      : 'Press Add box, then click the page twice (top, then bottom). Drag past a page edge to span pages.');
   }
 
   function syncPids() {
@@ -298,7 +337,6 @@
     const digits = el('cePdfDigits') ? Number(el('cePdfDigits').value) || 3 : pdfState.idDigits;
     pdfState.idPrefix = prefix;
     pdfState.idDigits = digits;
-    // 按页→框的顺序全局递增
     const ordered = pdfState.boxes.slice().sort((a, b) => (a.page - b.page) || (a.y - b.y));
     ordered.forEach((b, i) => { b.pid = nextPid(prefix, digits, i + 1); });
     pdfState.boxes = ordered;
@@ -331,15 +369,11 @@
       pageEl.dataset.page = String(i);
       pageEl.style.cssText = 'position:relative;margin:14px auto;max-width:720px;background:#fff;'
         + 'border:1px solid var(--border-color);border-radius:6px;overflow:hidden;aspect-ratio:1/1.414;';
-      const layer = document.createElement('div');
-      layer.className = 'ce-pdf-layer';
-      layer.style.cssText = 'position:absolute;inset:0;cursor:crosshair;';
-      pageEl.appendChild(layer);
       host.appendChild(pageEl);
       pdfState.pageEls.push(pageEl);
-      attachPageEvents(pageEl, i);
     }
     observePdfPages(doc);
+    bindCanvasEvents();
     updateBoxCount();
   }
 
@@ -373,6 +407,7 @@
       await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
       pageEl.insertBefore(canvas, pageEl.firstChild);
       pageEl.style.aspectRatio = String(vp.width) + ' / ' + String(vp.height);
+      requestAnimationFrame(renderBoxes);   // 尺寸定下来后重排框
     } catch (e) {
       pdfStatus('Page ' + pageNo + ' failed: ' + (e && e.message ? e.message : e), 'err');
     }
@@ -380,7 +415,8 @@
 
 
   // ── 画框交互：按 Add → 点页面定起点 → 移动鼠标看高度 → 再点固定 ──
-  let dragState = null;   // { pageEl, layer, startY, ghost }
+  // 支持跨页：鼠标拖到下一页再点，框就会跨过去
+  let dragState = null;   // { startPage, startY, endPage, endY }
 
   function toggleAddMode() {
     pdfState.adding = !pdfState.adding;
@@ -388,53 +424,110 @@
     if (btn) btn.classList.toggle('active', pdfState.adding);
     if (pdfState.adding) {
       if (!pdfState.doc) { pdfState.adding = false; pdfStatus('Load a PDF first', 'err'); return; }
-      pdfStatus('Click once to set the top of the box, move the mouse, click again to fix the bottom.');
+      pdfStatus('Click to set the top, move (even onto the next page), click again to fix the bottom.');
     } else {
       dragState = null;
-      document.querySelectorAll('.ce-pdf-ghost').forEach((n) => n.remove());
+      const g = document.querySelector('.ce-pdf-ghost');
+      if (g) g.remove();
       updateBoxCount();
     }
   }
 
-  function attachPageEvents(pageEl, pageNo) {
-    pageEl.addEventListener('mousemove', (e) => {
-      if (!dragState || dragState.pageEl !== pageEl) return;
-      const rect = pageEl.getBoundingClientRect();
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
-      const h = Math.max(3, y - dragState.startY);
-      dragState.ghost.style.top = dragState.startY + '%';
-      dragState.ghost.style.height = h + '%';
-      if (dragState.ghost) dragState.ghost.dataset.h = String(h);
+  function pageUnderPointer(e) {
+    const list = pdfState.pageEls;
+    for (let i = 0; i < list.length; i++) {
+      const r = list[i].getBoundingClientRect();
+      if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) return list[i];
+    }
+    return null;
+  }
+
+  function relY(pageEl, clientY) {
+    const r = pageEl.getBoundingClientRect();
+    return Math.min(100, Math.max(0, ((clientY - r.top) / r.height) * 100));
+  }
+
+  function ensureGhost() {
+    const ov = pdfOverlay();
+    if (!ov) return null;
+    let g = ov.querySelector('.ce-pdf-ghost');
+    if (!g) {
+      g = document.createElement('div');
+      g.className = 'ce-pdf-box ce-pdf-ghost';
+      g.style.cssText = 'position:absolute;pointer-events:none;left:10%;width:80%;'
+        + 'border:1px dashed #8e5cf7;background:rgba(142,92,247,.18);border-radius:6px;';
+      ov.appendChild(g);
+    }
+    return g;
+  }
+
+  function updateGhost() {
+    if (!dragState) return;
+    const g = ensureGhost();
+    if (!g) return;
+    placeBoxEl(g, {
+      page: dragState.startPage,
+      pageEnd: dragState.endPage,
+      y: dragState.startY,
+      yEnd: dragState.endY,
+      h: 0, x: 10,
+    });
+  }
+
+  function bindCanvasEvents() {
+    const host = el('cePdfPages');
+    if (!host || host.dataset.bound === '1') return;
+    host.dataset.bound = '1';
+
+    host.addEventListener('mousemove', (e) => {
+      if (!dragState) return;
+      const pageEl = pageUnderPointer(e);
+      if (!pageEl) return;
+      dragState.endPage = Number(pageEl.dataset.page);
+      dragState.endY = relY(pageEl, e.clientY);
+      updateGhost();
     });
 
-    pageEl.addEventListener('click', (e) => {
+    host.addEventListener('click', (e) => {
       if (!pdfState.adding) return;
-      if (e.target.closest('.ce-pdf-box')) return;   // 点到已有框不处理
+      if (e.target.closest('.ce-pdf-box') && !e.target.closest('.ce-pdf-ghost')) return;
 
-      const rect = pageEl.getBoundingClientRect();
-      const yy = ((e.clientY - rect.top) / rect.height) * 100;
+      const pageEl = pageUnderPointer(e);
+      if (!pageEl) return;
+      const pageNo = Number(pageEl.dataset.page);
+      const yNow = relY(pageEl, e.clientY);
 
-      if (!dragState || dragState.pageEl !== pageEl) {
-        // 第一次点击：定起点
-        const layer = pageEl.querySelector('.ce-pdf-layer');
-        const ghost = document.createElement('div');
-        ghost.className = 'ce-pdf-box ce-pdf-ghost';
-        ghost.style.cssText = 'position:absolute;left:10%;width:80%;top:' + yy + '%;height:3%;'
-          + 'border:1px dashed #8e5cf7;background:rgba(142,92,247,.18);border-radius:6px;pointer-events:none;';
-        layer.appendChild(ghost);
-        dragState = { pageEl, layer, startY: yy, ghost };
+      if (!dragState) {
+        dragState = { startPage: pageNo, startY: yNow, endPage: pageNo, endY: Math.min(100, yNow + 3) };
+        updateGhost();
         return;
       }
 
-      // 第二次点击：固定
-      const startY = Math.min(dragState.startY, yy);
-      const h = Math.max(3, Math.abs(yy - dragState.startY));
-      const ghost = dragState.ghost;
+      let startPage = dragState.startPage;
+      let endPage = pageNo;
+      let startY = dragState.startY;
+      let endY = yNow;
+
+      if (endPage === startPage && endY < startY) { const t = startY; startY = endY; endY = t; }
+      if (endPage < startPage) {
+        const tp = startPage; startPage = endPage; endPage = tp;
+        const ty = startY; startY = endY; endY = ty;
+      }
+
+      const ghost = document.querySelector('.ce-pdf-ghost');
       if (ghost) ghost.remove();
       dragState = null;
 
-      const box = { pid: '', page: pageNo, x: 10, y: Math.round(startY * 100) / 100, h: Math.round(Math.min(h, 100 - startY) * 100) / 100 };
-      pdfState.boxes.push(box);
+      const isSpan = endPage > startPage;
+      pdfState.boxes.push({
+        pid: '',
+        page: startPage,
+        x: 10,
+        y: Math.round(startY * 100) / 100,
+        h: isSpan ? 0 : Math.round(Math.max(3, endY - startY) * 100) / 100,
+        pageEnd: endPage,
+        yEnd: Math.round(endY * 100) / 100,
+      });
       syncPids();
       renderBoxes();
 
@@ -451,7 +544,13 @@
       url: pdfState.url,
       idPrefix: pdfState.idPrefix,
       idDigits: pdfState.idDigits,
-      boxes: pdfState.boxes.map((b) => ({ pid: b.pid, page: b.page, x: b.x, y: b.y, h: b.h })),
+      boxes: pdfState.boxes.map((b) => ({
+        pid: b.pid, page: b.page, x: b.x,
+        y: b.y,
+        h: (b.pageEnd && b.pageEnd > b.page) ? 0 : b.h,
+        pageEnd: b.pageEnd || b.page,
+        yEnd: (b.yEnd == null ? null : b.yEnd),
+      })),
     };
   }
 
