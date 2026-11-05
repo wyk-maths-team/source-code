@@ -23,77 +23,131 @@
 <script src="/assets/js/core/page.js?v=f1958b85"></script>
 
 <style>
-  .msg-container { max-width: 800px; margin: 20px auto; }
-  .msg-card {
-    background: var(--card-bg); border: 1px solid var(--border-color);
-    border-left: 4px solid #d93025; border-radius: 8px; padding: 20px;
-    margin-bottom: 16px; display: flex; justify-content: space-between;
-    align-items: center; gap: 20px; animation: slideIn 0.3s ease-out;
+  .chat-layout {
+    display: flex; height: calc(100vh - var(--topbar-height, 60px));
+    margin: 0; overflow: hidden;
   }
-  .msg-content { flex: 1; color: var(--text-primary); font-size: 1rem; line-height: 1.5; }
-  .msg-time { font-size: 0.8rem; color: var(--text-secondary); margin-top: 8px; }
-  .btn-close-msg {
-    background: transparent; color: var(--text-secondary); border: 1px solid var(--border-color);
-    padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600;
-    transition: all 0.2s; white-space: nowrap;
-  }
-  .btn-close-msg:hover { background: #d93025; color: white; border-color: #d93025; }
-  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-secondary); }
-  .empty-state i { font-size: 3rem; margin-bottom: 16px; opacity: 0.5; }
-  @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
-  .msg-card.read { opacity: .62; border-left-color: var(--border-color); }
-  .msg-card.kind-text { border-left-color: #4a90d9; }
-  .msg-card.kind-problem, .msg-card.kind-submission { border-left-color: #27a567; }
-  .msg-card.kind-pk { border-left-color: #8e5cf7; }
-  .msg-from { font-size: .78rem; color: var(--text-secondary); margin-bottom: 4px; }
-  .msg-chip {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 6px 12px; border-radius: 8px; font-weight: 700; font-size: .9rem;
-    background: rgba(74,144,217,.12); color: var(--text-primary);
-    text-decoration: none; cursor: pointer; border: 1px solid rgba(74,144,217,.35);
+  /* 左：会话列表 */
+  .thread-list {
+    width: 290px; flex: 0 0 290px; overflow-y: auto;
+    border-right: 1px solid var(--border-color); background: var(--card-bg);
   }
-  .msg-chip:hover { background: rgba(74,144,217,.22); }
-  .msg-chip.green { background: rgba(39,165,103,.12); border-color: rgba(39,165,103,.35); }
-  .msg-chip.purple { background: rgba(142,92,247,.14); border-color: rgba(142,92,247,.4); }
-  .composer {
-    background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px;
-    padding: 14px; margin-bottom: 18px;
+  .thread-search { padding: 10px; border-bottom: 1px solid var(--border-color); }
+  .thread-search input {
+    width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: .84rem;
+    border: 1px solid var(--border-color); border-radius: 8px;
+    background: var(--bg-color); color: var(--text-primary); position: relative;
   }
-  .composer-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
-  .composer input[type="text"] {
-    padding: 7px 10px; border: 1px solid var(--border-color); border-radius: 6px;
-    background: var(--bg-color); color: var(--text-primary); font-size: .85rem; min-width: 120px;
+  .thread-item {
+    display: flex; gap: 10px; align-items: center; padding: 10px 12px;
+    cursor: pointer; border-bottom: 1px solid var(--border-color);
+    transition: background .12s ease;
   }
-  .composer button {
-    padding: 7px 13px; border-radius: 6px; border: 1px solid var(--border-color);
-    background: var(--card-bg); color: var(--text-primary); cursor: pointer;
-    font-size: .82rem; font-weight: 600; font-family: inherit;
+  .thread-item:hover { background: rgba(74,144,217,.07); }
+  .thread-item.active { background: rgba(74,144,217,.14); }
+  .avatar {
+    width: 38px; height: 38px; flex: 0 0 38px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: .9rem; color: #fff; overflow: hidden;
+    background: linear-gradient(135deg, #8e5cf7, #4a90d9);
   }
-  .composer button:hover { border-color: var(--accent); }
-  .composer button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .composer .cost-note { font-size: .75rem; color: var(--text-secondary); margin-left: auto; }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .thread-meta { flex: 1; min-width: 0; }
+  .thread-name { font-weight: 700; font-size: .88rem; color: var(--text-primary); }
+  .thread-last {
+    font-size: .76rem; color: var(--text-secondary); margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .thread-unread {
+    background: #d93025; color: #fff; border-radius: 10px;
+    padding: 1px 7px; font-size: .7rem; font-weight: 700;
+  }
 
-  /* 三个词做成方块 */
+  /* 右：聊天窗口 */
+  .chat-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .chat-head {
+    display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+    border-bottom: 1px solid var(--border-color); background: var(--card-bg);
+  }
+  .chat-head .name { font-weight: 700; }
+  .chat-head .sub { font-size: .76rem; color: var(--text-secondary); }
+  .chat-body {
+    flex: 1; overflow-y: auto; padding: 16px;
+    display: flex; flex-direction: column; gap: 8px;
+    background: var(--content-bg);
+  }
+  .chat-empty {
+    margin: auto; text-align: center; color: var(--text-secondary);
+    font-size: .88rem;
+  }
+  .bubble-row { display: flex; }
+  .bubble-row.mine { justify-content: flex-end; }
+  .bubble {
+    max-width: 72%; padding: 8px 12px; border-radius: 14px;
+    font-size: .88rem; line-height: 1.45; word-break: break-word;
+  }
+  .bubble-row.mine .bubble { background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+  .bubble-row.theirs .bubble {
+    background: var(--card-bg); color: var(--text-primary);
+    border: 1px solid var(--border-color); border-bottom-left-radius: 4px;
+  }
+  .bubble-time { font-size: .66rem; opacity: .7; margin-top: 3px; display: block; }
+  .bubble a.chip-link, .bubble span.chip-link {
+    display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px;
+    border-radius: 8px; font-weight: 700; font-size: .82rem; text-decoration: none;
+    background: rgba(39,165,103,.16); color: inherit;
+  }
+  .bubble-row.theirs .bubble a.chip-link { color: var(--text-primary); }
+  .bubble a.chip-link.purple { background: rgba(142,92,247,.18); }
+
+  /* 输入区 */
+  .chat-input { border-top: 1px solid var(--border-color); padding: 10px 12px; background: var(--card-bg); }
+  .chat-input-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .chat-input-row + .chat-input-row { margin-top: 8px; }
   .word-block {
-    min-width: 74px; padding: 9px 14px !important;
-    border-radius: 9px !important; font-weight: 700 !important; font-size: .85rem !important;
-    background: rgba(74,144,217,.12) !important;
-    border: 1px solid rgba(74,144,217,.4) !important;
-    color: var(--text-primary) !important;
+    min-width: 70px; padding: 8px 14px; border-radius: 9px; cursor: pointer;
+    font-weight: 700; font-size: .84rem; font-family: inherit;
+    background: rgba(74,144,217,.12); border: 1px solid rgba(74,144,217,.4);
+    color: var(--text-primary);
   }
-  .word-block:hover { background: rgba(74,144,217,.22) !important; transform: translateY(-1px); }
-  .word-block:active { transform: translateY(0); }
+  .word-block:hover { background: rgba(74,144,217,.22); }
+  .chat-input input[type="text"] {
+    padding: 7px 10px; border: 1px solid var(--border-color); border-radius: 7px;
+    background: var(--bg-color); color: var(--text-primary); font-size: .84rem;
+  }
+  .chat-input button.plain {
+    padding: 7px 12px; border-radius: 7px; border: 1px solid var(--border-color);
+    background: var(--card-bg); color: var(--text-primary); cursor: pointer;
+    font-size: .8rem; font-weight: 600; font-family: inherit;
+  }
+  .chat-input button.plain:hover { border-color: var(--accent); }
+  .cost-note { font-size: .72rem; color: var(--text-secondary); margin-left: auto; }
 
-  /* 题目搜索下拉 */
+  /* 下拉候选 */
   .ac-dropdown {
-    display: none; position: absolute; left: 0; right: 0; top: 100%; z-index: 50;
+    display: none; position: absolute; left: 0; right: 0; top: 100%; z-index: 60;
     background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(0,0,0,.18); max-height: 240px; overflow: auto; margin-top: 4px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.18); max-height: 220px; overflow: auto; margin-top: 4px;
   }
   .ac-item { padding: 7px 10px; cursor: pointer; border-bottom: 1px solid var(--border-color); font-size: .82rem; }
   .ac-item:last-child { border-bottom: none; }
   .ac-item:hover, .ac-item.active { background: rgba(74,144,217,.12); }
+
+  .back-btn { display: none; }
+
+  @media (max-width: 760px) {
+    .chat-layout { flex-direction: column; }
+    .thread-list { width: 100%; flex: 1 1 auto; border-right: none; }
+    .chat-pane { display: none; }
+    .chat-layout.chat-open .thread-list { display: none; }
+    .chat-layout.chat-open .chat-pane { display: flex; }
+    .back-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border-color);
+      background: transparent; color: var(--text-primary); cursor: pointer;
+    }
+  }
 </style>
 </head>
 <body class="index-body">
@@ -101,36 +155,42 @@
     <header class="topbar" id="topbarContainer"></header>
     <aside class="sidebar" id="sidebarContainer"></aside>
     <main class="main-content" id="mainContent">
-      <div class="msg-container">
-        <div class="composer">
-          <div style="font-weight:700;font-size:.95rem;margin-bottom:6px;">Send a message</div>
-
-          <div class="composer-row" style="margin-top:0;">
-            <div style="flex:1;min-width:160px;position:relative;">
-              <input type="text" id="msgTo" placeholder="Recipient (name or username)" autocomplete="off" style="width:100%;box-sizing:border-box;">
-              <div id="msgToDrop" class="ac-dropdown"></div>
+      <div class="chat-layout" id="chatLayout">
+        <div class="thread-list" id="threadList">
+          <div class="thread-search" style="position:relative;">
+            <input type="text" id="newTo" placeholder="Start chat: name or username" autocomplete="off">
+            <div id="newToDrop" class="ac-dropdown"></div>
+          </div>
+          <div id="threadItems"></div>
+        </div>
+        <div class="chat-pane" id="chatPane">
+          <div class="chat-head">
+            <button class="back-btn" id="backBtn" title="Back"><i class="fas fa-chevron-left"></i></button>
+            <div class="avatar" id="peerAvatar">S</div>
+            <div>
+              <div class="name" id="peerName">Select a conversation</div>
+              <div class="sub" id="peerSub"></div>
             </div>
-            <button type="button" class="word-block" data-word="Wake">Wake</button>
-            <button type="button" class="word-block" data-word="Ok">Ok</button>
-            <button type="button" class="word-block" data-word="Trivial">Trivial</button>
           </div>
-
-          <div class="composer-row" style="position:relative;">
-            <input type="text" id="msgProblemId" placeholder="Problem ID or name..." autocomplete="off" style="flex:1;min-width:180px;">
-            <button type="button" id="sendProblem">Send problem</button>
-            <div id="msgProbDrop" class="ac-dropdown"></div>
+          <div class="chat-body" id="chatBody">
+            <div class="chat-empty"><i class="fas fa-comments" style="font-size:2rem;opacity:.4;"></i><p>Pick a conversation on the left.</p></div>
           </div>
-
-          <div class="composer-row">
-            <input type="text" id="msgSubId" placeholder="Submission ID (copy it from the submissions list)" style="flex:1;min-width:180px;">
-            <button type="button" id="sendSubmission">Send submission</button>
-          </div>
-
-          <div class="composer-row">
-            <span class="cost-note">Each message costs 1000 tokens.</span>
+          <div class="chat-input" id="chatInput" style="display:none;">
+            <div class="chat-input-row">
+              <button type="button" class="word-block" data-word="Wake">Wake</button>
+              <button type="button" class="word-block" data-word="Ok">Ok</button>
+              <button type="button" class="word-block" data-word="Trivial">Trivial</button>
+              <span class="cost-note">1000 tokens per message</span>
+            </div>
+            <div class="chat-input-row">
+              <input type="text" id="sendProblemId" placeholder="Problem ID or name…" autocomplete="off" style="flex:1;min-width:150px;">
+              <button type="button" class="plain" id="sendProblemBtn">Send problem</button>
+              <input type="text" id="sendSubId" placeholder="Submission ID" style="flex:1;min-width:140px;">
+              <button type="button" class="plain" id="sendSubBtn">Send submission</button>
+            </div>
+            <div id="sendProbDrop" class="ac-dropdown" style="position:absolute;"></div>
           </div>
         </div>
-        <div id="msgList"></div>
       </div>
     </main>
   </div>
@@ -143,165 +203,196 @@
   <script src="/assets/js/pk-invite.js?v=f1958b85"></script>
 
   <script>
-
     Page.boot({ title: 'Messages', requireAuth: true, skeleton: true });
     Page.ready(async (user) => {
-      const container = document.getElementById('msgList');
+      const me = (user && user.username) || '';
       const esc = (s) => (window.DSHUI && DSHUI.esc) ? DSHUI.esc(s)
         : String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
       const safeId = (s) => /^[A-Za-z0-9_-]{1,64}$/.test(String(s || '')) ? String(s) : '';
 
-      function cardHtml(m) {
-        const read = m.read ? ' read' : '';
-        const from = m.from && m.from !== 'system'
-          ? '<div class="msg-from">from <a href="/users/' + encodeURIComponent(m.from) + '">' + esc(m.from) + '</a></div>'
-          : '<div class="msg-from">System</div>';
+      const layout = document.getElementById('chatLayout');
+      const threadItems = document.getElementById('threadItems');
+      const chatBody = document.getElementById('chatBody');
+      const chatInput = document.getElementById('chatInput');
+      const peerName = document.getElementById('peerName');
+      const peerSub = document.getElementById('peerSub');
+      const peerAvatar = document.getElementById('peerAvatar');
+      let currentPeer = null;
+      let currentPeerInfo = null;
 
-        let body = '';
-        let kind = 'system';
+      function avatarHtml(name, pfp) {
+        if (pfp) return '<img src="' + esc(pfp) + '" alt="">';
+        return esc(String(name || '?').trim().charAt(0).toUpperCase() || '?');
+      }
+
+      function previewText(t) {
+        if (t.lastKind === 'text') return t.lastText || '';
+        if (t.lastKind === 'problem') return '📄 Problem card';
+        if (t.lastKind === 'submission') return '📤 Submission card';
+        if (t.lastKind === 'pk-invite') return '⚔ PK challenge';
+        if (t.lastKind === 'pk-accept') return '⚔ PK accepted';
+        return 'Message';
+      }
+
+      // ── 会话列表 ──
+      async function loadThreads() {
+        try {
+          const res = await API.get('/api/messages?action=threads');
+          const threads = (res && res.threads) || [];
+          if (!threads.length) {
+            threadItems.innerHTML = '<div class="chat-empty" style="padding:26px 12px;font-size:.82rem;">No conversations yet.<br>Search a name above to start one.</div>';
+            return;
+          }
+          threadItems.innerHTML = threads.map((t) => {
+            const active = currentPeer === t.peer ? ' active' : '';
+            return '<div class="thread-item' + active + '" data-peer="' + esc(t.peer) + '">'
+              + '<div class="avatar">' + avatarHtml(t.displayName, t.pfp) + '</div>'
+              + '<div class="thread-meta">'
+              + '<div class="thread-name">' + esc(t.displayName) + '</div>'
+              + '<div class="thread-last">' + esc(previewText(t)) + '</div>'
+              + '</div>'
+              + (t.unread ? '<span class="thread-unread">' + t.unread + '</span>' : '')
+              + '</div>';
+          }).join('');
+          threadItems.querySelectorAll('.thread-item').forEach((el) => {
+            el.addEventListener('click', () => openThread(el.dataset.peer));
+          });
+        } catch (e) {
+          threadItems.innerHTML = '<div class="chat-empty" style="padding:20px;color:var(--danger);">Failed to load.</div>';
+        }
+      }
+
+      // ── 单条消息气泡 ──
+      function bubbleHtml(m) {
+        const mine = m.from === me;
+        let inner = '';
 
         if (m.kind === 'text') {
-          kind = 'text';
-          body = '<span class="msg-chip">' + esc(m.text || '') + '</span>';
+          inner = esc(m.text || '');
         } else if (m.kind === 'problem' && safeId(m.problemId)) {
-          kind = 'problem';
-          body = '<a class="msg-chip green" href="/problems/' + encodeURIComponent(safeId(m.problemId)) + '">'
+          inner = '<a class="chip-link" href="/problems/' + encodeURIComponent(m.problemId) + '">'
             + '<i class="fas fa-file-lines"></i> Problem ' + esc(m.problemId) + '</a>';
         } else if (m.kind === 'submission' && safeId(m.submissionId)) {
-          kind = 'submission';
-          body = '<a class="msg-chip green" href="/submissions/' + encodeURIComponent(safeId(m.submissionId)) + '/detail">'
+          inner = '<a class="chip-link" href="/submissions/' + encodeURIComponent(m.submissionId) + '/detail">'
             + '<i class="fas fa-paper-plane"></i> Submission</a>';
         } else if (m.kind === 'pk-invite' || m.kind === 'pk-accept') {
-          kind = 'pk';
           const room = safeId(m.roomId);
-          const label = m.kind === 'pk-invite' ? 'PK challenge' : 'PK invitation accepted';
-          body = (room
-            ? '<a class="msg-chip purple" href="/pk-bet-room?id=' + encodeURIComponent(room) + '">'
-            : '<span class="msg-chip purple">')
-            + '<i class="fas fa-swords"></i> ' + label + (room ? ' · open room' : '')
-            + (room ? '</a>' : '</span>');
+          const label = m.kind === 'pk-invite' ? 'PK challenge' : 'PK accepted';
+          inner = room
+            ? '<a class="chip-link purple" href="/pk-bet-room?id=' + encodeURIComponent(room) + '">'
+              + '<i class="fas fa-swords"></i> ' + label + ' · open room</a>'
+            : '<span class="chip-link purple"><i class="fas fa-swords"></i> ' + label + '</span>';
         } else {
-          body = esc(m.content || '');
+          inner = esc(m.content || '');
         }
 
-        return '<div class="msg-card kind-' + kind + read + '" id="msg-' + esc(String(m._id)) + '">'
-          + '<div class="msg-content">' + from + body
-          + '<div class="msg-time">' + (m.createdAt ? new Date(m.createdAt).toLocaleString() : '') + '</div></div>'
+        const time = m.createdAt ? new Date(m.createdAt).toLocaleString() : '';
+        return '<div class="bubble-row ' + (mine ? 'mine' : 'theirs') + '">'
+          + '<div class="bubble">' + inner + '<span class="bubble-time">' + esc(time) + '</span></div>'
           + '</div>';
       }
 
-      async function load() {
+      async function openThread(peer) {
+        currentPeer = peer;
+        layout.classList.add('chat-open');
+        threadItems.querySelectorAll('.thread-item').forEach((el) => {
+          el.classList.toggle('active', el.dataset.peer === peer);
+        });
+        chatBody.innerHTML = '<div class="chat-empty">Loading…</div>';
+
         try {
-          const data = await API.get('/api/messages');
-          const msgs = data.messages || [];
-          if (!msgs.length) {
-            container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><h3>Inbox is empty</h3><p>Reports and messages will show up here.</p></div>';
-          } else {
-            container.innerHTML = msgs.map(cardHtml).join('');
-          }
-        } catch (err) {
-          container.innerHTML = '<p style="color:red;text-align:center;">Failed to load messages.</p>';
-        } finally {
-          Page.hideSkeleton();
+          const res = await API.get('/api/messages?action=thread&with=' + encodeURIComponent(peer));
+          currentPeerInfo = res.peer || null;
+          peerName.textContent = (res.peer && res.peer.displayName) || peer;
+          peerSub.textContent = peer === 'system' ? 'system notifications' : (peer || '');
+          peerAvatar.innerHTML = avatarHtml((res.peer && res.peer.displayName) || peer, res.peer && res.peer.pfp);
+
+          const msgs = res.messages || [];
+          chatBody.innerHTML = msgs.length
+            ? msgs.map(bubbleHtml).join('')
+            : '<div class="chat-empty">No messages yet.</div>';
+          chatBody.scrollTop = chatBody.scrollHeight;
+
+          // 系统会话不允许发消息
+          chatInput.style.display = peer === 'system' ? 'none' : '';
+          loadThreads();
+        } catch (e) {
+          chatBody.innerHTML = '<div class="chat-empty" style="color:var(--danger);">Failed to open conversation.</div>';
         }
       }
 
-      function recipient() {
-        const to = (document.getElementById('msgTo').value || '').trim();
-        if (!to) { DSHUI.toast('Enter a recipient first', 'err'); return null; }
-        return to;
-      }
-
+      // ── 发送 ──
       async function send(payload) {
+        if (!currentPeer || currentPeer === 'system') return;
         try {
-          const res = await API.post('/api/messages', payload);
+          const res = await API.post('/api/messages', Object.assign({ to: currentPeer }, payload));
           if (!res || !res.success) throw new Error((res && res.message) || 'Send failed');
           DSHUI.toast('Sent · ' + (res.cost || 1000) + ' tokens', 'ok');
-          load();
+          openThread(currentPeer);
         } catch (e) {
           DSHUI.toast(e.message || 'Send failed', 'err');
         }
       }
 
-      document.querySelectorAll('[data-word]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const to = recipient(); if (!to) return;
-          send({ to, kind: 'text', text: btn.dataset.word });
-        });
+      document.querySelectorAll('#chatInput [data-word]').forEach((btn) => {
+        btn.addEventListener('click', () => send({ kind: 'text', text: btn.dataset.word }));
       });
-      // ── 收件人搜索（username / displayName / realName）──
-      const toInput = document.getElementById('msgTo');
-      const toDrop = document.getElementById('msgToDrop');
-      let toTimer = null;
-      let toActive = -1;
+      document.getElementById('sendProblemBtn').addEventListener('click', () => {
+        const pid = (document.getElementById('sendProblemId').value || '').trim();
+        if (!pid) { DSHUI.toast('Enter a problem ID', 'err'); return; }
+        send({ kind: 'problem', problemId: pid });
+      });
+      document.getElementById('sendSubBtn').addEventListener('click', () => {
+        const sid = (document.getElementById('sendSubId').value || '').trim();
+        if (!sid) { DSHUI.toast('Enter a submission ID', 'err'); return; }
+        send({ kind: 'submission', submissionId: sid });
+      });
 
-      function renderToDrop(list) {
-        toActive = -1;
-        if (!list || !list.length) {
-          toDrop.innerHTML = '<div class="ac-item" style="color:var(--text-secondary);">No results</div>';
-          toDrop.style.display = 'block';
-          return;
-        }
-        toDrop.innerHTML = list.slice(0, 20).map((u) =>
-          '<div class="ac-item" data-val="' + esc(u.username) + '">'
-          + '<strong>' + esc(u.username) + '</strong>'
-          + (u.displayName && u.displayName !== u.username ? ' — ' + esc(u.displayName) : '')
-          + (u.realName ? ' <span style="color:var(--text-secondary);">(' + esc(u.realName) + ')</span>' : '')
-          + '</div>'
-        ).join('');
-        toDrop.style.display = 'block';
-      }
-
-      toInput.addEventListener('input', () => {
-        const kw = toInput.value.trim();
+      // ── 发起新会话：搜人 ──
+      const newTo = document.getElementById('newTo');
+      const newToDrop = document.getElementById('newToDrop');
+      let toTimer = null, toActive = -1;
+      newTo.addEventListener('input', () => {
+        const kw = newTo.value.trim();
         clearTimeout(toTimer);
-        if (!kw) { toDrop.style.display = 'none'; return; }
+        if (!kw) { newToDrop.style.display = 'none'; return; }
         toTimer = setTimeout(async () => {
           try {
             const res = await API.get('/api/search?action=search_user&keyword=' + encodeURIComponent(kw));
-            renderToDrop((res && res.data) || []);
-          } catch (e) { toDrop.style.display = 'none'; }
+            const list = (res && res.data) || [];
+            toActive = -1;
+            newToDrop.innerHTML = list.length
+              ? list.slice(0, 20).map((u) => '<div class="ac-item" data-val="' + esc(u.username) + '"><strong>'
+                  + esc(u.username) + '</strong>'
+                  + (u.displayName && u.displayName !== u.username ? ' — ' + esc(u.displayName) : '')
+                  + (u.realName ? ' <span style="color:var(--text-secondary);">(' + esc(u.realName) + ')</span>' : '')
+                  + '</div>').join('')
+              : '<div class="ac-item" style="color:var(--text-secondary);">No results</div>';
+            newToDrop.style.display = 'block';
+          } catch (e) { newToDrop.style.display = 'none'; }
         }, 250);
       });
-
-      toDrop.addEventListener('click', (e) => {
+      newToDrop.addEventListener('click', (e) => {
         const item = e.target.closest('.ac-item[data-val]');
         if (!item) return;
-        toInput.value = item.dataset.val;
-        toDrop.style.display = 'none';
-        document.querySelectorAll('.ac-item.active').forEach((n) => n.classList.remove('active'));
+        newTo.value = '';
+        newToDrop.style.display = 'none';
+        openThread(item.dataset.val);
       });
-
-      toInput.addEventListener('keydown', (e) => {
-        const items = toDrop.querySelectorAll('.ac-item[data-val]');
-        if (!items.length || toDrop.style.display === 'none') return;
+      newTo.addEventListener('keydown', (e) => {
+        const items = newToDrop.querySelectorAll('.ac-item[data-val]');
+        if (!items.length || newToDrop.style.display === 'none') return;
         if (e.key === 'ArrowDown') { e.preventDefault(); toActive = (toActive + 1) % items.length; }
         else if (e.key === 'ArrowUp') { e.preventDefault(); toActive = (toActive - 1 + items.length) % items.length; }
-        else if (e.key === 'Enter') { if (toActive >= 0 && items[toActive]) { e.preventDefault(); items[toActive].click(); } }
-        else if (e.key === 'Escape') { toDrop.style.display = 'none'; }
+        else if (e.key === 'Enter' && toActive >= 0 && items[toActive]) { e.preventDefault(); items[toActive].click(); }
+        else if (e.key === 'Escape') { newToDrop.style.display = 'none'; }
         items.forEach((it, i) => it.classList.toggle('active', i === toActive));
       });
 
-      // ── 题目搜索（输入 ID 或名字，下拉候选）──
-      const probInput = document.getElementById('msgProblemId');
-      const probDrop = document.getElementById('msgProbDrop');
-      let probTimer = null;
-      let probActive = -1;
-
-      function renderProbDrop(list) {
-        probActive = -1;
-        if (!list || !list.length) {
-          probDrop.innerHTML = '<div class="ac-item" style="color:var(--text-secondary);">No results</div>';
-          probDrop.style.display = 'block';
-          return;
-        }
-        probDrop.innerHTML = list.slice(0, 20).map((p) =>
-          '<div class="ac-item" data-val="' + esc(p.id) + '">'
-          + '<strong>' + esc(p.id) + '</strong> — ' + esc(p.name || '') + '</div>'
-        ).join('');
-        probDrop.style.display = 'block';
-      }
-
+      // ── 题目搜索 ──
+      const probInput = document.getElementById('sendProblemId');
+      const probDrop = document.getElementById('sendProbDrop');
+      let probTimer = null, probActive = -1;
       probInput.addEventListener('input', () => {
         const kw = probInput.value.trim();
         clearTimeout(probTimer);
@@ -309,49 +400,40 @@
         probTimer = setTimeout(async () => {
           try {
             const res = await API.get('/api/search?action=search_prob&keyword=' + encodeURIComponent(kw));
-            renderProbDrop((res && res.data) || []);
+            const list = (res && res.data) || [];
+            probActive = -1;
+            probDrop.innerHTML = list.length
+              ? list.slice(0, 20).map((p) => '<div class="ac-item" data-val="' + esc(p.id) + '"><strong>'
+                  + esc(p.id) + '</strong> — ' + esc(p.name || '') + '</div>').join('')
+              : '<div class="ac-item" style="color:var(--text-secondary);">No results</div>';
+            probDrop.style.display = 'block';
           } catch (e) { probDrop.style.display = 'none'; }
         }, 250);
       });
-
       probDrop.addEventListener('click', (e) => {
         const item = e.target.closest('.ac-item[data-val]');
         if (!item) return;
         probInput.value = item.dataset.val;
         probDrop.style.display = 'none';
       });
-
       probInput.addEventListener('keydown', (e) => {
         const items = probDrop.querySelectorAll('.ac-item[data-val]');
         if (!items.length || probDrop.style.display === 'none') return;
-        if (e.key === 'ArrowDown') {
-          e.preventDefault(); probActive = (probActive + 1) % items.length;
-        } else if (e.key === 'ArrowUp') {
-          e.preventDefault(); probActive = (probActive - 1 + items.length) % items.length;
-        } else if (e.key === 'Enter') {
-          if (probActive >= 0 && items[probActive]) { e.preventDefault(); items[probActive].click(); }
-        } else if (e.key === 'Escape') {
-          probDrop.style.display = 'none';
-        }
+        if (e.key === 'ArrowDown') { e.preventDefault(); probActive = (probActive + 1) % items.length; }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); probActive = (probActive - 1 + items.length) % items.length; }
+        else if (e.key === 'Enter' && probActive >= 0 && items[probActive]) { e.preventDefault(); items[probActive].click(); }
+        else if (e.key === 'Escape') { probDrop.style.display = 'none'; }
         items.forEach((it, i) => it.classList.toggle('active', i === probActive));
       });
 
-      document.getElementById('sendProblem').addEventListener('click', () => {
-        const to = recipient(); if (!to) return;
-        const pid = (document.getElementById('msgProblemId').value || '').trim();
-        if (!pid) { DSHUI.toast('Enter a problem ID', 'err'); return; }
-        send({ to, kind: 'problem', problemId: pid });
-      });
-      document.getElementById('sendSubmission').addEventListener('click', () => {
-        const to = recipient(); if (!to) return;
-        const sid = (document.getElementById('msgSubId').value || '').trim();
-        if (!sid) { DSHUI.toast('Enter a submission ID', 'err'); return; }
-        send({ to, kind: 'submission', submissionId: sid });
+      document.getElementById('backBtn').addEventListener('click', () => {
+        layout.classList.remove('chat-open');
       });
 
-      load();
+      loadThreads();
+      Page.hideSkeleton();
     });
-    </script>
+  </script>
 <script src="/assets/js/pk-notify.js?v=f1958b85"></script>
 </body>
 </html>
