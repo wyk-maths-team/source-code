@@ -91,6 +91,7 @@
 
   // ─────────── 三张卡片 ───────────
   async function renderTracks() {
+    root.classList.remove('wide');
     root.innerHTML = crumbs([{ text: 'Course' }]) +
       '<div class="course-tracks">' + Object.entries(TRACKS).map(([code, t]) => `
         <a class="track-card ${t.cls}" href="/course/${code}">
@@ -118,6 +119,7 @@
 
   // ─────────── 某个领域的课程列表 ───────────
   async function renderList(track) {
+    root.classList.remove('wide');
     const t = TRACKS[track];
     if (!t) { root.innerHTML = '<div class="course-empty">Unknown track.</div>'; return; }
 
@@ -168,6 +170,9 @@
   async function renderCourse(track, id) {
     const t = TRACKS[track];
     if (!t) { root.innerHTML = '<div class="course-empty">Unknown track.</div>'; return; }
+
+    // 详情页铺满可用宽度
+    root.classList.add('wide');
 
     root.innerHTML = crumbs([{ text: 'Course', href: '/course' }, { text: t.label, href: '/course/' + track }, { text: id }]) +
       '<div class="course-empty"><span class="spinner"></span> Loading…</div>';
