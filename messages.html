@@ -23,8 +23,17 @@
 <script src="/assets/js/core/page.js?v=1fe18547"></script>
 
 <style>
+  /* 这个页面要刚好占满可视区：抵消 .main-content 的 28/32px padding，
+     否则 100vh 的聊天区再加 padding 就会把整页撑出滚动条 */
+  #mainContent {
+    padding: 0;
+    min-height: 0;
+    height: calc(100vh - var(--topbar-height, 60px));
+    overflow: hidden;
+  }
+
   .chat-layout {
-    display: flex; height: calc(100vh - var(--topbar-height, 60px));
+    display: flex; height: 100%; min-height: 0;
     margin: 0; overflow: hidden;
   }
 
