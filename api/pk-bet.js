@@ -324,14 +324,16 @@ async function handler(req, res) {
     if (!roomId) return res.status(400).json({ success: false, message: 'Missing roomId' });
     const room = await db.collection('pk_bet_rooms').findOne({ id: roomId });
     if (!room) return res.status(404).json({ success: false, message: 'Room not found' });
-    if (!room.players.some(p => p.username === username)) {
-      return res.status(403).json({ success: false, message: 'Not a player' });
-    }
+    // 任何人都可以进来观战；玩家自己多一个 isPlayer 标记
+    const isPlayer = room.players.some(p => p.username === username);
 
     // 到点自动结算一次
     if (room.status === 'active' && new Date() > new Date(room.endAt)) {
       const settled = await settleRoom(db, room);
-      return res.status(200).json({ success: true, room: settled.room, result: settled.result, you: username });
+      return res.status(200).json({
+        success: true, room: settled.room, result: settled.result,
+        you: username, isPlayer, spectator: !isPlayer,
+      });
     }
 
     // 进度直接读主站提交记录（见 collectAttempts）
@@ -351,6 +353,8 @@ async function handler(req, res) {
       problems,
       attempts,
       you: username,
+      isPlayer,
+      spectator: !isPlayer,
       serverNow: new Date().toISOString(),
     });
   }

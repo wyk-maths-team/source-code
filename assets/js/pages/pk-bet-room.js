@@ -57,11 +57,24 @@ Page.ready(async (user) => {
     const cls = left <= 60 ? ' danger' : left <= 300 ? ' warn' : '';
 
     const ready = room.endRequestedBy || [];
+    const isSpectator = !me || !room.players.some(p => p.username === me);
     const iAmReady = ready.includes(me);
     const opp = room.players.find(p => p.username !== me);
     const oppReady = opp && ready.includes(opp.username);
 
     const blocks = room.problemIds.map((pid, i) => {
+      // 观战者看双方各自的成绩
+      if (isSpectator) {
+        const pairs = room.players.map((p) => {
+          const ap = attemptOf(p.username, pid);
+          return { name: p.displayName || p.username, w: ap ? Number(ap.weighted) : null };
+        });
+        return `
+          <div class="pkb-block spec">
+            <div class="qname">Q${i + 1}</div>
+            ${pairs.map((x) => `<div class="value" style="font-size:12px;">${esc(x.name)}: ${x.w === null ? '—' : x.w.toLocaleString()}</div>`).join('')}
+          </div>`;
+      }
       const a = attemptOf(me, pid);
       const st = stateOf(a);
       const value = a ? Number(a.weighted).toLocaleString() : '—';
@@ -98,7 +111,7 @@ Page.ready(async (user) => {
       <div class="pkb-head">
         <div class="pkb-timer${cls}">${mm}:${ss}</div>
         <div class="pkb-moneys">
-          stake ${Number(myStake).toLocaleString()} each<br>
+          ${isSpectator ? 'spectating<br>' : 'stake ' + Number(myStake).toLocaleString() + ' each<br>'}
           prize pool <b>${Number(room.prize).toLocaleString()}</b>
           <span style="opacity:.7">(fee ${Number(room.fee).toLocaleString()})</span>
         </div>
@@ -108,6 +121,7 @@ Page.ready(async (user) => {
 
       <div class="pkb-vs">${sides}</div>
 
+      ${isSpectator ? '' : `
       <div class="pkb-footer">
         <button class="pkb-endbtn${iAmReady ? ' armed' : ''}" id="pkbEndBtn">
           ${iAmReady ? 'Ready — waiting for opponent' : 'Announce finish'}
@@ -115,11 +129,12 @@ Page.ready(async (user) => {
         <span class="pkb-endnote ${oppReady ? 'opp' : ''}" id="pkbEndNote">
           ${oppReady ? 'Opponent is ready to finish.' : ''}
         </span>
-      </div>
+      </div>`}
 
       <div class="pkb-hint">
-        Click a block to open that problem in a new tab. Only your <b>last</b> submission per problem
-        inside the window counts. Both players pressing <b>Announce finish</b> ends the match early.
+        ${isSpectator
+          ? 'You are spectating this match. The board refreshes live; nothing here affects the players.'
+          : 'Click a block to open that problem in a new tab. Only your <b>last</b> submission per problem inside the window counts. Both players pressing <b>Announce finish</b> ends the match early.'}
       </div>
     `;
 
