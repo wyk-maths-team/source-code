@@ -381,7 +381,10 @@
           const res = await API.post('/api/messages', Object.assign({ to: currentPeer }, payload));
           if (!res || !res.success) throw new Error((res && res.message) || 'Send failed');
           appendBubble(res.message);            // 只追加这一条，不重拉
-          thread.hasMore = thread.hasMore;      // 不变
+          // 直接用后端返回的余额刷新顶栏，不再单独请求 /api/token
+          if (window.updateTopbarTokens && res.tokens) {
+            window.updateTopbarTokens(res.tokens.daily, res.tokens.global);
+          }
           loadThreads();                        // 侧栏摘要轻量刷新
           DSHUI.toast('Sent · ' + (res.cost || 1000) + ' tokens', 'ok');
           // 清空题目/提交输入
