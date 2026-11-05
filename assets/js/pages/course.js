@@ -465,6 +465,97 @@
     });
   }
 
+  // 轻量画板：白底 canvas + 指针绘制，导出 JPEG 交给图片判分
+  function createDrawPad(host) {
+    var canvas = document.createElement('canvas');
+    canvas.style.cssText = 'display:block;width:100%;height:100%;touch-action:none;cursor:crosshair;';
+    host.appendChild(canvas);
+    var ctx = canvas.getContext('2d');
+    var ready = false;
+
+    function fit() {
+      var w = host.clientWidth || 300;
+      var h = host.clientHeight || 120;
+      if (w < 10 || h < 10) return;
+      var dpr = window.devicePixelRatio || 1;
+      // 保留已有笔迹
+      var prev = null;
+      if (ready && canvas.width > 0) {
+        try { prev = ctx.getImageData(0, 0, canvas.width, canvas.height); } catch (e) {}
+      }
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (prev) { try { ctx.putImageData(prev, 0, 0); } catch (e) {} }
+      ctx.scale(dpr, dpr);
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#111111';
+      ready = true;
+    }
+
+    function pos(e) {
+      var r = canvas.getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
+    }
+
+    var drawing = false;
+    var last = null;
+    canvas.addEventListener('pointerdown', function (e) {
+      if (!ready) fit();
+      drawing = true;
+      last = pos(e);
+      try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+      e.preventDefault();
+    });
+    canvas.addEventListener('pointermove', function (e) {
+      if (!drawing || !last) return;
+      var p = pos(e);
+      ctx.beginPath();
+      ctx.moveTo(last.x, last.y);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      last = p;
+      e.preventDefault();
+    });
+    canvas.addEventListener('pointerup', function () { drawing = false; last = null; });
+    canvas.addEventListener('pointercancel', function () { drawing = false; last = null; });
+
+    // 尺寸变化时重建（保留墨迹）
+    if ('ResizeObserver' in window) {
+      var ro = new ResizeObserver(function () { fit(); });
+      ro.observe(host);
+    }
+
+    return {
+      canvas: canvas,
+      fit: fit,
+      clear: function () {
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+      },
+      isEmpty: function () {
+        try {
+          var w = canvas.width, h = canvas.height;
+          var d = ctx.getImageData(0, 0, w, h).data;
+          for (var i = 0; i < d.length; i += 4 * 37) {
+            if (d[i] < 240 || d[i + 1] < 240 || d[i + 2] < 240) return false;
+          }
+        } catch (e) { return false; }
+        return true;
+      },
+      toDataUrl: function () {
+        try { return canvas.toDataURL('image/jpeg', 0.85); } catch (e) { return ''; }
+      },
+    };
+  }
+
   function makeAnswerBox(box, pageEl, solved) {
     var wrap = document.createElement('div');
     wrap.className = 'pdf-box';
@@ -475,7 +566,11 @@
     head.style.cssText = 'display:flex;align-items:center;gap:6px;padding:2px 6px;font-size:10px;font-weight:700;'
       + 'color:var(--text-secondary);background:rgba(142,92,247,.10);flex:0 0 auto;';
     head.innerHTML = '<span>' + esc(box.pid) + '</span>'
-      + (solved && solved.has(box.pid) ? '<span style="color:#27a567;">✓ solved</span>' : '');
+      + (solved && solved.has(box.pid) ? '<span style="color:#27a567;">✓ solved</span>' : '')
+      + '<span class="pdf-mode-switch" style="margin-left:auto;display:inline-flex;gap:2px;">'
+      + '<button type="button" class="pdf-mode-btn active" data-mode="text" style="padding:1px 7px;border-radius:4px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-primary);font-size:9px;cursor:pointer;">Text</button>'
+      + '<button type="button" class="pdf-mode-btn" data-mode="draw" style="padding:1px 7px;border-radius:4px;border:1px solid var(--border-color);background:transparent;color:var(--text-secondary);font-size:9px;cursor:pointer;">Draw</button>'
+      + '</span>';
 
     var ta = document.createElement('textarea');
     ta.className = 'pdf-box-input';
@@ -483,14 +578,31 @@
     ta.style.cssText = 'flex:1 1 auto;min-height:36px;resize:none;border:none;outline:none;padding:4px 6px;'
       + 'background:transparent;color:var(--text-primary);font-size:12px;font-family:inherit;';
 
+    // ── 画板（Draw 模式）──
+    var padWrap = document.createElement('div');
+    padWrap.className = 'pdf-box-pad';
+    padWrap.style.cssText = 'display:none;flex:1 1 auto;min-height:36px;position:relative;background:#fff;overflow:hidden;';
+    var pad = createDrawPad(padWrap);
+    var padTools = document.createElement('div');
+    padTools.style.cssText = 'position:absolute;right:3px;top:3px;display:none;gap:3px;z-index:2;';
+    var clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.textContent = 'Clear';
+    clearBtn.style.cssText = 'padding:1px 6px;border-radius:4px;border:1px solid #ccc;background:#fff;color:#555;font-size:9px;cursor:pointer;';
+    clearBtn.addEventListener('click', function (e) { e.stopPropagation(); pad.clear(); });
+    padTools.appendChild(clearBtn);
+    padWrap.appendChild(padTools);
+
     var foot = document.createElement('div');
     foot.style.cssText = 'display:flex;align-items:center;gap:6px;padding:2px 6px 4px;flex:0 0 auto;';
     var btn = document.createElement('button');
     btn.type = 'button';
+    btn.className = 'pdf-submit';
     btn.textContent = 'Submit';
     btn.style.cssText = 'padding:2px 10px;border-radius:5px;border:none;background:#8e5cf7;color:#fff;'
       + 'font-size:11px;font-weight:700;cursor:pointer;';
     var status = document.createElement('span');
+    status.className = 'pdf-status';
     status.style.cssText = 'font-size:10px;color:var(--text-secondary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
 
     var comment = document.createElement('div');
@@ -502,6 +614,7 @@
     foot.appendChild(status);
     wrap.appendChild(head);
     wrap.appendChild(ta);
+    wrap.appendChild(padWrap);
     wrap.appendChild(foot);
     wrap.appendChild(comment);
 
@@ -528,10 +641,66 @@
       }, 300);
     });
 
+    var mode = 'text';
+
+    // 模式切换
+    wrap.querySelectorAll('.pdf-mode-btn').forEach(function (mb) {
+      mb.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var m = mb.dataset.mode;
+        if (m === mode) return;
+        mode = m;
+        wrap.querySelectorAll('.pdf-mode-btn').forEach(function (o) {
+          var on = o.dataset.mode === mode;
+          o.classList.toggle('active', on);
+          o.style.background = on ? 'var(--card-bg)' : 'transparent';
+          o.style.color = on ? 'var(--text-primary)' : 'var(--text-secondary)';
+        });
+        var isDraw = mode === 'draw';
+        ta.style.display = isDraw ? 'none' : '';
+        padWrap.style.display = isDraw ? 'block' : 'none';
+        padTools.style.display = isDraw ? 'flex' : 'none';
+        if (isDraw) setTimeout(function () { pad.fit(); }, 30);
+      });
+    });
+
     btn.addEventListener('click', function () {
-      var steps = ta.value.trim();
-      if (!steps) { status.textContent = 'Write something first'; return; }
       btn.disabled = true;
+
+      if (mode === 'draw') {
+        if (pad.isEmpty()) { status.textContent = 'Draw something first'; btn.disabled = false; return; }
+        var dataUrl = pad.toDataUrl();
+        if (!dataUrl) { status.textContent = 'Could not export the drawing'; btn.disabled = false; return; }
+        status.textContent = 'Uploading…';
+
+        // 1) 以 image 类型提交（云端会存一份 submission）
+        API.post('/api/submit', { problemId: box.pid, type: 'image', image: dataUrl })
+          .then(function (sub) {
+            if (!sub || !sub.success) throw new Error((sub && sub.message) || 'Submit failed');
+            status.textContent = 'Grading…';
+            // 2) 交给图片判分（同步返回结果）
+            return API.post('/api/image-grade', {
+              problemId: box.pid,
+              subid: sub.subid,
+              imageUrl: sub.imageUrl,
+            });
+          })
+          .then(function (res) {
+            if (!res || !res.success) throw new Error((res && res.message) || 'Grading failed');
+            if (res.tokens && window.updateTopbarTokens) {
+              window.updateTopbarTokens(res.tokens.daily, res.tokens.global);
+            }
+            showBoxResult(wrap, res.result, res.subid);
+          })
+          .catch(function (e) {
+            status.textContent = e.message || 'Failed';
+            btn.disabled = false;
+          });
+        return;
+      }
+
+      var steps = ta.value.trim();
+      if (!steps) { status.textContent = 'Write something first'; btn.disabled = false; return; }
       status.textContent = 'Submitting…';
       API.post('/api/steps-grade', {
         problemId: box.pid,
@@ -555,8 +724,8 @@
   function showBoxResult(wrap, result, subid) {
     var score = Number(result && result.score);
     var ok = score === 100;
-    var status = wrap.querySelector('span');
-    var btn = wrap.querySelector('button');
+    var btn = wrap.querySelector('.pdf-submit');
+    var statusEl = wrap.querySelector('.pdf-status');
     var box = wrap.querySelector('.pdf-box-comment');
     if (btn) btn.disabled = false;
 
@@ -568,12 +737,11 @@
       renderMath(box);
       if (ok) wrap.style.borderColor = '#27a567';
     }
-    var st = wrap.querySelector('.pdf-box-comment');
     var head = wrap.firstChild;
     if (ok && head && !head.textContent.includes('✓')) {
       head.innerHTML += '<span style="color:#27a567;">✓ solved</span>';
     }
-    if (btn) btn.parentNode.querySelector('span').textContent = ok ? 'Solved!' : 'Submitted';
+    if (statusEl) statusEl.textContent = ok ? 'Solved!' : 'Submitted';
   }
 
   async function pollBox(wrap, taskId) {

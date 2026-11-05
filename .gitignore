@@ -72,7 +72,7 @@ wasted.html
 .backup/
 .acl-recovery/
 
-
+process/
 # --------------- Local testing ---------------
 testcases/
 *.in
