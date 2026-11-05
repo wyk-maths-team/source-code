@@ -475,7 +475,6 @@
 
     var state = { color: '#111111', width: 2, erase: false };
     var strokes = [];     // { color, width, erase, points: [{x,y}] }
-    var current = null;
     var ready = false;
     var dpr = window.devicePixelRatio || 1;
 
@@ -506,7 +505,8 @@
     function redraw() {
       paintBase();
       for (var i = 0; i < strokes.length; i++) strokePath(strokes[i]);
-      if (current) strokePath(current);
+      // 正在画的多条笔画
+      active.forEach(function (st) { strokePath(st); });
     }
 
     function fit() {
@@ -525,36 +525,49 @@
       return { x: e.clientX - r.left, y: e.clientY - r.top };
     }
 
-    var drawing = false;
+    // 多指：每个 pointerId 维护自己的笔画（照 draw.js 的做法），互不干扰
+    var active = new Map();          // pointerId -> stroke
+
     canvas.addEventListener('pointerdown', function (e) {
       if (!ready) fit();
-      drawing = true;
-      current = {
+      if (active.has(e.pointerId)) return;
+      active.set(e.pointerId, {
         color: state.color,
         width: state.width,
         erase: state.erase,
         points: [pos(e)],
-      };
+      });
       try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
       redraw();
       e.preventDefault();
     });
+
     canvas.addEventListener('pointermove', function (e) {
-      if (!drawing || !current) return;
-      current.points.push(pos(e));
+      var st = active.get(e.pointerId);
+      if (!st) return;               // 这个指针没按在画布上
+      st.points.push(pos(e));
       redraw();
       e.preventDefault();
     });
-    function endStroke() {
-      if (!drawing) return;
-      drawing = false;
-      if (current && current.points.length) strokes.push(current);
-      current = null;
+
+    function endPointer(e) {
+      var st = active.get(e.pointerId);
+      if (!st) return;
+      if (st.points.length) strokes.push(st);
+      active.delete(e.pointerId);
+      try { canvas.releasePointerCapture(e.pointerId); } catch (err) {}
       redraw();
     }
-    canvas.addEventListener('pointerup', endStroke);
-    canvas.addEventListener('pointercancel', endStroke);
-    canvas.addEventListener('pointerleave', function () { if (drawing) endStroke(); });
+    canvas.addEventListener('pointerup', endPointer);
+    canvas.addEventListener('pointercancel', endPointer);
+
+    // 手势被系统打断时，把这根手指的笔画收尾
+    window.addEventListener('blur', function () {
+      if (!active.size) return;
+      active.forEach(function (st) { if (st.points.length) strokes.push(st); });
+      active.clear();
+      redraw();
+    });
 
     if ('ResizeObserver' in window) {
       var ro = new ResizeObserver(function () { fit(); });
@@ -569,20 +582,20 @@
       setErase: function (on) { state.erase = !!on; },
       getState: function () { return { color: state.color, width: state.width, erase: state.erase }; },
       undo: function () {
-        if (current) { current = null; redraw(); return true; }
+        if (active.size) { active.clear(); redraw(); return true; }
         if (!strokes.length) return false;
         strokes.pop();
         redraw();
         return true;
       },
-      canUndo: function () { return strokes.length > 0 || !!current; },
+      canUndo: function () { return strokes.length > 0 || active.size > 0; },
       count: function () { return strokes.length; },
-      clear: function () { strokes = []; current = null; redraw(); },
+      clear: function () { strokes = []; active.clear(); redraw(); },
       isEmpty: function () {
         for (var i = 0; i < strokes.length; i++) {
           if (!strokes[i].erase) return false;   // 有非橡皮的笔画才算有内容
         }
-        return !current;
+        return active.size === 0;
       },
       toDataUrl: function () {
         try { return canvas.toDataURL('image/jpeg', 0.85); } catch (e) { return ''; }
