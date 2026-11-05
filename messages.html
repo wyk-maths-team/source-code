@@ -125,11 +125,16 @@
   .cost-note { font-size: .72rem; color: var(--text-secondary); margin-left: auto; }
 
   /* 下拉候选 */
+  .ac-wrap { position: relative; }
   .ac-dropdown {
     display: none; position: absolute; left: 0; right: 0; top: 100%; z-index: 60;
     background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;
     box-shadow: 0 8px 24px rgba(0,0,0,.18); max-height: 220px; overflow: auto; margin-top: 4px;
+    max-width: 100%;
   }
+  /* 位于页面底部时向上弹，避免被裁掉 */
+  .ac-dropdown.ac-up { top: auto; bottom: 100%; margin-top: 0; margin-bottom: 4px; }
+  .ac-dropdown .ac-item { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ac-item { padding: 7px 10px; cursor: pointer; border-bottom: 1px solid var(--border-color); font-size: .82rem; }
   .ac-item:last-child { border-bottom: none; }
   .ac-item:hover, .ac-item.active { background: rgba(74,144,217,.12); }
@@ -157,9 +162,11 @@
     <main class="main-content" id="mainContent">
       <div class="chat-layout" id="chatLayout">
         <div class="thread-list" id="threadList">
-          <div class="thread-search" style="position:relative;">
-            <input type="text" id="newTo" placeholder="Start chat: name or username" autocomplete="off">
-            <div id="newToDrop" class="ac-dropdown"></div>
+          <div class="thread-search">
+            <div class="ac-wrap">
+              <input type="text" id="newTo" placeholder="Start chat: name or username" autocomplete="off" style="width:100%;box-sizing:border-box;">
+              <div id="newToDrop" class="ac-dropdown"></div>
+            </div>
           </div>
           <div id="threadItems"></div>
         </div>
@@ -183,12 +190,16 @@
               <span class="cost-note">1000 tokens per message</span>
             </div>
             <div class="chat-input-row">
-              <input type="text" id="sendProblemId" placeholder="Problem ID or name…" autocomplete="off" style="flex:1;min-width:150px;">
+              <div class="ac-wrap" style="flex:1;min-width:150px;">
+                <input type="text" id="sendProblemId" placeholder="Problem ID or name…" autocomplete="off" style="width:100%;box-sizing:border-box;">
+                <div id="sendProbDrop" class="ac-dropdown ac-up"></div>
+              </div>
               <button type="button" class="plain" id="sendProblemBtn">Send problem</button>
-              <input type="text" id="sendSubId" placeholder="Submission ID" style="flex:1;min-width:140px;">
+              <div style="flex:1;min-width:140px;">
+                <input type="text" id="sendSubId" placeholder="Submission ID" style="width:100%;box-sizing:border-box;">
+              </div>
               <button type="button" class="plain" id="sendSubBtn">Send submission</button>
             </div>
-            <div id="sendProbDrop" class="ac-dropdown" style="position:absolute;"></div>
           </div>
         </div>
       </div>
