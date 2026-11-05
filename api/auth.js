@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { connectToDatabase } from './_db.js';
 import { auditLog } from '../lib/audit.js';
+import { toWyk } from '../lib/username.js';
 import { wrapHandler } from '../lib/errors.js';
 
 /**
@@ -144,7 +145,8 @@ async function handler(req, res) {
         return res.status(403).send(`Only @${allowedDomain} emails are allowed.`);
       }
 
-      const username = email.split('@')[0];
+      const rawUsername = email.split('@')[0];
+      const username = toWyk(rawUsername);          // s22r42 → WYK22R42
       const db = await connectToDatabase();
       const existingUser = await db.collection('users').findOne({ username });
       
@@ -163,7 +165,8 @@ async function handler(req, res) {
       if (!existingUser) {
         const setupToken = jwt.sign(
           {
-            username,
+            username: toWyk(username),
+            rawUsername,
             email,
             displayName: msDisplayName || username,
             realName,
@@ -207,7 +210,8 @@ async function handler(req, res) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       if (decoded.action !== 'setup') throw new Error('Invalid token');
-      const { username, email, displayName, realName } = decoded;
+      const { email, displayName, realName } = decoded;
+      const username = toWyk(decoded.username);     // 老链接也能落地成新格式
 
       const db = await connectToDatabase();
       const existing = await db.collection('users').findOne({ username });
@@ -231,7 +235,15 @@ async function handler(req, res) {
         },
       });
 
-      res.json({ success: true });
+      // 设完密码直接登录，不再让用户手输一次
+      const loginToken = jwt.sign({
+        username,
+        role: 'student',
+        displayName: displayName || username,
+        pfp: '',
+      }, process.env.JWT_SECRET, { expiresIn: '7d' });
+
+      res.json({ success: true, username, token: loginToken });
     } catch (err) {
       if (err.name === 'TokenExpiredError') {
         return res.status(401).json({ success: false, message: 'Setup link expired' });
@@ -261,7 +273,7 @@ async function handler(req, res) {
       if (decoded.action !== 'reset') throw new Error('Invalid token');
 
       const db = await connectToDatabase();
-      const user = await db.collection('users').findOne({ username: decoded.username });
+      const user = await db.collection('users').findOne({ username: toWyk(decoded.username) });
       if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
       const hashed = await bcrypt.hash(password, 10);

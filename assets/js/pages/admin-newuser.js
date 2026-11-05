@@ -29,7 +29,10 @@
   document.getElementById('newUserForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const username = document.getElementById('newUsername').value.trim();
+    const rawUsername = document.getElementById('newUsername').value.trim();
+    // 旧格式 s22r42 → WYK22R42（后端也会再规范化一次）
+    const m0 = /^s(\d{2})([a-z])(\d{2})$/i.exec(rawUsername);
+    const username = m0 ? ('WYK' + m0[1] + m0[2].toUpperCase() + m0[3]) : rawUsername;
     const password = document.getElementById('newPassword').value;
     const displayName = document.getElementById('newDisplayName').value.trim();
     const realName = document.getElementById('newRealName').value.trim();

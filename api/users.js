@@ -46,7 +46,9 @@ async function handler(req, res) {
     // ----- POST：新增 -----
     if (action === 'adminCreate') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-      const { username, password, displayName, realName, role } = req.body || {};
+      const { password, displayName, realName, role } = req.body || {};
+      const { toWyk, isWyk } = await import('../lib/username.js');
+      const username = toWyk(req.body && req.body.username);
       if (!username || !password) {
         return res.status(400).json({ success: false, message: 'Username and password are required' });
       }

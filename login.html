@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>window.__BUILD_V='6da2a811';</script>
-<script src="/assets/js/arch-render.js?v=6da2a811"></script>
+<script>window.__BUILD_V='a7696a91';</script>
+<script src="/assets/js/arch-render.js?v=a7696a91"></script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.amcharts.com">
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=6da2a811" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=a7696a91" />
   <style>
     /* ── 中性色变量（由 tools/extract-colors.mjs 生成）────────────── */
     :root {
@@ -295,6 +295,30 @@
       60% { transform: translateX(-4px); }
       80% { transform: translateX(4px); }
     }
+
+    /* 用户名变更警示牌 */
+    .username-notice {
+      margin: .2rem 0 1.1rem;
+      padding: 10px 13px;
+      border-radius: 9px;
+      border: 1px solid rgba(224, 161, 11, .55);
+      border-left: 4px solid #e0a10b;
+      background: rgba(224, 161, 11, .10);
+      color: var(--text-primary);
+      font-size: .82rem;
+      line-height: 1.5;
+    }
+    .username-notice-title {
+      display: flex; align-items: center; gap: 7px;
+      font-weight: 700; font-size: .85rem; margin-bottom: 4px; color: #b07d05;
+    }
+    [data-theme="dark"] .username-notice-title { color: #f0b93b; }
+    .username-notice code {
+      background: rgba(224, 161, 11, .20);
+      padding: 1px 5px; border-radius: 4px;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: .95em; font-weight: 600;
+    }
   </style>
 
   <link rel="manifest" href="/manifest.json">
@@ -305,10 +329,10 @@
   <meta name="apple-mobile-web-app-title" content="WYK Maths">
   <meta name="mobile-web-app-capable" content="yes">
 
-<script src="/assets/js/core/ui.js?v=6da2a811"></script>
-<script src="/assets/js/core/net.js?v=6da2a811"></script>
-<script src="/assets/js/core/api.js?v=6da2a811"></script>
-<script src="/assets/js/core/page.js?v=6da2a811"></script>
+<script src="/assets/js/core/ui.js?v=a7696a91"></script>
+<script src="/assets/js/core/net.js?v=a7696a91"></script>
+<script src="/assets/js/core/api.js?v=a7696a91"></script>
+<script src="/assets/js/core/page.js?v=a7696a91"></script>
 </head>
 <body class="index-body">
   <div id="loginVeil"></div>
@@ -319,6 +343,15 @@
       <div class="login-container">
         <div class="login-card">
           <h2>Sign In</h2>
+
+          <div class="username-notice" role="alert">
+            <div class="username-notice-title"><i class="fas fa-triangle-exclamation"></i> Usernames have changed</div>
+            <div class="username-notice-body">
+              The old <code>s22r42</code> style is now <code>WYK22R42</code>.
+              Your password is unchanged — just sign in with the new username.
+            </div>
+          </div>
+
           <div id="loginError" class="login-error"></div>
           <form id="loginForm">
             <div class="form-group">
@@ -368,14 +401,14 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=6da2a811"></script>
-  <script src="/assets/js/app.js?v=6da2a811"></script>
-  <script src="/assets/js/topbar.js?v=6da2a811"></script>
-  <script src="/assets/js/sidebar.js?v=6da2a811"></script>
-  <script src="/assets/js/heartbeat.js?v=6da2a811"></script>
-  <script src="/assets/js/pk-invite.js?v=6da2a811"></script>
+  <script src="/assets/js/auth.js?v=a7696a91"></script>
+  <script src="/assets/js/app.js?v=a7696a91"></script>
+  <script src="/assets/js/topbar.js?v=a7696a91"></script>
+  <script src="/assets/js/sidebar.js?v=a7696a91"></script>
+  <script src="/assets/js/heartbeat.js?v=a7696a91"></script>
+  <script src="/assets/js/pk-invite.js?v=a7696a91"></script>
 
-  <script src="/assets/js/pages/login.js?v=6da2a811"></script>
-  <script src="/assets/js/pk-notify.js?v=6da2a811"></script>
+  <script src="/assets/js/pages/login.js?v=a7696a91"></script>
+  <script src="/assets/js/pk-notify.js?v=a7696a91"></script>
 </body>
 </html>
