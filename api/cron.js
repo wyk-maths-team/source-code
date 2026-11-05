@@ -201,6 +201,56 @@ async function handler(req, res) {
 
     // ── 到点没结算的 PK 房间（一天一次兜底）──
     // 正常情况下玩家打完会自己 settle；这里处理「两个人都不在线/没人收尾」的僵尸房间。
+    // ── 提交量高的时候刷新 problemVersion，让全站题库缓存重建 ──
+    // 每 20 分钟跑一次；最近 WINDOW 分钟内提交数超过 THRESHOLD 就 +1
+    if (action === 'refreshProblemVersion') {
+      const WINDOW_MIN = Math.max(1, Number(process.env.PROBLEM_VERSION_WINDOW_MIN) || 20);
+      const THRESHOLD = Math.max(1, Number(process.env.PROBLEM_VERSION_THRESHOLD) || 50);
+
+      const since = new Date(Date.now() - WINDOW_MIN * 60_000);
+      const recent = await db.collection('submissions').countDocuments({ timestamp: { $gte: since } });
+
+      if (recent <= THRESHOLD) {
+        return res.status(200).json({
+          success: true,
+          refreshed: false,
+          recentSubmissions: recent,
+          threshold: THRESHOLD,
+          windowMinutes: WINDOW_MIN,
+        });
+      }
+
+      const upd = await db.collection('metadata').findOneAndUpdate(
+        { key: 'problemVersion' },
+        {
+          $inc: { value: 1 },
+          $set: { updatedAt: new Date(), reason: 'submission-spike' },
+          $setOnInsert: { key: 'problemVersion' },
+        },
+        { upsert: true, returnDocument: 'after' }
+      );
+
+      const version = upd && (upd.value ? upd.value.value : upd) || null;
+
+      try {
+        const { invalidateProblemCache } = await import('../lib/problemCache.js');
+        invalidateProblemCache();          // 当前实例立刻生效，其它实例 10 秒内跟上
+      } catch (e) { /* ignore */ }
+
+      await auditLog(db, 'problem_version_refresh', {
+        recentSubmissions: recent, threshold: THRESHOLD, windowMinutes: WINDOW_MIN, version,
+      }, 'cron', 'info').catch(() => {});
+
+      return res.status(200).json({
+        success: true,
+        refreshed: true,
+        version,
+        recentSubmissions: recent,
+        threshold: THRESHOLD,
+        windowMinutes: WINDOW_MIN,
+      });
+    }
+
     if (action === 'expirePkRooms') {
       const now = new Date();
       const stale = await db.collection('pk_bet_rooms')

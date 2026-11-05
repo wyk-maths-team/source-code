@@ -717,6 +717,10 @@
     {
       "path": "/api/cron?action=expirePkRooms",
       "schedule": "50 18 * * *"
+    },
+    {
+      "path": "/api/cron?action=refreshProblemVersion",
+      "schedule": "*/20 * * * *"
     }
   ]
 }
