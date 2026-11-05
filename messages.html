@@ -3,7 +3,7 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='4aeac810';</script>
+<script>window.__BUILD_V='f1958b85';</script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -14,13 +14,13 @@
 <title>Messages - WYK Maths Team</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<link rel="stylesheet" href="/assets/css/styles.css?v=4aeac810" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=f1958b85" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 
-<script src="/assets/js/core/ui.js?v=4aeac810"></script>
-<script src="/assets/js/core/net.js?v=4aeac810"></script>
-<script src="/assets/js/core/api.js?v=4aeac810"></script>
-<script src="/assets/js/core/page.js?v=4aeac810"></script>
+<script src="/assets/js/core/ui.js?v=f1958b85"></script>
+<script src="/assets/js/core/net.js?v=f1958b85"></script>
+<script src="/assets/js/core/api.js?v=f1958b85"></script>
+<script src="/assets/js/core/page.js?v=f1958b85"></script>
 
 <style>
   .msg-container { max-width: 800px; margin: 20px auto; }
@@ -73,6 +73,27 @@
   .composer button:hover { border-color: var(--accent); }
   .composer button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
   .composer .cost-note { font-size: .75rem; color: var(--text-secondary); margin-left: auto; }
+
+  /* 三个词做成方块 */
+  .word-block {
+    min-width: 74px; padding: 9px 14px !important;
+    border-radius: 9px !important; font-weight: 700 !important; font-size: .85rem !important;
+    background: rgba(74,144,217,.12) !important;
+    border: 1px solid rgba(74,144,217,.4) !important;
+    color: var(--text-primary) !important;
+  }
+  .word-block:hover { background: rgba(74,144,217,.22) !important; transform: translateY(-1px); }
+  .word-block:active { transform: translateY(0); }
+
+  /* 题目搜索下拉 */
+  .ac-dropdown {
+    display: none; position: absolute; left: 0; right: 120px; top: 100%; z-index: 50;
+    background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.18); max-height: 240px; overflow: auto; margin-top: 4px;
+  }
+  .ac-item { padding: 7px 10px; cursor: pointer; border-bottom: 1px solid var(--border-color); font-size: .82rem; }
+  .ac-item:last-child { border-bottom: none; }
+  .ac-item:hover, .ac-item.active { background: rgba(74,144,217,.12); }
 </style>
 </head>
 <body class="index-body">
@@ -82,21 +103,26 @@
     <main class="main-content" id="mainContent">
       <div class="msg-container">
         <div class="composer">
-          <div style="font-weight:700;font-size:.95rem;">Send a message</div>
-          <div class="composer-row">
-            <input type="text" id="msgTo" placeholder="Recipient username" style="flex:1;min-width:180px;">
+          <div style="font-weight:700;font-size:.95rem;margin-bottom:6px;">Send a message</div>
+
+          <div class="composer-row" style="margin-top:0;">
+            <input type="text" id="msgTo" placeholder="Recipient username" style="flex:1;min-width:160px;">
+            <button type="button" class="word-block" data-word="Wake">Wake</button>
+            <button type="button" class="word-block" data-word="Ok">Ok</button>
+            <button type="button" class="word-block" data-word="Trivial">Trivial</button>
           </div>
-          <div class="composer-row">
-            <button type="button" data-word="Wake">Wake</button>
-            <button type="button" data-word="Ok">Ok</button>
-            <button type="button" data-word="Trivial">Trivial</button>
-          </div>
-          <div class="composer-row">
-            <input type="text" id="msgProblemId" placeholder="Problem ID">
+
+          <div class="composer-row" style="position:relative;">
+            <input type="text" id="msgProblemId" placeholder="Problem ID or name..." autocomplete="off" style="flex:1;min-width:180px;">
             <button type="button" id="sendProblem">Send problem</button>
-            <input type="text" id="msgSubId" placeholder="Submission ID">
+            <div id="msgProbDrop" class="ac-dropdown"></div>
+          </div>
+
+          <div class="composer-row">
+            <input type="text" id="msgSubId" placeholder="Submission ID (copy it from the submissions list)" style="flex:1;min-width:180px;">
             <button type="button" id="sendSubmission">Send submission</button>
           </div>
+
           <div class="composer-row">
             <span class="cost-note">Each message costs 1000 tokens.</span>
           </div>
@@ -106,12 +132,12 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=4aeac810"></script>
-  <script src="/assets/js/app.js?v=4aeac810"></script>
-  <script src="/assets/js/topbar.js?v=4aeac810"></script>
-  <script src="/assets/js/sidebar.js?v=4aeac810"></script>
-  <script src="/assets/js/heartbeat.js?v=4aeac810"></script>
-  <script src="/assets/js/pk-invite.js?v=4aeac810"></script>
+  <script src="/assets/js/auth.js?v=f1958b85"></script>
+  <script src="/assets/js/app.js?v=f1958b85"></script>
+  <script src="/assets/js/topbar.js?v=f1958b85"></script>
+  <script src="/assets/js/sidebar.js?v=f1958b85"></script>
+  <script src="/assets/js/heartbeat.js?v=f1958b85"></script>
+  <script src="/assets/js/pk-invite.js?v=f1958b85"></script>
 
   <script>
 
@@ -200,6 +226,60 @@
           send({ to, kind: 'text', text: btn.dataset.word });
         });
       });
+      // ── 题目搜索（输入 ID 或名字，下拉候选）──
+      const probInput = document.getElementById('msgProblemId');
+      const probDrop = document.getElementById('msgProbDrop');
+      let probTimer = null;
+      let probActive = -1;
+
+      function renderProbDrop(list) {
+        probActive = -1;
+        if (!list || !list.length) {
+          probDrop.innerHTML = '<div class="ac-item" style="color:var(--text-secondary);">No results</div>';
+          probDrop.style.display = 'block';
+          return;
+        }
+        probDrop.innerHTML = list.slice(0, 20).map((p) =>
+          '<div class="ac-item" data-val="' + esc(p.id) + '">'
+          + '<strong>' + esc(p.id) + '</strong> — ' + esc(p.name || '') + '</div>'
+        ).join('');
+        probDrop.style.display = 'block';
+      }
+
+      probInput.addEventListener('input', () => {
+        const kw = probInput.value.trim();
+        clearTimeout(probTimer);
+        if (!kw) { probDrop.style.display = 'none'; return; }
+        probTimer = setTimeout(async () => {
+          try {
+            const res = await API.get('/api/search?action=search_prob&keyword=' + encodeURIComponent(kw));
+            renderProbDrop((res && res.data) || []);
+          } catch (e) { probDrop.style.display = 'none'; }
+        }, 250);
+      });
+
+      probDrop.addEventListener('click', (e) => {
+        const item = e.target.closest('.ac-item[data-val]');
+        if (!item) return;
+        probInput.value = item.dataset.val;
+        probDrop.style.display = 'none';
+      });
+
+      probInput.addEventListener('keydown', (e) => {
+        const items = probDrop.querySelectorAll('.ac-item[data-val]');
+        if (!items.length || probDrop.style.display === 'none') return;
+        if (e.key === 'ArrowDown') {
+          e.preventDefault(); probActive = (probActive + 1) % items.length;
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault(); probActive = (probActive - 1 + items.length) % items.length;
+        } else if (e.key === 'Enter') {
+          if (probActive >= 0 && items[probActive]) { e.preventDefault(); items[probActive].click(); }
+        } else if (e.key === 'Escape') {
+          probDrop.style.display = 'none';
+        }
+        items.forEach((it, i) => it.classList.toggle('active', i === probActive));
+      });
+
       document.getElementById('sendProblem').addEventListener('click', () => {
         const to = recipient(); if (!to) return;
         const pid = (document.getElementById('msgProblemId').value || '').trim();
@@ -216,6 +296,6 @@
       load();
     });
     </script>
-<script src="/assets/js/pk-notify.js?v=4aeac810"></script>
+<script src="/assets/js/pk-notify.js?v=f1958b85"></script>
 </body>
 </html>

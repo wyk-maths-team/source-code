@@ -373,10 +373,34 @@
         <td class="col-user left-align"><a href="/users/${encodeURIComponent(s.username)}">${escapeHtml(s.username)} - ${escapeHtml(s.displayName || s.username)}</a></td>
         <td class="col-problem left-align"><a href="/problems/${encodeURIComponent(s.problemId)}">${problemDisplay}</a></td>
         <td class="col-answer">${answerHtml}</td>
-        <td class="col-status"><span class="status-badge ${cls}">${escapeHtml(statusText)}</span></td>
+        <td class="col-status">
+          <span class="status-badge ${cls}">${escapeHtml(statusText)}</span>
+          ${subId && subId !== '-'
+            ? '<button class="copy-subid" data-subid="' + escapeHtml(subId) + '" title="Copy submission ID for messages">'
+              + '<i class="fas fa-copy"></i></button>'
+            : ''}
+        </td>
       </tr>`;
     });
     tbody.innerHTML = html;
+
+    // 一键复制 submission id（发消息时要用）
+    tbody.querySelectorAll('.copy-subid').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = btn.dataset.subid;
+        try {
+          await navigator.clipboard.writeText(id);
+          btn.innerHTML = '<i class="fas fa-check"></i>';
+          setTimeout(() => { btn.innerHTML = '<i class="fas fa-copy"></i>'; }, 1200);
+          if (window.DSHUI && DSHUI.toast) DSHUI.toast('Copied ' + id, 'ok');
+        } catch (err) {
+          // 剪贴板被拒时退回到选中文本
+          if (window.DSHUI && DSHUI.toast) DSHUI.toast('Copy failed — id is ' + id, 'err');
+        }
+      });
+    });
   }
 
   function getMaxVisiblePages() { const w = window.innerWidth; if (w < 400) return 5; if (w < 600) return 7; return 9; }
