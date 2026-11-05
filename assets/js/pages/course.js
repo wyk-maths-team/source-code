@@ -469,7 +469,8 @@
   // 笔画以「路径列表」保存，撤销只要重绘，比存 ImageData 省内存
   function createDrawPad(host) {
     var canvas = document.createElement('canvas');
-    canvas.style.cssText = 'display:block;width:100%;height:100%;touch-action:none;cursor:crosshair;';
+    canvas.style.cssText = 'display:block;width:100%;height:100%;touch-action:none;cursor:crosshair;'
+      + 'user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;';
     host.appendChild(canvas);
     var ctx = canvas.getContext('2d');
 
@@ -528,9 +529,25 @@
     // 多指：每个 pointerId 维护自己的笔画（照 draw.js 的做法），互不干扰
     var active = new Map();          // pointerId -> stroke
 
+    // 落笔时锁住整页的文本选择，收笔再放开；
+    // 这样手指/鼠标滑出画板也不会顺带选中 PDF 上的文字
+    var savedUserSelect = null;
+    function lockSelection() {
+      if (active.size !== 0) return;
+      savedUserSelect = document.body.style.userSelect || '';
+      document.body.style.userSelect = 'none';
+      try { window.getSelection().removeAllRanges(); } catch (err) {}
+    }
+    function unlockSelection() {
+      if (active.size !== 0 || savedUserSelect === null) return;
+      document.body.style.userSelect = savedUserSelect;
+      savedUserSelect = null;
+    }
+
     canvas.addEventListener('pointerdown', function (e) {
       if (!ready) fit();
       if (active.has(e.pointerId)) return;
+      lockSelection();
       active.set(e.pointerId, {
         color: state.color,
         width: state.width,
@@ -557,6 +574,7 @@
       active.delete(e.pointerId);
       try { canvas.releasePointerCapture(e.pointerId); } catch (err) {}
       redraw();
+      unlockSelection();
     }
     canvas.addEventListener('pointerup', endPointer);
     canvas.addEventListener('pointercancel', endPointer);
@@ -567,6 +585,7 @@
       active.forEach(function (st) { if (st.points.length) strokes.push(st); });
       active.clear();
       redraw();
+      unlockSelection();
     });
 
     if ('ResizeObserver' in window) {
@@ -628,7 +647,8 @@
     // ── 画板（Draw 模式）──
     var padWrap = document.createElement('div');
     padWrap.className = 'pdf-box-pad';
-    padWrap.style.cssText = 'display:none;flex:1 1 auto;min-height:36px;position:relative;background:#fff;overflow:hidden;';
+    padWrap.style.cssText = 'display:none;flex:1 1 auto;min-height:36px;position:relative;background:#fff;overflow:hidden;'
+      + 'user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;';
     var pad = createDrawPad(padWrap);
     // ── 画板工具栏：颜色 / 橡皮 / 粗细 / 撤销 / 清空 ──
     var padTools = document.createElement('div');
