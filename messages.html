@@ -292,6 +292,49 @@
           + '</div>';
       }
 
+      // 每个会话只保留一页，往上滚再补更早的
+      const thread = { peer: null, oldestAt: null, hasMore: false, loading: false };
+
+      function renderFirstPage(msgs, hasMore) {
+        thread.hasMore = !!hasMore;
+        thread.oldestAt = msgs.length ? msgs[0].createdAt : null;
+        chatBody.innerHTML = msgs.length
+          ? msgs.map(bubbleHtml).join('')
+          : '<div class="chat-empty">No messages yet.</div>';
+        chatBody.scrollTop = chatBody.scrollHeight;
+      }
+
+      async function loadOlder() {
+        if (!thread.hasMore || thread.loading || !thread.oldestAt) return;
+        thread.loading = true;
+        const prevHeight = chatBody.scrollHeight;
+        try {
+          const res = await API.get('/api/messages?action=thread&with=' + encodeURIComponent(thread.peer)
+            + '&before=' + encodeURIComponent(thread.oldestAt));
+          const older = (res && res.messages) || [];
+          if (older.length) {
+            chatBody.insertAdjacentHTML('afterbegin', older.map(bubbleHtml).join(''));
+            thread.oldestAt = older[0].createdAt;
+            // 保持视觉位置不跳
+            chatBody.scrollTop = chatBody.scrollHeight - prevHeight;
+          }
+          thread.hasMore = !!(res && res.hasMore);
+        } catch (e) { /* 静默，下次滚动再试 */ }
+        thread.loading = false;
+      }
+
+      chatBody.addEventListener('scroll', () => {
+        if (chatBody.scrollTop < 80) loadOlder();
+      });
+
+      function appendBubble(m) {
+        if (!m) return;
+        const placeholder = chatBody.querySelector('.chat-empty');
+        if (placeholder) placeholder.remove();
+        chatBody.insertAdjacentHTML('beforeend', bubbleHtml(m));
+        chatBody.scrollTop = chatBody.scrollHeight;
+      }
+
       async function openThread(peer) {
         currentPeer = peer;
         layout.classList.add('chat-open');
@@ -299,6 +342,9 @@
           el.classList.toggle('active', el.dataset.peer === peer);
         });
         chatBody.innerHTML = '<div class="chat-empty">Loading…</div>';
+        thread.peer = peer;
+        thread.oldestAt = null;
+        thread.hasMore = false;
 
         try {
           const res = await API.get('/api/messages?action=thread&with=' + encodeURIComponent(peer));
@@ -307,11 +353,7 @@
           peerSub.textContent = peer === 'system' ? 'system notifications' : (peer || '');
           peerAvatar.innerHTML = avatarHtml((res.peer && res.peer.displayName) || peer, res.peer && res.peer.pfp);
 
-          const msgs = res.messages || [];
-          chatBody.innerHTML = msgs.length
-            ? msgs.map(bubbleHtml).join('')
-            : '<div class="chat-empty">No messages yet.</div>';
-          chatBody.scrollTop = chatBody.scrollHeight;
+          renderFirstPage(res.messages || [], res.hasMore);
 
           // 系统会话不允许发消息
           chatInput.style.display = peer === 'system' ? 'none' : '';
@@ -327,8 +369,15 @@
         try {
           const res = await API.post('/api/messages', Object.assign({ to: currentPeer }, payload));
           if (!res || !res.success) throw new Error((res && res.message) || 'Send failed');
+          appendBubble(res.message);            // 只追加这一条，不重拉
+          thread.hasMore = thread.hasMore;      // 不变
+          loadThreads();                        // 侧栏摘要轻量刷新
           DSHUI.toast('Sent · ' + (res.cost || 1000) + ' tokens', 'ok');
-          openThread(currentPeer);
+          // 清空题目/提交输入
+          const pid = document.getElementById('sendProblemId');
+          const sid = document.getElementById('sendSubId');
+          if (pid && payload.kind === 'problem') pid.value = '';
+          if (sid && payload.kind === 'submission') sid.value = '';
         } catch (e) {
           DSHUI.toast(e.message || 'Send failed', 'err');
         }

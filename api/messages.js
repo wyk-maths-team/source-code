@@ -80,7 +80,10 @@ async function handler(req, res) {
     const peer = String(req.query.with || '');
     if (!peer) return res.status(400).json({ success: false, message: 'Missing with' });
 
-    const filter = peer === 'system'
+    const limit = Math.min(100, Math.max(10, Number(req.query.limit) || 30));
+    const before = req.query.before ? new Date(String(req.query.before)) : null;
+
+    const base = peer === 'system'
       ? { username: me, from: { $in: [null, '', 'system'] } }
       : {
           $or: [
@@ -89,13 +92,22 @@ async function handler(req, res) {
           ],
         };
 
-    const msgs = await col.find(filter).sort({ createdAt: 1 }).limit(500).toArray();
+    const filter = (before && !Number.isNaN(before.getTime()))
+      ? { $and: [base, { createdAt: { $lt: before } }] }
+      : base;
 
-    // 打开会话就把对方发来的标成已读
-    await col.updateMany(
-      { username: me, read: false, ...(peer === 'system' ? {} : { from: peer }) },
-      { $set: { read: true, readAt: new Date() } }
-    );
+    // 倒序取一页，再翻回正序；多取一条用来判断还有没有更早的
+    const rows = await col.find(filter).sort({ createdAt: -1 }).limit(limit + 1).toArray();
+    const hasMore = rows.length > limit;
+    const msgs = rows.slice(0, limit).reverse();
+
+    // 只在打开会话（没有 before）时把对方发来的标成已读
+    if (!before) {
+      await col.updateMany(
+        { username: me, read: false, ...(peer === 'system' ? {} : { from: peer }) },
+        { $set: { read: true, readAt: new Date() } }
+      );
+    }
 
     let peerInfo = { username: 'system', displayName: 'System', pfp: '' };
     if (peer !== 'system') {
@@ -106,7 +118,7 @@ async function handler(req, res) {
       peerInfo = { username: u.username, displayName: u.displayName || u.username, pfp: u.pfp || '' };
     }
 
-    return res.status(200).json({ success: true, messages: msgs, peer: peerInfo });
+    return res.status(200).json({ success: true, messages: msgs, peer: peerInfo, hasMore });
   }
 
   // ═════════ 旧接口：整箱（保留兼容）═════════
@@ -175,16 +187,17 @@ async function handler(req, res) {
     }
     const after = await consumeTokens(db, me, MESSAGE_COST);
 
-    await col.insertOne({
+    const inserted = {
       username: to,
       from: me,
       ...doc,
       roomId: roomId && ID_RE.test(String(roomId)) ? String(roomId) : undefined,
       read: false,
       createdAt: new Date(),
-    });
+    };
+    await col.insertOne(inserted);
 
-    return res.status(200).json({ success: true, cost: MESSAGE_COST, tokens: after });
+    return res.status(200).json({ success: true, cost: MESSAGE_COST, tokens: after, message: inserted });
   }
 
   return res.status(405).json({ success: false, message: 'Method not allowed' });
