@@ -28,7 +28,7 @@
   // 新增页面时只改这里（或用 npm run new:page 自动追加），不要再手写 li。
   // 字段：href / page / icon / label / adminOnly / guestOk / match
   const EXTRA_NAV = [
-    // { href: '/example', page: 'example', icon: 'fa-star', label: 'Example' },
+    { href: '/messages', page: 'messages', icon: 'fa-envelope', label: 'Messages' },
   ];
 
   function renderExtraNav() {

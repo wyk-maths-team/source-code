@@ -63,6 +63,8 @@
   // ⭐ 补全：弹窗函数
   function showSystemMessageModal(count) {
     if (document.getElementById('sys-msg-global-modal')) return;
+    // 用户点过 Dismiss 的话，本次会话不再弹（进过 messages 页就会清零未读）
+    try { if (sessionStorage.getItem('sysMsgDismissed') === '1') return; } catch (e) {}
     
     const modal = document.createElement('div');
     modal.id = 'sys-msg-global-modal';
@@ -78,7 +80,7 @@
       <button onclick="location.href='/messages'" style="width:100%;padding:10px;background:var(--accent,#337ab7);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold;font-family:inherit;">
         Go to Messages
       </button>
-      <button onclick="this.parentElement.remove()" style="width:100%;padding:10px;background:transparent;color:var(--text-secondary,#666);border:none;border-radius:6px;cursor:pointer;margin-top:8px;font-family:inherit;">
+      <button onclick="try{sessionStorage.setItem('sysMsgDismissed','1')}catch(e){};this.parentElement.remove()" style="width:100%;padding:10px;background:transparent;color:var(--text-secondary,#666);border:none;border-radius:6px;cursor:pointer;margin-top:8px;font-family:inherit;">
         Dismiss
       </button>
     `;

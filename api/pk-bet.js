@@ -208,6 +208,17 @@ async function handler(req, res) {
     };
     await db.collection('pk_bet_invitations').insertOne(invite);
 
+    // 收件人会在 messages 里看到一条 PK 挑战（点击直接进房间）
+    await db.collection('messages').insertOne({
+      username: to,
+      from: username,
+      kind: 'pk-invite',
+      roomId: invite.id,
+      stake: amount,
+      read: false,
+      createdAt: now,
+    }).catch(() => {});
+
     await auditLog(db, 'pk_bet_invite', { inviteId: invite.id, to, stake: amount }, username, 'info').catch(() => {});
     return res.status(200).json({ success: true, invite });
   }
@@ -282,6 +293,16 @@ async function handler(req, res) {
       { id: inviteId },
       { $set: { status: 'accepted', roomId, acceptedAt: now } }
     );
+
+    // 发起人收到「已接受」，直接进房间
+    await db.collection('messages').insertOne({
+      username: invite.from,
+      from: username,
+      kind: 'pk-accept',
+      roomId,
+      read: false,
+      createdAt: now,
+    }).catch(() => {});
 
     await auditLog(db, 'pk_bet_accept', { inviteId, roomId, pool, fee }, username, 'info').catch(() => {});
     return res.status(200).json({ success: true, roomId });

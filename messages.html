@@ -3,7 +3,7 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='a7696a91';</script>
+<script>window.__BUILD_V='4aeac810';</script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -14,13 +14,13 @@
 <title>Messages - WYK Maths Team</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<link rel="stylesheet" href="/assets/css/styles.css?v=a7696a91" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=4aeac810" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 
-<script src="/assets/js/core/ui.js?v=a7696a91"></script>
-<script src="/assets/js/core/net.js?v=a7696a91"></script>
-<script src="/assets/js/core/api.js?v=a7696a91"></script>
-<script src="/assets/js/core/page.js?v=a7696a91"></script>
+<script src="/assets/js/core/ui.js?v=4aeac810"></script>
+<script src="/assets/js/core/net.js?v=4aeac810"></script>
+<script src="/assets/js/core/api.js?v=4aeac810"></script>
+<script src="/assets/js/core/page.js?v=4aeac810"></script>
 
 <style>
   .msg-container { max-width: 800px; margin: 20px auto; }
@@ -41,6 +41,38 @@
   .empty-state { text-align: center; padding: 60px 20px; color: var(--text-secondary); }
   .empty-state i { font-size: 3rem; margin-bottom: 16px; opacity: 0.5; }
   @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+  .msg-card.read { opacity: .62; border-left-color: var(--border-color); }
+  .msg-card.kind-text { border-left-color: #4a90d9; }
+  .msg-card.kind-problem, .msg-card.kind-submission { border-left-color: #27a567; }
+  .msg-card.kind-pk { border-left-color: #8e5cf7; }
+  .msg-from { font-size: .78rem; color: var(--text-secondary); margin-bottom: 4px; }
+  .msg-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 8px; font-weight: 700; font-size: .9rem;
+    background: rgba(74,144,217,.12); color: var(--text-primary);
+    text-decoration: none; cursor: pointer; border: 1px solid rgba(74,144,217,.35);
+  }
+  .msg-chip:hover { background: rgba(74,144,217,.22); }
+  .msg-chip.green { background: rgba(39,165,103,.12); border-color: rgba(39,165,103,.35); }
+  .msg-chip.purple { background: rgba(142,92,247,.14); border-color: rgba(142,92,247,.4); }
+  .composer {
+    background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px;
+    padding: 14px; margin-bottom: 18px;
+  }
+  .composer-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+  .composer input[type="text"] {
+    padding: 7px 10px; border: 1px solid var(--border-color); border-radius: 6px;
+    background: var(--bg-color); color: var(--text-primary); font-size: .85rem; min-width: 120px;
+  }
+  .composer button {
+    padding: 7px 13px; border-radius: 6px; border: 1px solid var(--border-color);
+    background: var(--card-bg); color: var(--text-primary); cursor: pointer;
+    font-size: .82rem; font-weight: 600; font-family: inherit;
+  }
+  .composer button:hover { border-color: var(--accent); }
+  .composer button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .composer .cost-note { font-size: .75rem; color: var(--text-secondary); margin-left: auto; }
 </style>
 </head>
 <body class="index-body">
@@ -48,69 +80,142 @@
     <header class="topbar" id="topbarContainer"></header>
     <aside class="sidebar" id="sidebarContainer"></aside>
     <main class="main-content" id="mainContent">
-      <div class="msg-container" id="msgList"></div>
+      <div class="msg-container">
+        <div class="composer">
+          <div style="font-weight:700;font-size:.95rem;">Send a message</div>
+          <div class="composer-row">
+            <input type="text" id="msgTo" placeholder="Recipient username" style="flex:1;min-width:180px;">
+          </div>
+          <div class="composer-row">
+            <button type="button" data-word="Wake">Wake</button>
+            <button type="button" data-word="Ok">Ok</button>
+            <button type="button" data-word="Trivial">Trivial</button>
+          </div>
+          <div class="composer-row">
+            <input type="text" id="msgProblemId" placeholder="Problem ID">
+            <button type="button" id="sendProblem">Send problem</button>
+            <input type="text" id="msgSubId" placeholder="Submission ID">
+            <button type="button" id="sendSubmission">Send submission</button>
+          </div>
+          <div class="composer-row">
+            <span class="cost-note">Each message costs 1000 tokens.</span>
+          </div>
+        </div>
+        <div id="msgList"></div>
+      </div>
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=a7696a91"></script>
-  <script src="/assets/js/app.js?v=a7696a91"></script>
-  <script src="/assets/js/topbar.js?v=a7696a91"></script>
-  <script src="/assets/js/sidebar.js?v=a7696a91"></script>
-  <script src="/assets/js/heartbeat.js?v=a7696a91"></script>
-  <script src="/assets/js/pk-invite.js?v=a7696a91"></script>
+  <script src="/assets/js/auth.js?v=4aeac810"></script>
+  <script src="/assets/js/app.js?v=4aeac810"></script>
+  <script src="/assets/js/topbar.js?v=4aeac810"></script>
+  <script src="/assets/js/sidebar.js?v=4aeac810"></script>
+  <script src="/assets/js/heartbeat.js?v=4aeac810"></script>
+  <script src="/assets/js/pk-invite.js?v=4aeac810"></script>
 
   <script>
+
     Page.boot({ title: 'Messages', requireAuth: true, skeleton: true });
     Page.ready(async (user) => {
       const container = document.getElementById('msgList');
-      
-      async function loadMessages() {
+      const esc = (s) => (window.DSHUI && DSHUI.esc) ? DSHUI.esc(s)
+        : String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      const safeId = (s) => /^[A-Za-z0-9_-]{1,64}$/.test(String(s || '')) ? String(s) : '';
+
+      function cardHtml(m) {
+        const read = m.read ? ' read' : '';
+        const from = m.from && m.from !== 'system'
+          ? '<div class="msg-from">from <a href="/users/' + encodeURIComponent(m.from) + '">' + esc(m.from) + '</a></div>'
+          : '<div class="msg-from">System</div>';
+
+        let body = '';
+        let kind = 'system';
+
+        if (m.kind === 'text') {
+          kind = 'text';
+          body = '<span class="msg-chip">' + esc(m.text || '') + '</span>';
+        } else if (m.kind === 'problem' && safeId(m.problemId)) {
+          kind = 'problem';
+          body = '<a class="msg-chip green" href="/problems/' + encodeURIComponent(safeId(m.problemId)) + '">'
+            + '<i class="fas fa-file-lines"></i> Problem ' + esc(m.problemId) + '</a>';
+        } else if (m.kind === 'submission' && safeId(m.submissionId)) {
+          kind = 'submission';
+          body = '<a class="msg-chip green" href="/submissions/' + encodeURIComponent(safeId(m.submissionId)) + '/detail">'
+            + '<i class="fas fa-paper-plane"></i> Submission</a>';
+        } else if (m.kind === 'pk-invite' || m.kind === 'pk-accept') {
+          kind = 'pk';
+          const room = safeId(m.roomId);
+          const label = m.kind === 'pk-invite' ? 'PK challenge' : 'PK invitation accepted';
+          body = (room
+            ? '<a class="msg-chip purple" href="/pk-bet-room?id=' + encodeURIComponent(room) + '">'
+            : '<span class="msg-chip purple">')
+            + '<i class="fas fa-swords"></i> ' + label + (room ? ' · open room' : '')
+            + (room ? '</a>' : '</span>');
+        } else {
+          body = esc(m.content || '');
+        }
+
+        return '<div class="msg-card kind-' + kind + read + '" id="msg-' + esc(String(m._id)) + '">'
+          + '<div class="msg-content">' + from + body
+          + '<div class="msg-time">' + (m.createdAt ? new Date(m.createdAt).toLocaleString() : '') + '</div></div>'
+          + '</div>';
+      }
+
+      async function load() {
         try {
           const data = await API.get('/api/messages');
           const msgs = data.messages || [];
-          
-          if (msgs.length === 0) {
-            container.innerHTML = `<div class="empty-state"><i class="fas fa-inbox"></i><h3>No new messages</h3><p>You're all caught up!</p></div>`;
+          if (!msgs.length) {
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><h3>Inbox is empty</h3><p>Reports and messages will show up here.</p></div>';
           } else {
-            container.innerHTML = msgs.map(m => `
-              <div class="msg-card" id="msg-${m._id}">
-                <div class="msg-content">
-                  ${DSHUI.esc(m.content)}
-                  <div class="msg-time">${new Date(m.createdAt).toLocaleString()}</div>
-                </div>
-                <button class="btn-close-msg" onclick="closeMsg('${m._id}')">Close</button>
-              </div>
-            `).join('');
+            container.innerHTML = msgs.map(cardHtml).join('');
           }
         } catch (err) {
-          container.innerHTML = `<p style="color:red;text-align:center;">Failed to load messages.</p>`;
+          container.innerHTML = '<p style="color:red;text-align:center;">Failed to load messages.</p>';
         } finally {
           Page.hideSkeleton();
         }
       }
 
-      window.closeMsg = async (id) => {
-        try {
-          await API.post('/api/messages', { id });
-          const el = document.getElementById(`msg-${id}`);
-          if (el) {
-            el.style.opacity = '0';
-            setTimeout(() => { el.remove(); checkEmpty(); }, 300);
-          }
-        } catch (e) {
-          DSHUI.toast('Failed to mark as read', 'err');
-        }
-      };
+      function recipient() {
+        const to = (document.getElementById('msgTo').value || '').trim();
+        if (!to) { DSHUI.toast('Enter a recipient first', 'err'); return null; }
+        return to;
+      }
 
-      function checkEmpty() {
-        if (!document.querySelector('.msg-card')) {
-          container.innerHTML = `<div class="empty-state"><i class="fas fa-inbox"></i><h3>No new messages</h3><p>You're all caught up!</p></div>`;
+      async function send(payload) {
+        try {
+          const res = await API.post('/api/messages', payload);
+          if (!res || !res.success) throw new Error((res && res.message) || 'Send failed');
+          DSHUI.toast('Sent · ' + (res.cost || 1000) + ' tokens', 'ok');
+          load();
+        } catch (e) {
+          DSHUI.toast(e.message || 'Send failed', 'err');
         }
       }
 
-      loadMessages();
+      document.querySelectorAll('[data-word]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const to = recipient(); if (!to) return;
+          send({ to, kind: 'text', text: btn.dataset.word });
+        });
+      });
+      document.getElementById('sendProblem').addEventListener('click', () => {
+        const to = recipient(); if (!to) return;
+        const pid = (document.getElementById('msgProblemId').value || '').trim();
+        if (!pid) { DSHUI.toast('Enter a problem ID', 'err'); return; }
+        send({ to, kind: 'problem', problemId: pid });
+      });
+      document.getElementById('sendSubmission').addEventListener('click', () => {
+        const to = recipient(); if (!to) return;
+        const sid = (document.getElementById('msgSubId').value || '').trim();
+        if (!sid) { DSHUI.toast('Enter a submission ID', 'err'); return; }
+        send({ to, kind: 'submission', submissionId: sid });
+      });
+
+      load();
     });
-  </script>
-<script src="/assets/js/pk-notify.js?v=a7696a91"></script>
+    </script>
+<script src="/assets/js/pk-notify.js?v=4aeac810"></script>
 </body>
 </html>

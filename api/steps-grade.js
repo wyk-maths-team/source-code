@@ -137,6 +137,19 @@ async function handleCreate(req, res, db, decoded) {
     }
     if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
   }
+  // 每日 AI 额度（rating > 2200 豁免）
+  const { checkAiQuota, addAiUsage } = await import('../lib/aiQuota.js');
+  const quota = await checkAiQuota(db, decoded.username).catch(() => ({ allowed: true }));
+  if (!quota.allowed) {
+    return res.status(429).json({
+      success: false,
+      code: 'DAILY_AI_LIMIT',
+      message: quota.message,
+      used: quota.used,
+      limit: quota.limit,
+    });
+  }
+
     // ⭐ 前置余额校验
   // 门槛 = 一次判题的大致最低消耗（不是最终扣费额）
   //   真正的扣费在判分结束后按 AI 返回的 usage 结算
@@ -233,6 +246,7 @@ async function handleCreate(req, res, db, decoded) {
       const peak = isPeakHour();
       const charged = peak ? base * 2 : base;
       const newTokens = await consumeTokens(db, decoded.username, charged);
+      await addAiUsage(db, decoded.username, charged).catch(() => {});
 
       auditLog(db, 'steps_grade', { problemId, score: finalScore, taskId, model: modelKey, handledBy: 'api' }, decoded.username, 'info').catch(() => {});
 
@@ -340,7 +354,9 @@ async function handlePoll(req, res, db, decoded) {
         const realUsage = Number(claimed.result?.tokenUsage) || 0;
         const { isPeakHour } = await import('../lib/pricing.js');
         const baseCharge = realUsage > 0 ? realUsage : tokenCost;
-        await consumeTokens(db, claimed.username, isPeakHour() ? baseCharge * 2 : baseCharge);
+        const pollCharge = isPeakHour() ? baseCharge * 2 : baseCharge;
+        await consumeTokens(db, claimed.username, pollCharge);
+        await addAiUsagePoll(db, claimed.username, pollCharge).catch(() => {});
       } catch (e) { console.error('[steps-grade] poll write failed:', e); }
 
       if (subid) await db.collection('steps_grading_tasks').updateOne({ taskId }, { $set: { subid } });
@@ -352,4 +368,10 @@ async function handlePoll(req, res, db, decoded) {
 }
 
 export const config = { maxDuration: 300, regions: ['hkg1'] };
+// bridge 回传路径的用量累加（handlePoll 里没有 handleCreate 的闭包）
+async function addAiUsagePoll(db, username, amount) {
+  const { addAiUsage } = await import('../lib/aiQuota.js');
+  return addAiUsage(db, username, amount);
+}
+
 export default wrapHandler(handler);
