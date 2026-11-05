@@ -267,7 +267,9 @@
     const pStart = pages[startIdx];
     const pEnd = pages[endIdx] || pStart;
     if (!pStart) return;
-    const baseTop = ov.getBoundingClientRect().top;
+    const ovRect = ov.getBoundingClientRect();
+    const baseTop = ovRect.top;
+    const baseLeft = ovRect.left;
     const rS = pStart.getBoundingClientRect();
     const rE = pEnd.getBoundingClientRect();
     const y = Number(box.y) || 0;
@@ -279,8 +281,11 @@
     const hPx = Math.max(36, bottomPx - topPx);
     div.style.top = topPx + 'px';
     div.style.height = hPx + 'px';
-    div.style.left = (Number(box.x) || 10) + '%';
-    div.style.width = (100 - 2 * (Number(box.x) || 10)) + '%';
+    // 左右留白相对页面算（覆盖层比页面宽，用百分比会伸出去）
+    const px = Number.isFinite(Number(box.x)) ? Number(box.x) : 10;
+    const pageLeft = rS.left - baseLeft;
+    div.style.left = (pageLeft + rS.width * px / 100) + 'px';
+    div.style.width = (rS.width * (100 - 2 * px) / 100) + 'px';
   }
 
   function renderBoxes() {
@@ -312,8 +317,8 @@
     del.style.cssText = 'border:none;background:#d93025;color:#fff;border-radius:3px;cursor:pointer;font-size:11px;line-height:1;padding:1px 5px;';
     del.addEventListener('click', (e) => {
       e.stopPropagation();
+      // 删除不重排：其它框保留自己的编号，避免学生提交记录错位
       pdfState.boxes = pdfState.boxes.filter((b) => b !== box);
-      syncPids();
       renderBoxes();
     });
     div.appendChild(tag);
@@ -332,6 +337,25 @@
       : 'Press Add box, then click the page twice (top, then bottom). Drag past a page edge to span pages.');
   }
 
+  // 下次可用的最小编号（跳过已经被占用的）
+  function allocatePid() {
+    const prefix = el('cePdfPrefix') ? el('cePdfPrefix').value : pdfState.idPrefix;
+    const digits = el('cePdfDigits') ? Number(el('cePdfDigits').value) || 3 : pdfState.idDigits;
+    const used = new Set(pdfState.boxes.map((b) => b.pid).filter(Boolean));
+    for (let i = 1; i <= 9999; i++) {
+      const pid = nextPid(prefix, digits, i);
+      if (!used.has(pid)) return pid;
+    }
+    return nextPid(prefix, digits, used.size + 1);
+  }
+
+  // 新建框：只分配编号，不动其它框
+  function assignPid(box) {
+    box.pid = allocatePid();
+    return box;
+  }
+
+  // 改了前缀 / 位数时才整体重排（用户明确换了模板）
   function syncPids() {
     const prefix = el('cePdfPrefix') ? el('cePdfPrefix').value : pdfState.idPrefix;
     const digits = el('cePdfDigits') ? Number(el('cePdfDigits').value) || 3 : pdfState.idDigits;
@@ -472,6 +496,17 @@
       yEnd: dragState.endY,
       h: 0, x: 10,
     });
+    // 落笔前就把要用的编号显示出来
+    const label = allocatePid();
+    g.textContent = label;
+    g.style.display = 'flex';
+    g.style.alignItems = 'flex-start';
+    g.style.justifyContent = 'flex-start';
+    g.style.padding = '2px 4px';
+    g.style.fontSize = '10px';
+    g.style.fontWeight = '700';
+    g.style.color = '#6a3fc9';
+    g.style.boxSizing = 'border-box';
   }
 
   function bindCanvasEvents() {
@@ -519,16 +554,16 @@
       dragState = null;
 
       const isSpan = endPage > startPage;
-      pdfState.boxes.push({
-        pid: '',
+      const newBox = {
         page: startPage,
         x: 10,
         y: Math.round(startY * 100) / 100,
         h: isSpan ? 0 : Math.round(Math.max(3, endY - startY) * 100) / 100,
         pageEnd: endPage,
         yEnd: Math.round(endY * 100) / 100,
-      });
-      syncPids();
+      };
+      assignPid(newBox);              // 用最小未用编号，不影响已有框
+      pdfState.boxes.push(newBox);
       renderBoxes();
 
       pdfState.adding = false;

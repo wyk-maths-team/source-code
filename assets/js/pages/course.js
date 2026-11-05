@@ -480,7 +480,9 @@
       // 把百分比坐标换算成相对 overlay 的像素
       var layoutBoxes = function () {
         if (!overlay) return;
-        var baseTop = overlay.getBoundingClientRect().top;
+        var baseRect = overlay.getBoundingClientRect();
+        var baseTop = baseRect.top;
+        var baseLeft = baseRect.left;
         boxEls.forEach(function (el) {
           var startIdx = Number(el.dataset.page) - 1;
           var endIdx = Number(el.dataset.pageEnd) - 1;
@@ -500,8 +502,14 @@
           if (bottomPx - topPx < 36) bottomPx = topPx + 36;
           el.style.top = topPx + 'px';
           el.style.height = (bottomPx - topPx) + 'px';
-          el.style.left = (Number(el.dataset.x) || 10) + '%';
-          el.style.width = (100 - 2 * (Number(el.dataset.x) || 10)) + '%';
+          // 左右留白要相对「页面」算，不是相对覆盖层 —— 覆盖层比页面宽，
+          // 直接用百分比会让框伸出页面边缘
+          var px = Number(el.dataset.x);
+          if (!Number.isFinite(px)) px = 10;
+          var pageLeft = rStart.left - baseLeft;
+          var pageW = rStart.width;
+          el.style.left = (pageLeft + pageW * px / 100) + 'px';
+          el.style.width = (pageW * (100 - 2 * px) / 100) + 'px';
           el.dataset.span = isSpan ? '1' : '0';
         });
       };
@@ -521,7 +529,7 @@
 
   // 轻量画板：白底 canvas + 指针绘制；支持笔色 / 橡皮 / 粗细 / 撤销
   // 笔画以「路径列表」保存，撤销只要重绘，比存 ImageData 省内存
-  function createDrawPad(host) {
+  function createDrawPad(host, storageKey) {
     var canvas = document.createElement('canvas');
     canvas.style.cssText = 'display:block;width:100%;height:100%;touch-action:none;cursor:crosshair;'
       + 'user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;';
@@ -532,6 +540,58 @@
     var strokes = [];     // { color, width, erase, points: [{x,y}] }
     var ready = false;
     var dpr = window.devicePixelRatio || 1;
+
+    // ── 本地存档：按 pid 存，刷新页面不丢 ──
+    var saveTimer = null;
+    function persist() {
+      if (!storageKey) return;
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(function () {
+        try {
+          if (!strokes.length) { localStorage.removeItem(storageKey); return; }
+          var payload = {
+            v: 1,
+            strokes: strokes.map(function (st) {
+              return {
+                c: st.color, w: st.width, e: !!st.erase,
+                p: st.points.map(function (pt) {
+                  return [Math.round(pt.x * 10) / 10, Math.round(pt.y * 10) / 10];
+                }),
+              };
+            }),
+          };
+          var json = JSON.stringify(payload);
+          if (json.length > 400000) return;   // 太大就放弃，别把 localStorage 撑爆
+          localStorage.setItem(storageKey, json);
+        } catch (e) { /* 配额满 / 隐私模式，忽略 */ }
+      }, 400);
+    }
+
+    function restore() {
+      if (!storageKey) return;
+      try {
+        var raw = localStorage.getItem(storageKey);
+        if (!raw) return;
+        var data = JSON.parse(raw);
+        if (!data || !Array.isArray(data.strokes)) return;
+        strokes = data.strokes.map(function (st) {
+          return {
+            color: st.c || '#111111',
+            width: Number(st.w) || 2,
+            erase: !!st.e,
+            points: (st.p || []).map(function (pt) {
+              return { x: Number(pt[0]) || 0, y: Number(pt[1]) || 0 };
+            }),
+          };
+        }).filter(function (st) { return st.points.length; });
+        redraw();
+      } catch (e) { /* 存档坏了就当没有 */ }
+    }
+
+    function clearStorage() {
+      if (!storageKey) return;
+      try { localStorage.removeItem(storageKey); } catch (e) {}
+    }
 
     function paintBase() {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -629,6 +689,7 @@
       try { canvas.releasePointerCapture(e.pointerId); } catch (err) {}
       redraw();
       unlockSelection();
+      persist();
     }
     canvas.addEventListener('pointerup', endPointer);
     canvas.addEventListener('pointercancel', endPointer);
@@ -659,11 +720,12 @@
         if (!strokes.length) return false;
         strokes.pop();
         redraw();
+        persist();
         return true;
       },
       canUndo: function () { return strokes.length > 0 || active.size > 0; },
       count: function () { return strokes.length; },
-      clear: function () { strokes = []; active.clear(); redraw(); },
+      clear: function () { strokes = []; active.clear(); redraw(); clearStorage(); },
       isEmpty: function () {
         for (var i = 0; i < strokes.length; i++) {
           if (!strokes[i].erase) return false;   // 有非橡皮的笔画才算有内容
@@ -673,6 +735,8 @@
       toDataUrl: function () {
         try { return canvas.toDataURL('image/jpeg', 0.85); } catch (e) { return ''; }
       },
+      restore: restore,
+      persist: persist,
     };
   }
 
@@ -703,7 +767,7 @@
     padWrap.className = 'pdf-box-pad';
     padWrap.style.cssText = 'display:none;flex:1 1 auto;min-height:36px;position:relative;background:#fff;overflow:hidden;'
       + 'user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;';
-    var pad = createDrawPad(padWrap);
+    var pad = createDrawPad(padWrap, 'pdfPad:' + box.pid);
     // ── 画板工具栏：颜色 / 橡皮 / 粗细 / 撤销 / 清空 ──
     var padTools = document.createElement('div');
     padTools.className = 'pdf-pad-tools';
@@ -798,6 +862,7 @@
     padTools.appendChild(clearBtn);
 
     padWrap.appendChild(padTools);
+    pad.restore();
 
     var foot = document.createElement('div');
     foot.style.cssText = 'display:flex;align-items:center;gap:6px;padding:2px 6px 4px;flex:0 0 auto;';
