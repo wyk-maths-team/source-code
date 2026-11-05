@@ -465,36 +465,59 @@
     });
   }
 
-  // 轻量画板：白底 canvas + 指针绘制，导出 JPEG 交给图片判分
+  // 轻量画板：白底 canvas + 指针绘制；支持笔色 / 橡皮 / 粗细 / 撤销
+  // 笔画以「路径列表」保存，撤销只要重绘，比存 ImageData 省内存
   function createDrawPad(host) {
     var canvas = document.createElement('canvas');
     canvas.style.cssText = 'display:block;width:100%;height:100%;touch-action:none;cursor:crosshair;';
     host.appendChild(canvas);
     var ctx = canvas.getContext('2d');
+
+    var state = { color: '#111111', width: 2, erase: false };
+    var strokes = [];     // { color, width, erase, points: [{x,y}] }
+    var current = null;
     var ready = false;
+    var dpr = window.devicePixelRatio || 1;
+
+    function paintBase() {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.scale(dpr, dpr);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+    }
+
+    function strokePath(st) {
+      if (!st.points.length) return;
+      ctx.strokeStyle = st.erase ? '#ffffff' : st.color;
+      ctx.lineWidth = st.erase ? Math.max(10, st.width * 5) : st.width;
+      ctx.beginPath();
+      ctx.moveTo(st.points[0].x, st.points[0].y);
+      if (st.points.length === 1) {
+        // 单点：画一个小圆点
+        ctx.lineTo(st.points[0].x + 0.1, st.points[0].y);
+      } else {
+        for (var i = 1; i < st.points.length; i++) ctx.lineTo(st.points[i].x, st.points[i].y);
+      }
+      ctx.stroke();
+    }
+
+    function redraw() {
+      paintBase();
+      for (var i = 0; i < strokes.length; i++) strokePath(strokes[i]);
+      if (current) strokePath(current);
+    }
 
     function fit() {
       var w = host.clientWidth || 300;
       var h = host.clientHeight || 120;
       if (w < 10 || h < 10) return;
-      var dpr = window.devicePixelRatio || 1;
-      // 保留已有笔迹
-      var prev = null;
-      if (ready && canvas.width > 0) {
-        try { prev = ctx.getImageData(0, 0, canvas.width, canvas.height); } catch (e) {}
-      }
+      dpr = window.devicePixelRatio || 1;
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      if (prev) { try { ctx.putImageData(prev, 0, 0); } catch (e) {} }
-      ctx.scale(dpr, dpr);
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.strokeStyle = '#111111';
       ready = true;
+      redraw();     // 尺寸变了，按路径重画，笔迹不丢
     }
 
     function pos(e) {
@@ -503,28 +526,36 @@
     }
 
     var drawing = false;
-    var last = null;
     canvas.addEventListener('pointerdown', function (e) {
       if (!ready) fit();
       drawing = true;
-      last = pos(e);
+      current = {
+        color: state.color,
+        width: state.width,
+        erase: state.erase,
+        points: [pos(e)],
+      };
       try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+      redraw();
       e.preventDefault();
     });
     canvas.addEventListener('pointermove', function (e) {
-      if (!drawing || !last) return;
-      var p = pos(e);
-      ctx.beginPath();
-      ctx.moveTo(last.x, last.y);
-      ctx.lineTo(p.x, p.y);
-      ctx.stroke();
-      last = p;
+      if (!drawing || !current) return;
+      current.points.push(pos(e));
+      redraw();
       e.preventDefault();
     });
-    canvas.addEventListener('pointerup', function () { drawing = false; last = null; });
-    canvas.addEventListener('pointercancel', function () { drawing = false; last = null; });
+    function endStroke() {
+      if (!drawing) return;
+      drawing = false;
+      if (current && current.points.length) strokes.push(current);
+      current = null;
+      redraw();
+    }
+    canvas.addEventListener('pointerup', endStroke);
+    canvas.addEventListener('pointercancel', endStroke);
+    canvas.addEventListener('pointerleave', function () { if (drawing) endStroke(); });
 
-    // 尺寸变化时重建（保留墨迹）
     if ('ResizeObserver' in window) {
       var ro = new ResizeObserver(function () { fit(); });
       ro.observe(host);
@@ -533,22 +564,25 @@
     return {
       canvas: canvas,
       fit: fit,
-      clear: function () {
-        ctx.save();
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.restore();
-      },
-      isEmpty: function () {
-        try {
-          var w = canvas.width, h = canvas.height;
-          var d = ctx.getImageData(0, 0, w, h).data;
-          for (var i = 0; i < d.length; i += 4 * 37) {
-            if (d[i] < 240 || d[i + 1] < 240 || d[i + 2] < 240) return false;
-          }
-        } catch (e) { return false; }
+      setColor: function (c) { state.color = c; state.erase = false; },
+      setWidth: function (w) { state.width = w; },
+      setErase: function (on) { state.erase = !!on; },
+      getState: function () { return { color: state.color, width: state.width, erase: state.erase }; },
+      undo: function () {
+        if (current) { current = null; redraw(); return true; }
+        if (!strokes.length) return false;
+        strokes.pop();
+        redraw();
         return true;
+      },
+      canUndo: function () { return strokes.length > 0 || !!current; },
+      count: function () { return strokes.length; },
+      clear: function () { strokes = []; current = null; redraw(); },
+      isEmpty: function () {
+        for (var i = 0; i < strokes.length; i++) {
+          if (!strokes[i].erase) return false;   // 有非橡皮的笔画才算有内容
+        }
+        return !current;
       },
       toDataUrl: function () {
         try { return canvas.toDataURL('image/jpeg', 0.85); } catch (e) { return ''; }
@@ -583,14 +617,99 @@
     padWrap.className = 'pdf-box-pad';
     padWrap.style.cssText = 'display:none;flex:1 1 auto;min-height:36px;position:relative;background:#fff;overflow:hidden;';
     var pad = createDrawPad(padWrap);
+    // ── 画板工具栏：颜色 / 橡皮 / 粗细 / 撤销 / 清空 ──
     var padTools = document.createElement('div');
-    padTools.style.cssText = 'position:absolute;right:3px;top:3px;display:none;gap:3px;z-index:2;';
+    padTools.className = 'pdf-pad-tools';
+    padTools.style.cssText = 'position:absolute;left:3px;right:3px;top:3px;display:none;align-items:center;gap:4px;'
+      + 'z-index:2;background:rgba(255,255,255,.92);border:1px solid #e0e0e0;border-radius:6px;padding:2px 4px;';
+
+    var COLORS = ['#111111', '#d93025', '#1a73e8', '#27a567'];
+    var widths = [1, 2, 4];
+    var colorBtns = [];
+
+    COLORS.forEach(function (c, i) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.dataset.color = c;
+      b.style.cssText = 'width:13px;height:13px;border-radius:50%;border:1px solid #bbb;cursor:pointer;padding:0;'
+        + 'background:' + c + ';' + (i === 0 ? 'outline:2px solid #8e5cf7;outline-offset:1px;' : '');
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        pad.setColor(c);
+        colorBtns.forEach(function (o) {
+          o.style.outline = (o.dataset.color === c) ? '2px solid #8e5cf7' : 'none';
+          o.style.outlineOffset = '1px';
+        });
+        eraseBtn.style.outline = 'none';
+        widthBtns[1].click();  // 选颜色时退出橡皮，恢复默认粗细
+      });
+      colorBtns.push(b);
+      padTools.appendChild(b);
+    });
+
+    var sep = document.createElement('span');
+    sep.style.cssText = 'width:1px;height:12px;background:#ddd;margin:0 2px;';
+    padTools.appendChild(sep);
+
+    // 粗细
+    var widthBtns = [];
+    widths.forEach(function (w, i) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = String(w);
+      b.style.cssText = 'width:17px;height:15px;border-radius:3px;border:1px solid #ccc;background:#fff;color:#444;'
+        + 'font-size:9px;line-height:1;cursor:pointer;padding:0;'
+        + (i === 1 ? 'outline:2px solid #8e5cf7;' : '');
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        pad.setWidth(w);
+        widthBtns.forEach(function (o) { o.style.outline = (o === b) ? '2px solid #8e5cf7' : 'none'; });
+      });
+      widthBtns.push(b);
+      padTools.appendChild(b);
+    });
+
+    var sep2 = document.createElement('span');
+    sep2.style.cssText = 'width:1px;height:12px;background:#ddd;margin:0 2px;';
+    padTools.appendChild(sep2);
+
+    // 橡皮
+    var eraseBtn = document.createElement('button');
+    eraseBtn.type = 'button';
+    eraseBtn.textContent = 'Erase';
+    eraseBtn.style.cssText = 'padding:0 5px;height:15px;border-radius:3px;border:1px solid #ccc;background:#fff;color:#444;'
+      + 'font-size:9px;line-height:1;cursor:pointer;';
+    eraseBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var st = pad.getState();
+      var next = !st.erase;
+      pad.setErase(next);
+      eraseBtn.style.outline = next ? '2px solid #8e5cf7' : 'none';
+      colorBtns.forEach(function (o) { o.style.outline = next ? 'none' : (o.dataset.color === '#111111' ? '2px solid #8e5cf7' : 'none'); });
+    });
+    padTools.appendChild(eraseBtn);
+
+    // 撤销
+    var undoBtn = document.createElement('button');
+    undoBtn.type = 'button';
+    undoBtn.textContent = 'Undo';
+    undoBtn.style.cssText = 'padding:0 5px;height:15px;border-radius:3px;border:1px solid #ccc;background:#fff;color:#444;'
+      + 'font-size:9px;line-height:1;cursor:pointer;';
+    undoBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      pad.undo();
+    });
+    padTools.appendChild(undoBtn);
+
+    // 清空
     var clearBtn = document.createElement('button');
     clearBtn.type = 'button';
     clearBtn.textContent = 'Clear';
-    clearBtn.style.cssText = 'padding:1px 6px;border-radius:4px;border:1px solid #ccc;background:#fff;color:#555;font-size:9px;cursor:pointer;';
+    clearBtn.style.cssText = 'padding:0 5px;height:15px;border-radius:3px;border:1px solid #ccc;background:#fff;color:#555;'
+      + 'font-size:9px;line-height:1;cursor:pointer;margin-left:auto;';
     clearBtn.addEventListener('click', function (e) { e.stopPropagation(); pad.clear(); });
     padTools.appendChild(clearBtn);
+
     padWrap.appendChild(padTools);
 
     var foot = document.createElement('div');
