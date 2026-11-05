@@ -87,7 +87,7 @@
 
   /* 题目搜索下拉 */
   .ac-dropdown {
-    display: none; position: absolute; left: 0; right: 120px; top: 100%; z-index: 50;
+    display: none; position: absolute; left: 0; right: 0; top: 100%; z-index: 50;
     background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;
     box-shadow: 0 8px 24px rgba(0,0,0,.18); max-height: 240px; overflow: auto; margin-top: 4px;
   }
@@ -106,7 +106,10 @@
           <div style="font-weight:700;font-size:.95rem;margin-bottom:6px;">Send a message</div>
 
           <div class="composer-row" style="margin-top:0;">
-            <input type="text" id="msgTo" placeholder="Recipient username" style="flex:1;min-width:160px;">
+            <div style="flex:1;min-width:160px;position:relative;">
+              <input type="text" id="msgTo" placeholder="Recipient (name or username)" autocomplete="off" style="width:100%;box-sizing:border-box;">
+              <div id="msgToDrop" class="ac-dropdown"></div>
+            </div>
             <button type="button" class="word-block" data-word="Wake">Wake</button>
             <button type="button" class="word-block" data-word="Ok">Ok</button>
             <button type="button" class="word-block" data-word="Trivial">Trivial</button>
@@ -226,6 +229,59 @@
           send({ to, kind: 'text', text: btn.dataset.word });
         });
       });
+      // ── 收件人搜索（username / displayName / realName）──
+      const toInput = document.getElementById('msgTo');
+      const toDrop = document.getElementById('msgToDrop');
+      let toTimer = null;
+      let toActive = -1;
+
+      function renderToDrop(list) {
+        toActive = -1;
+        if (!list || !list.length) {
+          toDrop.innerHTML = '<div class="ac-item" style="color:var(--text-secondary);">No results</div>';
+          toDrop.style.display = 'block';
+          return;
+        }
+        toDrop.innerHTML = list.slice(0, 20).map((u) =>
+          '<div class="ac-item" data-val="' + esc(u.username) + '">'
+          + '<strong>' + esc(u.username) + '</strong>'
+          + (u.displayName && u.displayName !== u.username ? ' — ' + esc(u.displayName) : '')
+          + (u.realName ? ' <span style="color:var(--text-secondary);">(' + esc(u.realName) + ')</span>' : '')
+          + '</div>'
+        ).join('');
+        toDrop.style.display = 'block';
+      }
+
+      toInput.addEventListener('input', () => {
+        const kw = toInput.value.trim();
+        clearTimeout(toTimer);
+        if (!kw) { toDrop.style.display = 'none'; return; }
+        toTimer = setTimeout(async () => {
+          try {
+            const res = await API.get('/api/search?action=search_user&keyword=' + encodeURIComponent(kw));
+            renderToDrop((res && res.data) || []);
+          } catch (e) { toDrop.style.display = 'none'; }
+        }, 250);
+      });
+
+      toDrop.addEventListener('click', (e) => {
+        const item = e.target.closest('.ac-item[data-val]');
+        if (!item) return;
+        toInput.value = item.dataset.val;
+        toDrop.style.display = 'none';
+        document.querySelectorAll('.ac-item.active').forEach((n) => n.classList.remove('active'));
+      });
+
+      toInput.addEventListener('keydown', (e) => {
+        const items = toDrop.querySelectorAll('.ac-item[data-val]');
+        if (!items.length || toDrop.style.display === 'none') return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); toActive = (toActive + 1) % items.length; }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); toActive = (toActive - 1 + items.length) % items.length; }
+        else if (e.key === 'Enter') { if (toActive >= 0 && items[toActive]) { e.preventDefault(); items[toActive].click(); } }
+        else if (e.key === 'Escape') { toDrop.style.display = 'none'; }
+        items.forEach((it, i) => it.classList.toggle('active', i === toActive));
+      });
+
       // ── 题目搜索（输入 ID 或名字，下拉候选）──
       const probInput = document.getElementById('msgProblemId');
       const probDrop = document.getElementById('msgProbDrop');
