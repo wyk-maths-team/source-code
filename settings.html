@@ -3,8 +3,8 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='0ddeb674';</script>
-<script src="/assets/js/arch-render.js?v=0ddeb674"></script>
+<script>window.__BUILD_V='6da2a811';</script>
+<script src="/assets/js/arch-render.js?v=6da2a811"></script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -17,7 +17,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=0ddeb674" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=6da2a811" />
 
 <style>
   :root {
@@ -138,6 +138,17 @@
     .settings-nav { width: 100%; flex-direction: row; overflow-x: auto; }
     .nav-item { white-space: nowrap; }
   }
+
+  /* 导航配色选择器 */
+  .nav-theme-picker { display: flex; gap: 6px; }
+  .nav-theme-btn {
+    padding: 6px 16px; border-radius: 7px; border: 1px solid var(--border-color);
+    background: var(--card-bg); color: var(--text-secondary); cursor: pointer;
+    font-size: .82rem; font-weight: 600; font-family: inherit; transition: all .15s ease;
+  }
+  .nav-theme-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+  .nav-theme-btn.active { border-color: var(--accent); color: var(--text-primary); background: rgba(74,144,217,.12); }
+  .nav-theme-btn[data-nav-theme="green"].active { border-color: #1a7f4b; background: rgba(26,127,75,.14); }
 </style>
 
 <!-- PWA -->
@@ -145,10 +156,10 @@
 <meta name="theme-color" content="#1a1a2e">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <meta name="mobile-web-app-capable" content="yes">
-<script src="/assets/js/core/ui.js?v=0ddeb674"></script>
-<script src="/assets/js/core/net.js?v=0ddeb674"></script>
-<script src="/assets/js/core/api.js?v=0ddeb674"></script>
-<script src="/assets/js/core/page.js?v=0ddeb674"></script>
+<script src="/assets/js/core/ui.js?v=6da2a811"></script>
+<script src="/assets/js/core/net.js?v=6da2a811"></script>
+<script src="/assets/js/core/api.js?v=6da2a811"></script>
+<script src="/assets/js/core/page.js?v=6da2a811"></script>
 </head>
 
 <body class="index-body">
@@ -265,6 +276,14 @@
               </label>
             </div>
 
+            <div class="setting-row">
+              <span class="setting-label">Color theme<span class="setting-hint">Topbar and sidebar only.</span></span>
+              <div class="nav-theme-picker" id="navThemePicker">
+                <button type="button" data-nav-theme="green" class="nav-theme-btn">Green</button>
+                <button type="button" data-nav-theme="blue" class="nav-theme-btn">Blue</button>
+              </div>
+            </div>
+
             <button class="btn btn-primary" id="saveSettingsBtn" style="margin-top:1.5rem; width:100%;">
               Save Settings
             </button>
@@ -354,14 +373,14 @@
   </main>
 </div>
 
-<script src="/assets/js/auth.js?v=0ddeb674"></script>
-<script src="/assets/js/app.js?v=0ddeb674"></script>
-<script src="/assets/js/topbar.js?v=0ddeb674"></script>
-<script src="/assets/js/sidebar.js?v=0ddeb674"></script>
-<script src="/assets/js/heartbeat.js?v=0ddeb674"></script>
-<script src="/assets/js/pk-invite.js?v=0ddeb674"></script>
+<script src="/assets/js/auth.js?v=6da2a811"></script>
+<script src="/assets/js/app.js?v=6da2a811"></script>
+<script src="/assets/js/topbar.js?v=6da2a811"></script>
+<script src="/assets/js/sidebar.js?v=6da2a811"></script>
+<script src="/assets/js/heartbeat.js?v=6da2a811"></script>
+<script src="/assets/js/pk-invite.js?v=6da2a811"></script>
 
-<script src="/assets/js/pages/settings.js?v=0ddeb674"></script>
-<script src="/assets/js/pk-notify.js?v=0ddeb674"></script>
+<script src="/assets/js/pages/settings.js?v=6da2a811"></script>
+<script src="/assets/js/pk-notify.js?v=6da2a811"></script>
 </body>
 </html>

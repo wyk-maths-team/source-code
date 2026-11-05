@@ -32,6 +32,40 @@
     }
   };
 
+
+  // ═══════════════ 导航配色（只影响 topbar / sidebar）═══════════════
+  const NAV_THEME_KEY = 'navTheme';
+  let currentNavTheme = 'green';
+
+  function readNavTheme() {
+    try {
+      const t = localStorage.getItem(NAV_THEME_KEY);
+      return t === 'blue' ? 'blue' : 'green';   // 默认绿色
+    } catch (e) { return 'green'; }
+  }
+
+  function applyNavTheme(t) {
+    currentNavTheme = t === 'blue' ? 'blue' : 'green';
+    document.documentElement.setAttribute('data-nav-theme', currentNavTheme);
+  }
+
+  function paintNavThemePicker() {
+    document.querySelectorAll('.nav-theme-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.navTheme === currentNavTheme);
+    });
+  }
+
+  function initNavTheme() {
+    applyNavTheme(readNavTheme());
+    paintNavThemePicker();
+    document.querySelectorAll('.nav-theme-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        applyNavTheme(btn.dataset.navTheme);   // 立即预览
+        paintNavThemePicker();
+      });
+    });
+  }
+
   // ═══════════════ [A] Appearance ═══════════════
   const APPEARANCE = {
     load() {
@@ -46,6 +80,7 @@
       $('showTagsToggle').checked = localStorage.getItem('showTags') !== 'false';
       $('pkInviteToggle').checked = localStorage.getItem('pkInviteEnabled') !== 'false';
       $('stmtImageToggle').checked = localStorage.getItem('stmtAsImage') === '1';
+      initNavTheme();
     },
 
     applyTheme() {
@@ -70,6 +105,8 @@
       localStorage.setItem('showTags', $('showTagsToggle').checked);
       localStorage.setItem('pkInviteEnabled', $('pkInviteToggle').checked);
       localStorage.setItem('stmtAsImage', $('stmtImageToggle').checked ? '1' : '0');
+      localStorage.setItem(NAV_THEME_KEY, currentNavTheme);
+      applyNavTheme(currentNavTheme);
 
       this.applyTheme();
       this.applyFontSize();

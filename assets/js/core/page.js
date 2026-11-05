@@ -1,3 +1,13 @@
+// ── 导航配色：每个页面一进来就应用，默认绿色 ──
+(function applyNavThemeEarly() {
+  try {
+    var t = localStorage.getItem('navTheme');
+    document.documentElement.setAttribute('data-nav-theme', t === 'blue' ? 'blue' : 'green');
+  } catch (e) {
+    document.documentElement.setAttribute('data-nav-theme', 'green');
+  }
+})();
+
 // assets/js/core/page.js
 //
 // 页面启动器。让「新建一个页面」只需要关心自己的业务。

@@ -1159,3 +1159,26 @@ body.ui-3d [aria-disabled="true"] {
         transform: none !important;
     }
 }
+
+/* ═══════════════ 导航配色（只影响 topbar / sidebar）═══════════════ */
+:root[data-nav-theme="green"] {
+    --topbar-bg: #12251b;
+    --sidebar-bg: #142e1f;
+    --sidebar-hover-bg: #1e4630;
+    --sidebar-active-bg: #0f5230;
+    --sidebar-active-text: #ffffff;
+}
+:root[data-nav-theme="green"][data-theme="dark"] {
+    --topbar-bg: #0a1611;
+    --sidebar-bg: #0d1f16;
+    --sidebar-hover-bg: #152c20;
+    --sidebar-active-bg: #1a7f4b;
+    --sidebar-active-text: #eaf7ef;
+}
+:root[data-nav-theme="green"][data-theme="scifi"] {
+    --topbar-bg: #04120d;
+    --sidebar-bg: #05170f;
+    --sidebar-hover-bg: #0a2418;
+    --sidebar-active-bg: #00e08a;
+    --sidebar-active-text: #001a10;
+}
