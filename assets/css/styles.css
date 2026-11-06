@@ -316,6 +316,98 @@ ul {
     font-weight: 600
 }
 
+/* ── Course 入口的吸睛特效 ──────────────────────────────
+   一道光晕沿着条目缓缓扫过，图标轻轻跳动，悬停时加强。
+   克制一点：不改变布局，只在视觉上加注意力。 */
+.sidebar-link.fx-course {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    background: rgba(74, 144, 217, .10);
+}
+
+/* 底部一层缓慢移动的渐变光带 */
+.sidebar-link.fx-course::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(100deg,
+        transparent 0%,
+        transparent 30%,
+        rgba(74, 144, 217, .22) 45%,
+        rgba(120, 200, 255, .35) 50%,
+        rgba(74, 144, 217, .22) 55%,
+        transparent 70%,
+        transparent 100%);
+    background-size: 260% 100%;
+    animation: courseSheen 4s cubic-bezier(.4, 0, .2, 1) infinite;
+    pointer-events: none;
+    z-index: -1;
+}
+
+@keyframes courseSheen {
+    0%   { background-position: 150% 0; opacity: 0; }
+    6%   { opacity: 1; }
+    34%  { background-position: -55% 0; opacity: 1; }
+    44%  { opacity: 0; }
+    100% { background-position: -55% 0; opacity: 0; }
+}
+
+/* 图标：轻微跳动 + 呼吸光晕 */
+.sidebar-link.fx-course > i {
+    display: inline-block;
+    color: #7ec8ff;
+    animation: courseIconBob 4s ease-in-out infinite;
+    filter: drop-shadow(0 0 4px rgba(126, 200, 255, .55));
+}
+
+@keyframes courseIconBob {
+    0%, 24%, 40%, 100% {
+        transform: translateY(0) scale(1);
+        filter: drop-shadow(0 0 4px rgba(126,200,255,.5));
+    }
+    30% {
+        transform: translateY(-3px) scale(1.14);
+        filter: drop-shadow(0 0 9px rgba(150,215,255,1));
+    }
+    35% {
+        transform: translateY(1px) scale(1.05);
+        filter: drop-shadow(0 0 5px rgba(126,200,255,.6));
+    }
+}
+
+/* 文字：微微发亮 */
+.sidebar-link.fx-course {
+    color: #cfe8ff;
+}
+
+/* 悬停：整条高亮，动画加速 */
+.sidebar-link.fx-course:hover {
+    background: rgba(74, 144, 217, .18);
+    color: #fff;
+    border-left-color: #7ec8ff;
+}
+
+.sidebar-link.fx-course:hover::before {
+    animation-duration: 2.2s;
+}
+
+.sidebar-link.fx-course:hover > i {
+    animation-duration: 2.2s;
+}
+
+/* 已在该页面时不必再闪 */
+.sidebar-link.fx-course.active::before {
+    animation: none;
+    opacity: 0;
+}
+
+/* 尊重系统的减少动效偏好 */
+@media (prefers-reduced-motion: reduce) {
+    .sidebar-link.fx-course::before,
+    .sidebar-link.fx-course > i { animation: none; }
+}
+
 .main-content {
     padding: 28px 32px;
     min-height: calc(100vh - var(--topbar-height))
