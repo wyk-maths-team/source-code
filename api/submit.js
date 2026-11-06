@@ -14,6 +14,7 @@ import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { waitUntil } from '@vercel/functions';
 import { wrapHandler } from '../lib/errors.js';
+import { guestBlockedFromProblem } from '../lib/guestGuard.js';
 import {
   generateSubid,
   judge,
@@ -260,6 +261,10 @@ async function handleSingleSubmit(ctx) {
   ]);
 
   if (!problem) {
+    return res.status(404).json({ success: false, message: 'Problem not found' });
+  }
+  // 访客不能提交华夏杯（HX）的题
+  if (guestBlockedFromProblem({ username: effectiveUsername, role }, pid)) {
     return res.status(404).json({ success: false, message: 'Problem not found' });
   }
   // ⭐ FS（forced steps）：禁止 text 提交（admin/root 例外，方便测试）

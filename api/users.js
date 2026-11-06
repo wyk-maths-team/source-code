@@ -905,9 +905,13 @@ if (isPeriodMode) {
       const attempted = [];
       let totalPassed = 0;
 
+      // 访客看不到华夏杯（HX）的题：连统计口径一起排除
+      const hideHX = !isAdminUser && guestRegex.test(decoded.username);
+
       // 只遍历用户做过的题，不再扫全库
       for (const pid of Object.keys(states)) {
         if (!problemData.idSet.has(pid)) continue;           // 非 public 的题不计入（非管理员视角）
+        if (hideHX && /^HX/i.test(pid)) continue;
         const state = states[pid];
         if (state === 'passed') {
           totalPassed++;
@@ -935,9 +939,11 @@ if (isPeriodMode) {
         realName: user?.realName || '',
         pfp: user?.pfp || '',
         totalPassed,
-        totalProblems: problemData.list.length,
+        totalProblems: hideHX
+          ? problemData.list.length - problemData.ids.filter((x) => /^HX/i.test(x)).length
+          : problemData.list.length,
         attempted,
-        allProblemIds: problemData.ids,
+        allProblemIds: hideHX ? problemData.ids.filter((x) => !/^HX/i.test(x)) : problemData.ids,
         online,
         totalOnlineMs,
         lastSeenAt: user?.lastSeenAt || null,

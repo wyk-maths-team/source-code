@@ -8,6 +8,7 @@ import { sanitizeHTML } from '../lib/sanitize.js';
 import { ObjectId } from 'mongodb';
 import { wrapHandler } from '../lib/errors.js';
 import { findUserActiveContests } from '../lib/submission.js';
+import { guestBlockedFromProblem } from '../lib/guestGuard.js';
 //説明：所有的題目相關的操作都在這裏。
 // ============== 輔助函數 ==============
 // ============== 輔助函數 ==============
@@ -600,7 +601,11 @@ async function handler(req, res) {
     const curTags = Array.isArray(current.tags) ? current.tags.filter(Boolean) : [];
     const curDiff = Number(current.difficulty) || 0;
 
-    const baseFilter = adminUser ? {} : { public: true };
+    // 访客的「相似题目」里也不能出现华夏杯（HX）
+    const guestHX = guestBlockedFromProblem(req.user, 'HX');
+    const baseFilter = adminUser
+      ? {}
+      : (guestHX ? { public: true, id: { $not: /^HX/i } } : { public: true });
     const excludeSelf = { ...baseFilter, id: { $ne: current.id } };
 
     const pipeline = [
@@ -802,6 +807,11 @@ async function handler(req, res) {
         return res.status(404).json({ success: false, message: 'Problem not found' });
       }
 
+      // 访客不能看华夏杯（HX）的题；回 404 而不是 403，免得暴露题目存在
+      if (guestBlockedFromProblem(req.user, id)) {
+        return res.status(404).json({ success: false, message: 'Problem not found' });
+      }
+
             if (!adminUser) {
         let canView = problem.public;
         if (!canView) {
@@ -917,8 +927,12 @@ async function handler(req, res) {
 
     // 輕量 id 列表
     if (ids === '1') {
-      // ⭐ 非管理員只能看到 public 題目
-      const idFilter = adminUser ? {} : { public: true };
+      // ⭐ 非管理員只能看到 public 題目；访客还要排除华夏杯（HX）
+      const idFilter = adminUser
+        ? {}
+        : (guestBlockedFromProblem(req.user, 'HX')
+            ? { public: true, id: { $not: /^HX/i } }
+            : { public: true });
       const idList = await db.collection('problems')
         .find(idFilter, { projection: { id: 1, _id: 0 } })
         .toArray();
@@ -926,7 +940,11 @@ async function handler(req, res) {
     }
 
     if (req.query.all === '1') {
-      const baseFilter = adminUser ? {} : { public: true };
+      const baseFilter = adminUser
+        ? {}
+        : (guestBlockedFromProblem(req.user, 'HX')
+            ? { public: true, id: { $not: /^HX/i } }
+            : { public: true });
       const withStatement = req.query.withStatement === '1';
 
       const projection = {

@@ -8,6 +8,7 @@
 
 import { connectToDatabase } from './_db.js';
 import { verifyToken } from '../lib/auth.js';
+import { guestBlockedFromProblem } from '../lib/guestGuard.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { wrapHandler } from '../lib/errors.js';
 import { sanitizeHTML } from '../lib/sanitize.js';
@@ -110,6 +111,11 @@ async function handler(req, res) {
     if (req.method === 'GET') {
       const problemId = String(req.query.problemId || '').trim();
       if (!problemId) return res.status(400).json({ success: false, message: 'Missing problemId' });
+
+      // 访客不能看华夏杯（HX）的题解
+      if (guestBlockedFromProblem({ username: user.username, role: user.role }, problemId)) {
+        return res.status(404).json({ success: false, message: 'Problem not found' });
+      }
 
       const solved = isAdmin(user) || await hasSolved(db, username, problemId);
       if (!solved) {

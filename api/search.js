@@ -3,6 +3,7 @@ import { connectToDatabase } from './_db.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { wrapHandler } from '../lib/errors.js';
+import { problemFilterFor } from '../lib/guestGuard.js';
 
 function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // AGAINST INJECTION
@@ -15,6 +16,7 @@ async function handler(req, res) {
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
+  req.user = { username: decoded.username, role: decoded.role };
   const db = await connectToDatabase();
   const action = req.query.action;
   
@@ -39,13 +41,17 @@ async function handler(req, res) {
   }
 
   if (action === 'search_prob') {
-    const problems = await db.collection('problems').find({
+    // 访客搜不到华夏杯（HX）的题
+    const filter = {
       $or: [
-        { id: regex }, 
+        { id: regex },
         { name: regex }
-      ]
-    }).project({ id: 1, name: 1, _id: 0 }).limit(6).toArray();
-    
+      ],
+      ...problemFilterFor(req.user),
+    };
+    const problems = await db.collection('problems').find(filter)
+      .project({ id: 1, name: 1, _id: 0 }).limit(6).toArray();
+
     return res.status(200).json({ success: true, data: problems });
   }
 
