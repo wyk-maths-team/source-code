@@ -429,7 +429,13 @@
         pageEl.dataset.painted = '1';
         var n = Number(pageEl.dataset.page);
         doc.getPage(n).then(function (page) {
-          var vp = page.getViewport({ scale: 1.6 });
+          // 清晰度由用户在 /settings 选（1.6 省流 ~ 3.0 最清晰）
+          var qScale = 2.2;
+          try {
+            var saved = parseFloat(localStorage.getItem('pdfRenderScale'));
+            if (isFinite(saved) && saved >= 1.4 && saved <= 3.2) qScale = saved;
+          } catch (e) {}
+          var vp = page.getViewport({ scale: qScale });
           var canvas = document.createElement('canvas');
           canvas.width = vp.width;
           canvas.height = vp.height;

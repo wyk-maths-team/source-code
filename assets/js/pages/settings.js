@@ -80,6 +80,15 @@
       $('showTagsToggle').checked = localStorage.getItem('showTags') !== 'false';
       $('pkInviteToggle').checked = localStorage.getItem('pkInviteEnabled') !== 'false';
       $('stmtImageToggle').checked = localStorage.getItem('stmtAsImage') === '1';
+
+      // PDF 渲染清晰度：1.6（省流）~ 3.0（最清晰）
+      const q = Number(localStorage.getItem('pdfRenderScale')) || 2.2;
+      const range = $('pdfQualityRange');
+      if (range) {
+        range.value = String(q);
+        const label = $('pdfQualityValue');
+        if (label) label.textContent = q.toFixed(1) + '×';
+      }
       initNavTheme();
     },
 
@@ -105,6 +114,8 @@
       localStorage.setItem('showTags', $('showTagsToggle').checked);
       localStorage.setItem('pkInviteEnabled', $('pkInviteToggle').checked);
       localStorage.setItem('stmtAsImage', $('stmtImageToggle').checked ? '1' : '0');
+      const qr = $('pdfQualityRange');
+      if (qr) localStorage.setItem('pdfRenderScale', String(Number(qr.value) || 2.2));
       localStorage.setItem(NAV_THEME_KEY, currentNavTheme);
       applyNavTheme(currentNavTheme);
 
@@ -122,7 +133,21 @@
 
     bind() {
       $('saveSettingsBtn').addEventListener('click', () => this.save());
-      
+
+      // PDF 清晰度滑块：拖动时就更新数字，松手即存（不用等按保存）
+      const range = $('pdfQualityRange');
+      if (range) {
+        const label = $('pdfQualityValue');
+        const sync = (persist) => {
+          const v = Number(range.value) || 2.2;
+          if (label) label.textContent = v.toFixed(1) + '\u00d7';
+          if (persist) localStorage.setItem('pdfRenderScale', String(v));
+        };
+        range.addEventListener('input', () => sync(false));
+        range.addEventListener('change', () => sync(true));
+        sync(false);
+      }
+
       // 彩蛋
       let clicks = 0, timer = null;
       $('animationToggle').addEventListener('click', () => {

@@ -423,7 +423,7 @@
     pageEl.dataset.painted = '1';
     try {
       const page = await doc.getPage(pageNo);
-      const vp = page.getViewport({ scale: 1.6 });
+      const vp = page.getViewport({ scale: 3.0 });   // 编辑器用最高清，画框才对得准
       const canvas = document.createElement('canvas');
       canvas.width = vp.width;
       canvas.height = vp.height;
