@@ -64,7 +64,7 @@
       html += '<tr class="' + (r.resolved ? 'report-resolved' : 'report-pending') + '" data-report-id="' + rid + '">' +
         '<td class="col-center"><input type="checkbox" class="resolve-checkbox" data-report-id="' + rid + '"' + (r.resolved ? ' checked' : '') + '></td>' +
         '<td>' + (i + 1) + '</td>' +
-        '<td><a href="/submissions/detail?subid=' + encodeURIComponent(r.subid) + '">' + escapeHtml(r.subid) + '</a></td>' +
+        '<td><a href="/submissions/' + encodeURIComponent(r.subid) + '/detail">' + escapeHtml(r.subid) + '</a></td>' +
         '<td><a href="/problems/' + encodeURIComponent(r.problemId) + '">' + escapeHtml(r.problemId) + '</a></td>' +
         '<td>' + escapeHtml(r.submissionOwner) + '</td>' +
         '<td>' + escapeHtml(r.by) + '</td>' +

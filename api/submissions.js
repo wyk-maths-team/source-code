@@ -367,7 +367,7 @@ async function handler(req, res) {
 
     await db.collection('submission_reports').updateOne(
       { _id: oid },
-      { $set: { resolved: resolved !== false, resolvedAt: new Date(), resolvedBy: req.user.username } }
+      { $set: { resolved: resolved !== false, resolvedAt: new Date(), resolvedBy: decoded.username } }
     );
     return res.status(200).json({ success: true });
   }
