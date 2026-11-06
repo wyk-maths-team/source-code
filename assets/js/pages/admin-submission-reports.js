@@ -94,6 +94,8 @@
       u.searchParams.set('username', r.by || '');
       u.searchParams.set('problemid', r.problemId || '');
       u.searchParams.set('subid', r.subid || '');
+      u.searchParams.set('reportid', r.id || '');
+      u.searchParams.set('reportkind', 'submission');
       u.searchParams.set('template', 'submissionReport');
       window.location.href = u.toString();
     }

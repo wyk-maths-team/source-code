@@ -177,6 +177,8 @@
       const u = new URL('/admin/send-message', window.location.origin);
       u.searchParams.set('username', r.username || '');
       u.searchParams.set('problemid', r.problemId || '');
+      u.searchParams.set('reportid', r._id || reportId);
+      u.searchParams.set('reportkind', 'problem');
       u.searchParams.set('template', 'problemReport');
       window.location.href = u.toString();
       return;
