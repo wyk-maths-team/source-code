@@ -97,6 +97,7 @@
         </td>
         <td>${escapeHtml(time)}</td>
         <td style="white-space:nowrap;">
+          <button class="btn-sm btn-secondary" data-action="reply" data-report-id="${escapeHtml(rid)}" title="Reply to the reporter">Reply</button>
           <button class="btn-sm btn-primary" data-action="edit" data-report-id="${escapeHtml(rid)}">Edit</button>
           <button class="btn-sm btn-danger"  data-action="delete" data-report-id="${escapeHtml(rid)}">Delete</button>
         </td>
@@ -170,6 +171,16 @@
     const reportId = btn.dataset.reportId;
     if (!reportId || _busyIds.has(reportId)) return;
 
+    if (action === 'reply') {
+      const r = _reports.find((x) => String(x._id) === reportId);
+      if (!r) return;
+      const u = new URL('/admin/send-message', window.location.origin);
+      u.searchParams.set('username', r.username || '');
+      u.searchParams.set('problemid', r.problemId || '');
+      u.searchParams.set('template', 'problemReport');
+      window.location.href = u.toString();
+      return;
+    }
     if (action === 'edit') {
       const r = _reports.find(x => String(x._id) === reportId);
       if (r) {

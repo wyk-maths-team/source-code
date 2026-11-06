@@ -328,6 +328,50 @@ async function handler(req, res) {
     return res.status(201).json({ success: true, message: 'Report submitted' });
   }
 
+  // ---------- 管理员：提交举报列表 ----------
+  if (req.query.action === 'adminReports') {
+    if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+    if (!isAdmin) return res.status(403).json({ success: false, message: 'Admin only', code: 'NOT_ADMIN' });
+
+    const includeResolved = req.query.resolved === '1';
+    const filter = includeResolved ? {} : { resolved: { $ne: true } };
+    const rows = await db.collection('submission_reports')
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .limit(500)
+      .toArray();
+
+    return res.status(200).json({
+      success: true,
+      reports: rows.map((r) => ({
+        id: String(r._id),
+        subid: r.subid,
+        problemId: r.problemId,
+        submissionOwner: r.submissionOwner,
+        by: r.by,
+        reason: r.reason || '',
+        resolved: !!r.resolved,
+        createdAt: r.createdAt,
+      })),
+    });
+  }
+
+  // ---------- 管理员：把一条提交举报标记为已处理 / 未处理 ----------
+  if (req.query.action === 'resolveReport') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    if (!isAdmin) return res.status(403).json({ success: false, message: 'Admin only', code: 'NOT_ADMIN' });
+
+    const { id, resolved } = req.body || {};
+    let oid;
+    try { oid = new ObjectId(id); } catch { return res.status(400).json({ success: false, message: 'Invalid id' }); }
+
+    await db.collection('submission_reports').updateOne(
+      { _id: oid },
+      { $set: { resolved: resolved !== false, resolvedAt: new Date(), resolvedBy: req.user.username } }
+    );
+    return res.status(200).json({ success: true });
+  }
+
   // ---------- 管理员：让 AI 重新批改一条提交 ----------
   // 只针对 steps 类型的提交；不向学生收任何 token
   if (req.query.action === 'rejudge') {

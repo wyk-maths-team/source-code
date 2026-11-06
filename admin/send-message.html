@@ -3,7 +3,7 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='5e3614df';</script>
+<script>window.__BUILD_V='fa2769a2';</script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -16,13 +16,13 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-<link rel="stylesheet" href="/assets/css/styles.css?v=5e3614df" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=fa2769a2" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 
-<script src="/assets/js/core/ui.js?v=5e3614df"></script>
-<script src="/assets/js/core/net.js?v=5e3614df"></script>
-<script src="/assets/js/core/api.js?v=5e3614df"></script>
-<script src="/assets/js/core/page.js?v=5e3614df"></script>
+<script src="/assets/js/core/ui.js?v=fa2769a2"></script>
+<script src="/assets/js/core/net.js?v=fa2769a2"></script>
+<script src="/assets/js/core/api.js?v=fa2769a2"></script>
+<script src="/assets/js/core/page.js?v=fa2769a2"></script>
 
 <style>
   .msg-form { max-width: 600px; margin: 20px auto; background: var(--card-bg); padding: 24px; border-radius: 12px; border: 1px solid var(--border-color); }
@@ -102,8 +102,10 @@
         <div class="form-group">
           <label>Message Template</label>
           <select id="templateType">
-            <option value="reviewed">Your [] was reviewed. Your submission was rejudged. Thank you.</option>
-            <option value="toc">Your [] was removed. Please follow the rules. Thank you.</option>
+            <option value="reviewed">Problem report reviewed (rejudged)</option>
+            <option value="problemReport">Problem report handled</option>
+            <option value="submissionReport">Submission report handled</option>
+            <option value="toc">Profile picture removed (ToS)</option>
             <option value="custom">Custom Message</option>
           </select>
         </div>
@@ -117,12 +119,12 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=5e3614df"></script>
-  <script src="/assets/js/app.js?v=5e3614df"></script>
-  <script src="/assets/js/topbar.js?v=5e3614df"></script>
-  <script src="/assets/js/sidebar.js?v=5e3614df"></script>
-  <script src="/assets/js/heartbeat.js?v=5e3614df"></script>
-  <script src="/assets/js/pk-invite.js?v=5e3614df"></script>
+  <script src="/assets/js/auth.js?v=fa2769a2"></script>
+  <script src="/assets/js/app.js?v=fa2769a2"></script>
+  <script src="/assets/js/topbar.js?v=fa2769a2"></script>
+  <script src="/assets/js/sidebar.js?v=fa2769a2"></script>
+  <script src="/assets/js/heartbeat.js?v=fa2769a2"></script>
+  <script src="/assets/js/pk-invite.js?v=fa2769a2"></script>
 
   <script>
     Page.boot({ title: 'Send Message', requireAuth: true, skeleton: true });
@@ -147,6 +149,7 @@
       const prefillProblemId = urlParams.get('problemid') || '';
       const prefillSubid = urlParams.get('subid') || '';
       const prefillFlag = urlParams.get('flag');
+      const prefillTemplate = urlParams.get('template');
 
       let selectedUsername = '';
       function setSelected(username) {
@@ -249,50 +252,102 @@
         }, 50);
       }
 
+      if (prefillTemplate) templateType.value = prefillTemplate;
+
       form.style.display = 'block';
       Page.hideSkeleton();
 
-      // ⭐ 3. 统一的预览更新函数
-      function updatePreview() {
-        const t = templateType.value;
-        let text = '';
-        
+
+      // ⭐ 3. 模板 → 可编辑文本（管理员可以随意改生成的句子）
+      function compose(t, vars) {
         if (t === 'reviewed') {
-          const pid = document.getElementById('varProblemId')?.value.trim() || '[Problem ID]';
-          text = `Your problem report on ${pid} was reviewed. Your submission was rejudged. Thank you.`;
-        } else if (t === 'toc') {
-          text = `Your profile picture violates the ToS and was removed. Please follow the rules. Thank you.`;
-        } else if (t === 'custom') {
-          text = document.getElementById('varCustomText')?.value || '[Custom Message]';
+          return 'Your problem report on ' + (vars.pid || '[Problem ID]') + ' was reviewed. Your submission was rejudged. Thank you.';
         }
-        const bc = document.getElementById('broadcastAll');
-        previewBox.textContent = (bc && bc.checked ? '[TO ALL USERS]\n' : '') + text;
+        if (t === 'problemReport') {
+          return 'Your problem report on ' + (vars.pid || '[Problem ID]') + ' has been reviewed and handled. Thank you for helping keep the problem bank accurate.';
+        }
+        if (t === 'submissionReport') {
+          var sid = vars.subid || '[Submission ID]';
+          var pid = vars.pid ? ' on ' + vars.pid : '';
+          return 'Your report on submission ' + sid + pid + ' has been reviewed and handled. Thank you.';
+        }
+        if (t === 'toc') {
+          return 'Your profile picture violates the ToS and was removed. Please follow the rules. Thank you.';
+        }
+        return '';
       }
 
-      // ⭐ 4. 动态渲染参数输入框
+      function readVars() {
+        var a = document.getElementById('varProblemId');
+        var b = document.getElementById('varSubid');
+        return { pid: a ? a.value : '', subid: b ? b.value : '' };
+      }
+
+      function updatePreview() {
+        var ta = document.getElementById('varCustomText');
+        var text = ta ? ta.value : compose(templateType.value, readVars());
+        if (!text) text = '[Message]';
+        var bc = document.getElementById('broadcastAll');
+        previewBox.textContent = (bc && bc.checked ? '[TO ALL USERS]' + String.fromCharCode(10) : '') + text;
+      }
+
+      // ⭐ 4. 每种模板都渲染出同一块可编辑文本
       function renderTemplateVars() {
-        const t = templateType.value;
+        var t = templateType.value;
         dynamicVars.innerHTML = '';
-        
-        if (t === 'reviewed') {
-          const group = document.createElement('div');
-          group.className = 'form-group';
-          group.innerHTML = `<label>Problem ID</label><input type="text" id="varProblemId" placeholder="e.g. HA0001">`;
-          dynamicVars.appendChild(group);
-          document.getElementById('varProblemId').addEventListener('input', updatePreview);
-        } else if (t === 'custom') {
-          const group = document.createElement('div');
-          group.className = 'form-group';
-          group.innerHTML = `<label>Custom Text</label><textarea id="varCustomText" placeholder="Enter message here..."></textarea>`;
-          dynamicVars.appendChild(group);
-          document.getElementById('varCustomText').addEventListener('input', updatePreview);
+
+        if (t === 'reviewed' || t === 'problemReport') {
+          var g = document.createElement('div');
+          g.className = 'form-group';
+          g.innerHTML = '<label>Problem ID</label><input type="text" id="varProblemId" placeholder="e.g. HA0001">';
+          dynamicVars.appendChild(g);
+        } else if (t === 'submissionReport') {
+          var g1 = document.createElement('div');
+          g1.className = 'form-group';
+          g1.innerHTML = '<label>Submission ID</label><input type="text" id="varSubid" placeholder="e.g. sub_xxx">';
+          dynamicVars.appendChild(g1);
+          var g2 = document.createElement('div');
+          g2.className = 'form-group';
+          g2.innerHTML = '<label>Problem ID (optional)</label><input type="text" id="varProblemId" placeholder="e.g. HA0001">';
+          dynamicVars.appendChild(g2);
         }
+
+        var body = document.createElement('div');
+        body.className = 'form-group';
+        body.innerHTML = '<label>Message text (editable)</label><textarea id="varCustomText" style="min-height:120px;"></textarea>';
+        dynamicVars.appendChild(body);
+
+        var ta = document.getElementById('varCustomText');
+        ta.value = compose(t, readVars());
+        ta.addEventListener('input', function () { ta.dataset.edited = '1'; updatePreview(); });
+
+        ['varProblemId', 'varSubid'].forEach(function (id) {
+          var inp = document.getElementById(id);
+          if (!inp) return;
+          inp.addEventListener('input', function () {
+            if (!ta.dataset.edited) ta.value = compose(templateType.value, readVars());
+            updatePreview();
+          });
+        });
+
         updatePreview();
       }
 
-      // 初始化模板
+      // 初始化模板（URL 已指定模板时以 URL 为准）
       templateType.addEventListener('change', renderTemplateVars);
       renderTemplateVars();
+
+      // 从 reports 页跳过来时把题号填进去
+      if (prefillProblemId) {
+        const pidInput = document.getElementById('varProblemId');
+        if (pidInput) {
+          pidInput.value = prefillProblemId;
+          pidInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }
+      if (prefillUser) {
+        setSelected(prefillUser);
+      }
 
       // ⭐ 5. 发送消息
       // ── 群发开关 ──
@@ -316,14 +371,13 @@
         if (!isBroadcast && !target) return DSHUI.toast('Please select a target user', 'warn');
         
         const template = templateType.value;
-        const variables = {};
-        if (template === 'reviewed') {
-          variables.problemId = document.getElementById('varProblemId')?.value.trim() || '';
-          if (!variables.problemId) return DSHUI.toast('Please enter Problem ID', 'warn');
-        }
-        if (template === 'custom') {
-          variables.customText = document.getElementById('varCustomText')?.value.trim() || '';
-          if (!variables.customText) return DSHUI.toast('Please enter message text', 'warn');
+        const bodyText = (document.getElementById('varCustomText') || {}).value || '';
+        const variables = { customText: bodyText.trim(), problemId: (readVars().pid || '') };
+        if (!variables.customText) return DSHUI.toast('Message text is empty', 'warn');
+
+        if (isBroadcast) {
+          const okAll = window.confirm('Send this message to EVERY user?' + String.fromCharCode(10, 10) + variables.customText.slice(0, 200));
+          if (!okAll) return;
         }
 
         sendBtn.disabled = true;
@@ -332,7 +386,7 @@
         try {
           const res = await API.post('/api/admin?action=sendMessage', {
             targetUser: isBroadcast ? null : target,
-            template,
+            template: 'custom',
             variables,
             broadcast: isBroadcast,
           });
@@ -357,6 +411,6 @@
       });
     });
   </script>
-<script src="/assets/js/pk-notify.js?v=5e3614df"></script>
+<script src="/assets/js/pk-notify.js?v=fa2769a2"></script>
 </body>
 </html>
