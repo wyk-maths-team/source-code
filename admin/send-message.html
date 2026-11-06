@@ -62,6 +62,17 @@
     background: rgba(74,144,217,0.08); border-left: 4px solid var(--accent);
     font-size: 0.95rem; line-height: 1.5; color: var(--text-primary);
   }
+
+  .broadcast-label {
+    display: flex; align-items: flex-start; gap: 10px; cursor: pointer;
+    padding: 12px 14px; border-radius: 10px;
+    border: 1px solid var(--border-color); background: var(--bg-color);
+    font-size: .95rem; color: var(--text-primary);
+  }
+  .broadcast-label input[type="checkbox"] { width: 18px; height: 18px; margin-top: 1px; cursor: pointer; flex: none; }
+  .broadcast-hint { display: block; font-size: .78rem; color: var(--text-secondary); margin-top: 3px; }
+  .broadcast-label.checked { border-color: #ef4444; background: rgba(239,68,68,.08); }
+  #targetGroup.disabled { opacity: .45; pointer-events: none; }
 </style>
 </head>
 <body class="index-body">
@@ -73,6 +84,13 @@
         <h2><i class="fas fa-paper-plane"></i> Send System Message</h2>
         
         <div class="form-group">
+          <label class="broadcast-label">
+            <input type="checkbox" id="broadcastAll">
+            <span>Broadcast to <b>everyone</b><span class="broadcast-hint">Sends the same message to all active users (banned accounts excluded).</span></span>
+          </label>
+        </div>
+
+        <div class="form-group" id="targetGroup">
           <label>Target User</label>
           <div class="ac-wrap">
             <input type="text" id="userSearch" placeholder="Type a username or display name..." autocomplete="off">
@@ -247,7 +265,8 @@
         } else if (t === 'custom') {
           text = document.getElementById('varCustomText')?.value || '[Custom Message]';
         }
-        previewBox.textContent = text;
+        const bc = document.getElementById('broadcastAll');
+        previewBox.textContent = (bc && bc.checked ? '[TO ALL USERS]\n' : '') + text;
       }
 
       // ⭐ 4. 动态渲染参数输入框
@@ -276,9 +295,25 @@
       renderTemplateVars();
 
       // ⭐ 5. 发送消息
+      // ── 群发开关 ──
+      const broadcastAll = document.getElementById('broadcastAll');
+      const targetGroup = document.getElementById('targetGroup');
+      function syncBroadcast() {
+        const on = !!(broadcastAll && broadcastAll.checked);
+        broadcastAll.closest('.broadcast-label').classList.toggle('checked', on);
+        if (targetGroup) targetGroup.classList.toggle('disabled', on);
+        if (sendBtn) {
+          sendBtn.textContent = on ? 'Broadcast to all users' : 'Send Message';
+          sendBtn.style.background = on ? '#ef4444' : '';
+        }
+        updatePreview();
+      }
+      if (broadcastAll) broadcastAll.addEventListener('change', syncBroadcast);
+
       sendBtn.addEventListener('click', async () => {
-        const target = selectedUsername || userSearchInput.value.trim();
-        if (!target) return DSHUI.toast('Please select a target user', 'warn');
+        const isBroadcast = !!(broadcastAll && broadcastAll.checked);
+        const target = isBroadcast ? '__ALL__' : (selectedUsername || userSearchInput.value.trim());
+        if (!isBroadcast && !target) return DSHUI.toast('Please select a target user', 'warn');
         
         const template = templateType.value;
         const variables = {};
@@ -295,13 +330,19 @@
         sendBtn.textContent = 'Sending...';
 
         try {
-          await API.post('/api/admin?action=sendMessage', { 
-            targetUser: target, 
-            template, 
-            variables 
+          const res = await API.post('/api/admin?action=sendMessage', {
+            targetUser: isBroadcast ? null : target,
+            template,
+            variables,
+            broadcast: isBroadcast,
           });
-          
-          DSHUI.toast('Message sent successfully!', 'ok');
+
+          DSHUI.toast(
+            isBroadcast
+              ? ('Broadcast sent to ' + ((res && res.recipients) || '?') + ' users')
+              : 'Message sent successfully!',
+            'ok'
+          );
           
           if (template === 'custom') document.getElementById('varCustomText').value = '';
           if (template === 'reviewed') document.getElementById('varProblemId').value = '';

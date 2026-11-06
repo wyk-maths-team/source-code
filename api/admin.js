@@ -301,8 +301,9 @@ async function handleMarkerDetail(req, res, db) {
 async function handleSendMessage(req, res, db, decoded) {
   if (req.method !== 'POST') return fail(res, 405, 'Method not allowed');
 
-  const { targetUser, template, variables } = req.body || {};
-  if (!targetUser || !template) return fail(res, 400, 'Missing targetUser or template');
+  const { targetUser, template, variables, broadcast } = req.body || {};
+  if (!template) return fail(res, 400, 'Missing template');
+  if (!broadcast && !targetUser) return fail(res, 400, 'Missing targetUser or template');
 
   let content = '';
   if (template === 'reviewed') {
@@ -315,8 +316,30 @@ async function handleSendMessage(req, res, db, decoded) {
     return fail(res, 400, 'Invalid template');
   }
 
+  // 群发：发给所有未被封禁的用户
+  if (broadcast) {
+    const users = await db.collection('users')
+      .find({ banned: { $ne: true } }, { projection: { username: 1, _id: 0 } })
+      .toArray();
+
+    const base = Date.now();
+    const docs = users.map((u, i) => ({
+      username: u.username,
+      from: 'system',
+      content,
+      createdAt: new Date(base + i),   // 微错开，排序稳定
+      read: false,
+    }));
+
+    if (docs.length) await db.collection('messages').insertMany(docs);
+
+    await safeAudit(db, 'broadcast_system_message', { template, recipients: docs.length }, decoded.username, 'warning');
+    return ok(res, { success: true, recipients: docs.length, message: 'Broadcast sent to ' + docs.length + ' users' });
+  }
+
   await db.collection('messages').insertOne({
     username: targetUser,
+    from: 'system',
     content,
     createdAt: new Date(),
     read: false
