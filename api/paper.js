@@ -8,6 +8,7 @@ import { applyRateLimit } from '../lib/rateLimit.js';
 import { wrapHandler } from '../lib/errors.js';
 import { getTokenBalance, consumeTokens } from '../lib/token.js';
 import { buildDsePrompt } from '../lib/grade-prompt.js';
+import { sumMarks } from '../lib/marks.js';
 import crypto from 'crypto';
 
 export const config = { maxDuration: 300 };
@@ -406,8 +407,8 @@ async function handler(req, res) {
     const problem = await db.collection('problems').findOne({ id: String(pid) });
     if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
 
-    const marksMatch = String(problem.statement || '').match(/\((\d+)\s*marks?\)/i);
-    const totalMarks = marksMatch ? Number(marksMatch[1]) : null;
+    // (a) 3 marks + (b) 4 marks 要相加，不能只取第一个
+    const totalMarks = sumMarks(problem.statement);
 
     const bal = await getTokenBalance(db, req.user.username);
     if ((bal.daily || 0) + (bal.global || 0) < PER_QUESTION_COST && req.user.role !== 'root') {
@@ -504,8 +505,7 @@ async function handler(req, res) {
         throw new Error('Invalid image source for ' + pid);
       }
 
-      const marksMatch = String(problem.statement || '').match(/\((\d+)\s*marks?\)/i);
-      const totalMarks = marksMatch ? Number(marksMatch[1]) : null;
+      const totalMarks = sumMarks(problem.statement);
 
       const prompt = buildDsePrompt({
         statement: problem.statement,

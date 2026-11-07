@@ -49,6 +49,19 @@
     } catch { /* 配额满了就算了 */ }
   }
 
+  // 把题干里所有 (N marks) 加起来：一道题拆成 (a)(b) 时总分会是几段之和
+  function totalMarksLabel(statement) {
+    const text = String(statement || '');
+    const re = /\((\d+(?:\.\d+)?)\s*marks?\)/gi;
+    let total = 0, found = 0, m;
+    while ((m = re.exec(text)) !== null) {
+      const n = Number(m[1]);
+      if (Number.isFinite(n) && n > 0) { total += n; found++; }
+    }
+    if (!found) return '';
+    return total + (total === 1 ? ' mark' : ' marks');
+  }
+
   function fmtTokens(n) {
     const v = Number(n) || 0;
     return v >= 1000 ? (v / 1000).toFixed(v % 1000 === 0 ? 0 : 1) + 'k' : String(v);
@@ -1414,8 +1427,7 @@
       card.className = 'paper-q';
       card.dataset.pid = q.id;
 
-      const marksMatch = String(q.statement || '').match(/\((\d+)\s*marks?\)/i);
-      const marksLabel = marksMatch ? marksMatch[1] + ' marks' : '';
+      const marksLabel = totalMarksLabel(q.statement);
 
       card.innerHTML = `
         <div class="paper-q-head">
