@@ -36,6 +36,16 @@ const DURATION_SEC = 1800;
 const INVITE_TTL_MS = 10 * 60 * 1000; // 邀请 10 分钟过期
 const PROBLEM_COUNT = 3;
 
+// PK 只能出这三类题：HA（HKMHASC）、IP（IMO Prelim）、MO（compulsory）。
+// 其它题集（HX 华夏杯、CH sml 等）不进 PK 池。
+export const PK_ALLOWED_PREFIXES = ['HA', 'IP', 'MO'];
+
+/** 题目 id 是否允许出现在 PK 里（按前缀判断） */
+export function isPkEligibleProblem(id) {
+  const s = String(id || '').toUpperCase();
+  return PK_ALLOWED_PREFIXES.some((p) => s.startsWith(p));
+}
+
 function genId(prefix, len = 8) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let s = '';
@@ -67,7 +77,9 @@ async function pickProblems(db, targetDiff, players) {
   const band = 1.2;
   const lo = Math.max(1, targetDiff - band);
   const hi = Math.min(10, targetDiff + band);
-  const baseFilter = { public: true, tags: { $ne: 'CHAIN_WARNING' } };
+  // 只允许 HA / IP / MO 开头
+  const prefixFilter = { id: { $regex: '^(' + PK_ALLOWED_PREFIXES.join('|') + ')' } };
+  const baseFilter = { public: true, tags: { $ne: 'CHAIN_WARNING' }, ...prefixFilter };
 
   // 先把双方已 AC 的题号取出来（states.pid === 'passed'）
   let solved = new Set();
