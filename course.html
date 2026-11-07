@@ -3,7 +3,7 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='4ef021dd';</script>
+<script>window.__BUILD_V='20726077';</script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -12,15 +12,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Course - WYK Maths Team</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="/assets/css/styles.css?v=4ef021dd" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=20726077" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" />
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
-<script src="/assets/js/core/ui.js?v=4ef021dd"></script>
-<script src="/assets/js/core/net.js?v=4ef021dd"></script>
-<script src="/assets/js/core/api.js?v=4ef021dd"></script>
-<script src="/assets/js/core/page.js?v=4ef021dd"></script>
+<script src="/assets/js/core/ui.js?v=20726077"></script>
+<script src="/assets/js/core/net.js?v=20726077"></script>
+<script src="/assets/js/core/api.js?v=20726077"></script>
+<script src="/assets/js/core/page.js?v=20726077"></script>
 <style>
   :root {
     --course-bg: var(--content-bg, #f8f9fa);
@@ -280,6 +280,52 @@
     -webkit-user-drag: none;
     user-select: none;
   }
+
+  /* ── Submissions（所有人的 DSE 提交） ── */
+  .dse-sub-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px; }
+  .dse-sub-title { font-weight: 800; font-size: 1.1rem; }
+  .dse-sub-count { font-size: .82rem; color: var(--text-secondary); }
+  .dse-sub-list { display: flex; flex-direction: column; gap: 10px; }
+  .dse-sub-row {
+    background: var(--course-card); border: 1px solid var(--course-border);
+    border-radius: 10px; overflow: hidden;
+  }
+  .dse-sub-row summary {
+    display: grid; grid-template-columns: 1fr 90px 130px 90px 160px;
+    gap: 10px; align-items: center; padding: 12px 16px; cursor: pointer;
+    list-style: none; font-size: .88rem;
+  }
+  .dse-sub-row summary::-webkit-details-marker { display: none; }
+  .dse-sub-row summary:hover { background: var(--sidebar-hover-bg, rgba(0,0,0,.03)); }
+  .dse-sub-user a { color: #4a90d9; text-decoration: none; font-weight: 600; }
+  .dse-sub-user a:hover { text-decoration: underline; }
+  .dse-sub-paper { color: var(--text-secondary); font-size: .82rem; }
+  .dse-sub-pid { font-family: monospace; font-size: .76rem; color: var(--text-secondary); }
+  .dse-sub-score { font-weight: 800; text-align: right; }
+  .dse-sub-score.good { color: #22c55e; }
+  .dse-sub-score.mid  { color: #eab308; }
+  .dse-sub-score.bad  { color: #ef4444; }
+  .dse-sub-time { text-align: right; font-size: .76rem; color: var(--text-secondary); }
+  .dse-sub-body { padding: 4px 16px 16px; border-top: 1px dashed var(--course-border); }
+  .dse-sub-lines { list-style: none; margin: 10px 0 0; padding: 0; }
+  .dse-sub-lines li { position: relative; padding: 5px 0 5px 22px; font-size: .87rem; line-height: 1.6; }
+  .dse-sub-lines li.ok::before  { content: '✔'; position: absolute; left: 2px; color: #22c55e; font-weight: 800; }
+  .dse-sub-lines li.bad::before { content: '✘'; position: absolute; left: 2px; color: #ef4444; font-weight: 800; }
+  .dse-sub-lines li.ok  { color: #166534; }
+  .dse-sub-lines li.bad { color: #991b1b; }
+  :root[data-theme="dark"] .dse-sub-lines li.ok  { color: #86efac; }
+  :root[data-theme="dark"] .dse-sub-lines li.bad { color: #fca5a5; }
+  .dse-sub-summary { margin-top: 10px; font-size: .86rem; color: var(--text-secondary); font-style: italic; }
+  .dse-sub-actions { margin-top: 12px; }
+  .dse-sub-actions a { font-size: .82rem; color: #4a90d9; text-decoration: none; }
+  .dse-sub-actions a:hover { text-decoration: underline; }
+  .dse-sub-pager { display: flex; gap: 16px; justify-content: center; align-items: center; margin-top: 18px; font-size: .84rem; }
+  .dse-sub-pager a { color: #4a90d9; text-decoration: none; }
+  .dse-sub-pager a:hover { text-decoration: underline; }
+  @media (max-width: 720px) {
+    .dse-sub-row summary { grid-template-columns: 1fr auto; row-gap: 4px; }
+    .dse-sub-time { text-align: left; }
+  }
 </style>
 </head>
 <body class="index-body">
@@ -291,13 +337,13 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=4ef021dd"></script>
-  <script src="/assets/js/app.js?v=4ef021dd"></script>
-  <script src="/assets/js/topbar.js?v=4ef021dd"></script>
-  <script src="/assets/js/sidebar.js?v=4ef021dd"></script>
-  <script src="/assets/js/heartbeat.js?v=4ef021dd"></script>
-  <script src="/assets/js/pk-invite.js?v=4ef021dd"></script>
-  <script src="/assets/js/pages/course.js?v=4ef021dd"></script>
-  <script src="/assets/js/pk-notify.js?v=4ef021dd"></script>
+  <script src="/assets/js/auth.js?v=20726077"></script>
+  <script src="/assets/js/app.js?v=20726077"></script>
+  <script src="/assets/js/topbar.js?v=20726077"></script>
+  <script src="/assets/js/sidebar.js?v=20726077"></script>
+  <script src="/assets/js/heartbeat.js?v=20726077"></script>
+  <script src="/assets/js/pk-invite.js?v=20726077"></script>
+  <script src="/assets/js/pages/course.js?v=20726077"></script>
+  <script src="/assets/js/pk-notify.js?v=20726077"></script>
 </body>
 </html>

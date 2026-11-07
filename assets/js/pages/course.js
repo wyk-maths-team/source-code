@@ -63,6 +63,8 @@
     // /course/papers            → 选 M0 / M1 / M2
     // /course/papers/M0         → 选年份
     // /course/papers/M0/2025    → 试卷
+    if (parts[1] === 'submissions') return { view: 'dseSubmissions' };
+
     if (parts[1] === 'papers') {
       if (parts.length === 2) return { view: 'paperTracks' };
       if (parts.length === 3) return { view: 'paperYears', track: decodeURIComponent(parts[2]) };
@@ -116,6 +118,11 @@
           <div class="tc-code">P</div>
           <div class="tc-name">Papers</div>
           <div class="tc-sub">Full DSE papers · draw and get marked</div>
+        </a>
+        <a class="track-card track-Submissions" href="/course/submissions">
+          <div class="tc-code">S</div>
+          <div class="tc-name">Submissions</div>
+          <div class="tc-sub">Everyone's marked answers · visible to all</div>
         </a>`;
     root.innerHTML = crumbs([{ text: 'Course' }]) +
       '<div class="course-tracks">' + Object.entries(TRACKS).map(([code, t]) => `
@@ -1136,6 +1143,81 @@
   }
 
 
+
+  // ─────────── Submissions：所有人的 DSE 提交 ───────────
+  async function renderDseSubmissions(page) {
+    root.classList.remove('wide');
+    const p = Number(page) || 1;
+    root.innerHTML = crumbs([{ text: 'Course', href: '/course' }, { text: 'Submissions' }]) +
+      '<div id="dseSubRoot"><div class="course-empty">Loading submissions…</div></div>';
+
+    const host = document.getElementById('dseSubRoot');
+    let data;
+    try {
+      data = await API.get('/api/paper?action=dseSubmissions&page=' + p + '&limit=30');
+    } catch (e) {
+      host.innerHTML = '<div class="course-empty">Could not load submissions: ' + esc(e.message || 'error') + '</div>';
+      return;
+    }
+    if (!data || !data.success) {
+      host.innerHTML = '<div class="course-empty">Submissions unavailable.</div>';
+      return;
+    }
+
+    const rows = data.submissions || [];
+    const pg = data.pagination || { page: p, totalPages: 1, total: rows.length };
+
+    let html = '<div class="dse-sub-head">' +
+      '<div class="dse-sub-title">DSE submissions</div>' +
+      '<div class="dse-sub-count">' + pg.total + ' marked question' + (pg.total === 1 ? '' : 's') + '</div>' +
+      '</div>';
+
+    if (!rows.length) {
+      host.innerHTML = html + '<div class="course-empty">Nobody has submitted a paper yet.</div>';
+      return;
+    }
+
+    html += '<div class="dse-sub-list">';
+    rows.forEach((r) => {
+      const t = r.createdAt ? new Date(r.createdAt).toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong' }) : '';
+      const score = Number(r.score) || 0;
+      const cls = score >= 80 ? 'good' : score >= 50 ? 'mid' : 'bad';
+      const head = (r.awarded != null && r.total != null) ? (r.awarded + ' / ' + r.total) : (score + '%');
+      const lines = Array.isArray(r.lines) ? r.lines : [];
+
+      html += '<details class="dse-sub-row">' +
+        '<summary>' +
+          '<span class="dse-sub-user"><a href="/users/' + encodeURIComponent(r.username) + '">' + esc(r.username) + '</a></span>' +
+          '<span class="dse-sub-paper">' + esc(r.paperTrack) + ' ' + esc(r.paperYear) + '</span>' +
+          '<span class="dse-sub-pid">' + esc(r.pid) + '</span>' +
+          '<span class="dse-sub-score ' + cls + '">' + esc(head) + '</span>' +
+          '<span class="dse-sub-time">' + esc(t) + '</span>' +
+        '</summary>' +
+        '<div class="dse-sub-body">' +
+          (lines.length ? '<ul class="dse-sub-lines">' + lines.map((l) => {
+            const ok = /^\s*[✔✓]/.test(l);
+            return '<li class="' + (ok ? 'ok' : 'bad') + '">' + esc(l) + '</li>';
+          }).join('') + '</ul>' : '') +
+          (r.summary ? '<div class="dse-sub-summary">' + esc(r.summary) + '</div>' : '') +
+          '<div class="dse-sub-actions"><a href="/course/papers/' + encodeURIComponent(r.paperTrack) + '/' + r.paperYear + '">Open paper</a></div>' +
+        '</div>' +
+      '</details>';
+    });
+    html += '</div>';
+
+    // 分页
+    if (pg.totalPages > 1) {
+      html += '<div class="dse-sub-pager">';
+      if (pg.page > 1) html += '<a href="/course/submissions?page=' + (pg.page - 1) + '">← Newer</a>';
+      html += '<span>Page ' + pg.page + ' / ' + pg.totalPages + '</span>';
+      if (pg.page < pg.totalPages) html += '<a href="/course/submissions?page=' + (pg.page + 1) + '">Older →</a>';
+      html += '</div>';
+    }
+
+    host.innerHTML = html;
+    renderMath(host);
+  }
+
   // ─────────── Papers：M0 / M1 / M2 ───────────
   async function renderPaperTracks() {
     root.classList.remove('wide');
@@ -1375,6 +1457,10 @@
   Page.ready(async () => {
     const route = parseRoute();
     if (route.view === 'tracks') return renderTracks();
+    if (route.view === 'dseSubmissions') {
+      const qp = new URLSearchParams(location.search);
+      return renderDseSubmissions(qp.get('page'));
+    }
     if (route.view === 'paperTracks') return renderPaperTracks();
     if (route.view === 'paperYears') return renderPaperYears(route.track);
     if (route.view === 'paper') return renderPaper(route.track, route.year);

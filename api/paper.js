@@ -150,6 +150,40 @@ async function handler(req, res) {
     });
   }
 
+  // ── 所有人的 DSE 提交记录（公开给登录用户）──
+  if (action === 'dseSubmissions') {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 30));
+    const skip = (page - 1) * limit;
+
+    const filter = {};
+    if (req.query.username) filter.username = String(req.query.username);
+    if (req.query.track) filter.paperTrack = String(req.query.track);
+    if (Number(req.query.year)) filter.paperYear = Number(req.query.year);
+
+    const [rows, total] = await Promise.all([
+      db.collection('dsesubmissions')
+        .find(filter, {
+          projection: {
+            subid: 1, username: 1, paperTrack: 1, paperYear: 1, pid: 1,
+            score: 1, awarded: 1, total: 1, lines: 1, summary: 1,
+            imageUrl: 1, mode: 1, markedAt: 1, createdAt: 1, _id: 0,
+          },
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .toArray(),
+      db.collection('dsesubmissions').countDocuments(filter),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      submissions: rows,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
+    });
+  }
+
   // ── 管理员：试卷列表 ──
   if (action === 'listPapers') {
     if (req.user.role !== 'admin' && req.user.role !== 'root') {
