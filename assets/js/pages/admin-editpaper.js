@@ -79,18 +79,18 @@
     const host = $('epList');
     let drag = null;
 
-    host.querySelectorAll('.ep-handle').forEach((h) => {
-      h.addEventListener('pointerdown', (e) => {
-        e.preventDefault();
-        const i = Number(h.dataset.i);
-        drag = { i, startY: e.clientY, startH: state.items[i].height };
-        h.setPointerCapture(e.pointerId);
-        document.body.style.userSelect = 'none';
-      });
-    });
+    // 全局监听：以前 pointermove 只挂在列表上，最后一题往下拖时指针一旦
+    // 离开列表范围（比如滑到页面底部空白或窗口外）事件就断了，手柄跟手
+    // 走一小段就停，表现为「每次只能拉一点」。挂到 window 后拖多远都跟手。
+    if (bindHandles._bound) {
+      window.removeEventListener('pointermove', bindHandles._move);
+      window.removeEventListener('pointerup', bindHandles._end);
+      window.removeEventListener('pointercancel', bindHandles._end);
+    }
 
-    host.addEventListener('pointermove', (e) => {
+    const onMove = (e) => {
       if (!drag) return;
+      e.preventDefault();
       const delta = e.clientY - drag.startY;
       const h = Math.max(120, Math.min(2000, Math.round(drag.startH + delta)));
       state.items[drag.i].height = h;
@@ -98,16 +98,41 @@
       const label = document.getElementById('epSize' + drag.i);
       if (board) board.style.height = h + 'px';
       if (label) label.textContent = h + 'px';
-    });
+
+      // 拖到视口上下边缘时自动滚动，长卷子也能一口气拉到底
+      const margin = 80;
+      if (e.clientY > window.innerHeight - margin) {
+        window.scrollBy(0, 14);
+      } else if (e.clientY < margin) {
+        window.scrollBy(0, -14);
+      }
+    };
 
     const end = () => {
       if (!drag) return;
       drag = null;
       document.body.style.userSelect = '';
+      document.body.style.cursor = '';
     };
-    host.addEventListener('pointerup', end);
-    host.addEventListener('pointercancel', end);
+
+    bindHandles._bound = true;
+    bindHandles._move = onMove;
+    bindHandles._end = end;
+
+    window.addEventListener('pointermove', onMove, { passive: false });
     window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+
+    host.querySelectorAll('.ep-handle').forEach((h) => {
+      h.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        const i = Number(h.dataset.i);
+        drag = { i, startY: e.clientY, startH: state.items[i].height };
+        try { h.setPointerCapture(e.pointerId); } catch (err) {}
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'ns-resize';
+      });
+    });
   }
 
   async function save() {
