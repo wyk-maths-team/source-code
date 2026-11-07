@@ -4,6 +4,7 @@ import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { wrapHandler } from '../lib/errors.js';
 import { problemFilterFor } from '../lib/guestGuard.js';
+import { excludeFromBank } from '../lib/bankFilter.js';
 
 function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // AGAINST INJECTION
@@ -48,6 +49,7 @@ async function handler(req, res) {
         { name: regex }
       ],
       ...problemFilterFor(req.user),
+      ...excludeFromBank(),
     };
     const problems = await db.collection('problems').find(filter)
       .project({ id: 1, name: 1, _id: 0 }).limit(6).toArray();

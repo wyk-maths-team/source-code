@@ -9,6 +9,7 @@ import { ObjectId } from 'mongodb';
 import { wrapHandler } from '../lib/errors.js';
 import { findUserActiveContests } from '../lib/submission.js';
 import { guestBlockedFromProblem } from '../lib/guestGuard.js';
+import { excludeFromBank } from '../lib/bankFilter.js';
 //説明：所有的題目相關的操作都在這裏。
 // ============== 輔助函數 ==============
 // ============== 輔助函數 ==============
@@ -929,10 +930,10 @@ async function handler(req, res) {
     if (ids === '1') {
       // ⭐ 非管理員只能看到 public 題目；访客还要排除华夏杯（HX）
       const idFilter = adminUser
-        ? {}
+        ? excludeFromBank()
         : (guestBlockedFromProblem(req.user, 'HX')
             ? { public: true, id: { $not: /^HX/i } }
-            : { public: true });
+            : { public: true, ...excludeFromBank() });
       const idList = await db.collection('problems')
         .find(idFilter, { projection: { id: 1, _id: 0 } })
         .toArray();
@@ -941,10 +942,10 @@ async function handler(req, res) {
 
     if (req.query.all === '1') {
       const baseFilter = adminUser
-        ? {}
+        ? excludeFromBank()
         : (guestBlockedFromProblem(req.user, 'HX')
             ? { public: true, id: { $not: /^HX/i } }
-            : { public: true });
+            : { public: true, ...excludeFromBank() });
       const withStatement = req.query.withStatement === '1';
 
       const projection = {
