@@ -3,7 +3,7 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='2472361c';</script>
+<script>window.__BUILD_V='f003a1e1';</script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -12,15 +12,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Course - WYK Maths Team</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="/assets/css/styles.css?v=2472361c" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=f003a1e1" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" />
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
-<script src="/assets/js/core/ui.js?v=2472361c"></script>
-<script src="/assets/js/core/net.js?v=2472361c"></script>
-<script src="/assets/js/core/api.js?v=2472361c"></script>
-<script src="/assets/js/core/page.js?v=2472361c"></script>
+<script src="/assets/js/core/ui.js?v=f003a1e1"></script>
+<script src="/assets/js/core/net.js?v=f003a1e1"></script>
+<script src="/assets/js/core/api.js?v=f003a1e1"></script>
+<script src="/assets/js/core/page.js?v=f003a1e1"></script>
 <style>
   :root {
     --course-bg: var(--content-bg, #f8f9fa);
@@ -337,6 +337,21 @@
   .dse-no-img { font-size: .8rem; color: var(--text-secondary); margin-right: 12px; }
   .dse-img-slot:not(:empty) { margin-top: 12px; }
   .dse-img { max-width: 100%; border-radius: 8px; border: 1px solid var(--course-border); }
+
+  /* 画板默认锁住：滑动页面时不会误画，点一下才解锁 */
+  .paper-pad.paper-pad-locked canvas { pointer-events: none; }
+  .paper-pad.paper-pad-locked .pdf-pad-tools { display: none !important; }
+  .paper-pad-unlock {
+    position: absolute; inset: 0; z-index: 4;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; border: none; cursor: pointer;
+    background: rgba(255, 255, 255, .55);
+    backdrop-filter: blur(1px);
+    color: #4a90d9; font-family: inherit; font-size: .88rem; font-weight: 700;
+    touch-action: manipulation;
+  }
+  .paper-pad-unlock:hover { background: rgba(74, 144, 217, .12); }
+  .paper-pad.paper-pad-active { box-shadow: 0 0 0 2px rgba(74,144,217,.35); }
 </style>
 </head>
 <body class="index-body">
@@ -348,13 +363,13 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=2472361c"></script>
-  <script src="/assets/js/app.js?v=2472361c"></script>
-  <script src="/assets/js/topbar.js?v=2472361c"></script>
-  <script src="/assets/js/sidebar.js?v=2472361c"></script>
-  <script src="/assets/js/heartbeat.js?v=2472361c"></script>
-  <script src="/assets/js/pk-invite.js?v=2472361c"></script>
-  <script src="/assets/js/pages/course.js?v=2472361c"></script>
-  <script src="/assets/js/pk-notify.js?v=2472361c"></script>
+  <script src="/assets/js/auth.js?v=f003a1e1"></script>
+  <script src="/assets/js/app.js?v=f003a1e1"></script>
+  <script src="/assets/js/topbar.js?v=f003a1e1"></script>
+  <script src="/assets/js/sidebar.js?v=f003a1e1"></script>
+  <script src="/assets/js/heartbeat.js?v=f003a1e1"></script>
+  <script src="/assets/js/pk-invite.js?v=f003a1e1"></script>
+  <script src="/assets/js/pages/course.js?v=f003a1e1"></script>
+  <script src="/assets/js/pk-notify.js?v=f003a1e1"></script>
 </body>
 </html>

@@ -1393,6 +1393,20 @@
       pad.restore();
       pads[q.id] = pad;
 
+      // 先锁住画布：大幅滑动页面时不想误画，点一下才解锁
+      padWrap.classList.add('paper-pad-locked');
+      const unlock = document.createElement('button');
+      unlock.type = 'button';
+      unlock.className = 'paper-pad-unlock';
+      unlock.innerHTML = '<i class="fas fa-pen"></i> Tap to write';
+      padWrap.appendChild(unlock);
+      unlock.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        padWrap.classList.remove('paper-pad-locked');
+        padWrap.classList.add('paper-pad-active');
+        unlock.remove();
+      });
+
       // 工具条浮在画板顶部：颜色 / 粗细 / 橡皮 / 撤销 / 清空
       const tools = buildPadToolbar(pad);
       tools.style.left = '6px';
