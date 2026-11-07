@@ -220,17 +220,19 @@ async function handler(req, res) {
         });
       }
 
+      // 与 admin.js handleSyncVersion / problem.js bumpProblemsVersion 用同一条文档：
+      // metadata { _key: 'problemsVersion', version }，版本值就是时间戳。
+      const newVer = Date.now();
       const upd = await db.collection('metadata').findOneAndUpdate(
-        { key: 'problemVersion' },
+        { _key: 'problemsVersion' },
         {
-          $inc: { value: 1 },
-          $set: { updatedAt: new Date(), reason: 'submission-spike' },
-          $setOnInsert: { key: 'problemVersion' },
+          $set: { version: newVer, updatedAt: new Date(), reason: 'submission-spike' },
+          $setOnInsert: { _key: 'problemsVersion' },
         },
         { upsert: true, returnDocument: 'after' }
       );
 
-      const version = upd && (upd.value ? upd.value.value : upd) || null;
+      const version = (upd && (upd.value ? upd.value.version : upd.version)) || newVer;
 
       try {
         const { invalidateProblemCache } = await import('../lib/problemCache.js');

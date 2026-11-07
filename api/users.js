@@ -151,9 +151,63 @@ async function handler(req, res) {
       }
 
       if (updateFields.username && updateFields.username !== username) {
+        const newName = updateFields.username;
+
+        // 1) 用户主记录
         await db.collection('users').updateOne({ username }, { $set: updateFields });
-        await db.collection('submissions').updateMany({ username }, { $set: { username: updateFields.username } });
-        await db.collection('userstats').updateOne({ username }, { $set: { username: updateFields.username } });
+
+        // 2) 所有以 username 为键的集合 —— 漏一个就是孤儿数据：
+        //    收不到旧消息、主题丢失、课程进度丢失、成就 log 对不上、
+        //    竞赛成绩消失、财富榜/rating 榜历史断裂。
+        const renames = [
+          ['submissions', 'username', 'many'],
+          ['userstats', 'username', 'one'],
+          ['messages', 'username', 'many'],
+          ['userdata', 'username', 'one'],
+          ['courseProgress', 'username', 'many'],
+          ['hintPurchases', 'username', 'many'],
+          ['achievements_log', 'username', 'many'],
+          ['contest_results', 'username', 'many'],
+          ['tokenHistory', 'username', 'many'],
+          ['ratingHistory', 'username', 'many'],
+          ['solutionLikes', 'username', 'many'],
+          ['solutions', 'username', 'many'],
+          ['pk_bet_rooms.players', null, null],   // 特殊：数组内对象，单独处理
+        ];
+
+        for (const [coll, field, mode] of renames) {
+          if (!field) continue;
+          try {
+            if (mode === 'one') {
+              await db.collection(coll).updateOne({ [field]: username }, { $set: { [field]: newName } });
+            } else {
+              await db.collection(coll).updateMany({ [field]: username }, { $set: { [field]: newName } });
+            }
+          } catch (e) {
+            console.error('[rename] ' + coll + ' failed:', e.message);
+          }
+        }
+
+        // 3) 数组内嵌的成员名（teams.members / pk_bet_rooms.players[].username）
+        try {
+          await db.collection('teams').updateMany(
+            { members: username },
+            { $set: { 'members.$[m]': newName } },
+            { arrayFilters: [{ 'm': username }] }
+          );
+        } catch (e) {
+          console.error('[rename] teams.members failed:', e.message);
+        }
+
+        try {
+          await db.collection('pk_bet_rooms').updateMany(
+            { 'players.username': username },
+            { $set: { 'players.$[p].username': newName } },
+            { arrayFilters: [{ 'p.username': username }] }
+          );
+        } catch (e) {
+          console.error('[rename] pk_bet_rooms.players failed:', e.message);
+        }
       } else {
         await db.collection('users').updateOne({ username }, { $set: updateFields });
       }

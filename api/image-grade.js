@@ -14,11 +14,19 @@ export const config = { maxDuration: 300 };
 const IMAGE_TOKEN_COST = 3000;
 function genTaskId() { return 'IGT' + crypto.randomBytes(8).toString('hex'); }
 
+// 只允许来自自己图床的图片；校验在 handleCreate 里做，这里再兜一层。
+const ALLOWED_IMAGE_HOSTS = ['https://res.cloudinary.com/', 'https://cdn.jsdelivr.net/'];
+
+function isAllowedImageUrl(url) {
+  const s = String(url || '');
+  return ALLOWED_IMAGE_HOSTS.some((prefix) => s.startsWith(prefix));
+}
+
 async function callDeepSeekVision(prompt, imageUrl) {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   const base = process.env.DEEPSEEK_API_BASE || 'https://api.deepseek.com';
-  if (!imageUrl.startsWith('https://res.cloudinary.com/') && !imageUrl.startsWith('https://cdn.jsdelivr.net/')) {
-      return res.status(400).json({ success: false, message: 'Invalid image source.' });
+  if (!isAllowedImageUrl(imageUrl)) {
+    throw new Error('Invalid image source');
   }
   const body = {
     model: 'deepseek-flash', // 根据文档，这是 V4.1-Flash
@@ -85,6 +93,11 @@ async function handleCreate(req, res, db, decoded) {
 
   if (!problemId || !subid || !imageUrl) {
     return res.status(400).json({ success: false, message: 'Missing fields' });
+  }
+
+  // 图片校验放在这里（调 AI 之前），而不是藏在内部函数里
+  if (!isAllowedImageUrl(imageUrl)) {
+    return res.status(400).json({ success: false, message: 'Invalid image source.' });
   }
   
   const problem = await db.collection('problems').findOne({ id: String(problemId) });
