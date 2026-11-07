@@ -88,34 +88,62 @@
         ans.value = p.ans || '';
       }).catch(() => {});
 
-      // 图片上传：插到光标处
+      // 图片上传：文件选择和 Ctrl+V 粘贴共用同一条路径
       const fileInput = card.querySelector('input[type=file]');
-      fileInput.addEventListener('change', async () => {
-        const f = fileInput.files && fileInput.files[0];
-        if (!f) return;
-        if (f.size > 4 * 1024 * 1024) { msg.textContent = 'Image too large (max 4MB)'; msg.className = 'pq-msg err'; return; }
-        msg.textContent = 'Uploading…'; msg.className = 'pq-msg';
+
+      async function uploadAndInsert(file, target, label) {
+        if (!file) return false;
+        if (file.size > 4 * 1024 * 1024) {
+          msg.textContent = 'Image too large (max 4MB)';
+          msg.className = 'pq-msg err';
+          return false;
+        }
+        msg.textContent = 'Uploading…';
+        msg.className = 'pq-msg';
         try {
           const dataUrl = await new Promise((res, rej) => {
             const fr = new FileReader();
             fr.onload = () => res(fr.result);
             fr.onerror = () => rej(new Error('read failed'));
-            fr.readAsDataURL(f);
+            fr.readAsDataURL(file);
           });
           const out = await api('/api/problem?action=adminUploadImage', 'POST', { image: dataUrl, problemId: q.id });
           const url = out.url || out.imageUrl;
           if (!url) throw new Error('No URL returned');
           const snippet = '<p><img src="' + url + '" alt="" style="max-width:100%;"></p>';
-          const at = stmt.selectionStart || stmt.value.length;
-          stmt.value = stmt.value.slice(0, at) + snippet + stmt.value.slice(at);
-          msg.textContent = 'Image inserted — remember to Save';
+          const at = target.selectionStart == null ? target.value.length : target.selectionStart;
+          target.value = target.value.slice(0, at) + snippet + target.value.slice(at);
+          msg.textContent = (label || 'Image') + ' inserted — remember to Save';
           msg.className = 'pq-msg ok';
+          return true;
         } catch (e) {
           msg.textContent = 'Upload failed: ' + e.message;
           msg.className = 'pq-msg err';
-        } finally {
-          fileInput.value = '';
+          return false;
         }
+      }
+
+      fileInput.addEventListener('change', async () => {
+        const f = fileInput.files && fileInput.files[0];
+        await uploadAndInsert(f, stmt, 'Image');
+        fileInput.value = '';
+      });
+
+      // Ctrl+V / Cmd+V 直接粘图
+      [stmt, ans].forEach((ta) => {
+        ta.addEventListener('paste', async (e) => {
+          const items = (e.clipboardData && e.clipboardData.items) || [];
+          let imageFile = null;
+          for (const it of items) {
+            if (it.kind === 'file' && it.type.startsWith('image/')) {
+              imageFile = it.getAsFile();
+              break;
+            }
+          }
+          if (!imageFile) return;              // 普通文字粘贴照旧
+          e.preventDefault();
+          await uploadAndInsert(imageFile, ta, 'Pasted image');
+        });
       });
 
       saveBtn.addEventListener('click', async () => {
