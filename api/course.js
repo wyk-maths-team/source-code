@@ -167,6 +167,21 @@ async function handler(req, res) {
         if (passedStates[pid] === 'passed') solved.add(pid);
       }
 
+      // 卷末题目清单：带上题名，方便在 PDF 尾巴列出并可点进编辑页
+      const probDocs = pids.length
+        ? await db.collection('problems').find(
+            { id: { $in: pids } },
+            { projection: { id: 1, name: 1, difficulty: 1, _id: 0 } }
+          ).toArray()
+        : [];
+      const probMap = Object.fromEntries(probDocs.map((p) => [p.id, p]));
+      const problemList = pids.map((pid) => ({
+        id: pid,
+        name: (probMap[pid] && probMap[pid].name) || '',
+        difficulty: (probMap[pid] && probMap[pid].difficulty) || null,
+        solved: solved.has(pid),
+      }));
+
       return res.status(200).json({
         success: true,
         track,
@@ -179,6 +194,7 @@ async function handler(req, res) {
           pdf: course.pdf || null,
           pids,
           solvedPids: pids.filter((p) => solved.has(p)),
+          problems: problemList,
         },
       });
     }

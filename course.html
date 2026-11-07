@@ -3,7 +3,7 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='e459cfa8';</script>
+<script>window.__BUILD_V='8368eebd';</script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -12,15 +12,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Course - WYK Maths Team</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="/assets/css/styles.css?v=e459cfa8" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=8368eebd" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" />
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
-<script src="/assets/js/core/ui.js?v=e459cfa8"></script>
-<script src="/assets/js/core/net.js?v=e459cfa8"></script>
-<script src="/assets/js/core/api.js?v=e459cfa8"></script>
-<script src="/assets/js/core/page.js?v=e459cfa8"></script>
+<script src="/assets/js/core/ui.js?v=8368eebd"></script>
+<script src="/assets/js/core/net.js?v=8368eebd"></script>
+<script src="/assets/js/core/api.js?v=8368eebd"></script>
+<script src="/assets/js/core/page.js?v=8368eebd"></script>
 <style>
   :root {
     --course-bg: var(--content-bg, #f8f9fa);
@@ -352,6 +352,29 @@
   }
   .paper-pad-unlock:hover { background: rgba(74, 144, 217, .12); }
   .paper-pad.paper-pad-active { box-shadow: 0 0 0 2px rgba(74,144,217,.35); }
+
+  /* PDF 尾巴的题目清单 */
+  .problem-index {
+    margin: 26px auto 40px; max-width: 760px;
+    background: var(--course-card); border: 1px solid var(--course-border);
+    border-radius: 14px; padding: 18px 20px;
+  }
+  .pi-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  .pi-title { font-weight: 800; font-size: 1rem; }
+  .pi-count { font-size: .82rem; color: var(--text-secondary); }
+  .pi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+  .pi-item {
+    display: flex; align-items: center; gap: 8px; padding: 9px 12px;
+    border: 1px solid var(--course-border); border-radius: 9px;
+    background: var(--bg-color); text-decoration: none; color: var(--text-primary);
+    font-size: .84rem; transition: border-color .12s, background .12s;
+  }
+  .pi-item:hover { border-color: #4a90d9; background: rgba(74,144,217,.07); }
+  .pi-item.ok { border-color: rgba(34,197,94,.5); }
+  .pi-id { font-family: monospace; font-size: .74rem; color: var(--text-secondary); flex: none; }
+  .pi-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pi-edit { flex: none; font-size: .72rem; color: #4a90d9; font-weight: 700; }
+  .pi-done { flex: none; color: #22c55e; font-weight: 800; }
 </style>
 </head>
 <body class="index-body">
@@ -363,13 +386,13 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=e459cfa8"></script>
-  <script src="/assets/js/app.js?v=e459cfa8"></script>
-  <script src="/assets/js/topbar.js?v=e459cfa8"></script>
-  <script src="/assets/js/sidebar.js?v=e459cfa8"></script>
-  <script src="/assets/js/heartbeat.js?v=e459cfa8"></script>
-  <script src="/assets/js/pk-invite.js?v=e459cfa8"></script>
-  <script src="/assets/js/pages/course.js?v=e459cfa8"></script>
-  <script src="/assets/js/pk-notify.js?v=e459cfa8"></script>
+  <script src="/assets/js/auth.js?v=8368eebd"></script>
+  <script src="/assets/js/app.js?v=8368eebd"></script>
+  <script src="/assets/js/topbar.js?v=8368eebd"></script>
+  <script src="/assets/js/sidebar.js?v=8368eebd"></script>
+  <script src="/assets/js/heartbeat.js?v=8368eebd"></script>
+  <script src="/assets/js/pk-invite.js?v=8368eebd"></script>
+  <script src="/assets/js/pages/course.js?v=8368eebd"></script>
+  <script src="/assets/js/pk-notify.js?v=8368eebd"></script>
 </body>
 </html>

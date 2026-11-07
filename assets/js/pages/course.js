@@ -80,6 +80,51 @@
     return { view: 'course', track: decodeURIComponent(parts[1]), id: decodeURIComponent(parts[2]) };
   }
 
+
+  // ─────────── PDF 尾巴的题目清单 ───────────
+  // 列出这份 notes 里所有题目，管理员可以直接点进编辑页。
+  function renderProblemIndex(course) {
+    const list = (course && course.problems) || [];
+    if (!list.length) return;
+
+    const old = document.getElementById('problemIndex');
+    if (old) old.remove();
+
+    const user = (typeof window.getCurrentUser === 'function' ? window.getCurrentUser() : null) || {};
+    const isAdmin = user.role === 'admin' || user.role === 'root';
+
+    const solvedCount = list.filter((p) => p.solved).length;
+
+    const box = document.createElement('section');
+    box.id = 'problemIndex';
+    box.className = 'problem-index';
+    box.innerHTML =
+      '<div class="pi-head">' +
+        '<span class="pi-title"><i class="fas fa-list-check"></i> Questions in this set</span>' +
+        '<span class="pi-count">' + solvedCount + ' / ' + list.length + ' solved</span>' +
+      '</div>' +
+      '<div class="pi-grid">' +
+        list.map((p) => {
+          const cls = p.solved ? ' ok' : '';
+          const href = isAdmin ? '/admin/problems/' + encodeURIComponent(p.id) : '/problems/' + encodeURIComponent(p.id);
+          const title = p.name ? (p.name + ' · ' + p.id) : p.id;
+          return '<a class="pi-item' + cls + '" href="' + href + '" title="' + esc(isAdmin ? ('Edit ' + p.id) : title) + '">' +
+            '<span class="pi-id">' + esc(p.id) + '</span>' +
+            '<span class="pi-name">' + esc(p.name || '') + '</span>' +
+            (isAdmin ? '<span class="pi-edit">Edit</span>' : (p.solved ? '<span class="pi-done">✓</span>' : '')) +
+          '</a>';
+        }).join('') +
+      '</div>';
+
+    const pdfHost = document.getElementById('coursePdf');
+    const anchor = pdfHost || document.getElementById('courseContent');
+    if (anchor && anchor.parentNode) {
+      anchor.parentNode.insertBefore(box, anchor.nextSibling);
+    } else if (root) {
+      root.appendChild(box);
+    }
+  }
+
   function crumbs(items) {
     return '<div class="course-crumbs">' + items.map((it, i) => {
       const sep = i ? '<i class="fas fa-chevron-right" style="font-size:.62rem;opacity:.5;"></i>' : '';
@@ -249,6 +294,8 @@
         const y = Number(localStorage.getItem(scrollKey) || 0);
         if (y > 0) setTimeout(function () { window.scrollTo({ top: y, behavior: 'auto' }); }, 250);
       } catch (e) {}
+      // PDF 尾巴挂一份题目清单
+      renderProblemIndex(c);
     }).catch(function () {});
 
     let scrollTimer = null;
@@ -1466,6 +1513,27 @@
       if (el2) el2.textContent = n + ' / ' + paper.questions.length + ' attempted';
     }
     updateCount();
+
+    // 记住滚动位置：刷新或从别的页面回来时停在原处
+    const scrollKey = 'paperScroll:' + track + ':' + year;
+    requestAnimationFrame(() => {
+      try {
+        const y = Number(localStorage.getItem(scrollKey) || 0);
+        if (y > 0) window.scrollTo({ top: y, behavior: 'auto' });
+      } catch (e) {}
+    });
+
+    if (window.__paperScrollHandler) {
+      window.removeEventListener('scroll', window.__paperScrollHandler);
+    }
+    let scrollTimer = null;
+    window.__paperScrollHandler = function () {
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        try { localStorage.setItem(scrollKey, String(window.scrollY)); } catch (e) {}
+      }, 250);
+    };
+    window.addEventListener('scroll', window.__paperScrollHandler, { passive: true });
 
     // ── 一键批改 ──
     document.getElementById('paperMarkAll').addEventListener('click', async (ev) => {
