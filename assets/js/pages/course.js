@@ -12,6 +12,15 @@
     MO: { label: 'Olympiad',   desc: 'Competition training',       cls: 'track-MO' },
   };
 
+  // Papers 是第四条入口，和上面三个 track 并列但走自己的流程
+  const PAPER_TRACKS = {
+    M0: { label: 'M0', desc: 'DSE Paper 1 · full papers', cls: 'track-M'  },
+    M1: { label: 'M1', desc: 'Extended M1 papers',        cls: 'track-M2' },
+    M2: { label: 'M2', desc: 'Extended M2 papers',        cls: 'track-MO' },
+  };
+
+  const PAPER_YEARS = { M0: [2025], M1: [], M2: [] };
+
   const DIFF_LABEL = {
     easy: 'Easy', medium: 'Medium', hard: 'Hard',
     challenging: 'Challenging', insane: 'Insane',
@@ -50,6 +59,16 @@
     const parts = location.pathname.split('/').filter(Boolean);  // ['course', 'M', '1']
     if (parts[0] !== 'course') return { view: 'tracks' };
     if (parts.length === 1) return { view: 'tracks' };
+
+    // /course/papers            → 选 M0 / M1 / M2
+    // /course/papers/M0         → 选年份
+    // /course/papers/M0/2025    → 试卷
+    if (parts[1] === 'papers') {
+      if (parts.length === 2) return { view: 'paperTracks' };
+      if (parts.length === 3) return { view: 'paperYears', track: decodeURIComponent(parts[2]) };
+      return { view: 'paper', track: decodeURIComponent(parts[2]), year: Number(parts[3]) || 2025 };
+    }
+
     if (parts.length === 2) return { view: 'list', track: decodeURIComponent(parts[1]) };
     return { view: 'course', track: decodeURIComponent(parts[1]), id: decodeURIComponent(parts[2]) };
   }
@@ -89,16 +108,22 @@
     }, 100);
   }
 
-  // ─────────── 三张卡片 ───────────
+  // ─────────── 四张卡片（三个 track + Papers）───────────
   async function renderTracks() {
     root.classList.remove('wide');
+    const paperCard = `
+        <a class="track-card track-Papers" href="/course/papers">
+          <div class="tc-code">P</div>
+          <div class="tc-name">Papers</div>
+          <div class="tc-sub">Full DSE papers · draw and get marked</div>
+        </a>`;
     root.innerHTML = crumbs([{ text: 'Course' }]) +
       '<div class="course-tracks">' + Object.entries(TRACKS).map(([code, t]) => `
         <a class="track-card ${t.cls}" href="/course/${code}">
           <div class="tc-code">${esc(code)}</div>
           <div class="tc-name">${esc(t.label)}</div>
           <div class="tc-sub">${esc(t.desc)}</div>
-        </a>`).join('') + '</div>';
+        </a>`).join('') + paperCard + '</div>';
 
     // 顺带把三个领域的课程数拉出来
     try {
@@ -535,7 +560,7 @@
 
   // 轻量画板：白底 canvas + 指针绘制；支持笔色 / 橡皮 / 粗细 / 撤销
   // 笔画以「路径列表」保存，撤销只要重绘，比存 ImageData 省内存
-  function createDrawPad(host, storageKey) {
+  function createDrawPad(host, storageKey, opts) {
     var canvas = document.createElement('canvas');
     canvas.style.cssText = 'display:block;width:100%;height:100%;touch-action:none;cursor:crosshair;'
       + 'user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;';
@@ -599,10 +624,16 @@
       try { localStorage.removeItem(storageKey); } catch (e) {}
     }
 
+    var transparent = !!(opts && opts.transparent);
+
     function paintBase() {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (transparent) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      } else {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
       ctx.scale(dpr, dpr);
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
@@ -1098,10 +1129,204 @@
     if (btn) btn.disabled = false;
   }
 
+
+  // ─────────── Papers：M0 / M1 / M2 ───────────
+  async function renderPaperTracks() {
+    root.classList.remove('wide');
+    root.innerHTML = crumbs([{ text: 'Course', href: '/course' }, { text: 'Papers' }]) +
+      '<div class="course-tracks">' + Object.entries(PAPER_TRACKS).map(([code, t]) => `
+        <a class="track-card ${t.cls}" href="/course/papers/${code}">
+          <div class="tc-code">${esc(code)}</div>
+          <div class="tc-name">${esc(t.label)}</div>
+          <div class="tc-sub">${esc(t.desc)}</div>
+        </a>`).join('') + '</div>';
+  }
+
+  // ─────────── Papers：年份 ───────────
+  async function renderPaperYears(track) {
+    root.classList.remove('wide');
+    const years = PAPER_YEARS[track] || [];
+    const t = PAPER_TRACKS[track];
+    if (!t) { root.innerHTML = '<div class="course-empty">Unknown paper track.</div>'; return; }
+
+    if (!years.length) {
+      root.innerHTML = crumbs([{ text: 'Course', href: '/course' }, { text: 'Papers', href: '/course/papers' }, { text: track }]) +
+        '<div class="course-empty">No papers for ' + esc(track) + ' yet.</div>';
+      return;
+    }
+
+    root.innerHTML = crumbs([{ text: 'Course', href: '/course' }, { text: 'Papers', href: '/course/papers' }, { text: track }]) +
+      '<div class="course-tracks">' + years.map((y) => `
+        <a class="track-card ${t.cls}" href="/course/papers/${track}/${y}">
+          <div class="tc-code">${y}</div>
+          <div class="tc-name">${y} Paper</div>
+          <div class="tc-sub">${esc(t.label)} · full paper with drawing board</div>
+        </a>`).join('') + '</div>';
+  }
+
+  // ─────────── Papers：试卷本体 ───────────
+  async function renderPaper(track, year) {
+    root.classList.add('wide');
+    root.innerHTML = crumbs([{ text: 'Course', href: '/course' }, { text: 'Papers', href: '/course/papers' },
+      { text: track, href: '/course/papers/' + track }, { text: String(year) }]) +
+      '<div id="paperRoot"><div class="course-empty">Loading paper…</div></div>';
+
+    const host = document.getElementById('paperRoot');
+    let data;
+    try {
+      data = await API.get('/api/paper?action=get&track=' + encodeURIComponent(track) + '&year=' + year);
+    } catch (e) {
+      host.innerHTML = '<div class="course-empty">Could not load this paper: ' + esc(e.message || 'error') + '</div>';
+      return;
+    }
+    if (!data || !data.success) {
+      host.innerHTML = '<div class="course-empty">Paper unavailable.</div>';
+      return;
+    }
+
+    const paper = data.paper;
+    const marks = data.marks || {};
+    const pads = {};      // pid → pad
+
+    // ── 顶部工具条 ──
+    const bar = document.createElement('div');
+    bar.className = 'paper-bar';
+    bar.innerHTML = `
+      <div class="paper-title">${esc(paper.title)}</div>
+      <div class="paper-actions">
+        <span class="paper-count" id="paperCount">0 / ${paper.questions.length} attempted</span>
+        <button class="paper-mark-all" id="paperMarkAll">Mark my paper</button>
+        <span class="paper-status" id="paperStatus"></span>
+      </div>`;
+    host.innerHTML = '';
+    host.appendChild(bar);
+
+    const list = document.createElement('div');
+    list.className = 'paper-list';
+    host.appendChild(list);
+
+    paper.questions.forEach((q, i) => {
+      const layoutItem = (paper.layout.items || []).find((it) => it.pid === q.id) || {};
+      const height = Number(layoutItem.height) || 260;
+
+      const card = document.createElement('section');
+      card.className = 'paper-q';
+      card.dataset.pid = q.id;
+
+      const marksMatch = String(q.statement || '').match(/\((\d+)\s*marks?\)/i);
+      const marksLabel = marksMatch ? marksMatch[1] + ' marks' : '';
+
+      card.innerHTML = `
+        <div class="paper-q-head">
+          <span class="paper-q-no">Q${i + 1}</span>
+          ${marksLabel ? '<span class="paper-q-marks">' + marksLabel + '</span>' : ''}
+          <span class="paper-q-id">${esc(q.id)}</span>
+        </div>
+        <div class="paper-q-stmt"></div>`;
+
+      // 题干：走 KaTeX 渲染
+      const stmtEl = card.querySelector('.paper-q-stmt');
+      stmtEl.innerHTML = q.statement || '';
+      renderMath(stmtEl);
+
+      // 画板：灰横线纸
+      const padWrap = document.createElement('div');
+      padWrap.className = 'paper-pad';
+      padWrap.style.height = height + 'px';
+      card.appendChild(padWrap);
+
+      const pad = createDrawPad(padWrap, 'paperPad:' + track + ':' + year + ':' + q.id, { transparent: true });
+      pad.restore();
+      pads[q.id] = pad;
+
+      // 批改结果区
+      const res = document.createElement('div');
+      res.className = 'paper-mark';
+      card.appendChild(res);
+      if (marks[q.id]) renderMarkInto(res, marks[q.id]);
+
+      list.appendChild(card);
+
+      padWrap.addEventListener('pointerup', updateCount, true);
+    });
+
+    function updateCount() {
+      const n = paper.questions.filter((q) => pads[q.id] && !pads[q.id].isEmpty()).length;
+      const el2 = document.getElementById('paperCount');
+      if (el2) el2.textContent = n + ' / ' + paper.questions.length + ' attempted';
+    }
+    updateCount();
+
+    // ── 一键批改 ──
+    document.getElementById('paperMarkAll').addEventListener('click', async (ev) => {
+      const btn = ev.currentTarget;
+      const status = document.getElementById('paperStatus');
+      const answers = [];
+      paper.questions.forEach((q) => {
+        const pad = pads[q.id];
+        if (!pad || pad.isEmpty()) return;
+        const image = pad.toDataUrl();
+        if (image) answers.push({ pid: q.id, image });
+      });
+
+      if (!answers.length) {
+        status.textContent = 'Draw something first';
+        status.className = 'paper-status err';
+        return;
+      }
+
+      btn.disabled = true;
+      status.className = 'paper-status';
+      status.textContent = 'Marking ' + answers.length + ' question(s)…';
+
+      try {
+        const out = await API.post('/api/paper?action=markAll', { track, year, answers });
+        if (!out || !out.success) throw new Error((out && out.message) || 'Marking failed');
+
+        (out.marked || []).forEach((m) => {
+          const card = list.querySelector('.paper-q[data-pid="' + CSS.escape(m.pid) + '"] .paper-mark');
+          if (card) renderMarkInto(card, m.mark);
+        });
+        const failed = (out.failed || []).length;
+        status.textContent = 'Marked ' + (out.marked || []).length + (failed ? ' · ' + failed + ' failed' : '');
+        status.className = 'paper-status ok';
+      } catch (e) {
+        status.textContent = e.message || 'Marking failed';
+        status.className = 'paper-status err';
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
+
+  // 把批改结果排进卡片：得分 + 逐行 ✔/✘
+  function renderMarkInto(el, mark) {
+    if (!mark) return;
+    const score = Number(mark.score) || 0;
+    const cls = score >= 80 ? 'good' : score >= 50 ? 'mid' : 'bad';
+    const head = mark.awarded != null && mark.total != null
+      ? mark.awarded + ' / ' + mark.total + ' marks'
+      : score + '%';
+    const lines = Array.isArray(mark.lines) ? mark.lines : [];
+
+    el.innerHTML = `
+      <div class="paper-mark-head ${cls}">
+        <span class="pm-score">${esc(head)}</span>
+        ${mark.summary ? '<span class="pm-summary">' + esc(mark.summary) + '</span>' : ''}
+      </div>
+      ${lines.length ? '<ul class="paper-mark-lines">' + lines.map((l) => {
+        const ok = /^\s*[✔✓]/.test(l);
+        return '<li class="' + (ok ? 'ok' : 'bad') + '">' + esc(l) + '</li>';
+      }).join('') + '</ul>' : ''}`;
+  }
+
   // ─────────── 启动 ───────────
   Page.ready(async () => {
     const route = parseRoute();
     if (route.view === 'tracks') return renderTracks();
+    if (route.view === 'paperTracks') return renderPaperTracks();
+    if (route.view === 'paperYears') return renderPaperYears(route.track);
+    if (route.view === 'paper') return renderPaper(route.track, route.year);
     if (route.view === 'list') return renderList(route.track);
     return renderCourse(route.track, route.id);
   });

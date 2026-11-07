@@ -3,7 +3,7 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='7718e8ed';</script>
+<script>window.__BUILD_V='8818f1e3';</script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -12,15 +12,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Course - WYK Maths Team</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="/assets/css/styles.css?v=7718e8ed" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=8818f1e3" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" />
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
-<script src="/assets/js/core/ui.js?v=7718e8ed"></script>
-<script src="/assets/js/core/net.js?v=7718e8ed"></script>
-<script src="/assets/js/core/api.js?v=7718e8ed"></script>
-<script src="/assets/js/core/page.js?v=7718e8ed"></script>
+<script src="/assets/js/core/ui.js?v=8818f1e3"></script>
+<script src="/assets/js/core/net.js?v=8818f1e3"></script>
+<script src="/assets/js/core/api.js?v=8818f1e3"></script>
+<script src="/assets/js/core/page.js?v=8818f1e3"></script>
 <style>
   :root {
     --course-bg: var(--content-bg, #f8f9fa);
@@ -159,6 +159,91 @@
     font-size: .92rem; line-height: 1.6;
   }
   .ip-result a { color: var(--course-accent); font-weight: 700; text-decoration: none; margin-left: 6px; }
+
+  /* ── Papers：DSE 试卷页 ── */
+  .paper-bar {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+    padding: 12px 16px; margin-bottom: 18px;
+    background: var(--course-card); border: 1px solid var(--course-border);
+    border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.06);
+  }
+  .paper-title { font-weight: 800; font-size: 1.05rem; }
+  .paper-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .paper-count { font-size: .85rem; color: var(--text-secondary); }
+  .paper-mark-all {
+    padding: 9px 18px; border: none; border-radius: 9px; cursor: pointer;
+    background: #4a90d9; color: #fff; font-weight: 700; font-size: .9rem;
+    font-family: inherit; transition: opacity .15s;
+  }
+  .paper-mark-all:hover { opacity: .9; }
+  .paper-mark-all:disabled { opacity: .5; cursor: not-allowed; }
+  .paper-status { font-size: .82rem; }
+  .paper-status.ok { color: #22c55e; }
+  .paper-status.err { color: #ef4444; }
+
+  .paper-list { display: flex; flex-direction: column; gap: 22px; }
+
+  .paper-q {
+    background: var(--course-card); border: 1px solid var(--course-border);
+    border-radius: 14px; padding: 18px 20px;
+  }
+  .paper-q-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .paper-q-no { font-weight: 800; font-size: 1rem; color: #4a90d9; }
+  .paper-q-marks {
+    font-size: .74rem; padding: 2px 8px; border-radius: 20px;
+    background: rgba(74,144,217,.12); color: #4a90d9; font-weight: 700;
+  }
+  .paper-q-id { margin-left: auto; font-size: .72rem; color: var(--text-secondary); font-family: monospace; }
+  .paper-q-stmt { font-size: 1rem; line-height: 1.7; margin-bottom: 14px; }
+
+  /* 答题纸：灰色横线，画板透明盖在上面 */
+  .paper-pad {
+    position: relative; border-radius: 8px; overflow: hidden;
+    border: 1px solid var(--course-border);
+    background-color: #fff;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 27px,
+      rgba(0, 0, 0, .13) 27px,
+      rgba(0, 0, 0, .13) 28px
+    );
+    background-position: 0 4px;
+  }
+  :root[data-theme="dark"] .paper-pad {
+    background-color: #1b2029;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 27px,
+      rgba(255, 255, 255, .12) 27px,
+      rgba(255, 255, 255, .12) 28px
+    );
+  }
+  .paper-pad canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+
+  /* 批改结果 */
+  .paper-mark { margin-top: 14px; }
+  .paper-mark-head {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    padding: 10px 14px; border-radius: 9px; font-size: .9rem;
+  }
+  .paper-mark-head.good { background: rgba(34,197,94,.12); color: #15803d; }
+  .paper-mark-head.mid  { background: rgba(234,179,8,.14);  color: #a16207; }
+  .paper-mark-head.bad  { background: rgba(239,68,68,.12);  color: #b91c1c; }
+  .pm-score { font-weight: 800; }
+  .pm-summary { font-size: .86rem; opacity: .9; }
+  .paper-mark-lines { list-style: none; margin: 10px 0 0; padding: 0; }
+  .paper-mark-lines li {
+    position: relative; padding: 5px 0 5px 22px; font-size: .88rem; line-height: 1.6;
+  }
+  .paper-mark-lines li.ok::before  { content: '✔'; position: absolute; left: 2px; color: #22c55e; font-weight: 800; }
+  .paper-mark-lines li.bad::before { content: '✘'; position: absolute; left: 2px; color: #ef4444; font-weight: 800; }
+  .paper-mark-lines li.ok  { color: #166534; }
+  .paper-mark-lines li.bad { color: #991b1b; }
+  :root[data-theme="dark"] .paper-mark-lines li.ok  { color: #86efac; }
+  :root[data-theme="dark"] .paper-mark-lines li.bad { color: #fca5a5; }
 </style>
 </head>
 <body class="index-body">
@@ -170,13 +255,13 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=7718e8ed"></script>
-  <script src="/assets/js/app.js?v=7718e8ed"></script>
-  <script src="/assets/js/topbar.js?v=7718e8ed"></script>
-  <script src="/assets/js/sidebar.js?v=7718e8ed"></script>
-  <script src="/assets/js/heartbeat.js?v=7718e8ed"></script>
-  <script src="/assets/js/pk-invite.js?v=7718e8ed"></script>
-  <script src="/assets/js/pages/course.js?v=7718e8ed"></script>
-  <script src="/assets/js/pk-notify.js?v=7718e8ed"></script>
+  <script src="/assets/js/auth.js?v=8818f1e3"></script>
+  <script src="/assets/js/app.js?v=8818f1e3"></script>
+  <script src="/assets/js/topbar.js?v=8818f1e3"></script>
+  <script src="/assets/js/sidebar.js?v=8818f1e3"></script>
+  <script src="/assets/js/heartbeat.js?v=8818f1e3"></script>
+  <script src="/assets/js/pk-invite.js?v=8818f1e3"></script>
+  <script src="/assets/js/pages/course.js?v=8818f1e3"></script>
+  <script src="/assets/js/pk-notify.js?v=8818f1e3"></script>
 </body>
 </html>
