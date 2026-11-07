@@ -424,23 +424,26 @@ async function handler(req, res) {
     const mark = normalizeMark(parseJSONReply(raw));
     if (!mark) return res.status(502).json({ success: false, message: 'AI reply was not valid JSON' });
 
+    // 和主站提交一致：AI 一返回就扣费，扣不动就不给结果
     if (req.user.role !== 'root') {
       try {
         await consumeTokens(db, req.user.username, PER_QUESTION_COST);
       } catch (e) {
-        // 不能静默：扣费失败意味着这一题白送了，必须能查出来
-        console.error('[paper] charge failed for', req.user.username, req.user.username, e.message, { pid });
-        try {
-          await db.collection('audit_logs').insertOne({
-            type: 'paper_charge_failed',
-            username: req.user.username,
-            pid: String(pid),
-            amount: PER_QUESTION_COST,
-            error: String(e.message || e),
-            mode: 'single',
-            at: new Date(),
-          });
-        } catch (e2) { /* ignore */ }
+        console.error('[paper] charge failed', req.user.username, e.message, { pid });
+        await db.collection('audit_logs').insertOne({
+          type: 'paper_charge_failed',
+          username: req.user.username,
+          pid: String(pid),
+          amount: PER_QUESTION_COST,
+          error: String(e.message || e),
+          mode: 'single',
+          at: new Date(),
+        }).catch(() => {});
+        return res.status(402).json({
+          success: false,
+          message: 'Marked, but the token charge failed. Please retry.',
+          code: 'CHARGE_FAILED',
+        });
       }
     }
 
@@ -513,6 +516,11 @@ async function handler(req, res) {
       const mark = normalizeMark(parseJSONReply(raw));
       if (!mark) throw new Error('AI reply invalid for ' + pid);
 
+      // 立即扣费（原子更新，19 题并发也不会互相踩）
+      if (req.user.role !== 'root') {
+        await consumeTokens(db, req.user.username, PER_QUESTION_COST);
+      }
+
       await db.collection('paperMarks').updateOne(
         { username: req.user.username, paperTrack: track, paperYear: year, pid },
         { $set: { ...mark, pid, paperTrack: track, paperYear: year, markedAt: new Date() }, $setOnInsert: { createdAt: new Date() } },
@@ -545,25 +553,8 @@ async function handler(req, res) {
       else failed.push({ pid, error: String(r.reason && r.reason.message || r.reason) });
     });
 
+    // 费用已在每题批改完成时扣除，这里只做汇总
     const cost = PER_QUESTION_COST * ok.length;
-    if (cost > 0 && req.user.role !== 'root') {
-      try {
-        await consumeTokens(db, req.user.username, cost);
-      } catch (e) {
-        console.error('[paper] batch charge failed for', req.user.username, e.message, { cost });
-        try {
-          await db.collection('audit_logs').insertOne({
-            type: 'paper_charge_failed',
-            username: req.user.username,
-            amount: cost,
-            questions: ok.length,
-            error: String(e.message || e),
-            mode: 'batch',
-            at: new Date(),
-          });
-        } catch (e2) { /* ignore */ }
-      }
-    }
 
     return res.status(200).json({ success: true, marked: ok, failed, cost });
   }
