@@ -93,6 +93,23 @@ function normalizeMark(parsed) {
   };
 }
 
+// 每次批改写一条 dsesubmissions 记录（与普通 submissions 分开存）
+function genDseSubid() {
+  return 'DSE' + crypto.randomBytes(8).toString('hex');
+}
+
+async function recordDseSubmission(db, doc) {
+  try {
+    await db.collection('dsesubmissions').insertOne({
+      subid: genDseSubid(),
+      createdAt: new Date(),
+      ...doc,
+    });
+  } catch (e) {
+    console.error('[paper] failed to record dsesubmission:', e.message);
+  }
+}
+
 async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -130,6 +147,101 @@ async function handler(req, res) {
       },
       marks: Object.fromEntries(marks.map((m) => [m.pid, m])),
       serverNow: Date.now(),
+    });
+  }
+
+  // ── 管理员：试卷列表 ──
+  if (action === 'listPapers') {
+    if (req.user.role !== 'admin' && req.user.role !== 'root') {
+      return res.status(403).json({ success: false, message: 'Admin only' });
+    }
+    const rows = await db.collection('papers')
+      .find({}, { projection: { track: 1, year: 1, title: 1, problemIds: 1, updatedAt: 1, _id: 0 } })
+      .sort({ track: 1, year: -1 })
+      .toArray();
+    return res.status(200).json({
+      success: true,
+      papers: rows.map((p) => ({
+        track: p.track, year: p.year, title: p.title,
+        count: (p.problemIds || []).length, updatedAt: p.updatedAt,
+      })),
+    });
+  }
+
+  // ── 管理员：按题目 id 格式自动抓题建卷 ──
+  // M0 → 19 题，M1 / M2 → 各 12 题；题目 id 形如 M0DSE2501
+  if (action === 'createPaper') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    if (req.user.role !== 'admin' && req.user.role !== 'root') {
+      return res.status(403).json({ success: false, message: 'Admin only' });
+    }
+
+    const track = String(req.body && req.body.track || '').toUpperCase();
+    const year = Number(req.body && req.body.year);
+    if (!['M0', 'M1', 'M2'].includes(track)) {
+      return res.status(400).json({ success: false, message: 'track must be M0, M1 or M2' });
+    }
+    if (!Number.isFinite(year) || year < 2000 || year > 2100) {
+      return res.status(400).json({ success: false, message: 'Invalid year' });
+    }
+
+    const expected = track === 'M0' ? 19 : 12;
+    const yy = String(year).slice(-2);
+    const re = new RegExp('^' + track + 'DSE' + yy + '\d{2}$');
+
+    // 先按格式精确找，找不到时退一步按「前缀 + 年份」模糊找
+    let probs = await db.collection('problems')
+      .find({ id: { $regex: re } }, { projection: { id: 1, _id: 0 } })
+      .sort({ id: 1 })
+      .toArray();
+
+    if (!probs.length) {
+      probs = await db.collection('problems')
+        .find({ paperTrack: track, paperYear: year }, { projection: { id: 1, _id: 0 } })
+        .sort({ id: 1 })
+        .toArray();
+    }
+
+    if (!probs.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'No questions found for ' + track + ' ' + year + ' (looked for ' + track + 'DSE' + yy + 'xx)',
+      });
+    }
+
+    const ids = probs.map((p) => p.id).slice(0, expected);
+    const existing = await db.collection('papers').findOne({ track, year });
+
+    // 已有 layout 高度就保留
+    const prev = new Map(((existing && existing.layout && existing.layout.items) || []).map((it) => [it.pid, it]));
+    const items = ids.map((pid, i) => ({
+      pid,
+      page: (prev.get(pid) && prev.get(pid).page) || i + 1,
+      height: (prev.get(pid) && prev.get(pid).height) || 260,
+    }));
+
+    await db.collection('papers').updateOne(
+      { track, year },
+      {
+        $set: {
+          track, year,
+          title: String((req.body && req.body.title) || (year + ' DSE ' + track + ' Paper')),
+          problemIds: ids,
+          layout: { items },
+          updatedAt: new Date(),
+        },
+        $setOnInsert: { createdAt: new Date() },
+      },
+      { upsert: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      created: !existing,
+      track, year,
+      picked: ids.length,
+      expected,
+      warning: ids.length < expected ? ('Only ' + ids.length + ' of ' + expected + ' questions matched') : null,
     });
   }
 
@@ -224,6 +336,21 @@ async function handler(req, res) {
       { upsert: true }
     );
 
+    await recordDseSubmission(db, {
+      username: req.user.username,
+      paperTrack: track,
+      paperYear: year,
+      pid: String(pid),
+      imageUrl,
+      score: mark.score,
+      awarded: mark.awarded,
+      total: mark.total,
+      lines: mark.lines,
+      summary: mark.summary,
+      mode: 'single',
+      markedAt: new Date(),
+    });
+
     return res.status(200).json({ success: true, pid, mark });
   }
 
@@ -277,6 +404,22 @@ async function handler(req, res) {
         { $set: { ...mark, pid, paperTrack: track, paperYear: year, markedAt: new Date() }, $setOnInsert: { createdAt: new Date() } },
         { upsert: true }
       );
+
+      await recordDseSubmission(db, {
+        username: req.user.username,
+        paperTrack: track,
+        paperYear: year,
+        pid,
+        imageUrl,
+        score: mark.score,
+        awarded: mark.awarded,
+        total: mark.total,
+        lines: mark.lines,
+        summary: mark.summary,
+        mode: 'batch',
+        markedAt: new Date(),
+      });
+
       return { pid, mark };
     }));
 

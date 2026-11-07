@@ -777,35 +777,9 @@
     };
   }
 
-  function makeAnswerBox(box, pageEl, solved) {
-    var wrap = document.createElement('div');
-    wrap.className = 'pdf-box';
-    wrap.dataset.pid = box.pid;
-    wrap.style.cssText = PDF_BOX_STYLE + 'top:' + box.y + '%;height:' + box.h + '%;';
 
-    var head = document.createElement('div');
-    head.style.cssText = 'display:flex;align-items:center;gap:6px;padding:2px 6px;font-size:10px;font-weight:700;'
-      + 'color:var(--text-secondary);background:rgba(142,92,247,.10);flex:0 0 auto;';
-    head.innerHTML = '<span>' + esc(box.pid) + '</span>'
-      + (solved && solved.has(box.pid) ? '<span style="color:#27a567;">✓ solved</span>' : '')
-      + '<span class="pdf-mode-switch" style="margin-left:auto;display:inline-flex;gap:2px;">'
-      + '<button type="button" class="pdf-mode-btn active" data-mode="text" style="padding:1px 7px;border-radius:4px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-primary);font-size:9px;cursor:pointer;">Text</button>'
-      + '<button type="button" class="pdf-mode-btn" data-mode="draw" style="padding:1px 7px;border-radius:4px;border:1px solid var(--border-color);background:transparent;color:var(--text-secondary);font-size:9px;cursor:pointer;">Draw</button>'
-      + '</span>';
-
-    var ta = document.createElement('textarea');
-    ta.className = 'pdf-box-input';
-    ta.placeholder = 'Your steps…';
-    ta.style.cssText = 'flex:1 1 auto;min-height:36px;resize:none;border:none;outline:none;padding:4px 6px;'
-      + 'background:transparent;color:var(--text-primary);font-size:12px;font-family:inherit;';
-
-    // ── 画板（Draw 模式）──
-    var padWrap = document.createElement('div');
-    padWrap.className = 'pdf-box-pad';
-    padWrap.style.cssText = 'display:none;flex:1 1 auto;min-height:36px;position:relative;background:#fff;overflow:hidden;'
-      + 'user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;';
-    var pad = createDrawPad(padWrap, 'pdfPad:' + box.pid);
-    // ── 画板工具栏：颜色 / 橡皮 / 粗细 / 撤销 / 清空 ──
+  // 画板工具栏：颜色 / 粗细 / 橡皮 / 撤销 / 清空。课程 PDF 框和 DSE 试卷共用。
+  function buildPadToolbar(pad) {
     var padTools = document.createElement('div');
     padTools.className = 'pdf-pad-tools';
     padTools.style.cssText = 'position:absolute;left:3px;right:3px;top:3px;display:none;align-items:center;gap:4px;'
@@ -898,7 +872,39 @@
     clearBtn.addEventListener('click', function (e) { e.stopPropagation(); pad.clear(); });
     padTools.appendChild(clearBtn);
 
-    padWrap.appendChild(padTools);
+
+    return padTools;
+  }
+
+  function makeAnswerBox(box, pageEl, solved) {
+    var wrap = document.createElement('div');
+    wrap.className = 'pdf-box';
+    wrap.dataset.pid = box.pid;
+    wrap.style.cssText = PDF_BOX_STYLE + 'top:' + box.y + '%;height:' + box.h + '%;';
+
+    var head = document.createElement('div');
+    head.style.cssText = 'display:flex;align-items:center;gap:6px;padding:2px 6px;font-size:10px;font-weight:700;'
+      + 'color:var(--text-secondary);background:rgba(142,92,247,.10);flex:0 0 auto;';
+    head.innerHTML = '<span>' + esc(box.pid) + '</span>'
+      + (solved && solved.has(box.pid) ? '<span style="color:#27a567;">✓ solved</span>' : '')
+      + '<span class="pdf-mode-switch" style="margin-left:auto;display:inline-flex;gap:2px;">'
+      + '<button type="button" class="pdf-mode-btn active" data-mode="text" style="padding:1px 7px;border-radius:4px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-primary);font-size:9px;cursor:pointer;">Text</button>'
+      + '<button type="button" class="pdf-mode-btn" data-mode="draw" style="padding:1px 7px;border-radius:4px;border:1px solid var(--border-color);background:transparent;color:var(--text-secondary);font-size:9px;cursor:pointer;">Draw</button>'
+      + '</span>';
+
+    var ta = document.createElement('textarea');
+    ta.className = 'pdf-box-input';
+    ta.placeholder = 'Your steps…';
+    ta.style.cssText = 'flex:1 1 auto;min-height:36px;resize:none;border:none;outline:none;padding:4px 6px;'
+      + 'background:transparent;color:var(--text-primary);font-size:12px;font-family:inherit;';
+
+    // ── 画板（Draw 模式）──
+    var padWrap = document.createElement('div');
+    padWrap.className = 'pdf-box-pad';
+    padWrap.style.cssText = 'display:none;flex:1 1 auto;min-height:36px;position:relative;background:#fff;overflow:hidden;'
+      + 'user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;';
+    var pad = createDrawPad(padWrap, 'pdfPad:' + box.pid);
+    var padTools = buildPadToolbar(pad);
     pad.restore();
 
     var foot = document.createElement('div');
@@ -1239,11 +1245,53 @@
       pad.restore();
       pads[q.id] = pad;
 
+      // 工具条浮在画板顶部：颜色 / 粗细 / 橡皮 / 撤销 / 清空
+      const tools = buildPadToolbar(pad);
+      tools.style.left = '6px';
+      tools.style.top = '6px';
+      tools.style.position = 'absolute';
+      tools.style.zIndex = '3';
+      tools.style.display = 'flex';
+      padWrap.appendChild(tools);
+
+      // 单题提交按钮
+      const row = document.createElement('div');
+      row.className = 'paper-q-actions';
+      const oneBtn = document.createElement('button');
+      oneBtn.type = 'button';
+      oneBtn.className = 'paper-mark-one';
+      oneBtn.textContent = 'Mark this question';
+      row.appendChild(oneBtn);
+      card.appendChild(row);
+
       // 批改结果区
       const res = document.createElement('div');
       res.className = 'paper-mark';
       card.appendChild(res);
       if (marks[q.id]) renderMarkInto(res, marks[q.id]);
+
+      oneBtn.addEventListener('click', async () => {
+        const p = pads[q.id];
+        if (!p || p.isEmpty()) {
+          oneBtn.textContent = 'Draw something first';
+          setTimeout(() => { oneBtn.textContent = 'Mark this question'; }, 1600);
+          return;
+        }
+        const image = p.toDataUrl();
+        if (!image) return;
+        oneBtn.disabled = true;
+        oneBtn.textContent = 'Marking…';
+        try {
+          const out = await API.post('/api/paper?action=mark', { track, year, pid: q.id, image });
+          if (!out || !out.success) throw new Error((out && out.message) || 'Marking failed');
+          renderMarkInto(res, out.mark);
+          oneBtn.textContent = 'Re-mark';
+        } catch (err) {
+          oneBtn.textContent = 'Failed — retry';
+        } finally {
+          oneBtn.disabled = false;
+        }
+      });
 
       list.appendChild(card);
 
@@ -1318,6 +1366,9 @@
         const ok = /^\s*[✔✓]/.test(l);
         return '<li class="' + (ok ? 'ok' : 'bad') + '">' + esc(l) + '</li>';
       }).join('') + '</ul>' : ''}`;
+
+    // 评语里带 LaTeX，直接渲染出来（$...$ / $$...$$）
+    renderMath(el);
   }
 
   // ─────────── 启动 ───────────

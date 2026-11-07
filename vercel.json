@@ -693,6 +693,10 @@
       "destination": "/admin/editcourse.html"
     },
     {
+      "source": "/admin/papers",
+      "destination": "/admin/papers.html"
+    },
+    {
       "source": "/admin/paper/:track/:year",
       "destination": "/admin/editpaper.html"
     },

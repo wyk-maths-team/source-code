@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>window.__BUILD_V='4f4d04cb';</script>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta charset="UTF-8" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Papers - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=4f4d04cb" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+<style>
+  .pp-wrap { max-width: 980px; margin: 0 auto; }
+  .pp-card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+  .pp-card h2 { margin: 0 0 14px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
+  .pp-form { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+  .pp-field { display: flex; flex-direction: column; gap: 6px; }
+  .pp-field label { font-size: .78rem; color: var(--text-secondary); font-weight: 600; }
+  .pp-field select, .pp-field input {
+    padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color);
+    background: var(--bg-color); color: var(--text-primary); font-family: inherit; font-size: .9rem;
+    min-width: 140px;
+  }
+  .pp-btn {
+    padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer;
+    background: #4a90d9; color: #fff; font-weight: 700; font-size: .9rem; font-family: inherit;
+  }
+  .pp-btn:disabled { opacity: .5; cursor: not-allowed; }
+  .pp-status { font-size: .84rem; margin-top: 12px; }
+  .pp-hint { font-size: .76rem; color: var(--text-secondary); margin-top: 6px; }
+
+  .pp-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  .pp-table th, .pp-table td { padding: 11px 12px; text-align: left; border-bottom: 1px solid var(--border-color); }
+  .pp-table th { font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-secondary); }
+  .pp-table a { color: #4a90d9; text-decoration: none; font-weight: 600; }
+  .pp-table a:hover { text-decoration: underline; }
+  .pp-empty { padding: 30px; text-align: center; color: var(--text-secondary); }
+</style>
+<script src="/assets/js/core/ui.js?v=4f4d04cb"></script>
+<script src="/assets/js/core/net.js?v=4f4d04cb"></script>
+<script src="/assets/js/core/api.js?v=4f4d04cb"></script>
+<script src="/assets/js/core/page.js?v=4f4d04cb"></script>
+</head>
+<body class="index-body">
+<div id="appContainer">
+  <header class="topbar" id="topbarContainer"></header>
+  <aside class="sidebar" id="sidebarContainer"></aside>
+  <main class="main-content" id="mainContent">
+    <div class="pp-wrap">
+      <div class="pp-card">
+        <h2><i class="fas fa-plus"></i> Create a paper</h2>
+        <div class="pp-form">
+          <div class="pp-field">
+            <label>Paper</label>
+            <select id="ppTrack">
+              <option value="M0">M0 — 19 questions</option>
+              <option value="M1">M1 — 12 questions</option>
+              <option value="M2">M2 — 12 questions</option>
+            </select>
+          </div>
+          <div class="pp-field">
+            <label>Year</label>
+            <input type="number" id="ppYear" min="2000" max="2100" value="2025" />
+          </div>
+          <div class="pp-field">
+            <label>Title (optional)</label>
+            <input type="text" id="ppTitle" placeholder="e.g. 2025 DSE Math CP Paper 1" style="min-width:260px;" />
+          </div>
+          <button class="pp-btn" id="ppCreate">Create</button>
+        </div>
+        <div class="pp-boost">The questions are picked automatically by id: <code id="ppPattern">M0DSE25xx</code></div>
+        <div class="pp-status" id="ppStatus"></div>
+      </div>
+
+      <div class="pp-card">
+        <h2><i class="fas fa-file-lines"></i> Existing papers</h2>
+        <div id="ppList"><div class="pp-empty">Loading…</div></div>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="/assets/js/auth.js?v=4f4d04cb"></script>
+<script src="/assets/js/app.js?v=4f4d04cb"></script>
+<script src="/assets/js/topbar.js?v=4f4d04cb"></script>
+<script src="/assets/js/sidebar.js?v=4f4d04cb"></script>
+<script src="/assets/js/heartbeat.js?v=4f4d04cb"></script>
+<script src="/assets/js/pk-invite.js?v=4f4d04cb"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function toast(msg, ok) {
+    const el = $('ppStatus');
+    el.textContent = msg;
+    el.style.color = ok ? '#22c55e' : '#ef4444';
+  }
+  async function api(url, method, body) {
+    const opts = { method: method || 'GET', headers: {} };
+    const t = localStorage.getItem('auth_token');
+    if (t) opts.headers['Authorization'] = 'Bearer ' + t;
+    if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+    const r = await fetch(url, opts);
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.message || d.error || ('HTTP ' + r.status));
+    return d;
+  }
+
+  function currentPattern() {
+    const track = $('ppTrack').value;
+    const yy = String($('ppYear').value || '').slice(-2);
+    $('ppPattern').textContent = track + 'DSE' + yy + 'xx';
+  }
+
+  async function loadList() {
+    try {
+      const d = await api('/api/paper?action=listPapers');
+      const rows = d.papers || [];
+      if (!rows.length) { $('ppList').innerHTML = '<div class="pp-empty">No papers yet</div>'; return; }
+      let html = '<table class="pp-table"><thead><tr><th>Paper</th><th>Year</th><th>Questions</th><th>Title</th><th></th></tr></thead><tbody>';
+      rows.forEach((p) => {
+        html += '<tr>'
+          + '<td>' + esc(p.track) + '</td>'
+          + '<td>' + esc(p.year) + '</td>'
+          + '<td>' + p.count + '</td>'
+          + '<td>' + esc(p.title || '') + '</td>'
+          + '<td><a href="/admin/paper/' + encodeURIComponent(p.track) + '/' + p.year + '">Edit layout</a>'
+          + ' &nbsp;·&nbsp; <a href="/course/papers/' + encodeURIComponent(p.track) + '/' + p.year + '" target="_blank">Preview</a></td>'
+          + '</tr>';
+      });
+      $('ppList').innerHTML = html + '</tbody></table>';
+    } catch (e) {
+      $('ppList').innerHTML = '<div class="pp-empty">' + esc(e.message) + '</div>';
+    }
+  }
+
+  Page.boot({ title: 'Papers', requireAuth: true, skeleton: true });
+  Page.ready(async (user) => {
+    if (user.role !== 'admin' && user.role !== 'root') {
+      $('mainContent').innerHTML = '<h2 style="text-align:center;padding:40px;">403 Forbidden</h2>';
+      Page.hideSkeleton();
+      return;
+    }
+    Page.hideSkeleton();
+
+    $('ppTrack').addEventListener('change', currentPattern);
+    $('ppYear').addEventListener('input', currentPattern);
+    currentPattern();
+
+    $('ppCreate').addEventListener('click', async () => {
+      const btn = $('ppCreate');
+      btn.disabled = true;
+      toast('Creating…', true);
+      try {
+        const d = await api('/api/paper?action=createPaper', 'POST', {
+          track: $('ppTrack').value,
+          year: Number($('ppYear').value),
+          title: $('ppTitle').value.trim() || undefined,
+        });
+        toast((d.created ? 'Created' : 'Updated') + ' ' + d.track + ' ' + d.year + ' with ' + d.picked + '/' + d.expected + ' questions'
+          + (d.warning ? ' — ' + d.warning : ''), !d.warning);
+        await loadList();
+      } catch (e) {
+        toast(e.message, false);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    await loadList();
+  });
+})();
+</script>
+</body>
+</html>
