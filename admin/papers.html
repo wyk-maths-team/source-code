@@ -36,6 +36,15 @@
   .pp-table a { color: #4a90d9; text-decoration: none; font-weight: 600; }
   .pp-table a:hover { text-decoration: underline; }
   .pp-empty { padding: 30px; text-align: center; color: var(--text-secondary); }
+
+  .pp-actions { white-space: nowrap; }
+  .pp-actions a {
+    display: inline-block; margin-right: 12px; padding: 4px 10px;
+    border: 1px solid var(--border-color); border-radius: 6px;
+    font-size: .78rem; font-weight: 600; text-decoration: none; color: #4a90d9;
+  }
+  .pp-actions a:hover { background: rgba(74,144,217,.08); border-color: #4a90d9; }
+  .pp-actions a:last-child { margin-right: 0; }
 </style>
 <script src="/assets/js/core/ui.js?v=481fbe50"></script>
 <script src="/assets/js/core/net.js?v=481fbe50"></script>
@@ -125,9 +134,11 @@
           + '<td>' + esc(p.year) + '</td>'
           + '<td>' + p.count + '</td>'
           + '<td>' + esc(p.title || '') + '</td>'
-          + '<td><a href="/admin/paper/' + encodeURIComponent(p.track) + '/' + p.year + '">Edit layout</a>'
-          + ' &nbsp;·&nbsp; <a href="/course/papers/' + encodeURIComponent(p.track) + '/' + p.year + '" target="_blank">Preview</a></td>'
-          + ' &nbsp;·&nbsp; <a href="/admin/paper/' + encodeURIComponent(p.track) + '/' + p.year +'/questions'+ '>Edit questions</a></td>'
+          + '<td class="pp-actions">'
+          + '<a href="/admin/paper/' + encodeURIComponent(p.track) + '/' + p.year + '">Edit layout</a>'
+          + '<a href="/admin/paper/' + encodeURIComponent(p.track) + '/' + p.year + '/questions">Edit questions</a>'
+          + '<a href="/course/papers/' + encodeURIComponent(p.track) + '/' + p.year + '" target="_blank">Preview</a>'
+          + '</td>'
           + '</tr>';
       });
       $('ppList').innerHTML = html + '</tbody></table>';
