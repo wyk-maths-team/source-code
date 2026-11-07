@@ -701,6 +701,14 @@
       "destination": "/admin/editpaper.html"
     },
     {
+      "source": "/admin/paper/:track/:year/questions",
+      "destination": "/admin/paperquestions.html"
+    },
+    {
+      "source": "/admin/paper",
+      "destination": "/admin/papers.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/404.html"
     }

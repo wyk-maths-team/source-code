@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>window.__BUILD_V='aa1780c9';</script>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta charset="UTF-8" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Edit Paper Questions - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=aa1780c9" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+<style>
+  .pq-bar {
+    position: sticky; top: 0; z-index: 20; display: flex; gap: 14px; align-items: center;
+    flex-wrap: wrap; padding: 12px 16px; margin-bottom: 18px;
+    background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px;
+  }
+  .pq-bar h2 { margin: 0; font-size: 1rem; }
+  .pq-bar a { color: #4a90d9; font-size: .86rem; text-decoration: none; }
+  .pq-bar a:hover { text-decoration: underline; }
+  #pqStatus { font-size: .82rem; }
+
+  #pqList { display: flex; flex-direction: column; gap: 18px; }
+  .pq-card {
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-radius: 12px; padding: 16px 18px;
+  }
+  .pq-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .pq-no { font-weight: 800; color: #4a90d9; }
+  .pq-id { font-family: monospace; font-size: .74rem; color: var(--text-secondary); }
+  .pq-preview { margin-left: auto; font-size: .78rem; color: #4a90d9; text-decoration: none; }
+  .pq-preview:hover { text-decoration: underline; }
+
+  .pq-field { margin-bottom: 14px; }
+  .pq-field label { display: block; font-size: .76rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .04em; }
+  .pq-field textarea {
+    width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px;
+    border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-primary);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82rem; line-height: 1.6;
+    resize: vertical;
+  }
+  .pq-tools { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+  .pq-upload {
+    padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border-color);
+    background: var(--bg-color); color: var(--text-primary); cursor: pointer;
+    font-size: .8rem; font-weight: 600; text-transform: none; letter-spacing: 0;
+  }
+  .pq-upload:hover { border-color: #4a90d9; color: #4a90d9; }
+  .pq-hint { font-size: .74rem; color: var(--text-secondary); }
+
+  .pq-row { display: flex; align-items: center; gap: 12px; }
+  .pq-save {
+    padding: 8px 18px; border: none; border-radius: 8px; cursor: pointer;
+    background: #4a90d9; color: #fff; font-weight: 700; font-size: .86rem; font-family: inherit;
+  }
+  .pq-save:disabled { opacity: .5; cursor: not-allowed; }
+  .pq-msg { font-size: .8rem; }
+  .pq-msg.ok { color: #22c55e; }
+  .pq-msg.err { color: #ef4444; }
+  .pq-empty { padding: 40px; text-align: center; color: var(--text-secondary); }
+</style>
+<script src="/assets/js/core/ui.js?v=aa1780c9"></script>
+<script src="/assets/js/core/net.js?v=aa1780c9"></script>
+<script src="/assets/js/core/api.js?v=aa1780c9"></script>
+<script src="/assets/js/core/page.js?v=aa1780c9"></script>
+</head>
+<body class="index-body">
+<div id="appContainer">
+  <header class="topbar" id="topbarContainer"></header>
+  <aside class="sidebar" id="sidebarContainer"></aside>
+  <main class="main-content" id="mainContent">
+    <div class="pq-bar">
+      <h2 id="pqTitle">Questions</h2>
+      <a id="pqBack" href="/admin/paper">← Back to layout</a>
+      <a href="/admin/paper">All papers</a>
+      <span id="pqStatus"></span>
+    </div>
+    <div id="pqList"></div>
+  </main>
+</div>
+<script src="/assets/js/auth.js?v=aa1780c9"></script>
+<script src="/assets/js/app.js?v=aa1780c9"></script>
+<script src="/assets/js/topbar.js?v=aa1780c9"></script>
+<script src="/assets/js/sidebar.js?v=aa1780c9"></script>
+<script src="/assets/js/heartbeat.js?v=aa1780c9"></script>
+<script src="/assets/js/pk-invite.js?v=aa1780c9"></script>
+<script src="/assets/js/pages/admin-paperquestions.js?v=aa1780c9"></script>
+</body>
+</html>

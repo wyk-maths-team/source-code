@@ -133,6 +133,9 @@
     const title = $('epTitle');
     if (title) title.textContent = 'Layout · ' + state.track + ' ' + state.year;
 
+    const qLink = $('epQuestions');
+    if (qLink) qLink.href = '/admin/paper/' + encodeURIComponent(state.track) + '/' + state.year + '/questions';
+
     $('epSave').addEventListener('click', save);
     $('epReset').addEventListener('click', async () => {
       state.items.forEach((it, i) => { it.height = 260; it.page = i + 1; });
