@@ -13,6 +13,7 @@ import crypto from 'crypto';
 export const config = { maxDuration: 300 };
 
 const PER_QUESTION_COST = 3000;
+const VIEW_OTHERS_IMAGE_COST = 100000;   // 看别人的 DSE 作答图，每条 100k token
 const MAX_BATCH = 25;
 const ALLOWED_IMAGE_HOSTS = ['https://res.cloudinary.com/', 'https://cdn.jsdelivr.net/'];
 
@@ -161,6 +162,8 @@ async function handler(req, res) {
     if (req.query.track) filter.paperTrack = String(req.query.track);
     if (Number(req.query.year)) filter.paperYear = Number(req.query.year);
 
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'root';
+
     const [rows, total] = await Promise.all([
       db.collection('dsesubmissions')
         .find(filter, {
@@ -177,11 +180,72 @@ async function handler(req, res) {
       db.collection('dsesubmissions').countDocuments(filter),
     ]);
 
+    // 图片只有管理员、本人可以看到；别人的要单独付费解锁（action=dseImage）
+    const safe = rows.map((r) => {
+      const mine = r.username === req.user.username;
+      const out = { ...r, hasImage: !!r.imageUrl, own: mine, unlockable: !mine };
+      if (!isAdmin && !mine) delete out.imageUrl;
+      return out;
+    });
+
     return res.status(200).json({
       success: true,
-      submissions: rows,
+      submissions: safe,
+      canViewAll: isAdmin,
+      unlockCost: VIEW_OTHERS_IMAGE_COST,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
     });
+  }
+
+  // ── 看另一名学生的作答图 ──
+  // 管理员与本人免费；其他人每条 100k token，付过的不再重复收。
+  if (action === 'dseImage') {
+    const subid = String(req.query.subid || '').trim();
+    if (!subid) return res.status(400).json({ success: false, message: 'Missing subid' });
+
+    const row = await db.collection('dsesubmissions').findOne({ subid });
+    if (!row) return res.status(404).json({ success: false, message: 'Submission not found' });
+    if (!row.imageUrl) return res.status(404).json({ success: false, message: 'This submission has no image' });
+
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'root';
+    const mine = row.username === req.user.username;
+
+    if (isAdmin || mine) {
+      return res.status(200).json({ success: true, imageUrl: row.imageUrl, charged: 0 });
+    }
+
+    // 已经付过就免费再开
+    const paid = await db.collection('dseImageViews').findOne({
+      username: req.user.username, subid,
+    });
+    if (paid) {
+      return res.status(200).json({ success: true, imageUrl: row.imageUrl, charged: 0, alreadyPaid: true });
+    }
+
+    const bal = await getTokenBalance(db, req.user.username);
+    const available = (bal.daily || 0) + (bal.global || 0);
+    if (available < VIEW_OTHERS_IMAGE_COST) {
+      return res.status(400).json({
+        success: false,
+        message: 'You need ' + VIEW_OTHERS_IMAGE_COST + ' tokens to view another student\'s answer',
+        need: VIEW_OTHERS_IMAGE_COST,
+        have: available,
+      });
+    }
+
+    try {
+      await consumeTokens(db, req.user.username, VIEW_OTHERS_IMAGE_COST);
+    } catch (e) {
+      return res.status(409).json({ success: false, message: 'Token balance changed, please retry' });
+    }
+
+    await db.collection('dseImageViews').updateOne(
+      { username: req.user.username, subid },
+      { $set: { username: req.user.username, subid, paidAt: new Date(), cost: VIEW_OTHERS_IMAGE_COST } },
+      { upsert: true }
+    );
+
+    return res.status(200).json({ success: true, imageUrl: row.imageUrl, charged: VIEW_OTHERS_IMAGE_COST });
   }
 
   // ── 管理员：试卷列表 ──

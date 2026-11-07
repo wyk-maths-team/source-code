@@ -3,7 +3,7 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='20726077';</script>
+<script>window.__BUILD_V='04c91ab2';</script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -12,15 +12,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Course - WYK Maths Team</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="/assets/css/styles.css?v=20726077" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=04c91ab2" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" />
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
-<script src="/assets/js/core/ui.js?v=20726077"></script>
-<script src="/assets/js/core/net.js?v=20726077"></script>
-<script src="/assets/js/core/api.js?v=20726077"></script>
-<script src="/assets/js/core/page.js?v=20726077"></script>
+<script src="/assets/js/core/ui.js?v=04c91ab2"></script>
+<script src="/assets/js/core/net.js?v=04c91ab2"></script>
+<script src="/assets/js/core/api.js?v=04c91ab2"></script>
+<script src="/assets/js/core/page.js?v=04c91ab2"></script>
 <style>
   :root {
     --course-bg: var(--content-bg, #f8f9fa);
@@ -326,6 +326,17 @@
     .dse-sub-row summary { grid-template-columns: 1fr auto; row-gap: 4px; }
     .dse-sub-time { text-align: left; }
   }
+
+  .dse-view-img {
+    padding: 6px 12px; border-radius: 8px; border: 1px solid var(--course-border);
+    background: var(--bg-color); color: var(--text-primary); cursor: pointer;
+    font-size: .8rem; font-weight: 600; font-family: inherit; margin-right: 12px;
+  }
+  .dse-view-img:hover { border-color: #4a90d9; color: #4a90d9; }
+  .dse-view-img:disabled { opacity: .6; cursor: wait; }
+  .dse-no-img { font-size: .8rem; color: var(--text-secondary); margin-right: 12px; }
+  .dse-img-slot:not(:empty) { margin-top: 12px; }
+  .dse-img { max-width: 100%; border-radius: 8px; border: 1px solid var(--course-border); }
 </style>
 </head>
 <body class="index-body">
@@ -337,13 +348,13 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=20726077"></script>
-  <script src="/assets/js/app.js?v=20726077"></script>
-  <script src="/assets/js/topbar.js?v=20726077"></script>
-  <script src="/assets/js/sidebar.js?v=20726077"></script>
-  <script src="/assets/js/heartbeat.js?v=20726077"></script>
-  <script src="/assets/js/pk-invite.js?v=20726077"></script>
-  <script src="/assets/js/pages/course.js?v=20726077"></script>
-  <script src="/assets/js/pk-notify.js?v=20726077"></script>
+  <script src="/assets/js/auth.js?v=04c91ab2"></script>
+  <script src="/assets/js/app.js?v=04c91ab2"></script>
+  <script src="/assets/js/topbar.js?v=04c91ab2"></script>
+  <script src="/assets/js/sidebar.js?v=04c91ab2"></script>
+  <script src="/assets/js/heartbeat.js?v=04c91ab2"></script>
+  <script src="/assets/js/pk-invite.js?v=04c91ab2"></script>
+  <script src="/assets/js/pages/course.js?v=04c91ab2"></script>
+  <script src="/assets/js/pk-notify.js?v=04c91ab2"></script>
 </body>
 </html>

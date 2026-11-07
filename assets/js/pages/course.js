@@ -49,6 +49,11 @@
     } catch { /* 配额满了就算了 */ }
   }
 
+  function fmtTokens(n) {
+    const v = Number(n) || 0;
+    return v >= 1000 ? (v / 1000).toFixed(v % 1000 === 0 ? 0 : 1) + 'k' : String(v);
+  }
+
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, (m) => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -1165,6 +1170,7 @@
     }
 
     const rows = data.submissions || [];
+    const unlockCost = Number(data.unlockCost) || 100000;
     const pg = data.pagination || { page: p, totalPages: 1, total: rows.length };
 
     let html = '<div class="dse-sub-head">' +
@@ -1199,7 +1205,11 @@
             return '<li class="' + (ok ? 'ok' : 'bad') + '">' + esc(l) + '</li>';
           }).join('') + '</ul>' : '') +
           (r.summary ? '<div class="dse-sub-summary">' + esc(r.summary) + '</div>' : '') +
-          '<div class="dse-sub-actions"><a href="/course/papers/' + encodeURIComponent(r.paperTrack) + '/' + r.paperYear + '">Open paper</a></div>' +
+          '<div class="dse-sub-actions">' +
+            (r.hasImage !== false ? '<button class="dse-view-img" data-subid="' + esc(r.subid) + '">' + (r.own ? 'View my answer' : (r.unlockable ? 'View answer · ' + fmtTokens(unlockCost) : 'View answer')) + '</button>' : '<span class="dse-no-img">No image</span>') +
+            '<a href="/course/papers/' + encodeURIComponent(r.paperTrack) + '/' + r.paperYear + '">Open paper</a>' +
+          '</div>' +
+          '<div class="dse-img-slot"></div>' +
         '</div>' +
       '</details>';
     });
@@ -1216,6 +1226,35 @@
 
     host.innerHTML = html;
     renderMath(host);
+
+    // 查看作答图：本人/管理员免费，其他人每条扣一次
+    host.querySelectorAll('.dse-view-img').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const subid = btn.dataset.subid;
+        const slot = btn.closest('.dse-sub-body').querySelector('.dse-img-slot');
+        if (slot.dataset.loaded === '1') {
+          slot.innerHTML = '';
+          slot.dataset.loaded = '0';
+          return;
+        }
+        btn.disabled = true;
+        const old = btn.textContent;
+        btn.textContent = 'Loading…';
+        try {
+          const out = await API.get('/api/paper?action=dseImage&subid=' + encodeURIComponent(subid));
+          if (!out || !out.success) throw new Error((out && out.message) || 'Cannot view this image');
+          slot.innerHTML = '<img class="dse-img" src="' + esc(out.imageUrl) + '" alt="answer" loading="lazy">';
+          slot.dataset.loaded = '1';
+          btn.textContent = 'Hide answer';
+          if (out.charged) DSHUI.toast('Charged ' + fmtTokens(out.charged) + ' tokens', 'ok');
+        } catch (e) {
+          btn.textContent = old;
+          DSHUI.toast(e.message, 'warn');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
   }
 
   // ─────────── Papers：M0 / M1 / M2 ───────────
