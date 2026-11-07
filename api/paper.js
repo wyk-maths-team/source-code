@@ -133,6 +133,44 @@ async function handler(req, res) {
     });
   }
 
+  // ── 管理员：保存布局（每题在哪一页、画板多高）──
+  if (action === 'saveLayout') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    if (req.user.role !== 'admin' && req.user.role !== 'root') {
+      return res.status(403).json({ success: false, message: 'Admin only' });
+    }
+
+    const { track = 'M0', year = 2025, items } = req.body || {};
+    if (!Array.isArray(items) || !items.length) {
+      return res.status(400).json({ success: false, message: 'Missing layout items' });
+    }
+
+    const paper = await db.collection('papers').findOne({ track, year });
+    if (!paper) return res.status(404).json({ success: false, message: 'Paper not found' });
+
+    const allowed = new Set(paper.problemIds || []);
+    const cleaned = items
+      .filter((it) => it && allowed.has(String(it.pid)))
+      .map((it) => ({
+        pid: String(it.pid),
+        page: Math.max(1, Math.min(99, Math.floor(Number(it.page) || 1))),
+        height: Math.max(120, Math.min(2000, Math.floor(Number(it.height) || 260))),
+      }));
+
+    // 保持原题目顺序，布局只改 page / height
+    const byPid = new Map(cleaned.map((it) => [it.pid, it]));
+    const finalItems = (paper.problemIds || []).map((pid, i) => (
+      byPid.get(pid) || { pid, page: i + 1, height: 260 }
+    ));
+
+    await db.collection('papers').updateOne(
+      { track, year },
+      { $set: { layout: { items: finalItems }, updatedAt: new Date() } }
+    );
+
+    return res.status(200).json({ success: true, saved: finalItems.length });
+  }
+
   // ── 提交单题的画板作答并批改 ──
   if (action === 'mark') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });

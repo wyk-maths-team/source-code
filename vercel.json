@@ -677,6 +677,10 @@
       "destination": "/course.html"
     },
     {
+      "source": "/course/papers/:track/:year",
+      "destination": "/course.html"
+    },
+    {
       "source": "/admin/course",
       "destination": "/admin/courses.html"
     },
@@ -687,6 +691,10 @@
     {
       "source": "/admin/course/:id",
       "destination": "/admin/editcourse.html"
+    },
+    {
+      "source": "/admin/paper/:track/:year",
+      "destination": "/admin/editpaper.html"
     },
     {
       "source": "/(.*)",
