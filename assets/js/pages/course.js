@@ -782,7 +782,34 @@
         return active.size === 0;
       },
       toDataUrl: function () {
-        try { return canvas.toDataURL('image/jpeg', 0.85); } catch (e) { return ''; }
+        try {
+          // 画板是透明底（为了露出页面上的灰横线）。JPEG 不支持透明，
+          // 直接导会把空白变成纯黑，所以这里先合成一张白底 + 灰横线的纸，
+          // 再把笔迹盖上去 —— 橡皮擦出来的白块也随之融进纸里。
+          var out = document.createElement('canvas');
+          out.width = canvas.width;
+          out.height = canvas.height;
+          var octx = out.getContext('2d');
+
+          octx.fillStyle = '#ffffff';
+          octx.fillRect(0, 0, out.width, out.height);
+
+          if (transparent) {
+            var step = 28 * dpr;
+            var offset = 4 * dpr;
+            octx.strokeStyle = 'rgba(0, 0, 0, 0.13)';
+            octx.lineWidth = Math.max(1, Math.round(dpr));
+            for (var y = offset + step; y < out.height; y += step) {
+              octx.beginPath();
+              octx.moveTo(0, y + 0.5);
+              octx.lineTo(out.width, y + 0.5);
+              octx.stroke();
+            }
+          }
+
+          octx.drawImage(canvas, 0, 0);
+          return out.toDataURL('image/jpeg', 0.85);
+        } catch (e) { return ''; }
       },
       restore: restore,
       persist: persist,
