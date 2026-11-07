@@ -425,7 +425,23 @@ async function handler(req, res) {
     if (!mark) return res.status(502).json({ success: false, message: 'AI reply was not valid JSON' });
 
     if (req.user.role !== 'root') {
-      try { await consumeTokens(db, req.user.username, PER_QUESTION_COST); } catch (e) { /* 余额不足仍返回批改结果 */ }
+      try {
+        await consumeTokens(db, req.user.username, PER_QUESTION_COST);
+      } catch (e) {
+        // 不能静默：扣费失败意味着这一题白送了，必须能查出来
+        console.error('[paper] charge failed for', req.user.username, req.user.username, e.message, { pid });
+        try {
+          await db.collection('audit_logs').insertOne({
+            type: 'paper_charge_failed',
+            username: req.user.username,
+            pid: String(pid),
+            amount: PER_QUESTION_COST,
+            error: String(e.message || e),
+            mode: 'single',
+            at: new Date(),
+          });
+        } catch (e2) { /* ignore */ }
+      }
     }
 
     await db.collection('paperMarks').updateOne(
@@ -531,7 +547,22 @@ async function handler(req, res) {
 
     const cost = PER_QUESTION_COST * ok.length;
     if (cost > 0 && req.user.role !== 'root') {
-      try { await consumeTokens(db, req.user.username, cost); } catch (e) { /* 允许欠费，结果已经拿到 */ }
+      try {
+        await consumeTokens(db, req.user.username, cost);
+      } catch (e) {
+        console.error('[paper] batch charge failed for', req.user.username, e.message, { cost });
+        try {
+          await db.collection('audit_logs').insertOne({
+            type: 'paper_charge_failed',
+            username: req.user.username,
+            amount: cost,
+            questions: ok.length,
+            error: String(e.message || e),
+            mode: 'batch',
+            at: new Date(),
+          });
+        } catch (e2) { /* ignore */ }
+      }
     }
 
     return res.status(200).json({ success: true, marked: ok, failed, cost });
