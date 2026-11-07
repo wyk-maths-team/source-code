@@ -52,6 +52,11 @@
         <div class="ep-head">
           <span class="ep-no">Q${i + 1}</span>
           <span class="ep-id">${esc(it.pid)}</span>
+          <span class="ep-a4">
+            <button type="button" class="ep-a4-btn" data-i="${i}" data-a4="0.5" title="Half an A4 page">1/2</button>
+            <button type="button" class="ep-a4-btn" data-i="${i}" data-a4="1" title="One A4 page">1</button>
+            <button type="button" class="ep-a4-btn" data-i="${i}" data-a4="2" title="Two A4 pages">2</button>
+          </span>
           <span class="ep-size" id="epSize${i}">${it.height}px</span>
         </div>
         <div class="ep-stmt">${esc(String(it.statement || '').replace(/<[^>]+>/g, ' ').slice(0, 120))}</div>
@@ -62,7 +67,32 @@
       list.appendChild(card);
     });
     bindHandles();
+    bindA4Buttons();
     drawRuledBoards();
+  }
+
+  // A4 是 210×297mm，宽高比 1:1.414。按画板当前宽度换算，点一下就把高度
+  // 设成半页 / 一页 / 两页。这样不同屏宽下也是「真的一张纸」。
+  const A4_RATIO = 297 / 210;
+  const MAX_BOARD_H = 3200;   // 两张 A4 大约 2600px，留点余量
+  function applyA4(i, factor) {
+    const board = document.getElementById('epBoard' + i);
+    if (!board) return;
+    const width = board.getBoundingClientRect().width || 760;
+    const h = Math.max(120, Math.min(MAX_BOARD_H, Math.round(width * A4_RATIO * factor)));
+    state.items[i].height = h;
+    board.style.height = h + 'px';
+    const label = document.getElementById('epSize' + i);
+    if (label) label.textContent = h + 'px';
+  }
+
+  function bindA4Buttons() {
+    document.querySelectorAll('.ep-a4-btn').forEach((b) => {
+      b.addEventListener('click', (e) => {
+        e.preventDefault();
+        applyA4(Number(b.dataset.i), Number(b.dataset.a4) || 1);
+      });
+    });
   }
 
   // 画板只是示意：画灰色横线，不接绘画逻辑
@@ -92,7 +122,7 @@
       if (!drag) return;
       e.preventDefault();
       const delta = e.clientY - drag.startY;
-      const h = Math.max(120, Math.min(2000, Math.round(drag.startH + delta)));
+      const h = Math.max(120, Math.min(MAX_BOARD_H, Math.round(drag.startH + delta)));
       state.items[drag.i].height = h;
       const board = document.getElementById('epBoard' + drag.i);
       const label = document.getElementById('epSize' + drag.i);

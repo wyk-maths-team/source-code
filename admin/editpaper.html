@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>window.__BUILD_V='8368eebd';</script>
+<script>window.__BUILD_V='481fbe50';</script>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta charset="UTF-8" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Edit Paper - WYK Maths Team</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="/assets/css/styles.css?v=8368eebd" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=481fbe50" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 <style>
   .ep-bar {
@@ -34,7 +34,7 @@
   .ep-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
   .ep-no { font-weight: 800; color: #4a90d9; }
   .ep-id { font-family: monospace; font-size: .74rem; color: var(--text-secondary); }
-  .ep-size { margin-left: auto; font-size: .78rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .ep-size { font-size: .78rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; min-width: 52px; text-align: right; }
   .ep-stmt { font-size: .86rem; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.5; }
 
   .ep-board {
@@ -52,11 +52,20 @@
   .ep-handle span { display: block; width: 46px; height: 3px; border-radius: 2px; background: var(--text-secondary); opacity: .45; }
   .ep-handle:hover span { opacity: .9; }
   .ep-link { padding: 8px 16px; border-radius: 8px; background: var(--bg-color); color: var(--text-primary); border: 1px solid var(--border-color); font-weight: 700; font-size: .86rem; text-decoration: none; }
+
+  .ep-a4 { display: inline-flex; gap: 4px; margin-left: auto; }
+  .ep-a4-btn {
+    padding: 3px 9px; border-radius: 6px; border: 1px solid var(--border-color);
+    background: var(--bg-color); color: var(--text-secondary); cursor: pointer;
+    font-size: .72rem; font-weight: 700; font-family: inherit; line-height: 1.4;
+  }
+  .ep-a4-btn:hover { border-color: #4a90d9; color: #4a90d9; background: rgba(74,144,217,.08); }
+  .ep-a4-btn:active { transform: translateY(1px); }
 </style>
-<script src="/assets/js/core/ui.js?v=8368eebd"></script>
-<script src="/assets/js/core/net.js?v=8368eebd"></script>
-<script src="/assets/js/core/api.js?v=8368eebd"></script>
-<script src="/assets/js/core/page.js?v=8368eebd"></script>
+<script src="/assets/js/core/ui.js?v=481fbe50"></script>
+<script src="/assets/js/core/net.js?v=481fbe50"></script>
+<script src="/assets/js/core/api.js?v=481fbe50"></script>
+<script src="/assets/js/core/page.js?v=481fbe50"></script>
 </head>
 <body class="index-body">
 <div id="appContainer">
@@ -74,12 +83,12 @@
     <div id="epList"></div>
   </main>
 </div>
-<script src="/assets/js/auth.js?v=8368eebd"></script>
-<script src="/assets/js/app.js?v=8368eebd"></script>
-<script src="/assets/js/topbar.js?v=8368eebd"></script>
-<script src="/assets/js/sidebar.js?v=8368eebd"></script>
-<script src="/assets/js/heartbeat.js?v=8368eebd"></script>
-<script src="/assets/js/pk-invite.js?v=8368eebd"></script>
-<script src="/assets/js/pages/admin-editpaper.js?v=8368eebd"></script>
+<script src="/assets/js/auth.js?v=481fbe50"></script>
+<script src="/assets/js/app.js?v=481fbe50"></script>
+<script src="/assets/js/topbar.js?v=481fbe50"></script>
+<script src="/assets/js/sidebar.js?v=481fbe50"></script>
+<script src="/assets/js/heartbeat.js?v=481fbe50"></script>
+<script src="/assets/js/pk-invite.js?v=481fbe50"></script>
+<script src="/assets/js/pages/admin-editpaper.js?v=481fbe50"></script>
 </body>
 </html>

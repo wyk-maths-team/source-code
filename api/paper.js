@@ -364,7 +364,7 @@ async function handler(req, res) {
       .map((it) => ({
         pid: String(it.pid),
         page: Math.max(1, Math.min(99, Math.floor(Number(it.page) || 1))),
-        height: Math.max(120, Math.min(2000, Math.floor(Number(it.height) || 260))),
+        height: Math.max(120, Math.min(3200, Math.floor(Number(it.height) || 260))),
       }));
 
     // 保持原题目顺序，布局只改 page / height
