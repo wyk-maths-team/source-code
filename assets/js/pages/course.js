@@ -647,22 +647,8 @@
 
     holder.innerHTML = '<div style="padding:12px;color:var(--text-secondary);font-size:.85rem;"><span class="spinner"></span> Loading PDF…</div>';
 
-    // PDF 走 /api/pdf（带 token）。pdf.js 自己发请求不会带 Authorization，
-    // 所以先用 API 拿到二进制再转成 blob URL 交给它。
-    var pdfUrlPromise = (function () {
-      var raw = String(pdf.url || '');
-      if (raw.indexOf('/assets/pdf/') !== 0 && raw.indexOf('/api/pdf') !== 0) {
-        return Promise.resolve(raw);   // 外链（cloudinary 等）保持原样
-      }
-      return API.getBlob(raw).then(function (blob) {
-        return URL.createObjectURL(blob);
-      }).catch(function () {
-        throw new Error('Could not load this PDF. Try signing in again.');
-      });
-    })();
-
-    return Promise.all([loadPdfJs(), pdfUrlPromise]).then(function (r) {
-      return r[0].getDocument({ url: r[1], withCredentials: false }).promise;
+    return loadPdfJs().then(function (pdfjs) {
+      return pdfjs.getDocument({ url: pdf.url, withCredentials: false }).promise;
     }).then(function (doc) {
       holder.innerHTML = '';
       var pages = [];

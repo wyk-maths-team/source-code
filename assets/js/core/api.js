@@ -101,18 +101,6 @@
     post: function (p, body, o) { return call(p, Object.assign({ method: 'POST', body: body }, o || {})); },
     put: function (p, body, o) { return call(p, Object.assign({ method: 'PUT', body: body }, o || {})); },
     del: function (p, o) { return call(p, Object.assign({ method: 'DELETE' }, o || {})); },
-    // 二进制响应（PDF 之类）：同样带 token，但返回 Blob 而不是 JSON
-    getBlob: function (p) {
-      var headers = {};
-      var tk = getToken();
-      if (tk) headers['Authorization'] = 'Bearer ' + tk;
-      return fetch(p, { method: 'GET', headers: headers }).then(function (r) {
-        if (!r.ok) {
-          throw new ApiError({ status: r.status, message: r.status === 401 ? 'Sign in required' : ('HTTP ' + r.status), url: p });
-        }
-        return r.blob();
-      });
-    },
     token: getToken
   };
 })();
