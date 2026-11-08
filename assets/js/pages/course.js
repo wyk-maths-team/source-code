@@ -1471,10 +1471,7 @@
           '<span class="dse-sub-time">' + esc(t) + '</span>' +
         '</summary>' +
         '<div class="dse-sub-body">' +
-          (lines.length ? '<ul class="dse-sub-lines">' + lines.map((l) => {
-            const ok = /^\s*[✔✓]/.test(l);
-            return '<li class="' + (ok ? 'ok' : 'bad') + '">' + esc(l) + '</li>';
-          }).join('') + '</ul>' : '') +
+          (lines.length ? renderMarkTable(lines) : '') +
           (r.summary ? '<div class="dse-sub-summary">' + esc(r.summary) + '</div>' : '') +
           ((r.usage || r.chargedTokens) ? '<div class="dse-sub-usage"><i class="fas fa-coins"></i>' + fmtUsage(r) + '</div>' : '') +
           '<div class="dse-sub-actions">' +
@@ -2243,6 +2240,68 @@
     return parts.length ? parts.join(" · ") : "usage unavailable";
   }
 
+  // 逐行评分排成表格：第一列用图标表示这一点有没有拿到，
+  // 正文只留「1M — 说明」，把 AI 自己在行首加的表情/勾叉去掉。
+  function splitMarkLine(raw) {
+    let s = String(raw == null ? '' : raw).trim();
+
+    // 去掉行首的一串符号（✔ ✓ ✘ ✗ ✅ ❌ ● ○ 等），保留真正的判断
+    let earned = null;
+    const lead = /^[\s\u2713\u2714\u2717\u2718\u2705\u274C\u274E\u2B50\u25CF\u25CB\u2022\u00B7\-\u2013\u2014]*/;
+    const leadMatch = lead.exec(s);
+    if (leadMatch && leadMatch[0].trim()) {
+      const sym = leadMatch[0];
+      if (/[\u2713\u2714\u2705]/.test(sym)) earned = true;
+      else if (/[\u2717\u2718\u274C\u274E]/.test(sym)) earned = false;
+      s = s.slice(sym.length).trim();
+    }
+    // 有些回复写成 "1M — ..." 或 "1M: ..."，把编号拆出来单独一列
+    let tag = '';
+    const tagMatch = /^([0-9]*\s*[MA])\s*[—–:\-]\s*/i.exec(s);
+    if (tagMatch) {
+      tag = tagMatch[1].replace(/\s+/g, '');
+      s = s.slice(tagMatch[0].length).trim();
+    }
+    // 句子本身就是用英文写的 ok / wrong 判断时，拿来当图标依据
+    if (earned == null) {
+      if (/^(ok\b|correct|awarded|earned)/i.test(s)) earned = true;
+      else if (/^(no\b|not\b|missing|lost|incorrect|wrong)/i.test(s)) earned = false;
+    }
+    return { earned, tag, text: s };
+  }
+
+  function renderMarkTable(lines) {
+    const rows = lines.map((raw) => splitMarkLine(raw));
+    const gained = rows.filter((r) => r.earned === true).length;
+    const lost = rows.filter((r) => r.earned === false).length;
+
+    const body = rows.map((r) => {
+      // 绿色对勾 / 红色叉 / 中性点，和主站题目的 Solved 标记同一套视觉
+      const icon = r.earned === true
+        ? '<i class="fas fa-circle-check pmf-ok"></i>'
+        : r.earned === false
+          ? '<i class="fas fa-circle-xmark pmf-bad"></i>'
+          : '<i class="fas fa-circle-minus pmf-neutral"></i>';
+      return '<tr>' +
+        '<td class="pmf-icon">' + icon + '</td>' +
+        (r.tag ? '<td class="pmf-tag">' + esc(r.tag) + '</td>' : '<td class="pmf-tag"></td>') +
+        '<td class="pmf-text">' + esc(r.text) + '</td>' +
+      '</tr>';
+    }).join('');
+
+    return '<table class="paper-mark-table">' +
+      '<thead><tr>' +
+        '<th class="pmf-icon"></th>' +
+        '<th class="pmf-tag">Mark</th>' +
+        '<th class="pmf-text">Comment</th>' +
+        '<th class="pmf-count">' + (gained || lost
+          ? gained + ' <i class="fas fa-check pmf-ok"></i> · ' + lost + ' <i class="fas fa-xmark pmf-bad"></i>'
+          : '') + '</th>' +
+      '</tr></thead>' +
+      '<tbody>' + body + '</tbody>' +
+    '</table>';
+  }
+
   function renderMarkInto(el, mark) {
     if (!mark) return;
     const score = Number(mark.score) || 0;
@@ -2258,10 +2317,7 @@
         ${mark.summary ? '<span class="pm-summary">' + esc(mark.summary) + '</span>' : ''}
       </div>
       ${(mark.usage || mark.chargedTokens) ? '<div class="pm-usage"><i class="fas fa-coins"></i>' + esc(fmtUsage(mark)) + '</div>' : ''}
-      ${lines.length ? '<ul class="paper-mark-lines">' + lines.map((l) => {
-        const ok = /^\s*[✔✓]/.test(l);
-        return '<li class="' + (ok ? 'ok' : 'bad') + '">' + esc(l) + '</li>';
-      }).join('') + '</ul>' : ''}`;
+      ${lines.length ? renderMarkTable(lines) : ''}`;
 
     // 评语里带 LaTeX，直接渲染出来（$...$ / $$...$$）
     renderMath(el);

@@ -3,7 +3,7 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='909d718d';</script>
+<script>window.__BUILD_V='85032fe1';</script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -12,16 +12,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Course - WYK Maths Team</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="/assets/css/styles.css?v=909d718d" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=85032fe1" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" />
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
-<script src="/assets/js/core/ui.js?v=909d718d"></script>
-<script src="/assets/js/core/net.js?v=909d718d"></script>
-<script src="/assets/js/core/api.js?v=909d718d"></script>
-  <script src="/assets/js/core/padstore.js?v=909d718d"></script>
-<script src="/assets/js/core/page.js?v=909d718d"></script>
+<script src="/assets/js/core/ui.js?v=85032fe1"></script>
+<script src="/assets/js/core/net.js?v=85032fe1"></script>
+<script src="/assets/js/core/api.js?v=85032fe1"></script>
+  <script src="/assets/js/core/padstore.js?v=85032fe1"></script>
+<script src="/assets/js/core/page.js?v=85032fe1"></script>
 <style>
   :root {
     --course-bg: var(--content-bg, #f8f9fa);
@@ -561,6 +561,36 @@
     color: var(--text-secondary);
   }
   .paper-mode button.on { background: #4a90d9; color: #fff; }
+
+  /* 批改结果表格：图标 + Mark + 说明 */
+  .paper-mark-table {
+    width: 100%; border-collapse: collapse; margin-top: 10px;
+    font-size: .88rem; line-height: 1.6;
+  }
+  .paper-mark-table thead th {
+    text-align: left; font-size: .72rem; font-weight: 700; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--text-secondary);
+    padding: 6px 10px; border-bottom: 1px solid var(--course-border); white-space: nowrap;
+  }
+  .paper-mark-table tbody td {
+    padding: 7px 10px; border-bottom: 1px solid var(--course-border);
+    vertical-align: top;
+  }
+  .paper-mark-table tbody tr:last-child td { border-bottom: none; }
+  .paper-mark-table .pmf-icon { width: 30px; text-align: center; padding-right: 0; }
+  .paper-mark-table .pmf-icon i { font-size: .95rem; }
+  .paper-mark-table .pmf-ok { color: #16a34a; }
+  .paper-mark-table .pmf-bad { color: #dc2626; }
+  .paper-mark-table .pmf-neutral { color: #94a3b8; }
+  .paper-mark-table .pmf-tag {
+    width: 46px; font-weight: 800; font-family: ui-monospace, monospace;
+    font-size: .8rem; color: #4a90d9; white-space: nowrap;
+  }
+  .paper-mark-table .pmf-text { color: var(--text-primary); }
+  .paper-mark-table .pmf-count {
+    width: 80px; text-align: right; font-size: .74rem; color: var(--text-secondary);
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
 </style>
 </head>
 <body class="index-body">
@@ -572,13 +602,13 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=909d718d"></script>
-  <script src="/assets/js/app.js?v=909d718d"></script>
-  <script src="/assets/js/topbar.js?v=909d718d"></script>
-  <script src="/assets/js/sidebar.js?v=909d718d"></script>
-  <script src="/assets/js/heartbeat.js?v=909d718d"></script>
-  <script src="/assets/js/pk-invite.js?v=909d718d"></script>
-  <script src="/assets/js/pages/course.js?v=909d718d"></script>
-  <script src="/assets/js/pk-notify.js?v=909d718d"></script>
+  <script src="/assets/js/auth.js?v=85032fe1"></script>
+  <script src="/assets/js/app.js?v=85032fe1"></script>
+  <script src="/assets/js/topbar.js?v=85032fe1"></script>
+  <script src="/assets/js/sidebar.js?v=85032fe1"></script>
+  <script src="/assets/js/heartbeat.js?v=85032fe1"></script>
+  <script src="/assets/js/pk-invite.js?v=85032fe1"></script>
+  <script src="/assets/js/pages/course.js?v=85032fe1"></script>
+  <script src="/assets/js/pk-notify.js?v=85032fe1"></script>
 </body>
 </html>

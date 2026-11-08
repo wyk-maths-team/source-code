@@ -211,7 +211,7 @@
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
         if (!k) continue;
-        if (/^(pd_scratchpad:|coursePad:|inlinePad:|pdfPad)/.test(k)) keys.push(k);
+        if (/^(pd_scratchpad:|coursePad:|paperPad:|inlinePad:|pdfPad)/.test(k)) keys.push(k);
       }
       for (const k of keys) {
         const raw = localStorage.getItem(k);

@@ -267,6 +267,7 @@
       { id: 'draft', label: 'Question drafts', icon: 'fa-pen', match: (k) => k.startsWith('pd_draft') || k.startsWith('pd_workbench_drafts:') },
       { id: 'scratchpad', label: 'Scratchpad boards', icon: 'fa-tablet-screen-button', match: (k) => k.startsWith('pd_scratchpad:') },
       { id: 'coursePad', label: 'Course drawing boards', icon: 'fa-draw-polygon', match: (k) => k.startsWith('coursePad:') },
+      { id: 'paperPad', label: 'Paper (DSE) boards', icon: 'fa-file-lines', match: (k) => k.startsWith('paperPad:') },
       { id: 'inlinePad', label: 'Inline question boards', icon: 'fa-pen-nib', match: (k) => k.startsWith('inlinePad:') },
       { id: 'pdfPad', label: 'PDF answer boxes', icon: 'fa-file-pdf', match: (k) => /^pdfPad|^pdf_box|^pdfPage/i.test(k) },
       { id: 'cache', label: 'Problem list & caches', icon: 'fa-database', match: (k) => /Cache|^problemList|cacheClean|favoritesCache|userStatesCache/.test(k) },
@@ -321,7 +322,7 @@
 
       keys.forEach((k) => {
         // 画板类还要清掉 IndexedDB 里可能存在的副本
-        if (/^(pd_scratchpad:|coursePad:|inlinePad:|pdfPad)/.test(k) && window.PadStore) PadStore.remove(k);
+        if (/^(pd_scratchpad:|coursePad:|paperPad:|inlinePad:|pdfPad)/.test(k) && window.PadStore) PadStore.remove(k);
         else { try { localStorage.removeItem(k); } catch (e) {} }
       });
 
