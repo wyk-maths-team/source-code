@@ -16,6 +16,8 @@ import crypto from 'crypto';
 export const config = { maxDuration: 300 };
 
 const PER_QUESTION_COST = 3000;
+// 单题 AI 超时：一道题卡住不该让整卷无限等
+const AI_TIMEOUT_MS = Number(process.env.PAPER_AI_TIMEOUT_MS) || 90_000;
 const VIEW_OTHERS_IMAGE_COST = 100000;   // 看别人的 DSE 作答图，每条 100k token
 const MAX_BATCH = 25;
 const ALLOWED_IMAGE_HOSTS = ['https://res.cloudinary.com/', 'https://cdn.jsdelivr.net/'];
@@ -76,11 +78,23 @@ async function markOneImage(prompt, imageUrl, effort) {
   };
   if (effort) body.reasoning_effort = effort;
 
-  const res = await fetch(base + '/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + apiKey },
-    body: JSON.stringify(body),
-  });
+  // 超时保护：一道题卡住不该拖垮整卷。到点就中止，由调用方记为失败。
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), AI_TIMEOUT_MS);
+  let res;
+  try {
+    res = await fetch(base + '/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + apiKey },
+      body: JSON.stringify(body),
+      signal: ctl.signal,
+    });
+  } catch (e) {
+    if (e && e.name === 'AbortError') throw new Error('AI timed out after ' + Math.round(AI_TIMEOUT_MS / 1000) + 's');
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) throw new Error('AI HTTP ' + res.status);
   const data = await res.json();
   return {
@@ -509,7 +523,8 @@ async function handler(req, res) {
     });
 
     const paperTotal = (await db.collection('papers').findOne({ track, year }, { projection: { problemIds: 1 } }) || {}).problemIds || [];
-    const effort = effortForProblem(problem, { total: paperTotal.length });
+    const mode = String((req.body && req.body.mode) || '');
+    const effort = mode === 'fast' ? 'low' : effortForProblem(problem, { total: paperTotal.length });
     const ai = await markOneImage(prompt, imageUrl, effort);
     const mark = normalizeMark(parseJSONReply(ai.content));
     if (!mark) return res.status(502).json({ success: false, message: 'AI reply was not valid JSON' });
@@ -575,7 +590,7 @@ async function handler(req, res) {
   // ── 一键批改：把这一份里所有已画的题并发提交 ──
   if (action === 'markAll') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-    const { track = 'M0', year = 2025, answers } = req.body || {};
+    const { track = 'M0', year = 2025, answers, mode = '' } = req.body || {};
     if (!Array.isArray(answers) || !answers.length) {
       return res.status(400).json({ success: false, message: 'No answers submitted' });
     }
@@ -591,19 +606,38 @@ async function handler(req, res) {
 
     const { uploadImage } = await import('../lib/cloudinary.js');
 
-    const results = await Promise.allSettled(answers.map(async (a) => {
+    // 第一阶段：把需要上传的图并行传掉。上传比 AI 慢得多，串在每题里做会让
+    // 19 道题排队等 19 次上传；这里一次性并发，AI 阶段就不用再等了。
+    const uploadErrors = {};
+    const resolved = await Promise.all(answers.map(async (a) => {
       const pid = String(a.pid);
       let imageUrl = String(a.imageUrl || '');
+      if (imageUrl) {
+        if (!isAllowedImageUrl(imageUrl)) { uploadErrors[pid] = 'Invalid image source'; return null; }
+        return { pid, imageUrl };
+      }
+      const data = String(a.image || '');
+      if (!data.startsWith('data:image/')) { uploadErrors[pid] = 'Invalid image data'; return null; }
+      try {
+        const url = await uploadImage(data);
+        return { pid, imageUrl: url };
+      } catch (e) {
+        uploadErrors[pid] = 'Upload failed: ' + (e.message || e);
+        return null;
+      }
+    }));
+
+    const urlByPid = {};
+    resolved.forEach((r) => { if (r) urlByPid[r.pid] = r.imageUrl; });
+
+    // 第二阶段：只对上传成功的题并发批改
+    const results = await Promise.allSettled(answers.map(async (a) => {
+      const pid = String(a.pid);
       const problem = byId[pid];
       if (!problem) throw new Error('Problem not found: ' + pid);
-
-      if (!imageUrl) {
-        const data = String(a.image || '');
-        if (!data.startsWith('data:image/')) throw new Error('Invalid image data for ' + pid);
-        imageUrl = await uploadImage(data);
-      } else if (!isAllowedImageUrl(imageUrl)) {
-        throw new Error('Invalid image source for ' + pid);
-      }
+      if (uploadErrors[pid]) throw new Error(uploadErrors[pid]);
+      const imageUrl = urlByPid[pid];
+      if (!imageUrl) throw new Error('Image missing for ' + pid);
 
       const totalMarks = sumMarks(problem.statement);
 
@@ -612,7 +646,8 @@ async function handler(req, res) {
         reference_answer: String(problem.ans || ''),
         total_marks: totalMarks,
       });
-      const effort = effortForProblem(problem, { total: answers.length });
+      // mode=fast 强制全部走 low；默认按难度/题号分级
+      const effort = mode === 'fast' ? 'low' : effortForProblem(problem, { total: answers.length });
       const ai = await markOneImage(prompt, imageUrl, effort);
       const mark = normalizeMark(parseJSONReply(ai.content));
       if (!mark) throw new Error('AI reply invalid for ' + pid);

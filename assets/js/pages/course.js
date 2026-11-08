@@ -1757,6 +1757,10 @@
     bar.innerHTML = `
       <div class="paper-title">${esc(paper.title)}</div>
       <div class="paper-actions">
+        <span class="paper-mode" id="paperMode">
+          <button type="button" data-mode="" class="on">Ultra</button>
+          <button type="button" data-mode="fast">Fast</button>
+        </span>
         <span class="paper-score" id="paperScore">${paper.scoredMarks || 0} / ${paper.totalMarks || 0} marks</span>
         <span class="paper-count" id="paperCount">0 / ${paper.questions.length} attempted</span>
         <button class="paper-mark-all" id="paperMarkAll">Mark my paper</button>
@@ -1764,6 +1768,21 @@
       </div>`;
     host.innerHTML = '';
     host.appendChild(bar);
+
+    // 批改模式：Ultra = 按难度分级；Fast = 全部 low（更快、更省）
+    let markMode = '';
+    try { markMode = localStorage.getItem('paperMarkMode') === 'fast' ? 'fast' : ''; } catch (e) {}
+    const modeBox = bar.querySelector('#paperMode');
+    if (modeBox) {
+      modeBox.querySelectorAll('button[data-mode]').forEach((b) => {
+        b.classList.toggle('on', (b.dataset.mode || '') === markMode);
+        b.addEventListener('click', () => {
+          markMode = b.dataset.mode || '';
+          try { localStorage.setItem('paperMarkMode', markMode || 'ultra'); } catch (e) {}
+          modeBox.querySelectorAll('button[data-mode]').forEach((o) => o.classList.toggle('on', o === b));
+        });
+      });
+    }
 
     const list = document.createElement('div');
     list.className = 'paper-list';
@@ -1882,7 +1901,7 @@
         oneBtn.disabled = true;
         oneBtn.textContent = 'Marking…';
         try {
-          const out = await API.post('/api/paper?action=mark', { track, year, pid: q.id, image });
+          const out = await API.post('/api/paper?action=mark', { track, year, pid: q.id, image, mode: markMode });
           if (!out || !out.success) throw new Error((out && out.message) || 'Marking failed');
           if (out.usage) out.mark.usage = out.usage;
           if (out.chargedTokens) out.mark.chargedTokens = out.chargedTokens;
@@ -1964,7 +1983,7 @@
       status.textContent = 'Marking ' + answers.length + ' question(s)…';
 
       try {
-        const out = await API.post('/api/paper?action=markAll', { track, year, answers });
+        const out = await API.post('/api/paper?action=markAll', { track, year, answers, mode: markMode });
         if (!out || !out.success) throw new Error((out && out.message) || 'Marking failed');
 
         (out.marked || []).forEach((m) => {
