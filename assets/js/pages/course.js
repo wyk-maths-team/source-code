@@ -803,50 +803,37 @@
       if (!storageKey) return;
       clearTimeout(saveTimer);
       saveTimer = setTimeout(function () {
-        try {
-          if (!strokes.length) { localStorage.removeItem(storageKey); return; }
-          var payload = {
-            v: 1,
-            strokes: strokes.map(function (st) {
-              return {
-                c: st.color, w: st.width, e: !!st.erase,
-                p: st.points.map(function (pt) {
-                  return [Math.round(pt.x * 10) / 10, Math.round(pt.y * 10) / 10];
-                }),
-              };
-            }),
-          };
-          var json = JSON.stringify(payload);
-          if (json.length > 400000) return;   // 太大就放弃，别把 localStorage 撑爆
-          localStorage.setItem(storageKey, json);
-        } catch (e) { /* 配额满 / 隐私模式，忽略 */ }
+        // PadStore 做量化 + delta 压缩，localStorage 满了自动转 IndexedDB
+        if (!window.PadStore) return;
+        var w = canvas.width / (dpr || 1);
+        var h = canvas.height / (dpr || 1);
+        PadStore.save(storageKey, strokes, w, h);
       }, 400);
     }
 
     function restore() {
-      if (!storageKey) return;
-      try {
-        var raw = localStorage.getItem(storageKey);
-        if (!raw) return;
-        var data = JSON.parse(raw);
-        if (!data || !Array.isArray(data.strokes)) return;
-        strokes = data.strokes.map(function (st) {
-          return {
-            color: st.c || '#111111',
-            width: Number(st.w) || 2,
-            erase: !!st.e,
-            points: (st.p || []).map(function (pt) {
-              return { x: Number(pt[0]) || 0, y: Number(pt[1]) || 0 };
-            }),
-          };
-        }).filter(function (st) { return st.points.length; });
+      if (!storageKey || !window.PadStore) return;
+      var w = canvas.width / (dpr || 1);
+      var h = canvas.height / (dpr || 1);
+      var st = PadStore.loadSync(storageKey, w, h);
+      if (st.found && st.strokes.length) {
+        strokes = st.strokes;
         redraw();
-      } catch (e) { /* 存档坏了就当没有 */ }
+        return;
+      }
+      // 内容可能在 IndexedDB 里（localStorage 曾满过），异步补一次
+      if (st.overflowed) {
+        PadStore.load(storageKey, w, h).then(function (arr) {
+          if (arr && arr.length) { strokes = arr; redraw(); }
+        }).catch(function () {});
+      }
     }
 
     function clearStorage() {
       if (!storageKey) return;
-      try { localStorage.removeItem(storageKey); } catch (e) {}
+      // PadStore 会同时清 localStorage 和对应的 IndexedDB 条目
+      if (window.PadStore) PadStore.remove(storageKey);
+      else { try { localStorage.removeItem(storageKey); } catch (e) {} }
     }
 
     var transparent = !!(opts && opts.transparent);

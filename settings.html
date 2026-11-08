@@ -3,8 +3,8 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='3960f70e';</script>
-<script src="/assets/js/arch-render.js?v=3960f70e"></script>
+<script>window.__BUILD_V='909d718d';</script>
+<script src="/assets/js/arch-render.js?v=909d718d"></script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -17,7 +17,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=3960f70e" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=909d718d" />
 
 <style>
   :root {
@@ -177,10 +177,11 @@
 <meta name="theme-color" content="#1a1a2e">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <meta name="mobile-web-app-capable" content="yes">
-<script src="/assets/js/core/ui.js?v=3960f70e"></script>
-<script src="/assets/js/core/net.js?v=3960f70e"></script>
-<script src="/assets/js/core/api.js?v=3960f70e"></script>
-<script src="/assets/js/core/page.js?v=3960f70e"></script>
+<script src="/assets/js/core/ui.js?v=909d718d"></script>
+<script src="/assets/js/core/net.js?v=909d718d"></script>
+<script src="/assets/js/core/api.js?v=909d718d"></script>
+  <script src="/assets/js/core/padstore.js?v=909d718d"></script>
+<script src="/assets/js/core/page.js?v=909d718d"></script>
 </head>
 
 <body class="index-body">
@@ -409,6 +410,34 @@
               <button class="btn btn-danger" id="clearLocalStorageBtn"><i class="fas fa-trash-alt"></i> Delete Data</button>
             </div>
           </div>
+
+          <div class="setting-group">
+            <h3>Delete by Category</h3>
+            <div class="setting-row" style="display:block;">
+              <span class="setting-hint" style="display:block;margin-bottom:10px;">
+                Clear one kind of local data without touching the rest. Nothing here signs you out.
+              </span>
+              <style>
+                #lsCategories .btn:disabled { opacity:.35; cursor:not-allowed; }
+              </style>
+              <div id="lsCategories"></div>
+            </div>
+
+            <div class="setting-row">
+              <span class="setting-label">
+                Draft Retention
+                <span class="setting-hint">Drawing drafts older than this are deleted automatically. 30 days by default.</span>
+              </span>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <input type="number" id="padTtlDays" min="1" max="3650" step="1" value="30"
+                  style="width:90px;padding:7px 10px;border-radius:8px;border:1px solid var(--border-color);background:var(--input-bg,#fff);color:var(--text-primary);font-family:inherit;">
+                <span style="font-size:.82rem;color:var(--text-secondary);">days</span>
+                <button class="btn" id="padTtlSave" style="padding:7px 14px;">Save</button>
+                <button class="btn" id="padPurgeNow" style="padding:7px 14px;">Purge expired</button>
+                <span id="padTtlMsg" style="font-size:.78rem;color:var(--text-secondary);"></span>
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -416,14 +445,14 @@
   </main>
 </div>
 
-<script src="/assets/js/auth.js?v=3960f70e"></script>
-<script src="/assets/js/app.js?v=3960f70e"></script>
-<script src="/assets/js/topbar.js?v=3960f70e"></script>
-<script src="/assets/js/sidebar.js?v=3960f70e"></script>
-<script src="/assets/js/heartbeat.js?v=3960f70e"></script>
-<script src="/assets/js/pk-invite.js?v=3960f70e"></script>
+<script src="/assets/js/auth.js?v=909d718d"></script>
+<script src="/assets/js/app.js?v=909d718d"></script>
+<script src="/assets/js/topbar.js?v=909d718d"></script>
+<script src="/assets/js/sidebar.js?v=909d718d"></script>
+<script src="/assets/js/heartbeat.js?v=909d718d"></script>
+<script src="/assets/js/pk-invite.js?v=909d718d"></script>
 
-<script src="/assets/js/pages/settings.js?v=3960f70e"></script>
-<script src="/assets/js/pk-notify.js?v=3960f70e"></script>
+<script src="/assets/js/pages/settings.js?v=909d718d"></script>
+<script src="/assets/js/pk-notify.js?v=909d718d"></script>
 </body>
 </html>

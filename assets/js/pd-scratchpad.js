@@ -39,40 +39,32 @@
   function saveDraft() {
     const key = draftKey();
     if (!key || !pad || !canvas) return;
-    try {
-      if (!pad.strokes.length) { localStorage.removeItem(key); return; }
-      // 归一化到 0-1，换设备/改窗口大小也能大致还原
-      const w = canvas.width / dpr;
-      const h = canvas.height / dpr;
-      const strokes = pad.strokes.map((st) => ({
-        color: st.color,
-        width: st.width,
-        points: st.points.map((p) => [p.x / w, p.y / h]),
-      }));
-      localStorage.setItem(key, JSON.stringify({ w, h, strokes }));
-    } catch (e) { /* 存不下就算了 */ }
+    // PadStore 负责量化编码 + 满了转 IndexedDB；这里只管把笔迹交出去
+    const w = canvas.width / dpr;
+    const h = canvas.height / dpr;
+    if (window.PadStore) PadStore.save(key, pad.strokes, w, h);
   }
 
-  function loadDraft() {
+  /** 同步读 localStorage（绝大多数情况在这就能拿到） */
+  function loadDraftSync(w, h) {
     const key = draftKey();
     if (!key) return [];
-    let raw = null;
-    try { raw = localStorage.getItem(key); } catch (e) { return []; }
-    if (!raw) return [];
-    try {
-      const d = JSON.parse(raw);
-      if (!d || !Array.isArray(d.strokes)) return [];
-      return d.strokes.map((st) => ({
-        color: st.color || COLORS[0],
-        width: Number(st.width) || WIDTHS[1],
-        points: (st.points || []).map(([x, y]) => ({ x, y })),
-      }));
-    } catch (e) { return []; }
+    if (!window.PadStore) return [];
+    const r = PadStore.loadSync(key, w, h);
+    return r.found ? r.strokes : [];
+  }
+
+  /** 异步兜底：内容可能因为 localStorage 满而转存到了 IndexedDB */
+  async function loadDraft(w, h) {
+    const key = draftKey();
+    if (!key) return [];
+    if (!window.PadStore) return [];
+    return PadStore.load(key, w, h);
   }
 
   function clearDraft() {
     const key = draftKey();
-    if (key) { try { localStorage.removeItem(key); } catch (e) {} }
+    if (key && window.PadStore) PadStore.remove(key);
   }
 
   function el(tag, cls, html) {
@@ -263,20 +255,16 @@
     document.body.style.overflow = 'hidden';
 
     // 恢复这道题上次没交出去的笔迹
-    const draft = loadDraft();
     pad.strokes = [];
     pad.actives.clear();
-    setTimeout(() => {
+    setTimeout(async () => {
       fit();
+      const w = canvas.width / dpr;
+      const h = canvas.height / dpr;
+      let draft = loadDraftSync(w, h);
+      if (!draft.length) draft = await loadDraft(w, h);   // 可能被挤到 IndexedDB 了
       if (draft.length) {
-        // 存的坐标是 0-1，按当前画布尺寸还原
-        const w = canvas.width / dpr;
-        const h = canvas.height / dpr;
-        pad.strokes = draft.map((st) => ({
-          color: st.color,
-          width: st.width,
-          points: st.points.map((p) => ({ x: p.x * w, y: p.y * h })),
-        }));
+        pad.strokes = draft;
         redraw();
       }
     }, 30);

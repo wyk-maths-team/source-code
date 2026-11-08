@@ -253,10 +253,103 @@
       $('clearCacheBtn').addEventListener('click', () => this.clearCache());
       $('clearLocalStorageBtn').addEventListener('click', () => this.clearLocalStorage());
       this.renderStorageUsage();
-      window.addEventListener('storage', () => this.renderStorageUsage());
+      this.renderCategories();
+      this.bindRetention();
+      window.addEventListener('storage', () => { this.renderStorageUsage(); this.renderCategories(); });
       // 进到 System 标签时再量一次（别的时候长度可能变了）
       document.querySelectorAll('.nav-item[data-tab]').forEach((n) => {
-        if (n.dataset.tab === 'system') n.addEventListener('click', () => setTimeout(() => this.renderStorageUsage(), 60));
+        if (n.dataset.tab === 'system') n.addEventListener('click', () => setTimeout(() => { this.renderStorageUsage(); this.renderCategories(); }, 60));
+      });
+    },
+
+    // localStorage 按用途分类，方便只删某一类
+    CATEGORIES: [
+      { id: 'draft', label: 'Question drafts', icon: 'fa-pen', match: (k) => k.startsWith('pd_draft') || k.startsWith('pd_workbench_drafts:') },
+      { id: 'scratchpad', label: 'Scratchpad boards', icon: 'fa-tablet-screen-button', match: (k) => k.startsWith('pd_scratchpad:') },
+      { id: 'coursePad', label: 'Course drawing boards', icon: 'fa-draw-polygon', match: (k) => k.startsWith('coursePad:') },
+      { id: 'inlinePad', label: 'Inline question boards', icon: 'fa-pen-nib', match: (k) => k.startsWith('inlinePad:') },
+      { id: 'pdfPad', label: 'PDF answer boxes', icon: 'fa-file-pdf', match: (k) => /^pdfPad|^pdf_box|^pdfPage/i.test(k) },
+      { id: 'cache', label: 'Problem list & caches', icon: 'fa-database', match: (k) => /Cache|^problemList|cacheClean|favoritesCache|userStatesCache/.test(k) },
+      { id: 'prefs', label: 'Display preferences', icon: 'fa-sliders', match: (k) => /^(theme|navTheme|compactMode|fontSize|hideDifficulty|goodUI|ui3d|uiType|animations|randomAnimation|showNekos|neko|genshinIcons|osScale|osDetailRules|pdfRenderScale|stmtAsImage|showTags|problemFilterTags|sidebarOpen|paperFast|paperUltra|padstore_ttl)/.test(k) },
+    ],
+
+    renderCategories() {
+      const host = $('lsCategories');
+      if (!host) return;
+      const fmt = (b) => b < 1024 ? b + ' B' : b < 1024 * 1024 ? (b / 1024).toFixed(1) + ' KB' : (b / 1024 / 1024).toFixed(2) + ' MB';
+
+      const rows = this.CATEGORIES.map((cat) => {
+        let bytes = 0, count = 0;
+        try {
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (!k || !cat.match(k)) continue;
+            bytes += (k.length + (localStorage.getItem(k) || '').length) * 2;
+            count++;
+          }
+        } catch (e) {}
+        return { ...cat, bytes, count };
+      });
+
+      host.innerHTML = rows.map((r) => (
+        '<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border-color);">' +
+          '<span style="flex:1;font-size:.88rem;"><i class="fas ' + r.icon + '" style="width:18px;color:var(--text-secondary);"></i> ' + r.label + '</span>' +
+          '<span style="font-size:.78rem;color:var(--text-secondary);font-variant-numeric:tabular-nums;min-width:110px;text-align:right;">' +
+            (r.count ? r.count + ' · ' + fmt(r.bytes) : 'empty') + '</span>' +
+          '<button class="btn btn-danger ls-cat-del" data-cat="' + r.id + '"' + (r.count ? '' : ' disabled') +
+            ' style="padding:5px 12px;font-size:.78rem;">Delete</button>' +
+        '</div>'
+      )).join('');
+
+      host.querySelectorAll('.ls-cat-del').forEach((b) => {
+        b.addEventListener('click', () => this.deleteCategory(b.dataset.cat));
+      });
+    },
+
+    deleteCategory(id) {
+      const cat = this.CATEGORIES.find((c) => c.id === id);
+      if (!cat) return;
+      const keys = [];
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && cat.match(k)) keys.push(k);
+        }
+      } catch (e) {}
+      if (!keys.length) return;
+      if (!confirm('Delete ' + keys.length + ' entries under "' + cat.label + '"?\nThis cannot be undone.')) return;
+
+      keys.forEach((k) => {
+        // 画板类还要清掉 IndexedDB 里可能存在的副本
+        if (/^(pd_scratchpad:|coursePad:|inlinePad:|pdfPad)/.test(k) && window.PadStore) PadStore.remove(k);
+        else { try { localStorage.removeItem(k); } catch (e) {} }
+      });
+
+      this.renderCategories();
+      this.renderStorageUsage();
+    },
+
+    bindRetention() {
+      const input = $('padTtlDays');
+      const save = $('padTtlSave');
+      const purge = $('padPurgeNow');
+      const msg = $('padTtlMsg');
+      if (input && window.PadStore) input.value = String(PadStore.ttlDays());
+
+      save?.addEventListener('click', () => {
+        if (!window.PadStore) return;
+        const d = PadStore.setTtlDays(input.value);
+        input.value = String(d);
+        if (msg) { msg.textContent = 'Saved — drafts expire after ' + d + ' days'; setTimeout(() => { msg.textContent = ''; }, 2500); }
+      });
+
+      purge?.addEventListener('click', async () => {
+        if (!window.PadStore) return;
+        if (msg) msg.textContent = 'Purging…';
+        const n = await PadStore.purgeExpired();
+        if (msg) msg.textContent = n ? 'Removed ' + n + ' expired draft' + (n === 1 ? '' : 's') : 'Nothing expired';
+        this.renderCategories();
+        this.renderStorageUsage();
       });
     },
 
