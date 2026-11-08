@@ -309,10 +309,6 @@
   ],
   "rewrites": [
     {
-      "source": "/assets/pdf/:path*",
-      "destination": "/api/pdf?path=:path*"
-    },
-    {
       "source": "/i",
       "destination": "/internal.html"
     },
@@ -746,5 +742,10 @@
       "path": "/api/cron?action=refreshProblemVersion",
       "schedule": "*/20 * * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/pdf.js": {
+      "includeFiles": "pdfstore/**"
+    }
+  }
 }
