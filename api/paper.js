@@ -83,7 +83,10 @@ async function markOneImage(prompt, imageUrl, effort) {
   });
   if (!res.ok) throw new Error('AI HTTP ' + res.status);
   const data = await res.json();
-  return data?.choices?.[0]?.message?.content || '';
+  return {
+    content: data?.choices?.[0]?.message?.content || '',
+    usage: data?.usage || null,
+  };
 }
 
 function normalizeMark(parsed) {
@@ -225,6 +228,7 @@ async function handler(req, res) {
           projection: {
             subid: 1, username: 1, paperTrack: 1, paperYear: 1, pid: 1,
             score: 1, awarded: 1, total: 1, lines: 1, summary: 1,
+            usage: 1, chargedTokens: 1,
             imageUrl: 1, mode: 1, markedAt: 1, createdAt: 1, _id: 0,
           },
         })
@@ -506,12 +510,13 @@ async function handler(req, res) {
 
     const paperTotal = (await db.collection('papers').findOne({ track, year }, { projection: { problemIds: 1 } }) || {}).problemIds || [];
     const effort = effortForProblem(problem, { total: paperTotal.length });
-    const raw = await markOneImage(prompt, imageUrl, effort);
-    const mark = normalizeMark(parseJSONReply(raw));
+    const ai = await markOneImage(prompt, imageUrl, effort);
+    const mark = normalizeMark(parseJSONReply(ai.content));
     if (!mark) return res.status(502).json({ success: false, message: 'AI reply was not valid JSON' });
 
-    // 和主站提交一致：AI 一返回就扣费，扣不动就不给结果
-    if (req.user.role !== 'root') {
+    // 和主站提交一致：AI 一返回就扣费，扣不动就不给结果。
+    // root 也照扣 —— 账要平，root 缺币自己去充（充值不受限）。
+    {
       try {
         await consumeTokens(db, req.user.username, PER_QUESTION_COST);
       } catch (e) {
@@ -535,7 +540,15 @@ async function handler(req, res) {
 
     await db.collection('paperMarks').updateOne(
       { username: req.user.username, paperTrack: track, paperYear: year, pid: String(pid) },
-      { $set: { ...mark, pid: String(pid), paperTrack: track, paperYear: year, markedAt: new Date() }, $setOnInsert: { createdAt: new Date() } },
+      {
+        $set: {
+          ...mark,
+          pid: String(pid), paperTrack: track, paperYear: year, markedAt: new Date(),
+          usage: ai.usage || null,
+          chargedTokens: PER_QUESTION_COST,
+        },
+        $setOnInsert: { createdAt: new Date() },
+      },
       { upsert: true }
     );
 
@@ -550,11 +563,13 @@ async function handler(req, res) {
       total: mark.total,
       lines: mark.lines,
       summary: mark.summary,
+      usage: ai.usage || null,
+      chargedTokens: PER_QUESTION_COST,
       mode: 'single',
       markedAt: new Date(),
     });
 
-    return res.status(200).json({ success: true, pid, mark });
+    return res.status(200).json({ success: true, pid, mark, usage: ai.usage || null, chargedTokens: PER_QUESTION_COST });
   }
 
   // ── 一键批改：把这一份里所有已画的题并发提交 ──
@@ -598,18 +613,24 @@ async function handler(req, res) {
         total_marks: totalMarks,
       });
       const effort = effortForProblem(problem, { total: answers.length });
-      const raw = await markOneImage(prompt, imageUrl, effort);
-      const mark = normalizeMark(parseJSONReply(raw));
+      const ai = await markOneImage(prompt, imageUrl, effort);
+      const mark = normalizeMark(parseJSONReply(ai.content));
       if (!mark) throw new Error('AI reply invalid for ' + pid);
 
-      // 立即扣费（原子更新，19 题并发也不会互相踩）
-      if (req.user.role !== 'root') {
-        await consumeTokens(db, req.user.username, PER_QUESTION_COST);
-      }
+      // 立即扣费（原子更新，19 题并发也不会互相踩）。root 同样扣。
+      await consumeTokens(db, req.user.username, PER_QUESTION_COST);
 
       await db.collection('paperMarks').updateOne(
         { username: req.user.username, paperTrack: track, paperYear: year, pid },
-        { $set: { ...mark, pid, paperTrack: track, paperYear: year, markedAt: new Date() }, $setOnInsert: { createdAt: new Date() } },
+        {
+          $set: {
+            ...mark,
+            pid, paperTrack: track, paperYear: year, markedAt: new Date(),
+            usage: ai.usage || null,
+            chargedTokens: PER_QUESTION_COST,
+          },
+          $setOnInsert: { createdAt: new Date() },
+        },
         { upsert: true }
       );
 
@@ -624,11 +645,13 @@ async function handler(req, res) {
         total: mark.total,
         lines: mark.lines,
         summary: mark.summary,
+        usage: ai.usage || null,
+        chargedTokens: PER_QUESTION_COST,
         mode: 'batch',
         markedAt: new Date(),
       });
 
-      return { pid, mark };
+      return { pid, mark, usage: ai.usage || null };
     }));
 
     const ok = [];
@@ -642,7 +665,16 @@ async function handler(req, res) {
     // 费用已在每题批改完成时扣除，这里只做汇总
     const cost = PER_QUESTION_COST * ok.length;
 
-    return res.status(200).json({ success: true, marked: ok, failed, cost });
+    // Token 用量汇总，方便前端和后台对账
+    const usageTotals = ok.reduce((acc, r) => {
+      const u = r.usage || {};
+      acc.prompt += Number(u.prompt_tokens) || 0;
+      acc.completion += Number(u.completion_tokens) || 0;
+      acc.total += Number(u.total_tokens) || 0;
+      return acc;
+    }, { prompt: 0, completion: 0, total: 0 });
+
+    return res.status(200).json({ success: true, marked: ok, failed, cost, usage: usageTotals });
   }
 
   return res.status(400).json({ success: false, message: 'Unknown action' });

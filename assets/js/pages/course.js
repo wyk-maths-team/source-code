@@ -1485,6 +1485,7 @@
             return '<li class="' + (ok ? 'ok' : 'bad') + '">' + esc(l) + '</li>';
           }).join('') + '</ul>' : '') +
           (r.summary ? '<div class="dse-sub-summary">' + esc(r.summary) + '</div>' : '') +
+          ((r.usage || r.chargedTokens) ? '<div class="dse-sub-usage"><i class="fas fa-coins"></i>' + fmtUsage(r) + '</div>' : '') +
           '<div class="dse-sub-actions">' +
             (r.hasImage !== false ? '<button class="dse-view-img" data-subid="' + esc(r.subid) + '">' + (r.own ? 'View my answer' : (r.unlockable ? 'View answer · ' + fmtTokens(unlockCost) : 'View answer')) + '</button>' : '<span class="dse-no-img">No image</span>') +
             '<a href="/course/papers/' + encodeURIComponent(r.paperTrack) + '/' + r.paperYear + '">Open paper</a>' +
@@ -1883,6 +1884,8 @@
         try {
           const out = await API.post('/api/paper?action=mark', { track, year, pid: q.id, image });
           if (!out || !out.success) throw new Error((out && out.message) || 'Marking failed');
+          if (out.usage) out.mark.usage = out.usage;
+          if (out.chargedTokens) out.mark.chargedTokens = out.chargedTokens;
           renderMarkInto(res, out.mark);
           marks[q.id] = out.mark;
           refreshPaperScore();
@@ -2189,6 +2192,19 @@
   }
 
   // 把批改结果排进卡片：得分 + 逐行 ✔/✘
+  // token 用量的一行摘要：输入 / 输出 / 合计 + 实际扣费
+  function fmtUsage(obj) {
+    const u = (obj && obj.usage) || {};
+    const pt = Number(u.prompt_tokens) || 0;
+    const ct = Number(u.completion_tokens) || 0;
+    const tt = Number(u.total_tokens) || (pt + ct);
+    const cost = Number(obj && obj.chargedTokens) || 0;
+    const parts = [];
+    if (tt) parts.push(tt.toLocaleString() + " tokens (" + pt.toLocaleString() + " in / " + ct.toLocaleString() + " out)");
+    if (cost) parts.push("charged " + cost.toLocaleString());
+    return parts.length ? parts.join(" · ") : "usage unavailable";
+  }
+
   function renderMarkInto(el, mark) {
     if (!mark) return;
     const score = Number(mark.score) || 0;
@@ -2203,6 +2219,7 @@
         <span class="pm-score">${esc(head)}</span>
         ${mark.summary ? '<span class="pm-summary">' + esc(mark.summary) + '</span>' : ''}
       </div>
+      ${(mark.usage || mark.chargedTokens) ? '<div class="pm-usage"><i class="fas fa-coins"></i>' + esc(fmtUsage(mark)) + '</div>' : ''}
       ${lines.length ? '<ul class="paper-mark-lines">' + lines.map((l) => {
         const ok = /^\s*[✔✓]/.test(l);
         return '<li class="' + (ok ? 'ok' : 'bad') + '">' + esc(l) + '</li>';
