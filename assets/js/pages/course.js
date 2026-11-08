@@ -851,7 +851,10 @@
 
     function paintBase() {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      if (transparent) {
+      if (bgImage) {
+        // 导入的作答图就是这张纸：先铺满，再在上面画笔迹
+        ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+      } else if (transparent) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
       } else {
         ctx.fillStyle = '#ffffff';
@@ -998,7 +1001,8 @@
         return new Promise(function (resolve) {
           if (!url) { bgImage = null; resolve(false); return; }
           var im = new Image();
-          im.crossOrigin = 'anonymous';
+          // 不设 crossOrigin：设了之后个别图源（缺 CORS 头）会直接加载失败，
+          // 那就连显示都做不到。tainted canvas 的兜底在 toDataUrl 里。
           im.onload = function () {
             bgImage = im;
             // 按宽度铺满，高度跟着图片比例走
@@ -1022,9 +1026,16 @@
 
           // 有背景图就先铺它（当作已经写过的部分），否则画白纸 + 灰横线
           if (bgImage) {
-            octx.drawImage(bgImage, 0, 0, out.width, out.height);
-            octx.drawImage(canvas, 0, 0, out.width, out.height);
-            return out.toDataURL('image/jpeg', 0.9);
+            try {
+              octx.drawImage(bgImage, 0, 0, out.width, out.height);
+              octx.drawImage(canvas, 0, 0, out.width, out.height);
+              return out.toDataURL('image/jpeg', 0.9);
+            } catch (e) {
+              // 背景图把 canvas 污染了（缺 CORS 头），退回到只导出笔迹
+              octx.clearRect(0, 0, out.width, out.height);
+              octx.fillStyle = '#ffffff';
+              octx.fillRect(0, 0, out.width, out.height);
+            }
           }
 
           octx.fillStyle = '#ffffff';
