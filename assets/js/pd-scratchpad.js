@@ -21,6 +21,60 @@
   let pad = null;          // { strokes, active, color, width, erase }
   let dpr = 1;
 
+  // ── 草稿：按题目存到 localStorage，关掉画板/刷新后还能接上 ──
+  const DRAFT_PREFIX = 'pd_scratchpad:';
+
+  function currentPid() {
+    const el = document.getElementById('detailProblemName');
+    const txt = el ? el.textContent.trim() : '';
+    const m = /^([A-Za-z0-9_-]+)/.exec(txt);
+    return m ? m[1] : '';
+  }
+
+  function draftKey() {
+    const pid = currentPid();
+    return pid ? DRAFT_PREFIX + pid : '';
+  }
+
+  function saveDraft() {
+    const key = draftKey();
+    if (!key || !pad || !canvas) return;
+    try {
+      if (!pad.strokes.length) { localStorage.removeItem(key); return; }
+      // 归一化到 0-1，换设备/改窗口大小也能大致还原
+      const w = canvas.width / dpr;
+      const h = canvas.height / dpr;
+      const strokes = pad.strokes.map((st) => ({
+        color: st.color,
+        width: st.width,
+        points: st.points.map((p) => [p.x / w, p.y / h]),
+      }));
+      localStorage.setItem(key, JSON.stringify({ w, h, strokes }));
+    } catch (e) { /* 存不下就算了 */ }
+  }
+
+  function loadDraft() {
+    const key = draftKey();
+    if (!key) return [];
+    let raw = null;
+    try { raw = localStorage.getItem(key); } catch (e) { return []; }
+    if (!raw) return [];
+    try {
+      const d = JSON.parse(raw);
+      if (!d || !Array.isArray(d.strokes)) return [];
+      return d.strokes.map((st) => ({
+        color: st.color || COLORS[0],
+        width: Number(st.width) || WIDTHS[1],
+        points: (st.points || []).map(([x, y]) => ({ x, y })),
+      }));
+    } catch (e) { return []; }
+  }
+
+  function clearDraft() {
+    const key = draftKey();
+    if (key) { try { localStorage.removeItem(key); } catch (e) {} }
+  }
+
   function el(tag, cls, html) {
     const n = document.createElement(tag);
     if (cls) n.className = cls;
@@ -88,14 +142,16 @@
     root.querySelector('#spClose').addEventListener('click', close);
     root.addEventListener('click', (e) => { if (e.target === root) close(); });
     root.querySelector('#spUndo').addEventListener('click', () => {
-      if (pad.active) { pad.active = null; redraw(); return; }
+      if (pad.active) { pad.active = null; redraw(); saveDraft(); return; }
       pad.strokes.pop();
       redraw();
+      saveDraft();
     });
     root.querySelector('#spClear').addEventListener('click', () => {
       pad.strokes = [];
       pad.active = null;
       redraw();
+      clearDraft();
     });
     root.querySelector('#spSubmit').addEventListener('click', submitDrawing);
 
@@ -176,6 +232,7 @@
       if (pad.active.points.length) pad.strokes.push(pad.active);
       pad.active = null;
       redraw();
+      saveDraft();
     };
     canvas.addEventListener('pointerup', end);
     canvas.addEventListener('pointercancel', end);
@@ -193,10 +250,29 @@
     root.querySelector('#spStatus').textContent = '';
     root.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    setTimeout(fit, 30);
+
+    // 恢复这道题上次没交出去的笔迹
+    const draft = loadDraft();
+    pad.strokes = [];
+    pad.active = null;
+    setTimeout(() => {
+      fit();
+      if (draft.length) {
+        // 存的坐标是 0-1，按当前画布尺寸还原
+        const w = canvas.width / dpr;
+        const h = canvas.height / dpr;
+        pad.strokes = draft.map((st) => ({
+          color: st.color,
+          width: st.width,
+          points: st.points.map((p) => ({ x: p.x * w, y: p.y * h })),
+        }));
+        redraw();
+      }
+    }, 30);
   }
 
   function close() {
+    saveDraft();
     if (root) root.style.display = 'none';
     document.body.style.overflow = '';
   }
@@ -229,6 +305,9 @@
     if (preview) preview.hidden = false;
     if (dropzone) dropzone.hidden = true;
     wb.setMode('photo');
+
+    // 交出去了就不留草稿，下次打开是干净的
+    clearDraft();
 
     btn.disabled = true;
     status.textContent = 'Submitting…';
