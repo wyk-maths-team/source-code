@@ -140,12 +140,21 @@ async function handler(req, res) {
       username: req.user.username, paperTrack: track, paperYear: year,
     }, { projection: { pid: 1, score: 1, awarded: 1, total: 1, lines: 1, summary: 1, markedAt: 1, _id: 0 } }).toArray();
 
+    // 整卷满分 = 每道题题干里所有 (N marks) 相加；得分 = 已批改题的 awarded 之和
+    const questions = (paper.problemIds || []).map((pid) => ({ ...(map[pid] || { id: pid, name: pid, statement: '' }) }));
+    const marksPerQuestion = questions.map((q) => sumMarks(q.statement) || 0);
+    const totalMarks = marksPerQuestion.reduce((a, b) => a + b, 0);
+    const scored = marks.reduce((a, m) => a + (Number(m.awarded) || 0), 0);
+
     return res.status(200).json({
       success: true,
       paper: {
         track, year, title: paper.title,
-        questions: (paper.problemIds || []).map((pid) => ({ ...(map[pid] || { id: pid, name: pid, statement: '' }) })),
+        questions,
         layout: paper.layout || { items: [] },
+        totalMarks,
+        scoredMarks: scored,
+        markedCount: marks.length,
       },
       marks: Object.fromEntries(marks.map((m) => [m.pid, m])),
       serverNow: Date.now(),
@@ -258,12 +267,40 @@ async function handler(req, res) {
       .find({}, { projection: { track: 1, year: 1, title: 1, problemIds: 1, updatedAt: 1, _id: 0 } })
       .sort({ track: 1, year: -1 })
       .toArray();
+
+    // 所有卷子的题目一次查出来，用来算每份卷的满分
+    const allPids = [...new Set(rows.flatMap((p) => p.problemIds || []))];
+    const probDocs = allPids.length
+      ? await db.collection('problems').find(
+          { id: { $in: allPids } },
+          { projection: { id: 1, statement: 1, _id: 0 } }
+        ).toArray()
+      : [];
+    const marksById = Object.fromEntries(probDocs.map((p) => [p.id, sumMarks(p.statement) || 0]));
+
+    // 当前用户在这些卷子上的得分
+    const myMarks = await db.collection('paperMarks')
+      .find({ username: req.user.username }, { projection: { paperTrack: 1, paperYear: 1, awarded: 1, _id: 0 } })
+      .toArray();
+    const scoreByKey = {};
+    for (const m of myMarks) {
+      const k = m.paperTrack + ':' + m.paperYear;
+      scoreByKey[k] = (scoreByKey[k] || 0) + (Number(m.awarded) || 0);
+    }
+
     return res.status(200).json({
       success: true,
-      papers: rows.map((p) => ({
-        track: p.track, year: p.year, title: p.title,
-        count: (p.problemIds || []).length, updatedAt: p.updatedAt,
-      })),
+      papers: rows.map((p) => {
+        const pids = p.problemIds || [];
+        const total = pids.reduce((a, pid) => a + (marksById[pid] || 0), 0);
+        return {
+          track: p.track, year: p.year, title: p.title,
+          count: pids.length,
+          totalMarks: total,
+          myScore: scoreByKey[p.track + ':' + p.year] || 0,
+          updatedAt: p.updatedAt,
+        };
+      }),
     });
   }
 

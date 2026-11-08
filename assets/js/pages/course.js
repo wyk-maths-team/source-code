@@ -19,6 +19,26 @@
     M2: { label: 'M2', desc: 'Extended M2 papers',        cls: 'track-MO' },
   };
   let PAPER_YEARS={ M0: [], M1: [], M2: [] };
+  // 每份卷子的 得分/总分（来自 listPapers），跟年份共用同一次请求
+  let _paperScoresPromise = null;
+  function paperScores() {
+    if (_paperScoresPromise) return _paperScoresPromise;
+    _paperScoresPromise = (async () => {
+      try {
+        const res = await apiCall('/api/paper?action=listPapers');
+        const out = {};
+        ((res && res.papers) || []).forEach((p) => {
+          out[p.track + ':' + p.year] = { myScore: p.myScore || 0, totalMarks: p.totalMarks || 0 };
+        });
+        return out;
+      } catch (e) {
+        console.warn('[course] could not load paper scores:', e && e.message);
+        return {};
+      }
+    })();
+    return _paperScoresPromise;
+  }
+
   // Papers 的年份列表按需加载（只在这几个页面到才请求），
   // 而且只请求一次 —— 以前它挂在 Page.ready 里，进任何 course 页面
   // 都会先多打一个 /api/paper?action=listPapers，失败时还会抛到
@@ -1416,13 +1436,18 @@
       return;
     }
 
+    const scores = await paperScores();
     root.innerHTML = crumbs([{ text: 'Course', href: '/course' }, { text: 'Papers', href: '/course/papers' }, { text: track }]) +
-      '<div class="course-tracks">' + years.map((y) => `
+      '<div class="course-tracks">' + years.map((y) => {
+        const info = scores[track + ':' + y] || { myScore: 0, totalMarks: 0 };
+        return `
         <a class="track-card ${t.cls}" href="/course/papers/${track}/${y}">
           <div class="tc-code">${y}</div>
           <div class="tc-name">${y} Paper</div>
-          <div class="tc-sub">${esc(t.label)} · full paper with drawing board</div>
-        </a>`).join('') + '</div>';
+          <div class="tc-sub">${esc(t.label)}</div>
+          <div class="tc-score">${Number(info.myScore) || 0} / ${Number(info.totalMarks) || 0}</div>
+        </a>`;
+      }).join('') + '</div>';
   }
 
   // ─────────── Papers：试卷本体 ───────────
@@ -1455,6 +1480,7 @@
     bar.innerHTML = `
       <div class="paper-title">${esc(paper.title)}</div>
       <div class="paper-actions">
+        <span class="paper-score" id="paperScore">${paper.scoredMarks || 0} / ${paper.totalMarks || 0} marks</span>
         <span class="paper-count" id="paperCount">0 / ${paper.questions.length} attempted</span>
         <button class="paper-mark-all" id="paperMarkAll">Mark my paper</button>
         <span class="paper-status" id="paperStatus"></span>
@@ -1553,6 +1579,8 @@
           const out = await API.post('/api/paper?action=mark', { track, year, pid: q.id, image });
           if (!out || !out.success) throw new Error((out && out.message) || 'Marking failed');
           renderMarkInto(res, out.mark);
+          marks[q.id] = out.mark;
+          refreshPaperScore();
           oneBtn.textContent = 'Re-mark';
         } catch (err) {
           oneBtn.textContent = 'Failed — retry';
@@ -1565,6 +1593,16 @@
 
       padWrap.addEventListener('pointerup', updateCount, true);
     });
+
+    // 页面顶部得分 = 所有已批改题的 awarded 之和
+    function refreshPaperScore() {
+      const scored = paper.questions.reduce((acc, q) => {
+        const m = marks[q.id];
+        return acc + (m && Number.isFinite(Number(m.awarded)) ? Number(m.awarded) : 0);
+      }, 0);
+      const el3 = document.getElementById('paperScore');
+      if (el3) el3.textContent = scored + ' / ' + (paper.totalMarks || 0) + ' marks';
+    }
 
     function updateCount() {
       const n = paper.questions.filter((q) => pads[q.id] && !pads[q.id].isEmpty()).length;
@@ -1624,6 +1662,7 @@
           const card = list.querySelector('.paper-q[data-pid="' + CSS.escape(m.pid) + '"] .paper-mark');
           if (card) renderMarkInto(card, m.mark);
         });
+        refreshPaperScore();
         const failed = (out.failed || []).length;
         status.textContent = 'Marked ' + (out.marked || []).length + (failed ? ' · ' + failed + ' failed' : '');
         status.className = 'paper-status ok';
