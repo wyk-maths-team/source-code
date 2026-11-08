@@ -9,31 +9,43 @@ import { wrapHandler } from '../lib/errors.js';
 import { getTokenBalance, consumeTokens } from '../lib/token.js';
 import { buildDsePrompt } from '../lib/grade-prompt.js';
 import { sumMarks } from '../lib/marks.js';
+import { AI_CHARGE_DIVISOR } from '../lib/submission.js';
+import { isPeakHour, PEAK_MULTIPLIER } from '../lib/pricing.js';
 import { defaultHeightFor } from '../lib/paperLayout.js';
 import { effortForProblem } from '../lib/thinking.js';
 import crypto from 'crypto';
 
 export const config = { maxDuration: 300 };
 
-// 批改计费 = 基础费 + 按实际 token 用量加收，谁用得多谁付得多。
-// 基础费覆盖固定的系统开销；token 部分按千 token 计价。
-const BASE_MARK_COST = Number(process.env.PAPER_BASE_COST) || 1500;
-const COST_PER_1K_TOKENS = Number(process.env.PAPER_COST_PER_1K_TOKENS) || 800;
-// 保底：任何一次批改至少收这么多（避免异常 usage 导致几乎免费）
+// 和主站（api/steps-grade.js）同一套计费：
+//   weighted = 缓存命中 + 50×未缓存 + 200×输出
+//   charged  = max(1, round(weighted / 400))，高峰时段再 ×2
+// 这样同一次 AI 调用，不管是批 PDF 还是批 DSE 卷，价格算法一致。
+// 只有拿不到 usage 时才用它兜底；能拿到用量就完全按主站公式算
 const MIN_MARK_COST = Number(process.env.PAPER_MIN_COST) || 3000;
-// 兜底上限，防止 usage 异常时把学生余额一次扣光
-const MAX_MARK_COST = Number(process.env.PAPER_MAX_COST) || 60000;
 
 // 单题 AI 超时：一道题卡住不该让整卷无限等
 const AI_TIMEOUT_MS = Number(process.env.PAPER_AI_TIMEOUT_MS) || 90_000;
 
-/** 按实际 token 用量算出这一题该扣多少 */
+/**
+ * 按主站口径算出这一题该扣多少。
+ * usage 直接用 DeepSeek 返回的原始对象，缓存命中/未命中分开算权重。
+ */
 function markCostFor(usage) {
   const u = usage || {};
-  const total = Number(u.total_tokens)
-    || (Number(u.prompt_tokens) || 0) + (Number(u.completion_tokens) || 0);
-  const priced = BASE_MARK_COST + Math.ceil(total / 1000) * COST_PER_1K_TOKENS;
-  return Math.max(MIN_MARK_COST, Math.min(MAX_MARK_COST, Math.round(priced)));
+  const promptTotal = Number(u.prompt_tokens) || 0;
+  const cached = Number(u.prompt_cache_hit_tokens) || 0;
+  const miss = Number.isFinite(Number(u.prompt_cache_miss_tokens))
+    ? Number(u.prompt_cache_miss_tokens)
+    : Math.max(0, promptTotal - cached);
+  const out = Number(u.completion_tokens) || 0;
+
+  const weighted = cached + 50 * miss + 200 * out;
+  // 拿不到 usage 的情况没法按量计价，退回到保底价
+  if (!weighted) return MIN_MARK_COST;
+
+  const raw = Math.max(1, Math.round(weighted / AI_CHARGE_DIVISOR));
+  return isPeakHour() ? raw * PEAK_MULTIPLIER : raw;
 }
 const VIEW_OTHERS_IMAGE_COST = 100000;   // 看别人的 DSE 作答图，每条 100k token
 const MAX_BATCH = 25;
@@ -529,9 +541,9 @@ async function handler(req, res) {
     const totalMarks = sumMarks(problem.statement);
 
     const bal = await getTokenBalance(db, req.user.username);
-    // 预检用保底价：实际按 token 算，可能更高，但至少能挡住余额为空的用户
-    if ((bal.daily || 0) + (bal.global || 0) < MIN_MARK_COST && req.user.role !== 'root') {
-      return res.status(400).json({ success: false, message: 'Insufficient tokens (at least ' + MIN_MARK_COST + ' needed)' });
+    // 预检只看「有没有余额」：真实价格要等 AI 返回才知道，按 token 算可能只要几百
+    if ((bal.daily || 0) + (bal.global || 0) <= 0 && req.user.role !== 'root') {
+      return res.status(400).json({ success: false, message: 'Insufficient tokens — top up before marking' });
     }
 
     const prompt = buildDsePrompt({
