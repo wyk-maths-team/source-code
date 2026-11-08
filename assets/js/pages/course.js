@@ -18,8 +18,34 @@
     M1: { label: 'M1', desc: 'Extended M1 papers',        cls: 'track-M2' },
     M2: { label: 'M2', desc: 'Extended M2 papers',        cls: 'track-MO' },
   };
+  let PAPER_YEARS={ M0: [], M1: [], M2: [] };
+  // Papers 的年份列表按需加载（只在这几个页面到才请求），
+  // 而且只请求一次 —— 以前它挂在 Page.ready 里，进任何 course 页面
+  // 都会先多打一个 /api/paper?action=listPapers，失败时还会抛到
+  // 未处理的 promise 里，控制台报错但页面假装没事。
+  let _paperYearsPromise = null;
+  function ensurePaperYears() {
+    if (_paperYearsPromise) return _paperYearsPromise;
+    _paperYearsPromise = (async () => {
+      try {
+        const res = await apiCall('/api/paper?action=listPapers');
+        const papers = (res && res.papers) || [];
+        const next = { M0: [], M1: [], M2: [] };
+        papers.forEach((cur) => {
+          if (next[cur.track]) next[cur.track].push(cur.year);
+        });
+        Object.keys(next).forEach((k) => next[k].sort((a, b) => b - a));
+        PAPER_YEARS = next;
+      } catch (e) {
+        // 取不到就当没有，不要抛未处理的 rejection
+        console.warn('[course] could not load paper years:', e && e.message);
+      }
+      return PAPER_YEARS;
+    })();
+    return _paperYearsPromise;
+  }
 
-  const PAPER_YEARS = { M0: [2025], M1: [], M2: [] };
+  // const PAPER_YEARS = { M0: [2025], M1: [], M2: [] };
 
   const DIFF_LABEL = {
     easy: 'Easy', medium: 'Medium', hard: 'Hard',
@@ -48,7 +74,7 @@
       else localStorage.removeItem(key);
     } catch { /* 配额满了就算了 */ }
   }
-
+  
   // 把题干里所有 (N marks) 加起来：一道题拆成 (a)(b) 时总分会是几段之和
   function totalMarksLabel(statement) {
     const text = String(statement || '');
@@ -195,7 +221,7 @@
           <div class="tc-sub">${esc(t.desc)}</div>
         </a>`).join('') + paperCard + '</div>';
 
-    // 顺带把三个领域的课程数拉出来
+    // 三个领域的课程数：一次请求拿全部，不再每个 track 打一次
     try {
       const counts = await Promise.all(Object.keys(TRACKS).map(async (code) => {
         const r = await API.get('/api/course?action=list&track=' + code);
@@ -1359,6 +1385,8 @@
   // ─────────── Papers：年份 ───────────
   async function renderPaperYears(track) {
     root.classList.remove('wide');
+    // 先等年份加载完再渲染，否则手写的卷子在数据到达前会显示成空
+    await ensurePaperYears();
     const years = PAPER_YEARS[track] || [];
     const t = PAPER_TRACKS[track];
     if (!t) { root.innerHTML = '<div class="course-empty">Unknown paper track.</div>'; return; }

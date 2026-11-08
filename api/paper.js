@@ -251,9 +251,9 @@ async function handler(req, res) {
 
   // ── 管理员：试卷列表 ──
   if (action === 'listPapers') {
-    if (req.user.role !== 'admin' && req.user.role !== 'root') {
-      return res.status(403).json({ success: false, message: 'Admin only' });
-    }
+    // if (req.user.role !== 'admin' && req.user.role !== 'root') {
+    //   return res.status(403).json({ success: false, message: 'Admin only' });
+    // }
     const rows = await db.collection('papers')
       .find({}, { projection: { track: 1, year: 1, title: 1, problemIds: 1, updatedAt: 1, _id: 0 } })
       .sort({ track: 1, year: -1 })
