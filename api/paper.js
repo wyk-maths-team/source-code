@@ -15,9 +15,26 @@ import crypto from 'crypto';
 
 export const config = { maxDuration: 300 };
 
-const PER_QUESTION_COST = 3000;
+// 批改计费 = 基础费 + 按实际 token 用量加收，谁用得多谁付得多。
+// 基础费覆盖固定的系统开销；token 部分按千 token 计价。
+const BASE_MARK_COST = Number(process.env.PAPER_BASE_COST) || 1500;
+const COST_PER_1K_TOKENS = Number(process.env.PAPER_COST_PER_1K_TOKENS) || 800;
+// 保底：任何一次批改至少收这么多（避免异常 usage 导致几乎免费）
+const MIN_MARK_COST = Number(process.env.PAPER_MIN_COST) || 3000;
+// 兜底上限，防止 usage 异常时把学生余额一次扣光
+const MAX_MARK_COST = Number(process.env.PAPER_MAX_COST) || 60000;
+
 // 单题 AI 超时：一道题卡住不该让整卷无限等
 const AI_TIMEOUT_MS = Number(process.env.PAPER_AI_TIMEOUT_MS) || 90_000;
+
+/** 按实际 token 用量算出这一题该扣多少 */
+function markCostFor(usage) {
+  const u = usage || {};
+  const total = Number(u.total_tokens)
+    || (Number(u.prompt_tokens) || 0) + (Number(u.completion_tokens) || 0);
+  const priced = BASE_MARK_COST + Math.ceil(total / 1000) * COST_PER_1K_TOKENS;
+  return Math.max(MIN_MARK_COST, Math.min(MAX_MARK_COST, Math.round(priced)));
+}
 const VIEW_OTHERS_IMAGE_COST = 100000;   // 看别人的 DSE 作答图，每条 100k token
 const MAX_BATCH = 25;
 const ALLOWED_IMAGE_HOSTS = ['https://res.cloudinary.com/', 'https://cdn.jsdelivr.net/'];
@@ -512,8 +529,9 @@ async function handler(req, res) {
     const totalMarks = sumMarks(problem.statement);
 
     const bal = await getTokenBalance(db, req.user.username);
-    if ((bal.daily || 0) + (bal.global || 0) < PER_QUESTION_COST && req.user.role !== 'root') {
-      return res.status(400).json({ success: false, message: 'Insufficient tokens (' + PER_QUESTION_COST + ' needed)' });
+    // 预检用保底价：实际按 token 算，可能更高，但至少能挡住余额为空的用户
+    if ((bal.daily || 0) + (bal.global || 0) < MIN_MARK_COST && req.user.role !== 'root') {
+      return res.status(400).json({ success: false, message: 'Insufficient tokens (at least ' + MIN_MARK_COST + ' needed)' });
     }
 
     const prompt = buildDsePrompt({
@@ -529,18 +547,18 @@ async function handler(req, res) {
     const mark = normalizeMark(parseJSONReply(ai.content));
     if (!mark) return res.status(502).json({ success: false, message: 'AI reply was not valid JSON' });
 
-    // 和主站提交一致：AI 一返回就扣费，扣不动就不给结果。
-    // root 也照扣 —— 账要平，root 缺币自己去充（充值不受限）。
+    // 按这一题的真实 token 用量收费（基础费 + 千 token 单价），root 也照扣。
+    const charge = markCostFor(ai.usage);
     {
       try {
-        await consumeTokens(db, req.user.username, PER_QUESTION_COST);
+        await consumeTokens(db, req.user.username, charge);
       } catch (e) {
         console.error('[paper] charge failed', req.user.username, e.message, { pid });
         await db.collection('audit_logs').insertOne({
           type: 'paper_charge_failed',
           username: req.user.username,
           pid: String(pid),
-          amount: PER_QUESTION_COST,
+          amount: charge,
           error: String(e.message || e),
           mode: 'single',
           at: new Date(),
@@ -560,7 +578,7 @@ async function handler(req, res) {
           ...mark,
           pid: String(pid), paperTrack: track, paperYear: year, markedAt: new Date(),
           usage: ai.usage || null,
-          chargedTokens: PER_QUESTION_COST,
+          chargedTokens: charge,
         },
         $setOnInsert: { createdAt: new Date() },
       },
@@ -579,12 +597,12 @@ async function handler(req, res) {
       lines: mark.lines,
       summary: mark.summary,
       usage: ai.usage || null,
-      chargedTokens: PER_QUESTION_COST,
+      chargedTokens: charge,
       mode: 'single',
       markedAt: new Date(),
     });
 
-    return res.status(200).json({ success: true, pid, mark, usage: ai.usage || null, chargedTokens: PER_QUESTION_COST });
+    return res.status(200).json({ success: true, pid, mark, usage: ai.usage || null, chargedTokens: charge });
   }
 
   // ── 一键批改：把这一份里所有已画的题并发提交 ──
@@ -652,8 +670,9 @@ async function handler(req, res) {
       const mark = normalizeMark(parseJSONReply(ai.content));
       if (!mark) throw new Error('AI reply invalid for ' + pid);
 
-      // 立即扣费（原子更新，19 题并发也不会互相踩）。root 同样扣。
-      await consumeTokens(db, req.user.username, PER_QUESTION_COST);
+      // 按这题的真实 token 用量扣费（原子更新，并发不互相踩）。root 同样扣。
+      const charge = markCostFor(ai.usage);
+      await consumeTokens(db, req.user.username, charge);
 
       await db.collection('paperMarks').updateOne(
         { username: req.user.username, paperTrack: track, paperYear: year, pid },
@@ -662,7 +681,7 @@ async function handler(req, res) {
             ...mark,
             pid, paperTrack: track, paperYear: year, markedAt: new Date(),
             usage: ai.usage || null,
-            chargedTokens: PER_QUESTION_COST,
+            chargedTokens: charge,
           },
           $setOnInsert: { createdAt: new Date() },
         },
@@ -681,12 +700,12 @@ async function handler(req, res) {
         lines: mark.lines,
         summary: mark.summary,
         usage: ai.usage || null,
-        chargedTokens: PER_QUESTION_COST,
+        chargedTokens: charge,
         mode: 'batch',
         markedAt: new Date(),
       });
 
-      return { pid, mark, usage: ai.usage || null };
+      return { pid, mark, usage: ai.usage || null, chargedTokens: charge };
     }));
 
     const ok = [];
@@ -698,7 +717,7 @@ async function handler(req, res) {
     });
 
     // 费用已在每题批改完成时扣除，这里只做汇总
-    const cost = PER_QUESTION_COST * ok.length;
+    const cost = ok.reduce((a, r) => a + (Number(r.chargedTokens) || 0), 0);
 
     // Token 用量汇总，方便前端和后台对账
     const usageTotals = ok.reduce((acc, r) => {
