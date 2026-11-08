@@ -1001,8 +1001,10 @@
         return new Promise(function (resolve) {
           if (!url) { bgImage = null; resolve(false); return; }
           var im = new Image();
-          // 不设 crossOrigin：设了之后个别图源（缺 CORS 头）会直接加载失败，
-          // 那就连显示都做不到。tainted canvas 的兜底在 toDataUrl 里。
+          // 必须带 crossOrigin：背景图一旦画进主画布，缺 CORS 头就会把画布污染，
+          // 之后 toDataURL 直接抛 SecurityError，导出永远是空 —— 表现就是「点 Mark 没反应」。
+          // 图源没有 CORS 头时宁可加载失败并提示，也不要静默污染。
+          im.crossOrigin = 'anonymous';
           im.onload = function () {
             bgImage = im;
             // 按宽度铺满，高度跟着图片比例走
@@ -1011,7 +1013,11 @@
             host.style.height = h + 'px';
             setTimeout(function () { fit(); redraw(); resolve(true); }, 0);
           };
-          im.onerror = function () { bgImage = null; resolve(false); };
+          im.onerror = function () {
+            bgImage = null;
+            DSHUI.toast('Could not load that image as a background', 'warn');
+            resolve(false);
+          };
           im.src = url;
         });
       },
@@ -1866,7 +1872,12 @@
           return;
         }
         const image = p ? p.toDataUrl() : '';
-        if (!image) return;
+        if (!image) {
+          // 导出失败最常见的原因是导入的图把画布污染了（图源没有 CORS 头）
+          oneBtn.textContent = 'Could not export — try Remove background';
+          setTimeout(() => { oneBtn.textContent = 'Mark this question'; }, 2600);
+          return;
+        }
         oneBtn.disabled = true;
         oneBtn.textContent = 'Marking…';
         try {
