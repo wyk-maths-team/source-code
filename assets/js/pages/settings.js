@@ -252,6 +252,67 @@
     bind() {
       $('clearCacheBtn').addEventListener('click', () => this.clearCache());
       $('clearLocalStorageBtn').addEventListener('click', () => this.clearLocalStorage());
+      this.renderStorageUsage();
+      window.addEventListener('storage', () => this.renderStorageUsage());
+      // 进到 System 标签时再量一次（别的时候长度可能变了）
+      document.querySelectorAll('.nav-item[data-tab]').forEach((n) => {
+        if (n.dataset.tab === 'system') n.addEventListener('click', () => setTimeout(() => this.renderStorageUsage(), 60));
+      });
+    },
+
+    // 读 localStorage 实际占用（UTF-16，每字符 2 字节），并按来源归类
+    measureStorage() {
+      let bytes = 0;
+      let keys = 0;
+      const buckets = {};
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (!k) continue;
+          const v = localStorage.getItem(k) || '';
+          const size = (k.length + v.length) * 2;
+          bytes += size;
+          keys++;
+          // 归到一个容易读的类别：取冒号前的前缀
+          const group = k.includes(':') ? k.split(':')[0] : k;
+          buckets[group] = (buckets[group] || 0) + size;
+        }
+      } catch (e) { /* 隐私模式下可能抛 */ }
+      return { bytes, keys, buckets };
+    },
+
+    renderStorageUsage() {
+      const hint = $('lsUsageHint');
+      const bar = $('lsUsageBar');
+      const text = $('lsUsageText');
+      const top = $('lsUsageTop');
+      if (!bar || !text) return;
+
+      const { bytes, keys, buckets } = this.measureStorage();
+
+      // 浏览器配额通常 5MB 左右（按字符算），这里用 5MB 的字节数做分母
+      const QUOTA = 5 * 1024 * 1024;
+      const pct = Math.min(100, (bytes / QUOTA) * 100);
+
+      const fmt = (b) => b < 1024 ? b + ' B' : b < 1024 * 1024 ? (b / 1024).toFixed(1) + ' KB' : (b / 1024 / 1024).toFixed(2) + ' MB';
+
+      if (hint) {
+        hint.textContent = bytes
+          ? keys + ' keys · ' + fmt(bytes) + ' of roughly 5 MB'
+          : 'Nothing stored yet, or this browser blocks storage access.';
+      }
+
+      bar.style.width = Math.max(pct, bytes ? 0.8 : 0) + '%';
+      bar.style.background = pct > 85 ? '#dc2626' : pct > 60 ? '#d97706' : '#4a90d9';
+      text.textContent = fmt(bytes) + ' used · ' + pct.toFixed(1) + '% of 5 MB';
+
+      if (top) {
+        const rows = Object.entries(buckets)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 4)
+          .map(([k, v]) => k + ' — ' + fmt(v));
+        top.innerHTML = rows.length ? rows.join('<br>') : '';
+      }
     },
 
     // 1. 彻底清除缓存
