@@ -368,11 +368,21 @@
     if (root && root.style.display === 'flex') fit();
   });
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => setTimeout(mount, 400));
-  } else {
-    setTimeout(mount, 400);
+  // 题目正文是异步渲染的，按钮不一定立刻在。轮询等它出现，不要押在某一次定时上。
+  function waitAndMount() {
+    if (document.getElementById('scratchpadBtn')) return;
+    const btn = document.getElementById('submissionsBtn');
+    if (btn) { mount(); return; }
+    mount();
+    if (!document.getElementById('scratchpadBtn')) setTimeout(waitAndMount, 300);
   }
-  // 题目内容可能异步渲染，再补一次
-  setTimeout(mount, 1500);
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => setTimeout(waitAndMount, 200));
+  } else {
+    setTimeout(waitAndMount, 200);
+  }
+  // 换题（SPA 式重渲染）时按钮会被重建，再补几次
+  setTimeout(waitAndMount, 1200);
+  setTimeout(waitAndMount, 3000);
 })();
