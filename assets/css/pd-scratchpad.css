@@ -60,8 +60,18 @@
 }
 .sp-tool:hover { border-color: #dc2626; color: #dc2626; }
 
-.sp-canvas-wrap { flex: 1; min-height: 0; position: relative; background: #fff; }
-.sp-canvas-wrap canvas { display: block; touch-action: none; cursor: crosshair; }
+.sp-canvas-wrap {
+  flex: 1; min-height: 0; position: relative; background: #fff;
+  /* 画的时候不要选中文字、不要弹出系统菜单 */
+  user-select: none; -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.sp-canvas-wrap canvas {
+  display: block; cursor: crosshair;
+  touch-action: none;              /* 多指各自画，不触发缩放/滚动 */
+  user-select: none; -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
 
 .sp-foot {
   display: flex; align-items: center; gap: 12px;

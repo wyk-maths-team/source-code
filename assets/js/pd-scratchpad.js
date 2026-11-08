@@ -108,7 +108,8 @@
 
     canvas = root.querySelector('#spCanvas');
     ctx = canvas.getContext('2d');
-    pad = { strokes: [], active: null, color: COLORS[0], width: WIDTHS[1], erase: false };
+    // actives: pointerId -> 正在画的那一笔，多根手指各自独立
+    pad = { strokes: [], actives: new Map(), color: COLORS[0], width: WIDTHS[1], erase: false };
 
     // 颜色
     const colorsBox = root.querySelector('#spColors');
@@ -142,14 +143,14 @@
     root.querySelector('#spClose').addEventListener('click', close);
     root.addEventListener('click', (e) => { if (e.target === root) close(); });
     root.querySelector('#spUndo').addEventListener('click', () => {
-      if (pad.active) { pad.active = null; redraw(); saveDraft(); return; }
+      if (pad.actives.size) { pad.actives.clear(); redraw(); saveDraft(); return; }
       pad.strokes.pop();
       redraw();
       saveDraft();
     });
     root.querySelector('#spClear').addEventListener('click', () => {
       pad.strokes = [];
-      pad.active = null;
+      pad.actives.clear();
       redraw();
       clearDraft();
     });
@@ -208,7 +209,7 @@
     if (!ctx) return;
     paintBase();
     for (const st of pad.strokes) strokePath(st);
-    if (pad.active) strokePath(pad.active);
+    for (const st of pad.actives.values()) strokePath(st);
   }
 
   function pos(e) {
@@ -218,24 +219,34 @@
 
   function bindDrawing() {
     canvas.addEventListener('pointerdown', (e) => {
-      canvas.setPointerCapture(e.pointerId);
-      pad.active = { color: pad.color, width: pad.width, points: [pos(e)] };
+      try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+      // 每个 pointerId 一笔：多指同时画互不干扰
+      pad.actives.set(e.pointerId, { color: pad.color, width: pad.width, points: [pos(e)] });
       e.preventDefault();
     });
     canvas.addEventListener('pointermove', (e) => {
-      if (!pad.active) return;
-      pad.active.points.push(pos(e));
+      const st = pad.actives.get(e.pointerId);
+      if (!st) return;
+      st.points.push(pos(e));
       redraw();
+      e.preventDefault();
     });
-    const end = () => {
-      if (!pad.active) return;
-      if (pad.active.points.length) pad.strokes.push(pad.active);
-      pad.active = null;
+    const end = (e) => {
+      const st = pad.actives.get(e.pointerId);
+      if (!st) return;
+      if (st.points.length) pad.strokes.push(st);
+      pad.actives.delete(e.pointerId);
+      try { canvas.releasePointerCapture(e.pointerId); } catch (err) {}
       redraw();
       saveDraft();
     };
     canvas.addEventListener('pointerup', end);
     canvas.addEventListener('pointercancel', end);
+    canvas.addEventListener('pointerleave', (e) => {
+      // 手指滑出画布时不要把这一笔丢掉
+      const st = pad.actives.get(e.pointerId);
+      if (st && e.buttons === 0) end(e);
+    });
   }
 
   function open() {
@@ -254,7 +265,7 @@
     // 恢复这道题上次没交出去的笔迹
     const draft = loadDraft();
     pad.strokes = [];
-    pad.active = null;
+    pad.actives.clear();
     setTimeout(() => {
       fit();
       if (draft.length) {
