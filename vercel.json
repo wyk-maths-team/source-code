@@ -309,6 +309,10 @@
   ],
   "rewrites": [
     {
+      "source": "/assets/pdf/:path*",
+      "destination": "/api/pdf?path=:path*"
+    },
+    {
       "source": "/i",
       "destination": "/internal.html"
     },
