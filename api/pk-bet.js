@@ -767,6 +767,15 @@ async function settleRoom(db, room) {
     weak: weakP.username, weakPrize, strong: strongP.username, strongPrize,
   }, 'system', 'info').catch(() => {});
 
+  // 结算完给双方各跑一次成就检查（PK 相关成就都看结果表）
+  try {
+    const { runPostSubmit } = await import('../lib/submission.js');
+    for (const p of [pA, pB]) {
+      if (!p || !p.username) continue;
+      await runPostSubmit(db, p.username, { trigger: 'pk' }).catch(() => {});
+    }
+  } catch (e) { /* 成就失败不影响结算 */ }
+
   return { room: { ...room, status: 'settled', resultId: result.id }, result };
 }
 

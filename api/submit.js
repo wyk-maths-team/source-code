@@ -81,13 +81,9 @@ async function finishSubmit(db, username, result, context = {}) {
 }
 
 async function sendSuccess(db, username, res, result, context = {}) {
-  // 1) 立刻发响应
+  // 成就检查已经由 finishSubmit 同步跑过、结果就在 result 里，
+  // 这里再跑一次只会白烧一遍聚合查询，所以只保留响应。
   res.status(200).json(result);
-
-  // 2) 成就检查继续跑 —— Vercel 保证不 kill
-  if (!/^\d+$/.test(String(username || ''))) {
-    waitUntil(runPostSubmit(db, username, { ...context }));
-  }
 }
 
 

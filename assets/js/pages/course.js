@@ -1921,6 +1921,10 @@
           if (!out || !out.success) throw new Error((out && out.message) || 'Marking failed');
           if (out.usage) out.mark.usage = out.usage;
           if (out.chargedTokens) out.mark.chargedTokens = out.chargedTokens;
+          // 成就解锁 → 右上角广播
+          if (out.unlockedAchievements && typeof window.showAchievementToasts === 'function') {
+            window.showAchievementToasts(out.unlockedAchievements);
+          }
           renderMarkInto(res, out.mark);
           marks[q.id] = out.mark;
           refreshPaperScore();
@@ -2007,6 +2011,9 @@
           if (card) renderMarkInto(card, m.mark);
         });
         refreshPaperScore();
+        if (out.unlockedAchievements && typeof window.showAchievementToasts === 'function') {
+          window.showAchievementToasts(out.unlockedAchievements);
+        }
         const failed = (out.failed || []).length;
         status.textContent = 'Marked ' + (out.marked || []).length + (failed ? ' · ' + failed + ' failed' : '');
         status.className = 'paper-status ok';

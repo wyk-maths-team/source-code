@@ -614,7 +614,21 @@ async function handler(req, res) {
       markedAt: new Date(),
     });
 
-    return res.status(200).json({ success: true, pid, mark, usage: ai.usage || null, chargedTokens: charge });
+    // 跑一次成就检查，并把解锁结果带回去让前端弹广播
+    let ach = null;
+    try {
+      const { runPostSubmit } = await import('../lib/submission.js');
+      const r = await runPostSubmit(db, req.user.username, { trigger: 'dse', problemId: String(pid) });
+      if (r && r.unlocked && r.unlocked.length) {
+        ach = { unlockedAchievements: r.expand(r.unlocked), achievementReward: r.rewarded };
+      }
+    } catch (e) { /* 成就失败不该影响批改结果 */ }
+
+    return res.status(200).json({
+      success: true, pid, mark,
+      usage: ai.usage || null, chargedTokens: charge,
+      ...(ach || {}),
+    });
   }
 
   // ── 一键批改：把这一份里所有已画的题并发提交 ──
@@ -740,7 +754,20 @@ async function handler(req, res) {
       return acc;
     }, { prompt: 0, completion: 0, total: 0 });
 
-    return res.status(200).json({ success: true, marked: ok, failed, cost, usage: usageTotals });
+    // 整卷批完也跑一次，学生一口气做完一卷时成就能一次到位
+    let ach = null;
+    try {
+      const { runPostSubmit } = await import('../lib/submission.js');
+      const r = await runPostSubmit(db, req.user.username, { trigger: 'dse' });
+      if (r && r.unlocked && r.unlocked.length) {
+        ach = { unlockedAchievements: r.expand(r.unlocked), achievementReward: r.rewarded };
+      }
+    } catch (e) { /* 同上 */ }
+
+    return res.status(200).json({
+      success: true, marked: ok, failed, cost, usage: usageTotals,
+      ...(ach || {}),
+    });
   }
 
   return res.status(400).json({ success: false, message: 'Unknown action' });
