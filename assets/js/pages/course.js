@@ -1417,8 +1417,8 @@
 
 
 
-  // ─────────── 课程页：每题一个手写画板 ───────────
-  // 纯 HTML 的教程也能画完直接交；每道题独立画板、独立提交。
+
+  // ─────────── 课程页：每题一个作答区（文字 / 画板可切换）───────────
   function renderCourseDrawPad(course) {
     const old = document.getElementById('courseDrawPad');
     if (old) old.remove();
@@ -1431,8 +1431,8 @@
     box.className = 'course-drawpad';
     box.innerHTML =
       '<div class="cdp-head">' +
-        '<span class="cdp-title"><i class="fas fa-pen-line"></i> Hand in by hand</span>' +
-        '<span class="cdp-count" id="cdpCount">0 / ' + list.length + ' handed in</span>' +
+        '<span class="cdp-title"><i class="fas fa-pen-line"></i> Answer this set</span>' +
+        '<span class="cdp-count" id="cdpCount">0 / ' + list.length + ' submitted</span>' +
       '</div>' +
       '<div class="cdp-list" id="cdpList"></div>';
 
@@ -1445,7 +1445,7 @@
 
     function bumpCount() {
       const el3 = box.querySelector('#cdpCount');
-      if (el3) el3.textContent = submitted + ' / ' + list.length + ' handed in';
+      if (el3) el3.textContent = submitted + ' / ' + list.length + ' submitted';
     }
 
     list.forEach((p) => {
@@ -1456,65 +1456,104 @@
           '<span class="cdp-id">' + esc(p.id) + '</span>' +
           (p.name ? '<span class="cdp-name">' + esc(p.name) + '</span>' : '') +
           (p.solved ? '<span class="cdp-done">✓ solved</span>' : '') +
+          '<span class="cdp-modes">' +
+            '<button type="button" data-mode="text" class="on">Text</button>' +
+            '<button type="button" data-mode="draw">Draw</button>' +
+          '</span>' +
         '</div>' +
-        '<div class="cdp-board paper-pad paper-pad-locked"></div>' +
+        '<textarea class="cdp-text" rows="4" placeholder="Type your answer…"></textarea>' +
+        '<div class="cdp-board paper-pad paper-pad-locked" hidden></div>' +
         '<div class="cdp-row">' +
-          '<button type="button" class="cdp-submit">Submit drawing</button>' +
+          '<button type="button" class="cdp-submit">Submit</button>' +
           '<span class="cdp-status"></span>' +
         '</div>' +
         '<div class="cdp-result"></div>';
       host.appendChild(card);
 
+      const ta = card.querySelector('.cdp-text');
       const board = card.querySelector('.cdp-board');
       const status = card.querySelector('.cdp-status');
       const result = card.querySelector('.cdp-result');
       const submitBtn = card.querySelector('.cdp-submit');
+      const modeBtns = card.querySelectorAll('.cdp-modes button');
 
-      const pad = createDrawPad(board, 'coursePad:' + (course.track || '') + ':' + (course.id || '') + ':' + p.id, { transparent: true });
-      pad.restore();
-      board.appendChild(buildPadToolbar(pad));
+      let mode = 'text';
+      let pad = null;
 
-      const unlock = document.createElement('button');
-      unlock.type = 'button';
-      unlock.className = 'paper-pad-unlock';
-      unlock.innerHTML = '<i class="fas fa-pen"></i> Tap to write';
-      board.appendChild(unlock);
-      unlock.addEventListener('click', () => {
-        board.classList.remove('paper-pad-locked');
-        board.classList.add('paper-pad-active');
-        unlock.remove();
+      // 画板按需创建：切到 Draw 才建，避免 17 块 canvas 一起初始化
+      function ensurePad() {
+        if (pad) return pad;
+        pad = createDrawPad(board, 'coursePad:' + (course.track || '') + ':' + (course.id || '') + ':' + p.id, { transparent: true });
+        pad.restore();
+        board.appendChild(buildPadToolbar(pad));
+
+        const unlock = document.createElement('button');
+        unlock.type = 'button';
+        unlock.className = 'paper-pad-unlock';
+        unlock.innerHTML = '<i class="fas fa-pen"></i> Tap to write';
+        board.appendChild(unlock);
+        unlock.addEventListener('click', () => {
+          board.classList.remove('paper-pad-locked');
+          board.classList.add('paper-pad-active');
+          unlock.remove();
+        });
+        return pad;
+      }
+
+      modeBtns.forEach((b) => {
+        b.addEventListener('click', () => {
+          mode = b.dataset.mode;
+          modeBtns.forEach((o) => o.classList.toggle('on', o === b));
+          if (mode === 'draw') {
+            ta.hidden = true;
+            board.hidden = false;
+            ensurePad();
+          } else {
+            ta.hidden = false;
+            board.hidden = true;
+          }
+          submitBtn.textContent = mode === 'draw' ? 'Submit drawing' : 'Submit answer';
+        });
       });
+      submitBtn.textContent = 'Submit answer';
 
       submitBtn.addEventListener('click', async () => {
-        if (pad.isEmpty()) { status.textContent = 'Draw something first'; return; }
-        const image = pad.toDataUrl();
-        if (!image) { status.textContent = 'Could not export the drawing'; return; }
-
         submitBtn.disabled = true;
-        status.textContent = 'Uploading…';
+        status.textContent = 'Submitting…';
         try {
-          const sub = await API.post('/api/submit', { problemId: p.id, type: 'image', image });
-          if (!sub || !sub.success) throw new Error((sub && sub.message) || 'Submit failed');
-          const subid = sub.subid || (sub.submission && sub.submission.subid);
-          status.textContent = 'Grading…';
-
-          const graded = await API.post('/api/image-grade', { problemId: p.id, subid, imageUrl: sub.imageUrl });
-          if (graded && graded.success && graded.grade) {
-            const g = graded.grade;
-            result.innerHTML = '<div class="cdp-mark">' +
-              '<span class="cdp-score">' + esc(String(g.score != null ? g.score : '')) + '</span>' +
-              (g.comment ? '<span class="cdp-comment">' + esc(g.comment) + '</span>' : '') +
-            '</div>';
-            renderMath(result);
-            status.textContent = 'Graded';
-            submitted++;
-            bumpCount();
+          let payload = { problemId: p.id };
+          if (mode === 'text') {
+            const text = ta.value.trim();
+            if (!text) { status.textContent = 'Type something first'; submitBtn.disabled = false; return; }
+            payload.type = 'text';
+            payload.answer = text;
           } else {
-            status.textContent = 'Submitted — grading is still running';
-            submitted++;
-            bumpCount();
+            const pd = ensurePad();
+            if (pd.isEmpty()) { status.textContent = 'Draw something first'; submitBtn.disabled = false; return; }
+            const image = pd.toDataUrl();
+            if (!image) { status.textContent = 'Could not export the drawing'; submitBtn.disabled = false; return; }
+            payload.type = 'image';
+            payload.image = image;
           }
-          pad.clear();
+
+          const sub = await API.post('/api/submit', payload);
+          if (!sub || !sub.success) throw new Error((sub && sub.message) || 'Submit failed');
+
+          const score = sub.score != null ? sub.score : (sub.grade && sub.grade.score);
+          const comment = sub.comment || (sub.grade && sub.grade.comment) || '';
+          const verdict = sub.result || (sub.correct === true ? 'correct' : (sub.correct === false ? 'wrong' : ''));
+
+          result.innerHTML = '<div class="cdp-mark">' +
+            (verdict ? '<span class="cdp-score">' + esc(String(verdict)) + '</span>' : '') +
+            (score != null ? '<span class="cdp-score">' + esc(String(score)) + '</span>' : '') +
+            (comment ? '<span class="cdp-comment">' + esc(comment) + '</span>' : '') +
+          '</div>';
+          renderMath(result);
+          status.textContent = 'Submitted';
+          submitted++;
+          bumpCount();
+          if (mode === 'text') ta.value = '';
+          else if (pad) pad.clear();
         } catch (e) {
           status.textContent = 'Failed: ' + (e.message || 'error');
         } finally {

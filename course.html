@@ -469,6 +469,26 @@
   .cdp-done { margin-left: auto; font-size: .75rem; color: #22c55e; font-weight: 700; }
   .cdp-board { height: 300px; border-radius: 8px; border: 1px solid var(--course-border); }
   .cdp-row { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+
+  /* hidden 属性必须真的隐藏：display:flex 会盖掉 [hidden] 的默认 display:none，
+     菜单就会一直摊开 */
+  .paper-import-choices[hidden] { display: none !important; }
+  .paper-import-preview[hidden] { display: none !important; }
+
+  /* 作答区：文字 / 画板切换 */
+  .cdp-modes { margin-left: auto; display: inline-flex; gap: 0; border: 1px solid var(--course-border); border-radius: 8px; overflow: hidden; }
+  .cdp-modes button {
+    padding: 5px 12px; border: none; background: transparent; cursor: pointer;
+    font-family: inherit; font-size: .78rem; font-weight: 700; color: var(--text-secondary);
+  }
+  .cdp-modes button.on { background: #4a90d9; color: #fff; }
+  .cdp-text {
+    width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px;
+    border: 1px solid var(--course-border); background: var(--bg-color); color: var(--text-primary);
+    font-family: inherit; font-size: .92rem; line-height: 1.6; resize: vertical;
+  }
+  .cdp-text[hidden] { display: none !important; }
+  .cdp-board[hidden] { display: none !important; }
 </style>
 </head>
 <body class="index-body">
