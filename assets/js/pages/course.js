@@ -456,9 +456,14 @@
         ${badge}
       </div>
       <div class="ip-statement">${problem.statement || ''}</div>
+      <div class="ip-modes">
+        <button type="button" data-mode="text" class="on">Text</button>
+        <button type="button" data-mode="draw">Draw</button>
+      </div>
       <div class="ip-input-row">
         <textarea placeholder="Write your steps here — the AI grades the reasoning, not just the answer."></textarea>
       </div>
+      <div class="ip-board paper-pad paper-pad-locked" hidden></div>
       <div class="ip-draft-note" style="display:none;padding:0 16px 8px;font-size:.74rem;color:var(--text-secondary);">
         <i class="fas fa-floppy-disk"></i> Draft restored
       </div>
@@ -493,7 +498,82 @@
     });
     textarea.addEventListener('blur', () => writeStepsDraft(pid, textarea.value));
 
+    // Text / Draw 切换：Draw 才创建画板（懒加载），提交走图片批改
+    const boardEl = card.querySelector('.ip-board');
+    const inputRow = card.querySelector('.ip-input-row');
+    const modeBtns = card.querySelectorAll('.ip-modes button');
+    let mode = 'text';
+    let ipPad = null;
+
+    function ensureIpPad() {
+      if (ipPad) return ipPad;
+      ipPad = createDrawPad(boardEl, 'inlinePad:' + pid, { transparent: true });
+      ipPad.restore();
+      const tools = buildPadToolbar(ipPad);
+      tools.style.position = 'absolute';
+      tools.style.left = '6px';
+      tools.style.top = '6px';
+      tools.style.display = 'flex';
+      tools.style.zIndex = '3';
+      boardEl.appendChild(tools);
+
+      const unlock = document.createElement('button');
+      unlock.type = 'button';
+      unlock.className = 'paper-pad-unlock';
+      unlock.innerHTML = '<i class="fas fa-pen"></i> Tap to write';
+      boardEl.appendChild(unlock);
+      unlock.addEventListener('click', () => {
+        boardEl.classList.remove('paper-pad-locked');
+        boardEl.classList.add('paper-pad-active');
+        unlock.remove();
+      });
+      return ipPad;
+    }
+
+    modeBtns.forEach((b) => {
+      b.addEventListener('click', () => {
+        mode = b.dataset.mode;
+        modeBtns.forEach((o) => o.classList.toggle('on', o === b));
+        const isDraw = mode === 'draw';
+        inputRow.hidden = isDraw;
+        boardEl.hidden = !isDraw;
+        if (isDraw) ensureIpPad();
+        btn.textContent = isDraw ? 'Submit drawing' : 'Submit to AI';
+      });
+    });
+
     btn.addEventListener('click', async () => {
+      if (mode === 'draw') {
+        const pd = ensureIpPad();
+        if (pd.isEmpty()) { statusEl.textContent = 'Draw something first.'; statusEl.className = 'ip-status err'; return; }
+        const image = pd.toDataUrl();
+        if (!image) { statusEl.textContent = 'Could not export the drawing'; statusEl.className = 'ip-status err'; return; }
+        btn.disabled = true;
+        statusEl.textContent = 'Uploading…';
+        statusEl.className = 'ip-status';
+        try {
+          const sub = await API.post('/api/submit', { problemId: pid, type: 'image', image });
+          if (!sub || !sub.success) throw new Error((sub && sub.message) || 'Submit failed');
+          statusEl.textContent = 'Grading…';
+          const graded = await API.post('/api/image-grade', { problemId: pid, subid: sub.subid, imageUrl: sub.imageUrl });
+          if (graded && graded.success && graded.grade) {
+            const g = graded.grade;
+            card.insertAdjacentHTML('beforeend', '<div class="ip-result" style="padding:0 16px 14px;"><strong>' + esc(String(g.score != null ? g.score : '')) + '</strong> ' + esc(g.comment || '') + '</div>');
+            renderMath(card);
+            statusEl.textContent = 'Graded';
+          } else {
+            statusEl.textContent = 'Submitted — grading is still running';
+          }
+          pd.clear();
+        } catch (e) {
+          statusEl.textContent = e.message || 'Submit failed';
+          statusEl.className = 'ip-status err';
+        } finally {
+          btn.disabled = false;
+        }
+        return;
+      }
+
       const steps = textarea.value.trim();
       if (!steps) { statusEl.textContent = 'Write something first.'; statusEl.className = 'ip-status err'; return; }
 
@@ -1926,7 +2006,7 @@
       // submissions：拉自己的历史图片，选一个
       importBtn.textContent = 'Loading…';
       try {
-        const res = await API.get('/api/paper?action=myImages&limit=20');
+        const res = await API.get('/api/paper?action=myImages&limit=20&pid=' + encodeURIComponent(q.id));
         const list = (res && res.images) || [];
         if (!list.length) {
           importBtn.textContent = 'Import';

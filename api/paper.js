@@ -165,14 +165,19 @@ async function handler(req, res) {
   // ── 我自己的历史图片提交（Import → submissions 用）──
   if (action === 'myImages') {
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
+    // 指定 pid 时只回这一题的提交 —— Import 默认就要这个行为
+    const pid = String(req.query.pid || '').trim();
+    const dseFilter = { username: req.user.username, imageUrl: { $nin: [null, ''] } };
+    const subFilter = { username: req.user.username, type: 'image', imageUrl: { $nin: [null, ''] } };
+    if (pid) { dseFilter.pid = pid; subFilter.problemId = pid; }
 
     const [dse, normal] = await Promise.all([
       db.collection('dsesubmissions')
-        .find({ username: req.user.username, imageUrl: { $nin: [null, ''] } },
+        .find(dseFilter,
           { projection: { subid: 1, pid: 1, paperTrack: 1, paperYear: 1, imageUrl: 1, createdAt: 1, _id: 0 } })
         .sort({ createdAt: -1 }).limit(limit).toArray(),
       db.collection('submissions')
-        .find({ username: req.user.username, type: 'image', imageUrl: { $nin: [null, ''] } },
+        .find(subFilter,
           { projection: { subid: 1, problemId: 1, imageUrl: 1, timestamp: 1, _id: 0 } })
         .sort({ timestamp: -1 }).limit(limit).toArray(),
     ]);
