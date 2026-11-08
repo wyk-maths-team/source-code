@@ -541,6 +541,10 @@
     return window.__pdfjsLoading;
   }
 
+  // 手写作答图导出时的缩放（百分比）。降一点能显著减少上传体积和 AI 读图耗时，
+  // 但太低会让笔迹糊掉 —— 75% 是清晰度和速度的平衡点。改这一个数即可。
+  const HANDWRITING_EXPORT_SCALE = 0.75;
+
   const PDF_BOX_STYLE = 'position:absolute;left:10%;width:80%;border:1px solid var(--border-color);'
     + 'border-radius:8px;background:rgba(255,255,255,.96);box-shadow:0 2px 10px rgba(0,0,0,.12);'
     + 'display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box;';
@@ -911,19 +915,20 @@
           // 画板是透明底（为了露出页面上的灰横线）。JPEG 不支持透明，
           // 直接导会把空白变成纯黑，所以这里先合成一张白底 + 灰横线的纸，
           // 再把笔迹盖上去 —— 橡皮擦出来的白块也随之融进纸里。
+          var scale = Math.max(0.3, Math.min(1, HANDWRITING_EXPORT_SCALE));
           var out = document.createElement('canvas');
-          out.width = canvas.width;
-          out.height = canvas.height;
+          out.width = Math.max(1, Math.round(canvas.width * scale));
+          out.height = Math.max(1, Math.round(canvas.height * scale));
           var octx = out.getContext('2d');
 
           octx.fillStyle = '#ffffff';
           octx.fillRect(0, 0, out.width, out.height);
 
           if (transparent) {
-            var step = 28 * dpr;
-            var offset = 4 * dpr;
+            var step = 28 * dpr * scale;
+            var offset = 4 * dpr * scale;
             octx.strokeStyle = 'rgba(0, 0, 0, 0.13)';
-            octx.lineWidth = Math.max(1, Math.round(dpr));
+            octx.lineWidth = Math.max(1, Math.round(dpr * scale));
             for (var y = offset + step; y < out.height; y += step) {
               octx.beginPath();
               octx.moveTo(0, y + 0.5);
@@ -932,7 +937,7 @@
             }
           }
 
-          octx.drawImage(canvas, 0, 0);
+          octx.drawImage(canvas, 0, 0, out.width, out.height);
           return out.toDataURL('image/jpeg', 0.85);
         } catch (e) { return ''; }
       },

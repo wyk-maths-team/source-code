@@ -9,6 +9,7 @@ import { wrapHandler } from '../lib/errors.js';
 import { getTokenBalance, consumeTokens } from '../lib/token.js';
 import { buildDsePrompt } from '../lib/grade-prompt.js';
 import { sumMarks } from '../lib/marks.js';
+import { defaultHeightFor } from '../lib/paperLayout.js';
 import crypto from 'crypto';
 
 export const config = { maxDuration: 300 };
@@ -353,7 +354,8 @@ async function handler(req, res) {
     const items = ids.map((pid, i) => ({
       pid,
       page: (prev.get(pid) && prev.get(pid).page) || i + 1,
-      height: (prev.get(pid) && prev.get(pid).height) || 260,
+      // 没手动调过就用默认规则（半张 A4，长题整张/两张）
+      height: (prev.get(pid) && prev.get(pid).height) || defaultHeightFor(track, i + 1),
     }));
 
     await db.collection('papers').updateOne(
