@@ -5,6 +5,7 @@ import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';
 import { getTokenBalance, consumeTokens } from '../lib/token.js';
 import { buildImageGradePrompt } from '../lib/grade-prompt.js';
+import { effortForDifficulty } from '../lib/thinking.js';
 import crypto from 'crypto';
 import { wrapHandler } from '../lib/errors.js';
 
@@ -22,14 +23,15 @@ function isAllowedImageUrl(url) {
   return ALLOWED_IMAGE_HOSTS.some((prefix) => s.startsWith(prefix));
 }
 
-async function callDeepSeekVision(prompt, imageUrl) {
+async function callDeepSeekVision(prompt, imageUrl, effort) {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   const base = process.env.DEEPSEEK_API_BASE || 'https://api.deepseek.com';
   if (!isAllowedImageUrl(imageUrl)) {
     throw new Error('Invalid image source');
   }
   const body = {
-    model: 'deepseek-flash', // 根据文档，这是 V4.1-Flash
+    model: 'deepseek-flash',
+    ...(effort ? { reasoning_effort: effort } : {}),
     messages: [
       {
         role: 'user',
@@ -130,7 +132,7 @@ async function handleCreate(req, res, db, decoded) {
         reference_answer: String(problem.ans ?? '') 
       });
       
-      const apiRes = await callDeepSeekVision(prompt, imageUrl);
+      const apiRes = await callDeepSeekVision(prompt, imageUrl, effortForDifficulty(problem.difficulty));
       const parsed = parseJSONReply(apiRes.content);
 
       if (!parsed || typeof parsed.score !== 'number') throw new Error('AI parse error');

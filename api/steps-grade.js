@@ -7,6 +7,7 @@ import { askDeepSeekAPI } from '../lib/deepseek-api.js';
 import { askClaude } from '../lib/temp/claude-api.js';
 import { buildStepsPrompt, buildM0Prompt, snapM0Score } from '../lib/grade-prompt.js';
 import { getModelChain, getModelInfo, pickThinkingEffort, pickEffortForProblem } from '../lib/model-router.js';
+import { effortForDifficulty } from '../lib/thinking.js';
 import { consumeTokens } from '../lib/token.js';
 import crypto from 'crypto';
 import { wrapHandler } from '../lib/errors.js';
@@ -189,7 +190,8 @@ async function handleCreate(req, res, db, decoded) {
   const prompt = isM0
     ? buildM0Prompt({ statement, reference_answer: String(problem.ans ?? ''), student_steps: steps.trim() })
     : buildStepsPrompt({ statement, reference_answer: String(problem.ans ?? ''), student_steps: steps.trim() });
-  const effort = pickEffortForProblem(problem);
+  // 普通题按难度分级：1-3 low，4-7 high，8+ max
+  const effort = effortForDifficulty(problem && problem.difficulty);
 
   for (const modelKey of chain) {
     try {

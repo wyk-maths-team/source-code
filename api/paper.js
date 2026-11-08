@@ -10,6 +10,7 @@ import { getTokenBalance, consumeTokens } from '../lib/token.js';
 import { buildDsePrompt } from '../lib/grade-prompt.js';
 import { sumMarks } from '../lib/marks.js';
 import { defaultHeightFor } from '../lib/paperLayout.js';
+import { effortForProblem } from '../lib/thinking.js';
 import crypto from 'crypto';
 
 export const config = { maxDuration: 300 };
@@ -55,26 +56,30 @@ async function callDeepSeek(prompt) {
 }
 
 // 图纸走 vision 接口：把图片和 prompt 一起发
-async function markOneImage(prompt, imageUrl) {
+async function markOneImage(prompt, imageUrl, effort) {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) throw new Error('DEEPSEEK_API_KEY not configured');
   const base = process.env.DEEPSEEK_API_BASE || 'https://api.deepseek.com';
   const model = process.env.DEEPSEEK_VISION_MODEL || 'deepseek-flash';
 
-  const res = await fetch(base + '/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + apiKey },
-    body: JSON.stringify({
-      model,
-      temperature: 0.2,
-      messages: [{
+  // 思考模式不支持 temperature（官方文档：传了不报错但无效），所以这里不传。
+  // 稳定性靠 reasoning_effort 分级控制。
+  const body = {
+    model,
+    messages: [{
         role: 'user',
         content: [
           { type: 'text', text: prompt },
           { type: 'image_url', image_url: { url: imageUrl } },
         ],
       }],
-    }),
+  };
+  if (effort) body.reasoning_effort = effort;
+
+  const res = await fetch(base + '/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + apiKey },
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error('AI HTTP ' + res.status);
   const data = await res.json();
@@ -499,7 +504,9 @@ async function handler(req, res) {
       total_marks: totalMarks,
     });
 
-    const raw = await markOneImage(prompt, imageUrl);
+    const paperTotal = (await db.collection('papers').findOne({ track, year }, { projection: { problemIds: 1 } }) || {}).problemIds || [];
+    const effort = effortForProblem(problem, { total: paperTotal.length });
+    const raw = await markOneImage(prompt, imageUrl, effort);
     const mark = normalizeMark(parseJSONReply(raw));
     if (!mark) return res.status(502).json({ success: false, message: 'AI reply was not valid JSON' });
 
@@ -590,7 +597,8 @@ async function handler(req, res) {
         reference_answer: String(problem.ans || ''),
         total_marks: totalMarks,
       });
-      const raw = await markOneImage(prompt, imageUrl);
+      const effort = effortForProblem(problem, { total: answers.length });
+      const raw = await markOneImage(prompt, imageUrl, effort);
       const mark = normalizeMark(parseJSONReply(raw));
       if (!mark) throw new Error('AI reply invalid for ' + pid);
 
