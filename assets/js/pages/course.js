@@ -847,6 +847,7 @@
     }
 
     var transparent = !!(opts && opts.transparent);
+    var bgImage = null;          // 导入的作答图，导出时垫在底下
 
     function paintBase() {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -991,16 +992,40 @@
         }
         return active.size === 0;
       },
+      // 导入的作答图当作「纸」：铺在画板底下，学生可以在上面继续写，
+      // 提交时把背景图和笔迹合成一张。
+      setBackground: function (url) {
+        return new Promise(function (resolve) {
+          if (!url) { bgImage = null; resolve(false); return; }
+          var im = new Image();
+          im.crossOrigin = 'anonymous';
+          im.onload = function () {
+            bgImage = im;
+            // 按宽度铺满，高度跟着图片比例走
+            var w = host.clientWidth || 800;
+            var h = Math.max(120, Math.round(w * im.naturalHeight / im.naturalWidth));
+            host.style.height = h + 'px';
+            setTimeout(function () { fit(); redraw(); resolve(true); }, 0);
+          };
+          im.onerror = function () { bgImage = null; resolve(false); };
+          im.src = url;
+        });
+      },
+      getBackground: function () { return bgImage ? bgImage.src : null; },
       toDataUrl: function () {
         try {
-          // 画板是透明底（为了露出页面上的灰横线）。JPEG 不支持透明，
-          // 直接导会把空白变成纯黑，所以这里先合成一张白底 + 灰横线的纸，
-          // 再把笔迹盖上去 —— 橡皮擦出来的白块也随之融进纸里。
           var scale = Math.max(0.3, Math.min(1, HANDWRITING_EXPORT_SCALE));
           var out = document.createElement('canvas');
           out.width = Math.max(1, Math.round(canvas.width * scale));
           out.height = Math.max(1, Math.round(canvas.height * scale));
           var octx = out.getContext('2d');
+
+          // 有背景图就先铺它（当作已经写过的部分），否则画白纸 + 灰横线
+          if (bgImage) {
+            octx.drawImage(bgImage, 0, 0, out.width, out.height);
+            octx.drawImage(canvas, 0, 0, out.width, out.height);
+            return out.toDataURL('image/jpeg', 0.9);
+          }
 
           octx.fillStyle = '#ffffff';
           octx.fillRect(0, 0, out.width, out.height);
@@ -1813,7 +1838,7 @@
       importPreview.hidden = true;
       card.appendChild(importPreview);
 
-      bindImport({ q, importBtn, choices, importPreview, padWrap, card });
+      bindImport({ q, importBtn, choices, importPreview, padWrap, pad, card });
 
       // 批改结果区
       const res = document.createElement('div');
@@ -1822,17 +1847,14 @@
       if (marks[q.id]) renderMarkInto(res, marks[q.id]);
 
       oneBtn.addEventListener('click', async () => {
-        const imported = card.__importedImage && card.__importedImage();
         const p = pads[q.id];
-        let image = imported || '';
-        if (!image) {
-          if (!p || p.isEmpty()) {
-            oneBtn.textContent = 'Draw or import something first';
-            setTimeout(() => { oneBtn.textContent = 'Mark this question'; }, 1800);
-            return;
-          }
-          image = p.toDataUrl();
+        const hasBg = p && p.getBackground && p.getBackground();
+        if ((!p || p.isEmpty()) && !hasBg) {
+          oneBtn.textContent = 'Draw or import something first';
+          setTimeout(() => { oneBtn.textContent = 'Mark this question'; }, 1800);
+          return;
         }
+        const image = p ? p.toDataUrl() : '';
         if (!image) return;
         oneBtn.disabled = true;
         oneBtn.textContent = 'Marking…';
@@ -1899,11 +1921,9 @@
       const status = document.getElementById('paperStatus');
       const answers = [];
       paper.questions.forEach((q) => {
-        const cardEl = list.querySelector('.paper-q[data-pid="' + CSS.escape(q.id) + '"]');
-        const imported = cardEl && cardEl.__importedImage && cardEl.__importedImage();
-        if (imported) { answers.push({ pid: q.id, image: imported }); return; }
         const pad = pads[q.id];
-        if (!pad || pad.isEmpty()) return;
+        const hasBg = pad && pad.getBackground && pad.getBackground();
+        if (!pad || (pad.isEmpty() && !hasBg)) return;
         const image = pad.toDataUrl();
         if (image) answers.push({ pid: q.id, image });
       });
@@ -2027,31 +2047,45 @@
 
   // ─────────── 每题 Import：从设备或历史提交取一张图作为作答 ───────────
   // 选完图后只留 Import 按钮，图片按宽度撑满显示；批改时优先用这张图。
-  function bindImport({ q, importBtn, choices, importPreview, padWrap, card }) {
+  function bindImport({ q, importBtn, choices, importPreview, padWrap, pad, card }) {
     const state = { image: null, open: false, listEl: null };
 
-    function setImage(url) {
-      state.image = url || null;
+    // 导入的图不替换画板，而是当画板的底图 —— 学生可以在上面继续写
+    async function setImage(url) {
       if (!url) {
+        await pad.setBackground(null);
+        state.image = null;
         importPreview.hidden = true;
         importPreview.innerHTML = '';
+        if (padWrap) { padWrap.style.display = ''; padWrap.classList.add('paper-pad-locked'); }
+        importBtn.textContent = 'Import';
         return;
       }
+
+      state.image = url;
+      const ok = await pad.setBackground(url);
+      if (!ok) DSHUI.toast('Could not load that image', 'warn');
+
       importPreview.hidden = false;
-      importPreview.innerHTML = '<img src="' + esc(url) + '" alt="imported answer">' +
-        '<div class="paper-import-edit"><button type="button" class="pi-edit-btn">Edit image</button></div>';
-      const editBtn = importPreview.querySelector('.pi-edit-btn');
-      if (editBtn) {
-        editBtn.addEventListener('click', () => {
-          openCropEditor(state.image, (cropped) => { setImage(cropped); });
-        });
-      }
-      importPreview.dataset.pid = q.id;
-      // 占据画板位置：把画板收起，只显示导入的图
-      if (padWrap) padWrap.style.display = 'none';
+      importPreview.innerHTML =
+        '<div class="pi-bg-note"><i class="fas fa-layer-group"></i> Imported image is now the background — keep writing on top.</div>' +
+        '<div class="paper-import-edit">' +
+          '<button type="button" class="pi-edit-btn">Remove background</button>' +
+        '</div>';
+      const rm = importPreview.querySelector('.pi-edit-btn');
+      if (rm) rm.addEventListener('click', () => setImage(null));
+
       choices.hidden = true;
       if (state.listEl) { state.listEl.remove(); state.listEl = null; }
-      importBtn.textContent = 'Replace image';
+      // 解锁，方便直接在导入的图上继续画
+      if (padWrap) {
+        padWrap.style.display = '';
+        padWrap.classList.remove('paper-pad-locked');
+        padWrap.classList.add('paper-pad-active');
+        const lockEl = padWrap.querySelector('.paper-pad-unlock');
+        if (lockEl) lockEl.remove();
+      }
+      importBtn.textContent = 'Change background';
     }
 
     function resetToBoard() {
@@ -2129,8 +2163,7 @@
       }
     });
 
-    // 供批改使用
-    card.__importedImage = () => state.image;
+
   }
 
   // 把批改结果排进卡片：得分 + 逐行 ✔/✘
