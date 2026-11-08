@@ -453,6 +453,22 @@
   .cdp-mark { display: flex; gap: 12px; align-items: baseline; padding: 10px 14px; border-radius: 9px; background: rgba(74,144,217,.10); }
   .cdp-score { font-weight: 800; font-size: 1.05rem; color: #4a90d9; }
   .cdp-comment { font-size: .86rem; color: var(--text-secondary); line-height: 1.55; }
+
+  /* 课程页：每题一个画板 */
+  .cdp-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px; }
+  .cdp-title { font-weight: 800; font-size: .95rem; }
+  .cdp-count { font-size: .8rem; color: var(--text-secondary); }
+  .cdp-list { display: flex; flex-direction: column; gap: 16px; }
+  .cdp-item {
+    border: 1px solid var(--course-border); border-radius: 12px; padding: 14px 16px;
+    background: var(--bg-color);
+  }
+  .cdp-item-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .cdp-id { font-family: ui-monospace, monospace; font-weight: 700; font-size: .82rem; color: #4a90d9; }
+  .cdp-name { font-size: .82rem; color: var(--text-secondary); }
+  .cdp-done { margin-left: auto; font-size: .75rem; color: #22c55e; font-weight: 700; }
+  .cdp-board { height: 300px; border-radius: 8px; border: 1px solid var(--course-border); }
+  .cdp-row { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
 </style>
 </head>
 <body class="index-body">
