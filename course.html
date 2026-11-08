@@ -3,7 +3,7 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='2955b2ac';</script>
+<script>window.__BUILD_V='668d6e7f';</script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -12,15 +12,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Course - WYK Maths Team</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="/assets/css/styles.css?v=2955b2ac" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=668d6e7f" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" />
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
-<script src="/assets/js/core/ui.js?v=2955b2ac"></script>
-<script src="/assets/js/core/net.js?v=2955b2ac"></script>
-<script src="/assets/js/core/api.js?v=2955b2ac"></script>
-<script src="/assets/js/core/page.js?v=2955b2ac"></script>
+<script src="/assets/js/core/ui.js?v=668d6e7f"></script>
+<script src="/assets/js/core/net.js?v=668d6e7f"></script>
+<script src="/assets/js/core/api.js?v=668d6e7f"></script>
+<script src="/assets/js/core/page.js?v=668d6e7f"></script>
 <style>
   :root {
     --course-bg: var(--content-bg, #f8f9fa);
@@ -64,6 +64,10 @@
   .course-table tr:last-child td { border-bottom: none; }
   .course-table tbody tr { transition: background 0.2s; }
   .course-table tbody tr:hover { background: rgba(127,127,127,0.05); }
+  /* 整行可点：整个单元格都是热区，不用对准文字 */
+  .course-table tbody tr.course-row { cursor: pointer; }
+  .course-table tbody tr.course-row:hover { background: rgba(74,144,217,0.07); }
+  .course-table tbody tr.course-row:focus-visible { outline: 2px solid #4a90d9; outline-offset: -2px; }
 
   .course-table .col-id { font-family: ui-monospace, monospace; font-weight: 600; color: var(--text-secondary); }
   .course-table .col-topic a { color: var(--text-primary); font-weight: 700; text-decoration: none; font-size: 1.05rem; }
@@ -386,13 +390,13 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=2955b2ac"></script>
-  <script src="/assets/js/app.js?v=2955b2ac"></script>
-  <script src="/assets/js/topbar.js?v=2955b2ac"></script>
-  <script src="/assets/js/sidebar.js?v=2955b2ac"></script>
-  <script src="/assets/js/heartbeat.js?v=2955b2ac"></script>
-  <script src="/assets/js/pk-invite.js?v=2955b2ac"></script>
-  <script src="/assets/js/pages/course.js?v=2955b2ac"></script>
-  <script src="/assets/js/pk-notify.js?v=2955b2ac"></script>
+  <script src="/assets/js/auth.js?v=668d6e7f"></script>
+  <script src="/assets/js/app.js?v=668d6e7f"></script>
+  <script src="/assets/js/topbar.js?v=668d6e7f"></script>
+  <script src="/assets/js/sidebar.js?v=668d6e7f"></script>
+  <script src="/assets/js/heartbeat.js?v=668d6e7f"></script>
+  <script src="/assets/js/pk-invite.js?v=668d6e7f"></script>
+  <script src="/assets/js/pages/course.js?v=668d6e7f"></script>
+  <script src="/assets/js/pk-notify.js?v=668d6e7f"></script>
 </body>
 </html>

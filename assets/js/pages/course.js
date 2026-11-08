@@ -261,11 +261,12 @@
     const rows = courses.map((c) => {
       const pct = c.total ? Math.round(c.solved / c.total * 100) : 0;
       const cls = pct >= 100 ? 'p-green' : (pct >= 50 ? 'p-yellow' : 'p-red');
+      const href = '/course/' + encodeURIComponent(track) + '/' + encodeURIComponent(c.id);
       return `
-        <tr>
+        <tr class="course-row" data-href="${href}" tabindex="0" role="link">
           <td class="col-id">${esc(c.id)}</td>
           <td class="col-topic">
-            <a href="/course/${encodeURIComponent(track)}/${encodeURIComponent(c.id)}">${esc(c.topic || '(untitled)')}</a>
+            <a href="${href}">${esc(c.topic || '(untitled)')}</a>
           </td>
           <td class="col-progress">
             <div class="progbar ${cls}"><i style="width:${pct}%"></i></div>
@@ -285,6 +286,24 @@
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>`;
+
+    bindRowClicks();
+  }
+
+  // 整行可点：点到行内任意位置都跳转，点链接本身则交给浏览器
+  function bindRowClicks() {
+    root.querySelectorAll('.course-row[data-href]').forEach((tr) => {
+      tr.addEventListener('click', (e) => {
+        if (e.target.closest('a')) return;
+        location.href = tr.dataset.href;
+      });
+      tr.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          location.href = tr.dataset.href;
+        }
+      });
+    });
   }
 
   // ─────────── 单节教程 ───────────
