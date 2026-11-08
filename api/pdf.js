@@ -11,7 +11,7 @@ import path from 'node:path';
 import { verifyToken } from '../lib/auth.js';
 import { wrapHandler } from '../lib/errors.js';
 
-const PDF_ROOT = path.join(process.cwd(), 'pdfstore');
+const PDF_ROOT = path.join(process.cwd(), 'assets', 'pdf');
 
 function safeJoin(name) {
   // 只允许 assets/pdf 下的文件：去掉开头的斜杠，拒绝任何 .. 段，
