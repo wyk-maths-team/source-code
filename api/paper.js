@@ -524,7 +524,7 @@ async function handler(req, res) {
 
     const paperTotal = (await db.collection('papers').findOne({ track, year }, { projection: { problemIds: 1 } }) || {}).problemIds || [];
     const mode = String((req.body && req.body.mode) || '');
-    const effort = mode === 'fast' ? 'low' : effortForProblem(problem, { total: paperTotal.length });
+    const effort = mode === 'ultra' ? 'low' : effortForProblem(problem, { total: paperTotal.length });
     const ai = await markOneImage(prompt, imageUrl, effort);
     const mark = normalizeMark(parseJSONReply(ai.content));
     if (!mark) return res.status(502).json({ success: false, message: 'AI reply was not valid JSON' });
@@ -646,8 +646,8 @@ async function handler(req, res) {
         reference_answer: String(problem.ans || ''),
         total_marks: totalMarks,
       });
-      // mode=fast 强制全部走 low；默认按难度/题号分级
-      const effort = mode === 'fast' ? 'low' : effortForProblem(problem, { total: answers.length });
+      // mode=ultra 强制全部走 low；默认按难度/题号分级
+      const effort = mode === 'ultra' ? 'low' : effortForProblem(problem, { total: answers.length });
       const ai = await markOneImage(prompt, imageUrl, effort);
       const mark = normalizeMark(parseJSONReply(ai.content));
       if (!mark) throw new Error('AI reply invalid for ' + pid);

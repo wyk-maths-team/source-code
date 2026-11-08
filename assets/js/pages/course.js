@@ -625,6 +625,9 @@
   // 手写作答图导出时的缩放（百分比）。降一点能显著减少上传体积和 AI 读图耗时，
   // 但太低会让笔迹糊掉 —— 75% 是清晰度和速度的平衡点。改这一个数即可。
   const HANDWRITING_EXPORT_SCALE = 0.75;
+  // Fast 模式下的导出缩放：像素再压一半，上传更快、AI 读图也更省
+  const HANDWRITING_EXPORT_SCALE_FAST = 0.5;
+  let padCompress = false;   // 由试卷页的 Fast 开关控制
 
   const PDF_BOX_STYLE = 'position:absolute;left:10%;width:80%;border:1px solid var(--border-color);'
     + 'border-radius:8px;background:rgba(255,255,255,.96);box-shadow:0 2px 10px rgba(0,0,0,.12);'
@@ -1024,7 +1027,8 @@
       getBackground: function () { return bgImage ? bgImage.src : null; },
       toDataUrl: function () {
         try {
-          var scale = Math.max(0.3, Math.min(1, HANDWRITING_EXPORT_SCALE));
+          var base = padCompress ? HANDWRITING_EXPORT_SCALE_FAST : HANDWRITING_EXPORT_SCALE;
+          var scale = Math.max(0.3, Math.min(1, base));
           var out = document.createElement('canvas');
           out.width = Math.max(1, Math.round(canvas.width * scale));
           out.height = Math.max(1, Math.round(canvas.height * scale));
@@ -1758,8 +1762,8 @@
       <div class="paper-title">${esc(paper.title)}</div>
       <div class="paper-actions">
         <span class="paper-mode" id="paperMode">
-          <button type="button" data-mode="" class="on">Ultra</button>
-          <button type="button" data-mode="fast">Fast</button>
+          <button type="button" data-toggle="fast" title="Downscale the image before it is uploaded">Fast</button>
+          <button type="button" data-toggle="ultra" title="Force low thinking effort on every question (implies Fast)">Ultra</button>
         </span>
         <span class="paper-score" id="paperScore">${paper.scoredMarks || 0} / ${paper.totalMarks || 0} marks</span>
         <span class="paper-count" id="paperCount">0 / ${paper.questions.length} attempted</span>
@@ -1769,19 +1773,47 @@
     host.innerHTML = '';
     host.appendChild(bar);
 
-    // 批改模式：Ultra = 按难度分级；Fast = 全部 low（更快、更省）
-    let markMode = '';
-    try { markMode = localStorage.getItem('paperMarkMode') === 'fast' ? 'fast' : ''; } catch (e) {}
+    // 两个独立开关：
+    //   Fast  = 图片先压像素（上传更快、AI 读图更省）
+    //   Ultra = 所有题思考强度强制 low；打开时连带打开 Fast
+    let fastOn = false;
+    let ultraOn = false;
+    try {
+      fastOn = localStorage.getItem('paperFast') === '1';
+      ultraOn = localStorage.getItem('paperUltra') === '1';
+    } catch (e) {}
+    if (ultraOn) fastOn = true;   // 存档里可能不一致，这里对齐
+    padCompress = fastOn;
+    const markMode = () => (ultraOn ? 'ultra' : '');
+
     const modeBox = bar.querySelector('#paperMode');
+    function paintModes() {
+      if (!modeBox) return;
+      modeBox.querySelector('[data-toggle="fast"]').classList.toggle('on', fastOn);
+      modeBox.querySelector('[data-toggle="ultra"]').classList.toggle('on', ultraOn);
+    }
+    function persistModes() {
+      try {
+        localStorage.setItem('paperFast', fastOn ? '1' : '0');
+        localStorage.setItem('paperUltra', ultraOn ? '1' : '0');
+      } catch (e) {}
+    }
     if (modeBox) {
-      modeBox.querySelectorAll('button[data-mode]').forEach((b) => {
-        b.classList.toggle('on', (b.dataset.mode || '') === markMode);
-        b.addEventListener('click', () => {
-          markMode = b.dataset.mode || '';
-          try { localStorage.setItem('paperMarkMode', markMode || 'ultra'); } catch (e) {}
-          modeBox.querySelectorAll('button[data-mode]').forEach((o) => o.classList.toggle('on', o === b));
-        });
+      modeBox.querySelector('[data-toggle="fast"]').addEventListener('click', () => {
+        fastOn = !fastOn;
+        if (!fastOn) ultraOn = false;   // 关掉压缩，Ultra 也就没意义了
+        padCompress = fastOn;
+        paintModes();
+        persistModes();
       });
+      modeBox.querySelector('[data-toggle="ultra"]').addEventListener('click', () => {
+        ultraOn = !ultraOn;
+        if (ultraOn) fastOn = true;     // Ultra 强制 Fast
+        padCompress = fastOn;
+        paintModes();
+        persistModes();
+      });
+      paintModes();
     }
 
     const list = document.createElement('div');
@@ -1901,7 +1933,7 @@
         oneBtn.disabled = true;
         oneBtn.textContent = 'Marking…';
         try {
-          const out = await API.post('/api/paper?action=mark', { track, year, pid: q.id, image, mode: markMode });
+          const out = await API.post('/api/paper?action=mark', { track, year, pid: q.id, image, mode: markMode() });
           if (!out || !out.success) throw new Error((out && out.message) || 'Marking failed');
           if (out.usage) out.mark.usage = out.usage;
           if (out.chargedTokens) out.mark.chargedTokens = out.chargedTokens;
@@ -1983,7 +2015,7 @@
       status.textContent = 'Marking ' + answers.length + ' question(s)…';
 
       try {
-        const out = await API.post('/api/paper?action=markAll', { track, year, answers, mode: markMode });
+        const out = await API.post('/api/paper?action=markAll', { track, year, answers, mode: markMode() });
         if (!out || !out.success) throw new Error((out && out.message) || 'Marking failed');
 
         (out.marked || []).forEach((m) => {
