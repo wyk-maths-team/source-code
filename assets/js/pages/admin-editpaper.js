@@ -34,7 +34,7 @@
       const byPid = new Map((d.paper.layout.items || []).map((it) => [it.pid, it]));
       state.items = state.questions.map((q, i) => {
         const it = byPid.get(q.id) || {};
-        return { pid: q.id, page: it.page || i + 1, height: it.height || 260, statement: q.statement };
+        return { pid: q.id, page: it.page || i + 1, height: it.height || 520, statement: q.statement };
       });
       render();
     } catch (e) {
@@ -193,9 +193,9 @@
 
     $('epSave').addEventListener('click', save);
     $('epReset').addEventListener('click', async () => {
-      state.items.forEach((it, i) => { it.height = 260; it.page = i + 1; });
+      state.items.forEach((it, i) => { it.height = 520; it.page = i + 1; });
       render();
-      toast('Reset to 260px (not saved yet)', true);
+      toast('Reset to 520px (not saved yet)', true);
     });
 
     Page.hideSkeleton();
