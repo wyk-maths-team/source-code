@@ -91,8 +91,11 @@
 
     const el = document.createElement('div');
     el.className = 'ach-toast r-' + (a.rarity || 'common');
+    const iconHtml = a.svg
+      ? `<img src="${esc(a.svg)}" alt="" width="44" height="44" style="display:block;border-radius:10px">`
+      : `<i class="${esc(a.icon || 'fa-solid fa-trophy')}"></i>`;
     el.innerHTML = `
-      <div class="ach-toast-icon"><i class="${esc(a.icon || 'fa-solid fa-trophy')}"></i></div>
+      <div class="ach-toast-icon">${iconHtml}</div>
       <div class="ach-toast-body">
         <div class="ach-toast-label">Achievement Unlocked</div>
         <div class="ach-toast-name">${esc(a.name || a.id)}</div>

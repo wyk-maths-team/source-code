@@ -106,7 +106,9 @@
                  title="${escapeHtml(displayDesc)}">
               <span class="ach-rarity-tag">${rarity}</span>
               <div class="ach-icon-wrap">
-                <i class="fa-solid ${displayIcon}"></i>
+                ${(a.hidden && !isUnlocked)
+                  ? `<i class="fa-solid ${displayIcon}"></i>`
+                  : `<img src="/assets/svg/achievements/${id}.svg" alt="" width="48" height="48" loading="lazy" style="display:block;border-radius:12px">`}
               </div>
               <div class="ach-name">${escapeHtml(displayName)}</div>
               <div class="ach-desc">${escapeHtml(displayDesc)}</div>

@@ -331,11 +331,22 @@
       box-shadow: 0 4px 12px rgba(0,0,0,.08);
     }
     .ach-card.locked {
-      opacity: .45;
-      filter: grayscale(1);
+      /* 未解锁但保留徽章的配色 —— 灰度会把这些手绘 SVG 变成一团灰，
+         反而看不出目标长什么样。只压低不透明度，仍能一眼认出是哪个成就。 */
+      opacity: .62;
+    }
+    .ach-card.locked .ach-icon-wrap img {
+      filter: saturate(.55);
     }
     .ach-card.locked:hover {
-      opacity: .65;
+      opacity: .9;
+    }
+    .ach-card.locked:hover .ach-icon-wrap img {
+      filter: none;
+    }
+    .ach-icon-wrap img {
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,.18);
     }
 
     .ach-icon-wrap {
