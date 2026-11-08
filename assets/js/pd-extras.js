@@ -885,6 +885,9 @@ window.__PD_EXTRAS__ = {
     document.getElementById('backToListBtn')?.addEventListener('click', () => history.back());
     document.getElementById('submissionsBtn')?.addEventListener('click', () => window.location.href = `/submissions/problem/${problemId}`);
 
+    // 草稿板（全屏画板，提交时把图塞进 photo 面板走同一条批改路径）
+    loadScript('/assets/js/pd-scratchpad.js' + (window.__BUILD_V ? '?v=' + window.__BUILD_V : '')).catch((e) => console.warn('[scratchpad]', e));
+
     // 全屏绘图遮罩（画笔 / 橡皮 / 多指）
     document.getElementById('drawToggleBtn')?.addEventListener('click', toggleDrawMode);
 
