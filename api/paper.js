@@ -284,7 +284,7 @@ async function handler(req, res) {
       return res.status(400).json({ success: false, message: 'Invalid year' });
     }
 
-    const expected = track === 'M0' ? 19 : 12;
+    const expected = track === 'M0' ? 19 :track === 'M1'? 12:13;
     const yy = String(year).slice(-2);
     const re = new RegExp('^' + track + 'DSE' + yy + '\d{2}$');
 
