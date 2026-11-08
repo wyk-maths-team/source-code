@@ -500,6 +500,42 @@
   .ip-input-row[hidden] { display: none !important; }
   .ip-board { height: 300px; margin: 0 16px 12px; border-radius: 8px; border: 1px solid var(--border-color); }
   .ip-board[hidden] { display: none !important; }
+
+  /* 导入图片的裁剪编辑器 */
+  .crop-mask {
+    position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,.72);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .crop-panel {
+    background: var(--course-card); border-radius: 14px; padding: 16px;
+    max-width: 860px; width: 100%; max-height: 90vh; overflow: auto;
+  }
+  .crop-stage { position: relative; display: inline-block; max-width: 100%; margin: 0 auto; }
+  .crop-img { display: block; max-width: 100%; max-height: 62vh; user-select: none; -webkit-user-drag: none; }
+  .crop-box {
+    position: absolute; border: 2px solid #4a90d9; box-sizing: border-box;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,.45); cursor: move; touch-action: none;
+  }
+  .crop-handle {
+    position: absolute; right: -7px; bottom: -7px; width: 16px; height: 16px;
+    border-radius: 3px; background: #4a90d9; border: 2px solid #fff; cursor: nwse-resize;
+  }
+  .crop-handle[data-h="se"] { right: -7px; bottom: -7px; }
+  .crop-bar { display: flex; align-items: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  .crop-hint { font-size: .8rem; color: var(--text-secondary); }
+  .crop-cancel, .crop-apply {
+    margin-left: auto; padding: 8px 18px; border-radius: 8px; cursor: pointer;
+    font-family: inherit; font-size: .86rem; font-weight: 700;
+  }
+  .crop-cancel { background: var(--bg-color); color: var(--text-primary); border: 1px solid var(--course-border); margin-left: auto; }
+  .crop-apply { background: #4a90d9; color: #fff; border: none; margin-left: 0; }
+  .paper-import-edit { margin-top: 8px; display: flex; justify-content: flex-end; }
+  .pi-edit-btn {
+    padding: 6px 14px; border-radius: 8px; border: 1px solid var(--course-border);
+    background: var(--bg-color); color: var(--text-primary); cursor: pointer;
+    font-family: inherit; font-size: .8rem; font-weight: 600;
+  }
+  .pi-edit-btn:hover { border-color: #4a90d9; color: #4a90d9; }
 </style>
 </head>
 <body class="index-body">

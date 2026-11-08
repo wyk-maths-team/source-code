@@ -1940,6 +1940,91 @@
   }
 
 
+
+  // ─────────── 导入图片的裁剪编辑器 ───────────
+  // 拍照常有背景，让学生拖一个框选出真正要交的部分，确认后用 canvas 裁出来。
+  function openCropEditor(srcUrl, onApply) {
+    const mask = document.createElement('div');
+    mask.className = 'crop-mask';
+    mask.innerHTML =
+      '<div class="crop-panel">' +
+        '<div class="crop-stage"><img class="crop-img" alt=""><div class="crop-box">' +
+          '<span class="crop-handle" data-h="se"></span>' +
+        '</div></div>' +
+        '<div class="crop-bar">' +
+          '<span class="crop-hint">Drag the box to choose what to keep</span>' +
+          '<button type="button" class="crop-cancel">Cancel</button>' +
+          '<button type="button" class="crop-apply">Apply crop</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(mask);
+
+    const img = mask.querySelector('.crop-img');
+    const box = mask.querySelector('.crop-box');
+    const stage = mask.querySelector('.crop-stage');
+
+    let rect = null;      // 相对图片显示区域的选框 {x,y,w,h}
+
+    function clamp() {
+      const W = img.clientWidth, H = img.clientHeight;
+      rect.w = Math.max(40, Math.min(rect.w, W));
+      rect.h = Math.max(40, Math.min(rect.h, H));
+      rect.x = Math.max(0, Math.min(rect.x, W - rect.w));
+      rect.y = Math.max(0, Math.min(rect.y, H - rect.h));
+      box.style.left = rect.x + 'px';
+      box.style.top = rect.y + 'px';
+      box.style.width = rect.w + 'px';
+      box.style.height = rect.h + 'px';
+    }
+
+    img.onload = () => {
+      const W = img.clientWidth, H = img.clientHeight;
+      // 默认取中间 80%
+      rect = { x: W * 0.1, y: H * 0.1, w: W * 0.8, h: H * 0.8 };
+      clamp();
+    };
+    img.src = srcUrl;
+
+    let drag = null;
+    box.addEventListener('pointerdown', (e) => {
+      const onHandle = e.target.classList.contains('crop-handle');
+      drag = { mode: onHandle ? 'resize' : 'move', sx: e.clientX, sy: e.clientY, ox: rect.x, oy: rect.y, ow: rect.w, oh: rect.h };
+      box.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    box.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const dx = e.clientX - drag.sx;
+      const dy = e.clientY - drag.sy;
+      if (drag.mode === 'move') { rect.x = drag.ox + dx; rect.y = drag.oy + dy; }
+      else { rect.w = drag.ow + dx; rect.h = drag.oh + dy; }
+      clamp();
+    });
+    const endDrag = () => { drag = null; };
+    box.addEventListener('pointerup', endDrag);
+    box.addEventListener('pointercancel', endDrag);
+
+    function close() { mask.remove(); }
+    mask.querySelector('.crop-cancel').addEventListener('click', close);
+    mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
+
+    mask.querySelector('.crop-apply').addEventListener('click', () => {
+      const scale = img.naturalWidth / img.clientWidth;
+      const out = document.createElement('canvas');
+      out.width = Math.max(1, Math.round(rect.w * scale));
+      out.height = Math.max(1, Math.round(rect.h * scale));
+      const ctx = out.getContext('2d');
+      ctx.drawImage(
+        img,
+        rect.x * scale, rect.y * scale, rect.w * scale, rect.h * scale,
+        0, 0, out.width, out.height
+      );
+      const dataUrl = out.toDataURL('image/jpeg', 0.9);
+      close();
+      if (onApply) onApply(dataUrl);
+    });
+  }
+
   // ─────────── 每题 Import：从设备或历史提交取一张图作为作答 ───────────
   // 选完图后只留 Import 按钮，图片按宽度撑满显示；批改时优先用这张图。
   function bindImport({ q, importBtn, choices, importPreview, padWrap, card }) {
@@ -1953,7 +2038,14 @@
         return;
       }
       importPreview.hidden = false;
-      importPreview.innerHTML = '<img src="' + esc(url) + '" alt="imported answer">';
+      importPreview.innerHTML = '<img src="' + esc(url) + '" alt="imported answer">' +
+        '<div class="paper-import-edit"><button type="button" class="pi-edit-btn">Edit image</button></div>';
+      const editBtn = importPreview.querySelector('.pi-edit-btn');
+      if (editBtn) {
+        editBtn.addEventListener('click', () => {
+          openCropEditor(state.image, (cropped) => { setImage(cropped); });
+        });
+      }
       importPreview.dataset.pid = q.id;
       // 占据画板位置：把画板收起，只显示导入的图
       if (padWrap) padWrap.style.display = 'none';
