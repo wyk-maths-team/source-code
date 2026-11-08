@@ -162,6 +162,40 @@ async function handler(req, res) {
     });
   }
 
+  // ── 我自己的历史图片提交（Import → submissions 用）──
+  if (action === 'myImages') {
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
+
+    const [dse, normal] = await Promise.all([
+      db.collection('dsesubmissions')
+        .find({ username: req.user.username, imageUrl: { $nin: [null, ''] } },
+          { projection: { subid: 1, pid: 1, paperTrack: 1, paperYear: 1, imageUrl: 1, createdAt: 1, _id: 0 } })
+        .sort({ createdAt: -1 }).limit(limit).toArray(),
+      db.collection('submissions')
+        .find({ username: req.user.username, type: 'image', imageUrl: { $nin: [null, ''] } },
+          { projection: { subid: 1, problemId: 1, imageUrl: 1, timestamp: 1, _id: 0 } })
+        .sort({ timestamp: -1 }).limit(limit).toArray(),
+    ]);
+
+    const rows = [
+      ...dse.map((d) => ({
+        id: d.subid, pid: d.pid, imageUrl: d.imageUrl,
+        at: d.createdAt, source: 'dse',
+        label: (d.paperTrack || '') + ' ' + (d.paperYear || '') + ' · ' + (d.pid || ''),
+      })),
+      ...normal.map((n) => ({
+        id: n.subid, pid: n.problemId, imageUrl: n.imageUrl,
+        at: n.timestamp, source: 'submission',
+        label: n.problemId || '',
+      })),
+    ]
+      .filter((r) => r.imageUrl)
+      .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+      .slice(0, limit);
+
+    return res.status(200).json({ success: true, images: rows });
+  }
+
   // ── 所有人的 DSE 提交记录（公开给登录用户）──
   if (action === 'dseSubmissions') {
     const page = Math.max(1, parseInt(req.query.page) || 1);

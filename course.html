@@ -389,6 +389,70 @@
     padding: 5px 12px; border-radius: 20px; font-size: .85rem; font-weight: 800;
     background: rgba(74,144,217,.12); color: #4a90d9; font-variant-numeric: tabular-nums;
   }
+
+  /* 每题 Import：设备 / 历史提交 */
+  .paper-import { position: relative; display: inline-flex; }
+  .paper-import-btn {
+    padding: 7px 14px; border-radius: 8px; border: 1px solid var(--course-border);
+    background: var(--bg-color); color: var(--text-primary); cursor: pointer;
+    font-size: .84rem; font-weight: 600; font-family: inherit;
+  }
+  .paper-import-btn:hover { border-color: #8e5cf7; color: #8e5cf7; }
+  .paper-import-choices {
+    position: absolute; left: 0; top: calc(100% + 6px); z-index: 30;
+    display: flex; flex-direction: column; gap: 4px; min-width: 170px;
+    padding: 6px; border-radius: 10px; background: var(--course-card);
+    border: 1px solid var(--course-border); box-shadow: 0 8px 24px rgba(0,0,0,.14);
+  }
+  .paper-import-choices button {
+    padding: 8px 12px; border: none; border-radius: 7px; cursor: pointer;
+    background: transparent; color: var(--text-primary); text-align: left;
+    font-size: .84rem; font-family: inherit;
+  }
+  .paper-import-choices button:hover { background: rgba(142,92,247,.12); color: #8e5cf7; }
+
+  .paper-import-preview { margin-top: 12px; }
+  .paper-import-preview img { display: block; width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--course-border); }
+
+  .paper-import-list {
+    margin-top: 12px; display: grid; gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
+  .paper-import-list button {
+    display: flex; flex-direction: column; gap: 6px; padding: 8px;
+    border: 1px solid var(--course-border); border-radius: 9px; cursor: pointer;
+    background: var(--bg-color); font-family: inherit; text-align: left;
+  }
+  .paper-import-list button:hover { border-color: #8e5cf7; }
+  .paper-import-list img { width: 100%; height: 90px; object-fit: cover; border-radius: 6px; }
+  .paper-import-list .pi-meta { font-size: .72rem; color: var(--text-secondary); line-height: 1.35; }
+
+  /* 课程页的手写交卷区 */
+  .course-drawpad {
+    margin: 26px auto 40px; max-width: 760px;
+    background: var(--course-card); border: 1px solid var(--course-border);
+    border-radius: 14px; padding: 16px 18px;
+  }
+  .cdp-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .cdp-title { font-weight: 800; font-size: .95rem; }
+  .cdp-pick {
+    padding: 7px 10px; border-radius: 8px; border: 1px solid var(--course-border);
+    background: var(--bg-color); color: var(--text-primary); font-family: inherit; font-size: .82rem;
+    max-width: 320px;
+  }
+  .cdp-lock, .cdp-submit {
+    padding: 7px 14px; border-radius: 8px; cursor: pointer; font-family: inherit;
+    font-size: .82rem; font-weight: 700; border: 1px solid var(--course-border);
+    background: var(--bg-color); color: var(--text-primary);
+  }
+  .cdp-submit { background: #4a90d9; border-color: #4a90d9; color: #fff; }
+  .cdp-submit:disabled { opacity: .55; cursor: not-allowed; }
+  .cdp-status { font-size: .8rem; color: var(--text-secondary); }
+  .cdp-board { height: 320px; border-radius: 10px; border: 1px solid var(--course-border); }
+  .cdp-result:not(:empty) { margin-top: 12px; }
+  .cdp-mark { display: flex; gap: 12px; align-items: baseline; padding: 10px 14px; border-radius: 9px; background: rgba(74,144,217,.10); }
+  .cdp-score { font-weight: 800; font-size: 1.05rem; color: #4a90d9; }
+  .cdp-comment { font-size: .86rem; color: var(--text-secondary); line-height: 1.55; }
 </style>
 </head>
 <body class="index-body">

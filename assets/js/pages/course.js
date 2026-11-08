@@ -374,6 +374,7 @@
       } catch (e) {}
       // PDF 尾巴挂一份题目清单
       renderProblemIndex(c);
+      renderCourseDrawPad(c);
     }).catch(function () {});
 
     let scrollTimer = null;
@@ -1414,6 +1415,91 @@
     });
   }
 
+
+  // ─────────── 课程页的手写作答（纯 HTML 教程也能画完直接交）───────────
+  function renderCourseDrawPad(course) {
+    const old = document.getElementById('courseDrawPad');
+    if (old) old.remove();
+
+    const list = (course && course.problems) || [];
+    if (!list.length) return;
+
+    const box = document.createElement('section');
+    box.id = 'courseDrawPad';
+    box.className = 'course-drawpad';
+    box.innerHTML =
+      '<div class="cdp-head">' +
+        '<span class="cdp-title"><i class="fas fa-pen-line"></i> Hand in by hand</span>' +
+        '<select class="cdp-pick" id="cdpPid">' +
+          list.map((p) => '<option value="' + esc(p.id) + '">' + esc(p.id) + (p.name ? ' · ' + esc(p.name) : '') + '</option>').join('') +
+        '</select>' +
+        '<button type="button" class="cdp-lock" id="cdpLock">Tap pad to start</button>' +
+        '<button type="button" class="cdp-submit" id="cdpSubmit">Submit drawing</button>' +
+        '<span class="cdp-status" id="cdpStatus"></span>' +
+      '</div>' +
+      '<div class="cdp-board paper-pad paper-pad-locked" id="cdpBoard"></div>' +
+      '<div class="cdp-result" id="cdpResult"></div>';
+
+    const anchor = document.getElementById('problemIndex') || document.getElementById('courseContent');
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(box, anchor.nextSibling);
+    else if (root) root.appendChild(box);
+
+    const board = box.querySelector('#cdpBoard');
+    const status = box.querySelector('#cdpStatus');
+    const result = box.querySelector('#cdpResult');
+    const submitBtn = box.querySelector('#cdpSubmit');
+
+    const pad = createDrawPad(board, 'coursePad:' + (course.track || '') + ':' + (course.id || ''), { transparent: true });
+    pad.restore();
+    board.appendChild(buildPadToolbar(pad));
+
+    // 和解锁逻辑一致：先点一下才能画
+    const unlock = document.createElement('button');
+    unlock.type = 'button';
+    unlock.className = 'paper-pad-unlock';
+    unlock.innerHTML = '<i class="fas fa-pen"></i> Tap to write';
+    board.appendChild(unlock);
+    unlock.addEventListener('click', () => {
+      board.classList.remove('paper-pad-locked');
+      board.classList.add('paper-pad-active');
+      unlock.remove();
+    });
+
+    submitBtn.addEventListener('click', async () => {
+      if (pad.isEmpty()) { status.textContent = 'Draw something first'; return; }
+      const pid = box.querySelector('#cdpPid').value;
+      const image = pad.toDataUrl();
+      if (!image) { status.textContent = 'Could not export the drawing'; return; }
+
+      submitBtn.disabled = true;
+      status.textContent = 'Uploading…';
+      try {
+        const sub = await API.post('/api/submit', { problemId: pid, type: 'image', image });
+        if (!sub || !sub.success) throw new Error((sub && sub.message) || 'Submit failed');
+        const subid = sub.subid || (sub.submission && sub.submission.subid);
+        status.textContent = 'Grading…';
+
+        const graded = await API.post('/api/image-grade', { problemId: pid, subid, imageUrl: sub.imageUrl });
+        if (graded && graded.success && graded.grade) {
+          const g = graded.grade;
+          result.innerHTML = '<div class="cdp-mark">' +
+            '<span class="cdp-score">' + esc(String(g.score != null ? g.score : '')) + '</span>' +
+            (g.comment ? '<span class="cdp-comment">' + esc(g.comment) + '</span>' : '') +
+          '</div>';
+          renderMath(result);
+          status.textContent = 'Graded';
+        } else {
+          status.textContent = 'Submitted — grading is still running';
+        }
+        pad.clear();
+      } catch (e) {
+        status.textContent = 'Failed: ' + (e.message || 'error');
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  }
+
   // ─────────── Papers：M0 / M1 / M2 ───────────
   async function renderPaperTracks() {
     root.classList.remove('wide');
@@ -1561,7 +1647,30 @@
       oneBtn.className = 'paper-mark-one';
       oneBtn.textContent = 'Mark this question';
       row.appendChild(oneBtn);
+
+      // Import：把设备上的照片或别的提交图拿来做这一题的作答
+      const importWrap = document.createElement('span');
+      importWrap.className = 'paper-import';
+      const importBtn = document.createElement('button');
+      importBtn.type = 'button';
+      importBtn.className = 'paper-import-btn';
+      importBtn.textContent = 'Import';
+      const choices = document.createElement('span');
+      choices.className = 'paper-import-choices';
+      choices.hidden = true;
+      choices.innerHTML = '<button type="button" data-src="device">From device</button>' +
+        '<button type="button" data-src="submissions">From submissions</button>';
+      importWrap.appendChild(importBtn);
+      importWrap.appendChild(choices);
+      row.appendChild(importWrap);
       card.appendChild(row);
+
+      const importPreview = document.createElement('div');
+      importPreview.className = 'paper-import-preview';
+      importPreview.hidden = true;
+      card.appendChild(importPreview);
+
+      bindImport({ q, importBtn, choices, importPreview, padWrap, card });
 
       // 批改结果区
       const res = document.createElement('div');
@@ -1570,13 +1679,17 @@
       if (marks[q.id]) renderMarkInto(res, marks[q.id]);
 
       oneBtn.addEventListener('click', async () => {
+        const imported = card.__importedImage && card.__importedImage();
         const p = pads[q.id];
-        if (!p || p.isEmpty()) {
-          oneBtn.textContent = 'Draw something first';
-          setTimeout(() => { oneBtn.textContent = 'Mark this question'; }, 1600);
-          return;
+        let image = imported || '';
+        if (!image) {
+          if (!p || p.isEmpty()) {
+            oneBtn.textContent = 'Draw or import something first';
+            setTimeout(() => { oneBtn.textContent = 'Mark this question'; }, 1800);
+            return;
+          }
+          image = p.toDataUrl();
         }
-        const image = p.toDataUrl();
         if (!image) return;
         oneBtn.disabled = true;
         oneBtn.textContent = 'Marking…';
@@ -1643,6 +1756,9 @@
       const status = document.getElementById('paperStatus');
       const answers = [];
       paper.questions.forEach((q) => {
+        const cardEl = list.querySelector('.paper-q[data-pid="' + CSS.escape(q.id) + '"]');
+        const imported = cardEl && cardEl.__importedImage && cardEl.__importedImage();
+        if (imported) { answers.push({ pid: q.id, image: imported }); return; }
         const pad = pads[q.id];
         if (!pad || pad.isEmpty()) return;
         const image = pad.toDataUrl();
@@ -1678,6 +1794,108 @@
         btn.disabled = false;
       }
     });
+  }
+
+
+  // ─────────── 每题 Import：从设备或历史提交取一张图作为作答 ───────────
+  // 选完图后只留 Import 按钮，图片按宽度撑满显示；批改时优先用这张图。
+  function bindImport({ q, importBtn, choices, importPreview, padWrap, card }) {
+    const state = { image: null, open: false, listEl: null };
+
+    function setImage(url) {
+      state.image = url || null;
+      if (!url) {
+        importPreview.hidden = true;
+        importPreview.innerHTML = '';
+        return;
+      }
+      importPreview.hidden = false;
+      importPreview.innerHTML = '<img src="' + esc(url) + '" alt="imported answer">';
+      importPreview.dataset.pid = q.id;
+      // 占据画板位置：把画板收起，只显示导入的图
+      if (padWrap) padWrap.style.display = 'none';
+      choices.hidden = true;
+      if (state.listEl) { state.listEl.remove(); state.listEl = null; }
+      importBtn.textContent = 'Replace image';
+    }
+
+    function resetToBoard() {
+      state.image = null;
+      importPreview.hidden = true;
+      importPreview.innerHTML = '';
+      if (padWrap) padWrap.style.display = '';
+      importBtn.textContent = 'Import';
+    }
+
+    importBtn.addEventListener('click', () => {
+      if (state.image) {
+        // 再点一次可以换图或退回画板
+        const back = window.confirm('Remove the imported image and go back to the drawing board?');
+        if (back) return resetToBoard();
+        setImage(state.image);
+        return;
+      }
+      choices.hidden = !choices.hidden;
+    });
+
+    choices.addEventListener('click', async (e) => {
+      const b = e.target.closest('button[data-src]');
+      if (!b) return;
+      choices.hidden = true;
+
+      if (b.dataset.src === 'device') {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.addEventListener('change', () => {
+          const f = input.files && input.files[0];
+          if (!f) return;
+          if (f.size > 8 * 1024 * 1024) { DSHUI.toast('Image too large (max 8MB)', 'warn'); return; }
+          const fr = new FileReader();
+          fr.onload = () => setImage(String(fr.result));
+          fr.onerror = () => DSHUI.toast('Could not read that file', 'warn');
+          fr.readAsDataURL(f);
+        });
+        input.click();
+        return;
+      }
+
+      // submissions：拉自己的历史图片，选一个
+      importBtn.textContent = 'Loading…';
+      try {
+        const res = await API.get('/api/paper?action=myImages&limit=20');
+        const list = (res && res.images) || [];
+        if (!list.length) {
+          importBtn.textContent = 'Import';
+          DSHUI.toast('You have no image submissions yet', 'warn');
+          return;
+        }
+        const ul = document.createElement('div');
+        ul.className = 'paper-import-list';
+        ul.innerHTML = list.map((it, i) => {
+          const when = it.at ? new Date(it.at).toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong' }) : '';
+          return '<button type="button" data-i="' + i + '">' +
+            '<img src="' + esc(it.imageUrl) + '" alt="">' +
+            '<span class="pi-meta">' + esc(it.label || it.pid || '') + '<br>' + esc(when) + '</span>' +
+          '</button>';
+        }).join('');
+        ul.addEventListener('click', (ev) => {
+          const btn = ev.target.closest('button[data-i]');
+          if (!btn) return;
+          const pick = list[Number(btn.dataset.i)];
+          if (pick) setImage(pick.imageUrl);
+        });
+        card.appendChild(ul);
+        state.listEl = ul;
+        importBtn.textContent = 'Import';
+      } catch (err) {
+        importBtn.textContent = 'Import';
+        DSHUI.toast('Could not load your submissions', 'warn');
+      }
+    });
+
+    // 供批改使用
+    card.__importedImage = () => state.image;
   }
 
   // 把批改结果排进卡片：得分 + 逐行 ✔/✘
