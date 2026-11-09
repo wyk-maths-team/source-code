@@ -878,14 +878,10 @@
       ctx.lineJoin = 'round';
     }
 
-    function strokePath(st) {
+    // 尺寸由 redraw() 统一量一次传进来：落笔用的 getBoundingClientRect 和
+    // 这里的展开必须来自同一次测量，否则存进去的比例和画出来的比例就会对不上。
+    function strokePath(st, W, H) {
       if (!st.points.length) return;
-      // strokes 里是 0-1，画的时候按当前逻辑尺寸展开。
-      // 尺寸还没量出来时**必须跳过绘制** —— 以前退回 canvas.width/dpr，
-      // 而默认画布是 300x150（物理），算出来的宽度远小于真实值，
-      // 笔迹就被整体缩到左上角一小块。等 fit() 拿到真实尺寸后 redraw() 会补画。
-      var W = logicalW;
-      var H = logicalH;
       if (!(W > 2) || !(H > 2)) return;
       ctx.strokeStyle = st.erase ? '#ffffff' : st.color;
       ctx.lineWidth = st.erase ? Math.max(10, st.width * 5) : st.width;
@@ -901,10 +897,14 @@
     }
 
     function redraw() {
+      // 一次测量，全帧共用 —— 这是「存进去的比例」和「画出来的比例」的唯一来源
+      var r = canvas.getBoundingClientRect();
+      var W = r.width || canvas.width / (dpr || 1);
+      var H = r.height || canvas.height / (dpr || 1);
       paintBase();
-      for (var i = 0; i < strokes.length; i++) strokePath(strokes[i]);
+      for (var i = 0; i < strokes.length; i++) strokePath(strokes[i], W, H);
       // 正在画的多条笔画
-      active.forEach(function (st) { strokePath(st); });
+      active.forEach(function (st) { strokePath(st, W, H); });
     }
 
     function fit() {
@@ -937,11 +937,12 @@
     // 以前存的是像素，每次尺寸变化都要换算，任何一处对不上就整体偏移或缩放。
     function pos(e) {
       var r = canvas.getBoundingClientRect();
-      // 分母必须和 strokePath 用的尺寸一致（logicalW/H），
-      // 否则归一化和反归一化尺度不同，笔迹就会整体缩小并偏向一角。
-      var w = (logicalW > 2) ? logicalW : (r.width || 1);
-      var h = (logicalH > 2) ? logicalH : (r.height || 1);
-      return { x: (e.clientX - r.left) / w, y: (e.clientY - r.top) / h };
+      // 用 CSS 实际宽度做分母：这是浏览器当前真正显示的大小，
+      // 和 redraw() 里量到的完全一致，不受 logicalW 是否过期影响。
+      return {
+        x: (e.clientX - r.left) / (r.width || 1),
+        y: (e.clientY - r.top) / (r.height || 1),
+      };
     }
 
     // 多指：每个 pointerId 维护自己的笔画（照 draw.js 的做法），互不干扰
