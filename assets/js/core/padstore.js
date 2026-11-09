@@ -98,10 +98,14 @@
       }));
     }
 
+    // 目标尺寸不可信（0 或还没量出来）时，直接用存档时的尺寸还原，
+    // 否则乘出来的坐标会贴近 0，笔迹看起来缩成一小团。
     const sw = d.w || targetW || 1;
     const sh = d.h || targetH || 1;
-    const kx = (targetW || sw) / sw;
-    const ky = (targetH || sh) / sh;
+    const useW = (targetW && targetW > 2) ? targetW : sw;
+    const useH = (targetH && targetH > 2) ? targetH : sh;
+    const kx = useW / sw;
+    const ky = useH / sh;
     const colors = d.c || ['#111827'];
     const widths = d.wd || [4];
 

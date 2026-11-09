@@ -813,8 +813,12 @@
 
     function restore() {
       if (!storageKey || !window.PadStore) return;
+      // 画布还没量过尺寸时必须先 fit()，否则 w/h 是 0，
+      // 归一化坐标乘 0 回来，笔迹就缩成一个点 —— 看起来像「恢复得特别小」。
+      if (!ready || canvas.width < 2 || canvas.height < 2) fit();
       var w = canvas.width / (dpr || 1);
       var h = canvas.height / (dpr || 1);
+      if (w < 2 || h < 2) return;      // 还是量不出来就先不恢复，等下一次
       var st = PadStore.loadSync(storageKey, w, h);
       if (st.found && st.strokes.length) {
         strokes = st.strokes;

@@ -3,7 +3,7 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='6f9d4d99';</script>
+<script>window.__BUILD_V='f760e3a3';</script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -14,14 +14,14 @@
 <title>Messages - WYK Maths Team</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<link rel="stylesheet" href="/assets/css/styles.css?v=6f9d4d99" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=f760e3a3" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 
-<script src="/assets/js/core/ui.js?v=6f9d4d99"></script>
-<script src="/assets/js/core/net.js?v=6f9d4d99"></script>
-<script src="/assets/js/core/api.js?v=6f9d4d99"></script>
-  <script src="/assets/js/core/padstore.js?v=6f9d4d99"></script>
-<script src="/assets/js/core/page.js?v=6f9d4d99"></script>
+<script src="/assets/js/core/ui.js?v=f760e3a3"></script>
+<script src="/assets/js/core/net.js?v=f760e3a3"></script>
+<script src="/assets/js/core/api.js?v=f760e3a3"></script>
+  <script src="/assets/js/core/padstore.js?v=f760e3a3"></script>
+<script src="/assets/js/core/page.js?v=f760e3a3"></script>
 
 <style>
   /* 这个页面要刚好占满可视区：抵消 .main-content 的 28/32px padding，
@@ -29,8 +29,13 @@
   #mainContent {
     padding: 0;
     min-height: 0;
+    /* vh 在手机上把地址栏也算进去，导致底部被裁且滚不到；
+       dvh 跟着可视区变，后面的 @supports 覆盖它 */
     height: calc(100vh - var(--topbar-height, 60px));
     overflow: hidden;
+  }
+  @supports (height: 100dvh) {
+    #mainContent { height: calc(100dvh - var(--topbar-height, 60px)); }
   }
 
   .chat-layout {
@@ -86,6 +91,11 @@
     flex: 1; overflow-y: auto; padding: 16px;
     display: flex; flex-direction: column; gap: 8px;
     background: var(--content-bg);
+    /* flex 子项默认 min-height:auto 会被内容撑开，溢出后就被父级裁掉；
+       显式归零才会真的滚动 */
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
   .chat-empty {
     margin: auto; text-align: center; color: var(--text-secondary);
@@ -152,9 +162,17 @@
   .back-btn { display: none; }
 
   @media (max-width: 760px) {
-    .chat-layout { flex-direction: column; }
-    .thread-list { width: 100%; flex: 1 1 auto; border-right: none; }
-    .chat-pane { display: none; }
+    .chat-layout { flex-direction: column; height: 100%; min-height: 0; }
+    /* 手机上必须让列表自己滚：flex 子项默认 min-height:auto，会被内容撑开又把
+       溢出裁掉，表现就是「滑不动」 */
+    .thread-list {
+      width: 100%; flex: 1 1 auto; border-right: none;
+      min-height: 0; overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+    .chat-pane { display: none; min-height: 0; }
+    .chat-body { min-height: 0; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
     .chat-layout.chat-open .thread-list { display: none; }
     .chat-layout.chat-open .chat-pane { display: flex; }
     .back-btn {
@@ -216,12 +234,12 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=6f9d4d99"></script>
-  <script src="/assets/js/app.js?v=6f9d4d99"></script>
-  <script src="/assets/js/topbar.js?v=6f9d4d99"></script>
-  <script src="/assets/js/sidebar.js?v=6f9d4d99"></script>
-  <script src="/assets/js/heartbeat.js?v=6f9d4d99"></script>
-  <script src="/assets/js/pk-invite.js?v=6f9d4d99"></script>
+  <script src="/assets/js/auth.js?v=f760e3a3"></script>
+  <script src="/assets/js/app.js?v=f760e3a3"></script>
+  <script src="/assets/js/topbar.js?v=f760e3a3"></script>
+  <script src="/assets/js/sidebar.js?v=f760e3a3"></script>
+  <script src="/assets/js/heartbeat.js?v=f760e3a3"></script>
+  <script src="/assets/js/pk-invite.js?v=f760e3a3"></script>
 
   <script>
     Page.boot({ title: 'Messages', requireAuth: true, skeleton: true });
@@ -507,6 +525,6 @@
       Page.hideSkeleton();
     });
   </script>
-<script src="/assets/js/pk-notify.js?v=6f9d4d99"></script>
+<script src="/assets/js/pk-notify.js?v=f760e3a3"></script>
 </body>
 </html>
