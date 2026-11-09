@@ -813,6 +813,18 @@
       return { w: w, h: h };
     }
 
+    // 容器宽度变了但 ResizeObserver 没来得及回调时，logicalW 会过期，
+    // 结果「归一化用真实宽度、反归一化用旧宽度」，笔迹就缩小并挤到左上角。
+    // 落笔和存档前都强制对齐一次，保证两边用的是同一个数。
+    function syncSize() {
+      var w = host.clientWidth || 0;
+      var h = host.clientHeight || 0;
+      if (w < 10 || h < 10) return false;
+      if (Math.abs(w - logicalW) < 0.5 && Math.abs(h - logicalH) < 0.5) return false;
+      fit();
+      return true;
+    }
+
     function persist() {
       if (!storageKey) return;
       clearTimeout(saveTimer);
@@ -925,8 +937,10 @@
     // 以前存的是像素，每次尺寸变化都要换算，任何一处对不上就整体偏移或缩放。
     function pos(e) {
       var r = canvas.getBoundingClientRect();
-      var w = r.width || 1;
-      var h = r.height || 1;
+      // 分母必须和 strokePath 用的尺寸一致（logicalW/H），
+      // 否则归一化和反归一化尺度不同，笔迹就会整体缩小并偏向一角。
+      var w = (logicalW > 2) ? logicalW : (r.width || 1);
+      var h = (logicalH > 2) ? logicalH : (r.height || 1);
       return { x: (e.clientX - r.left) / w, y: (e.clientY - r.top) / h };
     }
 
@@ -950,6 +964,8 @@
 
     canvas.addEventListener('pointerdown', function (e) {
       if (!ready) fit();
+      else syncSize();          // 落笔前对齐尺寸，避免归一化和绘制用了不同的宽度
+      if (!ready) return;       // 还是量不出来就别画
       if (active.has(e.pointerId)) return;
       lockSelection();
       active.set(e.pointerId, {
