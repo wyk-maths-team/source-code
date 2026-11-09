@@ -881,13 +881,40 @@
       active.forEach(function (st) { strokePath(st); });
     }
 
+    // 把一笔的所有点按比例缩放（尺寸变化时用）
+    function scaleStroke(st, kx, ky) {
+      var pts = st.points;
+      for (var i = 0; i < pts.length; i++) {
+        pts[i].x *= kx;
+        pts[i].y *= ky;
+      }
+    }
+
     function fit() {
       var w = host.clientWidth || 300;
       var h = host.clientHeight || 120;
       if (w < 10 || h < 10) return;
+
+      var prevW = canvas.width / (dpr || 1);
+      var prevH = canvas.height / (dpr || 1);
+
       dpr = window.devicePixelRatio || 1;
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
+
+      // 画布尺寸变了，笔迹坐标必须跟着缩放。
+      // 否则：坐标还停在旧尺度上 → 画出来错位；
+      // 而且 persist() 会用新的 w/h 去归一化旧坐标 → 存档比例就错了，
+      // 下次恢复回来就整体缩小（这正是「恢复后笔迹变小」的根因）。
+      var sizeChanged = prevW > 2 && prevH > 2 &&
+        (Math.abs(prevW - w) > 0.5 || Math.abs(prevH - h) > 0.5);
+      if (sizeChanged) {
+        var kx = w / prevW;
+        var ky = h / prevH;
+        for (var i = 0; i < strokes.length; i++) scaleStroke(strokes[i], kx, ky);
+        active.forEach(function (st) { scaleStroke(st, kx, ky); });
+      }
+
       ready = true;
       redraw();     // 尺寸变了，按路径重画，笔迹不丢
     }
