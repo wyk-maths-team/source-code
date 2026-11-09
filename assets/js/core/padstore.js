@@ -147,20 +147,23 @@
     catch (e) { return false; }   // QuotaExceeded
   }
 
+  /**
+   * 主存储是 IndexedDB（容量大、异步、不阻塞主线程）；
+   * 只有在 IndexedDB 不可用或写入失败时才退回 localStorage。
+   */
   async function save(storageKey, strokes, w, h) {
     if (!strokes || !strokes.length) { remove(storageKey); return 'removed'; }
     const raw = encode(strokes, w, h);
 
-    if (saveSync(storageKey, raw)) return 'local';
-
-    // localStorage 满了 → 转存 IndexedDB
     try {
       const store = await idb();
       await store.setItem(storageKey, raw);
-      // 本地留个空占位，读取时知道要去 IDB 找
-      saveSync(storageKey, '');
+      // 顺手清掉 localStorage 里的旧副本，避免读到过期数据
+      try { localStorage.removeItem(storageKey); } catch (e) {}
       return 'idb';
     } catch (e) {
+      // IndexedDB 不可用（隐私模式 / 被禁用 / 写满）→ 兜底 localStorage
+      if (saveSync(storageKey, raw)) return 'local';
       console.warn('[PadStore] could not persist', e && e.message);
       return 'failed';
     }
@@ -177,18 +180,21 @@
     } catch (e) { return { found: false, strokes: [] }; }
   }
 
-  /** 异步读：localStorage 没有、且是个溢出占位时再去 IDB 找 */
+  /** 异步读：IndexedDB 优先，没有再退回 localStorage */
   async function load(storageKey, w, h) {
-    const sync = loadSync(storageKey, w, h);
-    if (sync.found || !sync.overflowed) return sync.strokes;
-
     try {
       const store = await idb();
       const raw = await store.getItem(storageKey);
-      if (!raw) return [];
-      if (isExpired(raw)) { await store.removeItem(storageKey); remove(storageKey); return []; }
-      return decode(raw, w, h);
-    } catch (e) { return []; }
+      if (raw) {
+        if (isExpired(raw)) { await store.removeItem(storageKey); return []; }
+        return decode(raw);
+      }
+    } catch (e) {
+      // IndexedDB 不可用 → 落到下面的 localStorage 分支
+    }
+
+    const sync = loadSync(storageKey);
+    return sync.found ? sync.strokes : [];
   }
 
   function remove(storageKey) {

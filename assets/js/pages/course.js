@@ -835,21 +835,24 @@
       }, 400);
     }
 
-    // 坐标是 0-1，读草稿完全不需要知道画板尺寸 —— 尺寸只在真正绘制时才用到。
+    // 坐标是 0-1，读草稿不需要知道画板尺寸 —— 尺寸只在绘制时用。
+    // 主数据在 IndexedDB，读取是异步的；localStorage 只是兜底副本，
+    // 所以先同步显示兜底内容（有的话），再用 IndexedDB 的结果覆盖。
     function restore() {
       if (!storageKey || !window.PadStore) return;
-      var st = PadStore.loadSync(storageKey);
-      if (st.found && st.strokes.length) {
-        strokes = st.strokes;
+
+      var sync = PadStore.loadSync(storageKey);
+      if (sync.found && sync.strokes.length) {
+        strokes = sync.strokes;
         redraw();
-        return;
       }
-      // 内容可能在 IndexedDB 里（localStorage 曾满过），异步补一次
-      if (st.overflowed) {
-        PadStore.load(storageKey).then(function (arr) {
-          if (arr && arr.length) { strokes = arr; redraw(); }
-        }).catch(function () {});
-      }
+
+      PadStore.load(storageKey).then(function (arr) {
+        if (arr && arr.length) {
+          strokes = arr;
+          redraw();
+        }
+      }).catch(function () {});
     }
 
     function clearStorage() {

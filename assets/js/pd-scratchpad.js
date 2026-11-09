@@ -39,27 +39,23 @@
   function saveDraft() {
     const key = draftKey();
     if (!key || !pad || !canvas) return;
-    // PadStore 负责量化编码 + 满了转 IndexedDB；这里只管把笔迹交出去
-    const w = canvas.width / dpr;
-    const h = canvas.height / dpr;
-    if (window.PadStore) PadStore.save(key, pad.strokes, w, h);
+    // PadStore 负责量化编码：主存 IndexedDB，失败才退回 localStorage
+    if (window.PadStore) PadStore.save(key, pad.strokes);
   }
 
-  /** 同步读 localStorage（绝大多数情况在这就能拿到） */
-  function loadDraftSync(w, h) {
+  /** 同步读 localStorage 兜底副本，先让画面有东西 */
+  function loadDraftSync() {
     const key = draftKey();
-    if (!key) return [];
-    if (!window.PadStore) return [];
-    const r = PadStore.loadSync(key, w, h);
+    if (!key || !window.PadStore) return [];
+    const r = PadStore.loadSync(key);
     return r.found ? r.strokes : [];
   }
 
-  /** 异步兜底：内容可能因为 localStorage 满而转存到了 IndexedDB */
-  async function loadDraft(w, h) {
+  /** 异步读主数据（IndexedDB） */
+  async function loadDraft() {
     const key = draftKey();
-    if (!key) return [];
-    if (!window.PadStore) return [];
-    return PadStore.load(key, w, h);
+    if (!key || !window.PadStore) return [];
+    return PadStore.load(key);
   }
 
   function clearDraft() {
@@ -261,8 +257,8 @@
       fit();
       const w = canvas.width / dpr;
       const h = canvas.height / dpr;
-      let draft = loadDraftSync(w, h);
-      if (!draft.length) draft = await loadDraft(w, h);   // 可能被挤到 IndexedDB 了
+      let draft = loadDraftSync();
+      if (!draft.length) draft = await loadDraft();   // 主数据在 IndexedDB
       if (draft.length) {
         pad.strokes = draft;
         redraw();
