@@ -801,6 +801,7 @@
     // 存档比例随之错位，恢复后笔迹就整体缩水。
     var logicalW = 0;
     var logicalH = 0;
+    var pendingRestore = false;   // 画板还没量出真实尺寸时，等 fit() 完成后补一次恢复
 
     // ── 本地存档：按 pid 存，刷新页面不丢 ──
     var saveTimer = null;
@@ -826,10 +827,14 @@
 
     function restore() {
       if (!storageKey || !window.PadStore) return;
-      // 画布还没量过尺寸时必须先 fit()，否则没有可信的目标尺寸
-      if (!ready || canvas.width < 2 || canvas.height < 2) fit();
+      // 画布还没量过尺寸时必须先 fit()
+      if (!ready) fit();
+      // 画板常常是在加入 DOM 之前就创建的（host.clientWidth 为 0）。
+      // 这时绝不能退回到 300x120 那种默认尺寸去恢复 —— 存档是按真实宽度归一化的，
+      // 拿一个假宽度当目标，笔迹就会被整体缩掉一大截。挂个标记，等 fit() 拿到真尺寸再补。
+      if (!ready || logicalW < 2 || logicalH < 2) { pendingRestore = true; return; }
       var sz = padSize();
-      if (sz.w < 2 || sz.h < 2) return;      // 还是量不出来就先不恢复，等下一次
+      if (sz.w < 2 || sz.h < 2) { pendingRestore = true; return; }
       var w = sz.w;
       var h = sz.h;
       var st = PadStore.loadSync(storageKey, w, h);
@@ -904,8 +909,11 @@
     }
 
     function fit() {
-      var w = host.clientWidth || 300;
-      var h = host.clientHeight || 120;
+      // 只用真实尺寸：以前 host.clientWidth 为 0 时退回 300x120，
+      // 而画板往往在进 DOM 前就创建，那个假尺寸会被当成「逻辑宽度」写进存档，
+      // 归一化比例因此整体偏小 —— 恢复回来就是缩小。
+      var w = host.clientWidth || 0;
+      var h = host.clientHeight || 0;
       if (w < 10 || h < 10) return;
 
       var prevW = logicalW;
@@ -932,6 +940,12 @@
 
       ready = true;
       redraw();     // 尺寸变了，按路径重画，笔迹不丢
+
+      // 尺寸终于可信了 —— 补上之前跳过的恢复
+      if (pendingRestore) {
+        pendingRestore = false;
+        restore();
+      }
     }
 
     function pos(e) {
