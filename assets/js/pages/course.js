@@ -796,29 +796,42 @@
     var strokes = [];     // { color, width, erase, points: [{x,y}] }
     var ready = false;
     var dpr = window.devicePixelRatio || 1;
+    // 逻辑尺寸（CSS 像素）。存草稿和恢复都用它，绝不从 canvas.width / dpr 反推 ——
+    // dpr 一改、画布还没 fit、或者不同设备之间来回，反推出来的宽度就不一致，
+    // 存档比例随之错位，恢复后笔迹就整体缩水。
+    var logicalW = 0;
+    var logicalH = 0;
 
     // ── 本地存档：按 pid 存，刷新页面不丢 ──
     var saveTimer = null;
+    function padSize() {
+      // 优先用 fit() 记下的逻辑尺寸；还没 fit 就用容器尺寸兜底
+      if (logicalW > 2 && logicalH > 2) return { w: logicalW, h: logicalH };
+      var w = host.clientWidth || 0;
+      var h = host.clientHeight || 0;
+      return { w: w, h: h };
+    }
+
     function persist() {
       if (!storageKey) return;
       clearTimeout(saveTimer);
       saveTimer = setTimeout(function () {
         // PadStore 做量化 + delta 压缩，localStorage 满了自动转 IndexedDB
         if (!window.PadStore) return;
-        var w = canvas.width / (dpr || 1);
-        var h = canvas.height / (dpr || 1);
-        PadStore.save(storageKey, strokes, w, h);
+        var sz = padSize();
+        if (sz.w < 2 || sz.h < 2) return;    // 量不出来就先别存，免得存错比例
+        PadStore.save(storageKey, strokes, sz.w, sz.h);
       }, 400);
     }
 
     function restore() {
       if (!storageKey || !window.PadStore) return;
-      // 画布还没量过尺寸时必须先 fit()，否则 w/h 是 0，
-      // 归一化坐标乘 0 回来，笔迹就缩成一个点 —— 看起来像「恢复得特别小」。
+      // 画布还没量过尺寸时必须先 fit()，否则没有可信的目标尺寸
       if (!ready || canvas.width < 2 || canvas.height < 2) fit();
-      var w = canvas.width / (dpr || 1);
-      var h = canvas.height / (dpr || 1);
-      if (w < 2 || h < 2) return;      // 还是量不出来就先不恢复，等下一次
+      var sz = padSize();
+      if (sz.w < 2 || sz.h < 2) return;      // 还是量不出来就先不恢复，等下一次
+      var w = sz.w;
+      var h = sz.h;
       var st = PadStore.loadSync(storageKey, w, h);
       if (st.found && st.strokes.length) {
         strokes = st.strokes;
@@ -895,12 +908,14 @@
       var h = host.clientHeight || 120;
       if (w < 10 || h < 10) return;
 
-      var prevW = canvas.width / (dpr || 1);
-      var prevH = canvas.height / (dpr || 1);
+      var prevW = logicalW;
+      var prevH = logicalH;
 
       dpr = window.devicePixelRatio || 1;
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
+      logicalW = w;
+      logicalH = h;
 
       // 画布尺寸变了，笔迹坐标必须跟着缩放。
       // 否则：坐标还停在旧尺度上 → 画出来错位；
