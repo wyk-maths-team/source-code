@@ -65,8 +65,9 @@
       const flat = [];
       let lastX = null, lastY = null;
       for (const p of st.points) {
-        const qx = Math.round((p.x / (w || 1)) * COORD_SCALE);
-        const qy = Math.round((p.y / (h || 1)) * COORD_SCALE);
+        // 传进来的是 0-1 归一化坐标（画板统一这么存），量化到 0-1000
+        const qx = Math.round(p.x * COORD_SCALE);
+        const qy = Math.round(p.y * COORD_SCALE);
         if (lastX == null) { flat.push(qx, qy); }
         else {
           // 抽稀：离上一个点太近就不记，笔迹看着一样但省很多
@@ -88,24 +89,11 @@
     try { d = JSON.parse(raw); } catch (e) { return []; }
     if (!d) return [];
 
-    // v1（老的浮点对象格式）也能读
-    if (!d.v || d.v < 2) {
-      if (!Array.isArray(d.strokes)) return [];
-      return d.strokes.map((st) => ({
-        color: st.color || '#111827',
-        width: Number(st.width) || 4,
-        points: (st.points || []).map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 })),
-      }));
-    }
+    // v1（老的浮点对象格式）里存的是绝对像素、且没记原尺寸，
+    // 现在画板统一按 0-1 解读，读进来只会画到错误的位置。
+    // 宁可从空白开始，也不要把以前的笔迹画歪。
+    if (!d.v || d.v < 2) return [];
 
-    // 目标尺寸不可信（0 或还没量出来）时，直接用存档时的尺寸还原，
-    // 否则乘出来的坐标会贴近 0，笔迹看起来缩成一小团。
-    const sw = d.w || targetW || 1;
-    const sh = d.h || targetH || 1;
-    const useW = (targetW && targetW > 2) ? targetW : sw;
-    const useH = (targetH && targetH > 2) ? targetH : sh;
-    const kx = useW / sw;
-    const ky = useH / sh;
     const colors = d.c || ['#111827'];
     const widths = d.wd || [4];
 
@@ -117,7 +105,8 @@
       for (let i = 0; i < flat.length; i += 2) {
         if (i === 0) { x = flat[0]; y = flat[1]; }
         else { x += flat[i]; y += flat[i + 1]; }
-        pts.push({ x: (x / COORD_SCALE) * sw * kx, y: (y / COORD_SCALE) * sh * ky });
+        // 一律还原成 0-1，交给画板自己按当前尺寸展开
+        pts.push({ x: x / COORD_SCALE, y: y / COORD_SCALE });
       }
       if (pts.length) {
         const wv = widths[wi] != null ? widths[wi] : widths[0];

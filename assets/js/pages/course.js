@@ -879,15 +879,18 @@
 
     function strokePath(st) {
       if (!st.points.length) return;
+      // strokes 里是 0-1，画的时候按当前逻辑尺寸展开
+      var W = logicalW || canvas.width / (dpr || 1);
+      var H = logicalH || canvas.height / (dpr || 1);
       ctx.strokeStyle = st.erase ? '#ffffff' : st.color;
       ctx.lineWidth = st.erase ? Math.max(10, st.width * 5) : st.width;
       ctx.beginPath();
-      ctx.moveTo(st.points[0].x, st.points[0].y);
+      var p0 = st.points[0];
+      ctx.moveTo(p0.x * W, p0.y * H);
       if (st.points.length === 1) {
-        // 单点：画一个小圆点
-        ctx.lineTo(st.points[0].x + 0.1, st.points[0].y);
+        ctx.lineTo(p0.x * W + 0.1, p0.y * H);
       } else {
-        for (var i = 1; i < st.points.length; i++) ctx.lineTo(st.points[i].x, st.points[i].y);
+        for (var i = 1; i < st.points.length; i++) ctx.lineTo(st.points[i].x * W, st.points[i].y * H);
       }
       ctx.stroke();
     }
@@ -899,15 +902,6 @@
       active.forEach(function (st) { strokePath(st); });
     }
 
-    // 把一笔的所有点按比例缩放（尺寸变化时用）
-    function scaleStroke(st, kx, ky) {
-      var pts = st.points;
-      for (var i = 0; i < pts.length; i++) {
-        pts[i].x *= kx;
-        pts[i].y *= ky;
-      }
-    }
-
     function fit() {
       // 只用真实尺寸：以前 host.clientWidth 为 0 时退回 300x120，
       // 而画板往往在进 DOM 前就创建，那个假尺寸会被当成「逻辑宽度」写进存档，
@@ -916,28 +910,13 @@
       var h = host.clientHeight || 0;
       if (w < 10 || h < 10) return;
 
-      var prevW = logicalW;
-      var prevH = logicalH;
-
       dpr = window.devicePixelRatio || 1;
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
       logicalW = w;
       logicalH = h;
 
-      // 画布尺寸变了，笔迹坐标必须跟着缩放。
-      // 否则：坐标还停在旧尺度上 → 画出来错位；
-      // 而且 persist() 会用新的 w/h 去归一化旧坐标 → 存档比例就错了，
-      // 下次恢复回来就整体缩小（这正是「恢复后笔迹变小」的根因）。
-      var sizeChanged = prevW > 2 && prevH > 2 &&
-        (Math.abs(prevW - w) > 0.5 || Math.abs(prevH - h) > 0.5);
-      if (sizeChanged) {
-        var kx = w / prevW;
-        var ky = h / prevH;
-        for (var i = 0; i < strokes.length; i++) scaleStroke(strokes[i], kx, ky);
-        active.forEach(function (st) { scaleStroke(st, kx, ky); });
-      }
-
+      // 坐标已经是 0-1，尺寸怎么变都不需要换算，直接重画即可
       ready = true;
       redraw();     // 尺寸变了，按路径重画，笔迹不丢
 
@@ -948,9 +927,14 @@
       }
     }
 
+    // 坐标一律用 0-1 归一化存进 strokes。
+    // 这样画板宽高怎么变、dpr 怎么变、什么时候恢复，笔迹的位置和大小都不会跑 ——
+    // 以前存的是像素，每次尺寸变化都要换算，任何一处对不上就整体偏移或缩放。
     function pos(e) {
       var r = canvas.getBoundingClientRect();
-      return { x: e.clientX - r.left, y: e.clientY - r.top };
+      var w = r.width || 1;
+      var h = r.height || 1;
+      return { x: (e.clientX - r.left) / w, y: (e.clientY - r.top) / h };
     }
 
     // 多指：每个 pointerId 维护自己的笔画（照 draw.js 的做法），互不干扰
