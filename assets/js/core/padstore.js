@@ -83,7 +83,7 @@
     return JSON.stringify({ v: PAD_VERSION, w: Math.round(w || 0), h: Math.round(h || 0), c: colors, wd: widths, s: out, t: Date.now() });
   }
 
-  function decode(raw, targetW, targetH) {
+  function decode(raw) {
     if (!raw) return [];
     let d;
     try { d = JSON.parse(raw); } catch (e) { return []; }

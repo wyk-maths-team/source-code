@@ -817,27 +817,16 @@
       if (!storageKey) return;
       clearTimeout(saveTimer);
       saveTimer = setTimeout(function () {
-        // PadStore 做量化 + delta 压缩，localStorage 满了自动转 IndexedDB
+        // 坐标是 0-1，存的时候不需要任何尺寸信息
         if (!window.PadStore) return;
-        var sz = padSize();
-        if (sz.w < 2 || sz.h < 2) return;    // 量不出来就先别存，免得存错比例
-        PadStore.save(storageKey, strokes, sz.w, sz.h);
+        PadStore.save(storageKey, strokes);
       }, 400);
     }
 
+    // 坐标是 0-1，读草稿完全不需要知道画板尺寸 —— 尺寸只在真正绘制时才用到。
     function restore() {
       if (!storageKey || !window.PadStore) return;
-      // 画布还没量过尺寸时必须先 fit()
-      if (!ready) fit();
-      // 画板常常是在加入 DOM 之前就创建的（host.clientWidth 为 0）。
-      // 这时绝不能退回到 300x120 那种默认尺寸去恢复 —— 存档是按真实宽度归一化的，
-      // 拿一个假宽度当目标，笔迹就会被整体缩掉一大截。挂个标记，等 fit() 拿到真尺寸再补。
-      if (!ready || logicalW < 2 || logicalH < 2) { pendingRestore = true; return; }
-      var sz = padSize();
-      if (sz.w < 2 || sz.h < 2) { pendingRestore = true; return; }
-      var w = sz.w;
-      var h = sz.h;
-      var st = PadStore.loadSync(storageKey, w, h);
+      var st = PadStore.loadSync(storageKey);
       if (st.found && st.strokes.length) {
         strokes = st.strokes;
         redraw();
@@ -845,7 +834,7 @@
       }
       // 内容可能在 IndexedDB 里（localStorage 曾满过），异步补一次
       if (st.overflowed) {
-        PadStore.load(storageKey, w, h).then(function (arr) {
+        PadStore.load(storageKey).then(function (arr) {
           if (arr && arr.length) { strokes = arr; redraw(); }
         }).catch(function () {});
       }
@@ -879,9 +868,13 @@
 
     function strokePath(st) {
       if (!st.points.length) return;
-      // strokes 里是 0-1，画的时候按当前逻辑尺寸展开
-      var W = logicalW || canvas.width / (dpr || 1);
-      var H = logicalH || canvas.height / (dpr || 1);
+      // strokes 里是 0-1，画的时候按当前逻辑尺寸展开。
+      // 尺寸还没量出来时**必须跳过绘制** —— 以前退回 canvas.width/dpr，
+      // 而默认画布是 300x150（物理），算出来的宽度远小于真实值，
+      // 笔迹就被整体缩到左上角一小块。等 fit() 拿到真实尺寸后 redraw() 会补画。
+      var W = logicalW;
+      var H = logicalH;
+      if (!(W > 2) || !(H > 2)) return;
       ctx.strokeStyle = st.erase ? '#ffffff' : st.color;
       ctx.lineWidth = st.erase ? Math.max(10, st.width * 5) : st.width;
       ctx.beginPath();
