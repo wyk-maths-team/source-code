@@ -252,6 +252,8 @@
     bind() {
       $('clearCacheBtn').addEventListener('click', () => this.clearCache());
       $('clearLocalStorageBtn').addEventListener('click', () => this.clearLocalStorage());
+      $('clearIdbBtn')?.addEventListener('click', () => this.clearIndexedDB());
+      this.renderIdbSize();
       this.renderStorageUsage();
       this.renderCategories();
       this.bindRetention();
@@ -433,6 +435,59 @@
         alert('Failed: ' + err.message);
         btn.disabled = false; btn.innerHTML = orig;
       }
+    },
+
+    // 报告 IndexedDB 里画板库的占用（能测出来就显示，测不出来就算了）
+    async renderIdbSize() {
+      const hint = $('idbSizeHint');
+      if (!hint || !navigator.storage || !navigator.storage.estimate) return;
+      try {
+        const est = await navigator.storage.estimate();
+        const used = est && est.usage ? est.usage : 0;
+        if (!used) return;
+        const fmt = used < 1024 * 1024 ? (used / 1024).toFixed(0) + ' KB' : (used / 1024 / 1024).toFixed(2) + ' MB';
+        hint.innerHTML = 'Drawing drafts are now kept in IndexedDB. This removes the whole <code>wyk_pads</code> database. '
+          + 'This site currently stores about <b>' + fmt + '</b> in total.';
+      } catch (e) { /* 浏览器不支持时保持原文案 */ }
+    },
+
+    // 清空画板专用的 IndexedDB 库
+    async clearIndexedDB() {
+      if (!confirm('Delete all drawing drafts stored in IndexedDB?\nYour login and other data are untouched.')) return;
+      const btn = $('clearIdbBtn');
+      const orig = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Clearing...';
+
+      const drop = (name) => new Promise((resolve) => {
+        try {
+          const req = indexedDB.deleteDatabase(name);
+          req.onsuccess = () => resolve(true);
+          req.onerror = () => resolve(false);
+          req.onblocked = () => resolve(false);   // 别的标签页还开着
+        } catch (e) { resolve(false); }
+      });
+
+      let ok = await drop('wyk_pads');
+      // localforage 还会建一个同名的元数据库，一并清掉
+      await drop('wyk_pads_meta').catch(() => {});
+      // 兜底：万一还有别的 localforage 实例名
+      await drop('localforage').catch(() => {});
+
+      btn.disabled = false;
+      btn.innerHTML = orig;
+      if (window.PadStore && PadStore.purgeExpired) {
+        // 顺带清掉可能残留在 localStorage 的兜底副本
+        try {
+          Object.keys(localStorage)
+            .filter((k) => /^(pd_scratchpad:|coursePad:|paperPad:|inlinePad:|pdfPad)/.test(k))
+            .forEach((k) => localStorage.removeItem(k));
+        } catch (e) {}
+      }
+      this.renderCategories();
+      this.renderStorageUsage();
+      this.renderIdbSize();
+      alert(ok ? 'IndexedDB cleared. Reload the page to see empty boards.' : 'Could not clear IndexedDB — another tab may still have it open.');
     },
 
     // 2. 删除本地数据（⚠️ 保护 auth_token）
