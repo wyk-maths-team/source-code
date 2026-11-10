@@ -10,7 +10,7 @@
 //   5. settle   — 30 分钟到点后结算，写永久结果
 //   6. result   — 读结算结果（永久页）
 //
-// 分数：每题 (1800 - T) * score，T 是该题最后一次提交距开赛的秒数（1..1800）
+// 分数：每题 timeFactor × 难度² × score；timeFactor 由「剩余时间占比」的 1.5 次方决定（3.0 → 1.0）
 // 总分：三题之和
 //
 // 结算：奖池 = pool * 0.8
@@ -618,12 +618,22 @@ async function collectAttempts(db, room) {
     timeSec = Math.max(1, Math.min(DURATION_SEC, timeSec));
     const score = Number.isFinite(Number(s.score)) ? Number(s.score) : (s.correct ? 100 : 0);
 
-    // 单题得分 = (log10(3601 - 秒) + 1) × 难度² × 答案分数
-    //   - 越早交，log10(3601-秒) 越大；3601 保证真数恒为正
-    //   - 难度用房间创建时定下的 problemDifficulties
+    // 单题得分 = timeFactor × 难度² × 答案分数
+    //
+    // timeFactor 用「剩余时间占比」的幂函数，而不是原来的 log10(3601-秒)：
+    //   remain = 1 - 用时/总时长        （开赛瞬间 1，结束时 0）
+    //   timeFactor = 1.5 + 3 × remain^1.5 （最早 4.5，最晚 1.5）
+    //
+    //   起点取 4.5 是为了和旧口径（log10 那段落在 4.27~4.56）保持同一量级，
+    //
+    // 为什么换：旧式的 log10 在整个 30 分钟里只从 4.56 掉到 4.27（差 7%），
+    // 时间几乎不影响排名，谁先交都一样；现在最早交的价值是最晚的 3 倍，
+    // 抢时间的意义才立得住。幂次 1.5 让前段收益快、后段变平，避免
+    // 「差一分钟就差一大截」这种过于严苛的观感。
     const pidIdx = (room.problemIds || []).indexOf(pid);
     const diff = Number((room.problemDifficulties || [])[pidIdx]) || 2;
-    const timeFactor = Math.log10(Math.max(1, 3601 - timeSec)) + 1;
+    const remain = Math.max(0, Math.min(1, 1 - timeSec / DURATION_SEC));
+    const timeFactor = 1.5 + 3 * Math.pow(remain, 1.5);
     const weighted = Math.round(timeFactor * diff * diff * score);
 
     out.push({
