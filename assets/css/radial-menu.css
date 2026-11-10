@@ -1,0 +1,178 @@
+/* assets/css/radial-menu.css —— Alt 键环形导航
+ *
+ * 写成了「组件 + 局部变量」的形式：
+ *   .rm        组件根，所有自定义属性挂在它身上
+ *   .rm__item  单个入口（BEM）
+ * 这样换主题、改半径、改扇区数都只动 .rm 上的变量，不碰具体规则。
+ */
+
+.rm {
+  /* ── 可调参数 ── */
+  --rm-radius: 132px;          /* 环的半径 */
+  --rm-item: 62px;             /* 单个入口的直径 */
+  --rm-gap: 6px;               /* 入口内缩，让环看起来有呼吸 */
+  --rm-accent: #4a90d9;
+  --rm-surface: rgba(255, 255, 255, .96);
+  --rm-surface-dark: rgba(22, 27, 34, .96);
+  --rm-text: #1f2937;
+  --rm-text-dark: #e5e7eb;
+  --rm-shadow: 0 10px 30px rgba(0, 0, 0, .18);
+  --rm-fade: 140ms;
+
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;       /* 盖住顶栏（1000）和一切弹层 */
+  display: none;
+  pointer-events: none;      /* 未激活时不拦事件 */
+}
+
+.rm[data-open="true"] {
+  display: block;
+  pointer-events: auto;
+}
+
+/* 半透明底：既压暗页面，又让环跳出来 */
+.rm__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(9, 13, 20, .34);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity var(--rm-fade) ease;
+}
+.rm[data-open="true"] .rm__scrim { opacity: 1; }
+
+/* 环的锚点：跟随鼠标 */
+.rm__hub {
+  position: absolute;
+  width: 0;
+  height: 0;
+  left: var(--rm-x, 50%);
+  top: var(--rm-y, 50%);
+}
+
+/* 中心点：提示「这里就是光标」 */
+.rm__origin {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: var(--rm-accent);
+  box-shadow: 0 0 0 4px rgba(74, 144, 217, .22);
+}
+
+.rm__item {
+  position: absolute;
+  width: var(--rm-item);
+  height: var(--rm-item);
+  margin: calc(var(--rm-item) / -2) 0 0 calc(var(--rm-item) / -2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+
+  border: 1px solid rgba(127, 127, 127, .22);
+  border-radius: 50%;
+  background: var(--rm-surface);
+  color: var(--rm-text);
+  box-shadow: var(--rm-shadow);
+  text-decoration: none;
+  font-family: inherit;
+  cursor: pointer;
+  user-select: none;
+
+  /* 摆位：先转到扇区角度，沿半径推出去，再把自身转正 */
+  transform:
+    rotate(var(--rm-angle))
+    translateY(calc(-1 * var(--rm-radius)))
+    rotate(calc(-1 * var(--rm-angle)))
+    scale(.82);
+  opacity: 0;
+  transition: transform var(--rm-fade) cubic-bezier(.2, .9, .3, 1.2),
+              opacity var(--rm-fade) ease,
+              background var(--rm-fade) ease,
+              color var(--rm-fade) ease;
+}
+
+.rm[data-open="true"] .rm__item {
+  transform:
+    rotate(var(--rm-angle))
+    translateY(calc(-1 * var(--rm-radius)))
+    rotate(calc(-1 * var(--rm-angle)))
+    scale(1);
+  opacity: 1;
+}
+
+.rm__item i {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.rm__item span {
+  font-size: .58rem;
+  font-weight: 700;
+  letter-spacing: .01em;
+  line-height: 1;
+}
+
+/* 当前指向的那一项 */
+.rm__item.is-active {
+  background: var(--rm-accent);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 12px 34px rgba(74, 144, 217, .45);
+}
+
+/* 暗色主题 */
+[data-theme="dark"] .rm__item,
+:root.dark .rm__item {
+  background: var(--rm-surface-dark);
+  color: var(--rm-text-dark);
+  border-color: rgba(255, 255, 255, .1);
+}
+[data-theme="dark"] .rm__item.is-active,
+:root.dark .rm__item.is-active {
+  background: var(--rm-accent);
+  color: #fff;
+}
+
+/* 底部提示 */
+.rm__hint {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: rgba(9, 13, 20, .72);
+  color: #e5e7eb;
+  font-size: .76rem;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+
+.rm__hint kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  margin: 0 2px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, .14);
+  font-family: ui-monospace, monospace;
+  font-size: .72rem;
+}
+
+/* 屏幕太小时收一收半径，别把入口挤出视口 */
+@media (max-width: 820px) {
+  .rm { --rm-radius: 104px; --rm-item: 54px; }
+  .rm__item span { font-size: .54rem; }
+}
+@media (max-height: 620px) {
+  .rm { --rm-radius: 96px; --rm-item: 52px; }
+  .rm__hint { bottom: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rm__item { transition: opacity var(--rm-fade) ease; transform: rotate(var(--rm-angle)) translateY(calc(-1 * var(--rm-radius))) rotate(calc(-1 * var(--rm-angle))); }
+}
