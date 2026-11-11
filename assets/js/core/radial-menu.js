@@ -241,11 +241,23 @@
 
   window.addEventListener('blur', () => { altHeld = false; close(); });
 
-  window.addEventListener('pointermove', (e) => {
-    if (open) return;
+  // 记住光标位置，供 Alt 使用。键盘事件本身不带坐标，只能靠这个缓存。
+  //
+  // 三个要点，缺一个就会出现「菜单开在上次点击的地方」：
+  //   1. 用 capture 阶段监听 —— 页面里不少元素（画板、PDF、图表）会拦 pointermove
+  //   2. 菜单打开时也继续更新 —— 否则关掉后缓存还停在打开时那一刻的位置
+  //   3. pointerdown / click 也更新 —— 只移动不按（比如滚轮翻页后挪鼠标）时兜底
+  function trackPointer(e) {
+    if (typeof e.clientX !== 'number') return;
+    // 菜单自身内的移动不算「用户把光标挪到了哪」——那是选扇区的动作
+    if (open && root && root.contains(e.target)) return;
     lastX = e.clientX;
     lastY = e.clientY;
-  }, { passive: true });
+  }
+
+  window.addEventListener('pointermove', trackPointer, { passive: true, capture: true });
+  window.addEventListener('pointerdown', trackPointer, { passive: true, capture: true });
+  window.addEventListener('mousemove', trackPointer, { passive: true, capture: true });
 
   // ── 点顶栏时间：光标归位到中央再张开 ─────────────────
   document.addEventListener('click', (e) => {
