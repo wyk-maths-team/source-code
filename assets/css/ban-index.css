@@ -1,0 +1,60 @@
+/* assets/css/ban-index.css —— 被封账号的首页只读模式 */
+
+html.banned-mode {
+  --banned-red: #7f1d1d;
+  --banned-red-deep: #450a0a;
+}
+
+/* 整页转红：背景、顶栏、侧栏统一换色，内容区压暗 */
+html.banned-mode body {
+  background: linear-gradient(180deg, #2a0808 0%, #1a0505 100%) !important;
+}
+
+html.banned-mode .topbar,
+html.banned-mode .sidebar {
+  background: var(--banned-red-deep) !important;
+  border-color: rgba(248, 113, 113, .25) !important;
+}
+
+html.banned-mode .main-content,
+html.banned-mode .main-content * {
+  filter: grayscale(.7) brightness(.72);
+}
+
+/* 横幅本身保持清晰、醒目 */
+.ban-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  background: linear-gradient(90deg, #7f1d1d, #991b1b);
+  border-bottom: 2px solid #f87171;
+  color: #fee2e2;
+  position: relative;
+  z-index: 50;
+}
+
+.ban-banner__icon {
+  font-size: 1.8rem;
+  color: #fca5a5;
+}
+
+.ban-banner__title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: .01em;
+}
+
+.ban-banner__line {
+  font-size: .86rem;
+  line-height: 1.6;
+  color: #fecaca;
+}
+
+.ban-banner__line strong { color: #fff; font-weight: 800; }
+
+@media (max-width: 640px) {
+  .ban-banner { flex-direction: column; align-items: flex-start; gap: 8px; padding: 14px 16px; }
+  .ban-banner__icon { font-size: 1.4rem; }
+}

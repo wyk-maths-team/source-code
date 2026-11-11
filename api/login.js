@@ -68,22 +68,6 @@ async function handler(req, res) {
       return res.status(401).json({ success: false, message: 'Invalid username or password' });
     }
 
-    // 封禁分两种：
-    //   永久（管理员手动封）—— banned: true
-    //   限期（提交页红牌自动封）—— bannedUntil 还没到
-    // 限期封禁过期后允许登录，不用管理员手动解。
-    const timedBanActive = user.bannedUntil && new Date(user.bannedUntil) > new Date();
-    if (user.banned || timedBanActive) {
-      return res.status(403).json({
-        success: false,
-        banned: true,
-        banType: user.banned ? 'manually' : 'automatically',
-        banReason: user.banReason || '',
-        bannedUntil: user.bannedUntil || null,
-        message: 'You are banned.',
-      });
-    }
-
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
       return res.status(401).json({ success: false, message: 'Invalid username or password' });
@@ -96,9 +80,18 @@ async function handler(req, res) {
       pfp: user.pfp || ''   // 新增
     }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
+    // 封禁的人也能登进来 —— 但只有 index 能用，别的页面会被前端踢回去。
+    // 这样他们能看到封禁原因和期限，而不是在登录页吃一个没有上下文的报错。
+    const timedBanActive = user.bannedUntil && new Date(user.bannedUntil) > new Date();
+    const isBanned = !!user.banned || !!timedBanActive;
+
     res.status(200).json({
       success: true,
       token,
+      banned: isBanned,
+      banType: isBanned ? (user.banned ? 'manually' : 'automatically') : null,
+      banReason: isBanned ? (user.banReason || '') : '',
+      bannedUntil: isBanned ? (user.bannedUntil || null) : null,
       user: {
         username: user.username,
         displayName: user.displayName || user.username,

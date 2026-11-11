@@ -118,6 +118,16 @@
       return;
     }
 
+    // 被封禁的账号能登录，但只有首页可用 —— 其他任何页面一进来就被送回去。
+    // 放在 requireAuth 之后：未登录还是先去登录，封禁的才走这条。
+    if (typeof window.isBanned === 'function' && window.isBanned()) {
+      var here = location.pathname.replace(/\/+$/, '');
+      if (here !== '/index.html' && here !== '/index' && here !== '') {
+        location.replace('/index.html?banned=1');
+        return;
+      }
+    }
+
     if (_config.skeleton) showSkeleton();
 
     // 有 topbar/sidebar 容器时，等它们注入完成再跑页面逻辑

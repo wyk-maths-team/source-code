@@ -1,11 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<script id="auth-gate">(function(){try{
+  if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");return;}
+  // 被封禁的账号只能待在首页，其余页面一律送回去
+  var b=localStorage.getItem("ban_info");
+  if(b){var p=location.pathname.replace(/\/+$/,"");if(p!=="/index.html"&&p!=="/index"&&p!==""){document.documentElement.style.display="none";location.replace("/index.html?banned=1");return;}}
+}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='fe538648';</script>
+<script>window.__BUILD_V='a551cbc5';</script>
 
-<script src="/assets/js/arch-render.js?v=fe538648"></script>
+<script src="/assets/js/arch-render.js?v=a551cbc5"></script>
 
 <meta charset="UTF-8" />
 <script>(function(){try{
@@ -18,7 +23,7 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=fe538648" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=a551cbc5" />
   <style>
     .pkr-wrap { max-width: 960px; margin: 0 auto; padding: 1.5rem; }
     
@@ -148,22 +153,22 @@
     </main>
   </div>
 
-  <script src="/assets/js/core/ui.js?v=fe538648"></script>
-  <script src="/assets/js/core/net.js?v=fe538648"></script>
-  <script src="/assets/js/core/api.js?v=fe538648"></script>
-  <script src="/assets/js/core/padstore.js?v=fe538648"></script>
-  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=fe538648">
-  <script src="/assets/js/core/radial-menu.js?v=fe538648"></script>
-  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=fe538648">
-  <script src="/assets/js/core/ban-screen.js?v=fe538648"></script>
-  <script src="/assets/js/core/page.js?v=fe538648"></script>
-  <script src="/assets/js/auth.js?v=fe538648"></script>
-  <script src="/assets/js/app.js?v=fe538648"></script>
-  <script src="/assets/js/topbar.js?v=fe538648"></script>
-  <script src="/assets/js/sidebar.js?v=fe538648"></script>
-  <script src="/assets/js/heartbeat.js?v=fe538648"></script>
-  <script src="/assets/js/pk-invite.js?v=fe538648"></script>
-  <script src="/assets/js/pages/pk-bet-result.js?v=fe538648"></script>
-  <script src="/assets/js/pk-notify.js?v=fe538648"></script>
+  <script src="/assets/js/core/ui.js?v=a551cbc5"></script>
+  <script src="/assets/js/core/net.js?v=a551cbc5"></script>
+  <script src="/assets/js/core/api.js?v=a551cbc5"></script>
+  <script src="/assets/js/core/padstore.js?v=a551cbc5"></script>
+  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=a551cbc5">
+  <script src="/assets/js/core/radial-menu.js?v=a551cbc5"></script>
+  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=a551cbc5">
+  <script src="/assets/js/core/ban-screen.js?v=a551cbc5"></script>
+  <script src="/assets/js/core/page.js?v=a551cbc5"></script>
+  <script src="/assets/js/auth.js?v=a551cbc5"></script>
+  <script src="/assets/js/app.js?v=a551cbc5"></script>
+  <script src="/assets/js/topbar.js?v=a551cbc5"></script>
+  <script src="/assets/js/sidebar.js?v=a551cbc5"></script>
+  <script src="/assets/js/heartbeat.js?v=a551cbc5"></script>
+  <script src="/assets/js/pk-invite.js?v=a551cbc5"></script>
+  <script src="/assets/js/pages/pk-bet-result.js?v=a551cbc5"></script>
+  <script src="/assets/js/pk-notify.js?v=a551cbc5"></script>
 </body>
 </html>

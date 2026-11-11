@@ -43,6 +43,34 @@ function setToken(token) {
   }
 }
 
+const BAN_KEY = 'ban_info';
+
+function saveBanInfo(info) {
+  try {
+    if (!info || (!info.reason && !info.until && info.type !== 'manually')) {
+      localStorage.removeItem(BAN_KEY);
+      return;
+    }
+    localStorage.setItem(BAN_KEY, JSON.stringify(info));
+  } catch (e) {}
+}
+
+function getBanInfo() {
+  try {
+    const raw = localStorage.getItem(BAN_KEY);
+    if (!raw) return null;
+    const info = JSON.parse(raw);
+    // 限期封禁到期就自动作废，不用等后端再说一次
+    if (info.until && new Date(info.until).getTime() <= Date.now()) {
+      localStorage.removeItem(BAN_KEY);
+      return null;
+    }
+    return info;
+  } catch (e) { return null; }
+}
+
+function isBanned() { return !!getBanInfo(); }
+
 function isLoggedIn() {
   return !!getToken();
 }
@@ -84,6 +112,12 @@ async function login(username, password) {
     if (data.success) {
       setToken(data.token);
       currentUser = data.user;
+      // 封禁状态跟着登录结果一起落地：只有 index 能用，别的页面会被守卫踢回去。
+      saveBanInfo(data.banned ? {
+        type: data.banType || 'manually',
+        reason: data.banReason || '',
+        until: data.bannedUntil || null,
+      } : null);
     }
     return data;
   } catch (err) {
@@ -367,6 +401,9 @@ function restoreSettings() {
 window.isLoggedIn = isLoggedIn;
 window.getCurrentUser = getCurrentUser;
 window.login = login;
+window.getBanInfo = getBanInfo;
+window.isBanned = isBanned;
+window.saveBanInfo = saveBanInfo;
 window.logout = logout;
 window.apiCall = apiCall;
 // ═══════════════════════════════════════════════════════
