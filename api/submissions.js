@@ -154,7 +154,8 @@ async function handler(req, res) {
             // ⭐ 新增下面这三个
             judgingMs: 1,      // AI 耗时
             tokenUsage: 1,     // Token 消耗
-            usedModel: 1       // 使用的模型
+            usedModel: 1,      // 使用的模型
+            violation: 1, violationType: 1, flagged: 1,  // 违规标记（不覆盖分数/评语）
           }
         }
       ),
@@ -199,7 +200,9 @@ async function handler(req, res) {
       // ⭐ 返回给前端
       judgingMs: sub.judgingMs || null,
       tokenUsage: sub.tokenUsage || 0,
-      usedModel: sub.usedModel || null
+      usedModel: sub.usedModel || null,
+      violation: !!sub.violation,
+      violationType: sub.violationType || null,
     };
 
     if (sub.type === 'image') {
@@ -247,26 +250,20 @@ async function handler(req, res) {
     const sub = await db.collection('submissions').findOne({ subid });
     if (!sub) return res.status(404).json({ success: false, message: 'Submission not found' });
 
-    // 1. 标记违规状态
+    // 只挂违规标记，不动分数和评语 ——
+    // 成绩是学生答出来的，红黄牌是另一回事，不该把原始评分抹掉。
+    // 前端会把这一条渲染成紫色的 Violation 状态。
     await db.collection('submissions').updateOne(
       { subid },
-      { 
-        $set: { 
-          marked: true, 
-          score: 0, 
-          status: 'Violation', // 前端 computeStatus 需要处理这个状态
+      {
+        $set: {
+          violation: true,
+          violationType: flagType,
           flagged: true,
-          flagType: flagType,
-          comment: `[${flagType.toUpperCase()} CARD] Flagged by Admin.`
-        } 
+          violationAt: new Date(),
+          violationBy: req.user ? req.user.username : 'system',
+        },
       }
-    );
-
-    // 2. 清除用户在此题的状态 (如果是 passed 或 failed，直接 unset 掉，相当于回到未做状态)
-    const statsCol = db.collection('userstats');
-    await statsCol.updateOne(
-      { username: sub.username },
-      { $unset: { [`states.${sub.problemId}`]: '' } }
     );
 
     return res.status(200).json({ success: true });

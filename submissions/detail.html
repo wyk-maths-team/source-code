@@ -3,9 +3,9 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='524e3a47';</script>
+<script>window.__BUILD_V='d5193273';</script>
 
-<script src="/assets/js/arch-render.js?v=524e3a47"></script>
+<script src="/assets/js/arch-render.js?v=d5193273"></script>
   
 <meta charset="UTF-8" />
 <script>(function(){try{
@@ -22,7 +22,7 @@
   <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.amcharts.com">
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=524e3a47" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=d5193273" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
   <style>
@@ -73,6 +73,7 @@
     [data-theme="dark"] .badge.status-partial{background:#4d3e1b;color:#dfc88f;border-color:#6b562e}
     [data-theme="dark"] .badge.status-system{background:#2d2d2d;color:var(--c-border-strong);border-color:#444}
     [data-theme="dark"] .badge.status-pending{background:#2d2d2d;color:var(--c-text-subtle);border-color:#444}
+    [data-theme="dark"] .badge.status-violation{background:#2e1b4d;color:#d8b4fe;border-color:#4c2e7a}
     [data-theme="dark"] .comment-box{background:#2a2a2a;border-left-color:var(--accent)}
     [data-theme="scifi"]{--card-bg:#09101a;--border-color:#14313f;--text-primary:#c6eeff;--text-secondary:#6c8fa3;--comment-bg:#0f2231}
     [data-theme="scifi"] .badge{background:#0f2231;color:#9fe8ff;border-color:#1e4a5e}
@@ -81,6 +82,7 @@
     [data-theme="scifi"] .badge.status-partial{background:#2e2410;color:#ffd166;border-color:#5a4a1e}
     [data-theme="scifi"] .badge.status-system{background:#0f2231;color:#7fa3b8;border-color:#1e4a5e}
     [data-theme="scifi"] .badge.status-pending{background:#0f2231;color:#7fa3b8;border-color:#1e4a5e}
+    [data-theme="scifi"] .badge.status-violation{background:#22103a;color:#d8b4fe;border-color:#4c2e7a}
     [data-theme="scifi"] .comment-box{background:#0f2231;border-left-color:var(--accent)}
     [data-theme="scifi"] .no-comment{color:var(--c-text-muted)}
     [data-theme="dark"] .no-comment{color:var(--c-text-muted)}
@@ -95,6 +97,8 @@
     .badge.status-partial{background:var(--warning-bg);color:var(--warning-text);border-color:#ffeeba}
     .badge.status-system{background:var(--c-surface-muted);color:#383d41;border-color:#d6d8db}
     .badge.status-pending{background:var(--pending-bg);color:var(--pending-text);border-color:#d6d8db}
+    /* 违规：紫色独立状态。分数和评语照旧保留，只是多这一层标记 */
+    .badge.status-violation{background:#efe4ff;color:#6b21a8;border-color:#d8b4fe}
     .meta-row{display:flex;flex-wrap:wrap;gap:1.2rem;margin:1rem 0;font-size:.9rem;color:var(--text-secondary)}
     .meta-item strong{color:var(--text-primary)}
     .answer-image{max-width:100%;border:1px solid var(--border-color);border-radius:4px;margin:1rem 0;display:block}
@@ -161,13 +165,13 @@
   <meta name="apple-mobile-web-app-title" content="WYK Maths">
   <meta name="mobile-web-app-capable" content="yes">
 
-<script src="/assets/js/core/ui.js?v=524e3a47"></script>
-<script src="/assets/js/core/net.js?v=524e3a47"></script>
-<script src="/assets/js/core/api.js?v=524e3a47"></script>
-  <script src="/assets/js/core/padstore.js?v=524e3a47"></script>
-  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=524e3a47">
-  <script src="/assets/js/core/radial-menu.js?v=524e3a47"></script>
-<script src="/assets/js/core/page.js?v=524e3a47"></script>
+<script src="/assets/js/core/ui.js?v=d5193273"></script>
+<script src="/assets/js/core/net.js?v=d5193273"></script>
+<script src="/assets/js/core/api.js?v=d5193273"></script>
+  <script src="/assets/js/core/padstore.js?v=d5193273"></script>
+  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=d5193273">
+  <script src="/assets/js/core/radial-menu.js?v=d5193273"></script>
+<script src="/assets/js/core/page.js?v=d5193273"></script>
 </head>
 <body class="index-body">
   <div id="appContainer">
@@ -176,18 +180,18 @@
     <main class="main-content" id="mainContent"></main>
   </div>
 
-  <script src="/assets/js/auth.js?v=524e3a47"></script>
-  <script src="/assets/js/app.js?v=524e3a47"></script>
-  <script src="/assets/js/topbar.js?v=524e3a47"></script>
+  <script src="/assets/js/auth.js?v=d5193273"></script>
+  <script src="/assets/js/app.js?v=d5193273"></script>
+  <script src="/assets/js/topbar.js?v=d5193273"></script>
   
-<script src="/assets/js/sidebar.js?v=524e3a47"></script>
-<script src="/assets/js/heartbeat.js?v=524e3a47"></script>
-<script src="/assets/js/pk-invite.js?v=524e3a47"></script>
+<script src="/assets/js/sidebar.js?v=d5193273"></script>
+<script src="/assets/js/heartbeat.js?v=d5193273"></script>
+<script src="/assets/js/pk-invite.js?v=d5193273"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 
-  <script src="/assets/js/pages/submissions-detail.js?v=524e3a47"></script>
-  <script src="/assets/js/tour.js?v=524e3a47"></script>
-<script src="/assets/js/pk-notify.js?v=524e3a47"></script>
+  <script src="/assets/js/pages/submissions-detail.js?v=d5193273"></script>
+  <script src="/assets/js/tour.js?v=d5193273"></script>
+<script src="/assets/js/pk-notify.js?v=d5193273"></script>
 </body>
 </html>

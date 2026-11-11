@@ -11,7 +11,14 @@ const container = document.getElementById('mainContent');
 function escapeHtml(s) { return ((window.DSHUI && window.DSHUI.esc) || function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]; }); })(s); }
 
 function computeStatus(sub) {
-  if (sub.status === 'Violation') return { text: 'Violation', cls: 'status-system' };
+  // 违规是独立状态：分数和评语照旧保留，只是多一层紫色标记
+  if (sub.violation || sub.status === 'Violation') {
+    const t = String(sub.violationType || sub.flagType || '').toLowerCase();
+    const label = t === 'red' ? 'Violation · Red Card'
+      : t === 'yellow' ? 'Violation · Yellow Card'
+      : 'Violation';
+    return { text: label, cls: 'status-violation' };
+  }
   if (sub.marked && sub.score !== undefined) {
     if (sub.score === 100) return { text: 'Accepted', cls: 'status-accepted' };
     if (sub.score === 0) return { text: 'Wrong Answer', cls: 'status-wrong' };
@@ -79,8 +86,10 @@ function renderDetail(sub, problemName, attempts) {
       <h2>Submission #${escapeHtml(sub.subid)}</h2>
       <div class="badge-group">
         <span class="badge ${status.cls}">${escapeHtml(status.text)}</span>
-        <button onclick="flagSubmission('red', '${escapeHtml(sub.username)}', '${escapeHtml(sub.problemId)}')" style="margin-left:10px; background:#d93025; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Red Flag</button>
-        <button onclick="flagSubmission('yellow', '${escapeHtml(sub.username)}', '${escapeHtml(sub.problemId)}')" style="margin-left:5px; background:#e3a008; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Yellow Flag</button>
+        ${IS_ADMIN ? `<button onclick="flagSubmission('red', '${escapeHtml(sub.username)}', '${escapeHtml(sub.problemId)}')" title="Mark this submission as a red-card violation. Score and comment are kept."
+          style="margin-left:10px; background:#d93025; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Red Flag</button>` : ''}
+        ${IS_ADMIN ? `<button onclick="flagSubmission('yellow', '${escapeHtml(sub.username)}', '${escapeHtml(sub.problemId)}')" title="Mark this submission as a yellow-card violation. Score and comment are kept."
+          style="margin-left:5px; background:#e3a008; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Yellow Flag</button>` : ''}
         ${CAN_REPORT ? `<button onclick="reportSubmission('${escapeHtml(sub.subid)}')" title="Report this submission"
           style="margin-left:5px; background:#7d5bb0; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">
           <i class="fas fa-flag"></i> Report</button>` : ''}
