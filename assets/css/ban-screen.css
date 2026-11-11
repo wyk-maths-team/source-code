@@ -1,0 +1,70 @@
+/* assets/css/ban-screen.css —— 封禁全屏提示 */
+
+/* 封禁期间整页变成红色调，并且盖住一切交互 */
+html.bs-active body > *:not(.bs) {
+  filter: grayscale(.85) brightness(.55);
+  pointer-events: none !important;
+  user-select: none;
+}
+
+html.bs-active {
+  background: #3b0a0a;
+}
+
+.bs {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 0%, #7f1d1d 0%, #450a0a 45%, #1a0505 100%);
+  font-family: inherit;
+  color: #fee2e2;
+  text-align: center;
+}
+
+.bs__panel {
+  max-width: 560px;
+  padding: 40px 32px;
+  border-radius: 20px;
+  background: rgba(69, 10, 10, .72);
+  border: 1px solid rgba(248, 113, 113, .35);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .5);
+}
+
+.bs__icon {
+  font-size: 3.2rem;
+  color: #f87171;
+  margin-bottom: 12px;
+}
+
+.bs__title {
+  margin: 0 0 16px;
+  font-size: 1.9rem;
+  font-weight: 800;
+  letter-spacing: .01em;
+  color: #fecaca;
+}
+
+.bs__line {
+  margin: 8px 0;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: #fecaca;
+}
+
+.bs__line strong { color: #fff; font-weight: 800; }
+
+.bs__hint {
+  margin-top: 24px;
+  font-size: .82rem;
+  color: rgba(254, 226, 226, .6);
+}
+
+@media (max-width: 520px) {
+  .bs__panel { padding: 28px 20px; }
+  .bs__title { font-size: 1.5rem; }
+}

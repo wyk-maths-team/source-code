@@ -226,9 +226,15 @@ async function apiCall(endpoint, method = 'GET', body = null) {
   }
   if (res.status === 403) {
     const data = await res.json();
-    if (data.message && data.message.includes('banned')) {
-      logout();
-      alert('Account Banned');
+    if (data.banned || (data.message && /banned/i.test(data.message))) {
+      // 封禁有单独的一屏，不再用 alert 一句话带过
+      if (window.BanScreen && window.BanScreen.show) {
+        window.BanScreen.show({
+          type: data.banType || 'manually',
+          reason: data.banReason || '',
+          until: data.bannedUntil || null,
+        });
+      }
       throw new Error('Banned');
     }
     throw new Error(data.message || 'Forbidden');

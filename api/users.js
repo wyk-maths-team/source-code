@@ -144,6 +144,19 @@ async function handler(req, res) {
         } else {
           return res.status(400).json({ success: false, message: 'Admin can only ban students' });
         }
+
+        // 手动封禁是永久的，和解封之间必须由管理员操作。
+        // 同时清掉自动封禁的到期时间，避免两套规则打架。
+        if (updateFields.banned) {
+          updateFields.bannedUntil = null;
+          updateFields.banReason = String(req.body.banReason || targetUser.banReason || '').slice(0, 300)
+            || 'unspecified reason';
+          updateFields.banSource = 'manual';
+        } else {
+          updateFields.bannedUntil = null;
+          updateFields.banReason = '';
+          updateFields.banSource = null;
+        }
       }
 
       if (Object.keys(updateFields).length === 0) {

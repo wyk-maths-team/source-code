@@ -11,13 +11,10 @@ const container = document.getElementById('mainContent');
 function escapeHtml(s) { return ((window.DSHUI && window.DSHUI.esc) || function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]; }); })(s); }
 
 function computeStatus(sub) {
-  // 违规是独立状态：分数和评语照旧保留，只是多一层紫色标记
+  // 违规是独立状态：分数和评语照旧保留，只是多一层紫色标记。
+  // 不管红牌黄牌，对外都只显示 Violation —— 具体是哪张卡是管理员内部的事。
   if (sub.violation || sub.status === 'Violation') {
-    const t = String(sub.violationType || sub.flagType || '').toLowerCase();
-    const label = t === 'red' ? 'Violation · Red Card'
-      : t === 'yellow' ? 'Violation · Yellow Card'
-      : 'Violation';
-    return { text: label, cls: 'status-violation' };
+    return { text: 'Violation', cls: 'status-violation' };
   }
   if (sub.marked && sub.score !== undefined) {
     if (sub.score === 100) return { text: 'Accepted', cls: 'status-accepted' };
@@ -149,10 +146,22 @@ async function loadDetail() {
 window.addEventListener('beforeunload', () => { if (scrambleTimer) clearInterval(scrambleTimer); });
 
 window.flagSubmission = async (flagType, targetUsername, problemId) => {
-  if (!confirm(`Are you sure you want to issue a ${flagType.toUpperCase()} card to ${targetUsername}? This will reset their progress on this problem.`)) return;
+  const isRed = flagType === 'red';
+  const warn = isRed
+    ? `Issue a RED card to ${targetUsername}?\n\nThis marks the submission as a violation, clears their progress on this problem, and bans the account for 24 hours.`
+    : `Issue a YELLOW card to ${targetUsername}?\n\nThis marks the submission as a violation and clears their progress on this problem. You will be taken to the message page next.`;
+  if (!confirm(warn)) return;
   try {
     const res = await apiCall('/api/submissions?action=flag', 'POST', { subid, flagType });
     if (!res.success) throw new Error(res.message || 'Failed to flag');
+
+    // 红牌：已经自动封号，不必再发消息
+    if (isRed) {
+      alert(`${targetUsername} has been banned for 24 hours (using excessive AI).`);
+      return;
+    }
+
+    // 黄牌：跳转到发消息页，文案已经预填好
     const urlParams = new URLSearchParams({ username: targetUsername, problemid: problemId, subid: subid, flag: flagType });
     window.location.href = `/admin/send-message?${urlParams.toString()}`;
   } catch (e) { alert(e.message); }

@@ -355,6 +355,22 @@
             background: var(--warning-bg);
             color: var(--warning-text);
         }
+        /* 违规：紫色，和详情页同一套配色 */
+        .status-violation {
+            background: #efe4ff;
+            color: #6b21a8;
+            border: 1px solid #d8b4fe;
+        }
+        [data-theme="dark"] .status-violation {
+            background: #2e1b4d;
+            color: #d8b4fe;
+            border-color: #4c2e7a;
+        }
+        [data-theme="scifi"] .status-violation {
+            background: #22103a;
+            color: #d8b4fe;
+            border-color: #4c2e7a;
+        }
 
         .answer-hidden {
             color: #999;

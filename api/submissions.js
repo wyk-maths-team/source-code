@@ -38,6 +38,8 @@ function buildProblemIdFilter(rawIds) {
 }
 
 function deriveStatus(s) {
+  // 违规优先：分数和评语都还在，但对外一律显示 Violation（不分红黄）
+  if (s.violation) return 'Violation';
   if (s.marked && s.score !== undefined) {
     if (s.score === 100) return 'Accepted';
     if (s.score === 0) return 'Wrong Answer';
@@ -250,9 +252,8 @@ async function handler(req, res) {
     const sub = await db.collection('submissions').findOne({ subid });
     if (!sub) return res.status(404).json({ success: false, message: 'Submission not found' });
 
-    // 只挂违规标记，不动分数和评语 ——
-    // 成绩是学生答出来的，红黄牌是另一回事，不该把原始评分抹掉。
-    // 前端会把这一条渲染成紫色的 Violation 状态。
+    // 违规标记：分数、评语都保留，只是多一层紫色 Violation。
+    // 不论红卡黄卡，对外一律只显示 Violation。
     await db.collection('submissions').updateOne(
       { subid },
       {
@@ -266,7 +267,31 @@ async function handler(req, res) {
       }
     );
 
-    return res.status(200).json({ success: true });
+    // 两种卡都清掉这道题的进度 —— 出过问题的提交不该再算作已解决。
+    const statsCol = db.collection('userstats');
+    await statsCol.updateOne(
+      { username: sub.username },
+      { $unset: { ['states.' + sub.problemId]: '' } }
+    );
+
+    let bannedUntil = null;
+    if (flagType === 'red') {
+      // 红牌：自动封禁一天。用 bannedUntil 而不是 banned，
+      // 这样到期自动恢复，不需要管理员记得来解封。
+      bannedUntil = new Date(Date.now() + 24 * 3600_000);
+      await db.collection('users').updateOne(
+        { username: sub.username },
+        {
+          $set: {
+            bannedUntil,
+            banReason: 'using excessive AI',
+            banSource: 'submission',
+          },
+        }
+      );
+    }
+
+    return res.status(200).json({ success: true, bannedUntil });
   }
 
   // ---------- 举报一条提交 ----------
@@ -646,6 +671,7 @@ async function handler(req, res) {
         displayName: dispMap[s.username] || s.username,
         problemName: nameMap[s.problemId] || `Problem #${s.problemId}`,
         status: deriveStatus(s),
+        violation: !!s.violation,
         answer: s.type === 'image' ? '[Image]' : s.answer
       }));
 

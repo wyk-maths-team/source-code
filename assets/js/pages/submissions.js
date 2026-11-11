@@ -28,6 +28,7 @@
 
   function escapeHtml(s) { return ((window.DSHUI && window.DSHUI.esc) || function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]; }); })(s); }
   function statusClass(statusText) {
+    if (statusText === 'Violation') return 'status-violation';
     if (statusText === 'Accepted') return 'status-accepted';
     if (statusText === 'Wrong Answer') return 'status-wrong';
     if (statusText.startsWith('Partial Score')) return 'status-partial';
@@ -135,12 +136,24 @@
    * 兩個 datetime-local：起點 / 終點，任一個留空即「該端不限」。
    * 已套用後只顯示一行摘要 + 清除鈕，和 User / Problem / Result 三列的行為一致。
    */
+  // 把 Date 转成 datetime-local 需要的本地格式（YYYY-MM-DDTHH:mm）
+  function toLocalInput(d) {
+    const p = (n) => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+
   function renderTimeFilterCell() {
     if (state.start || state.end) {
       const short = (v) => v ? v.replace('T', ' ') : '…';
       return `<div class="filter-current">Time: <b>${escapeHtml(short(state.start))} → ${escapeHtml(short(state.end))}</b><button type="button" class="btn-remove" data-clear="time"><i class="fas fa-times"></i></button></div>`;
     }
+    // 快捷区间：今天 / 最近一个月。点击后填进下面两个输入框并立即查询，
+    // 手填时间的入口还在，两者不冲突。
     return `<form class="adv-filter-form" id="formTime" autocomplete="off">
+      <div class="adv-filter-buttons" style="margin-bottom:6px;">
+        <button type="button" class="btn-apply" data-range="today" style="background:#4a90d9;color:#fff;">Today</button>
+        <button type="button" class="btn-apply" data-range="month" style="background:#4a90d9;color:#fff;">This month</button>
+      </div>
       <input type="datetime-local" id="filterStart" title="From (inclusive)">
       <input type="datetime-local" id="filterEnd" title="To (inclusive)">
       <div class="adv-filter-buttons"><button type="submit" class="btn-apply">Apply</button></div>
@@ -233,6 +246,23 @@
     refreshBtn.addEventListener('click', async () => {
       if (refreshBtn.disabled) return; refreshBtn.disabled = true; refreshBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
       try { await loadSubmissions({ force: true }); } finally { refreshBtn.disabled = false; refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>'; }
+    });
+
+    // 快捷区间：今天 / 最近一个月。填好两个输入框后直接提交查询。
+    document.querySelectorAll('#formTime [data-range]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const now = new Date();
+        let from;
+        if (btn.dataset.range === 'today') {
+          from = new Date(now); from.setHours(0, 0, 0, 0);
+        } else {
+          from = new Date(now); from.setDate(from.getDate() - 30); from.setHours(0, 0, 0, 0);
+        }
+        state.start = toLocalInput(from);
+        state.end = toLocalInput(now);
+        state.page = 1;
+        applyFilters();
+      });
     });
 
     document.getElementById('resetFiltersBtn').addEventListener('click', resetFilters);

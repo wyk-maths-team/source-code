@@ -64,8 +64,24 @@ async function handler(req, res) {
     const db = await connectToDatabase();
     const user = await db.collection('users').findOne({ username });
 
-    if (!user || user.banned) {
+    if (!user) {
       return res.status(401).json({ success: false, message: 'Invalid username or password' });
+    }
+
+    // 封禁分两种：
+    //   永久（管理员手动封）—— banned: true
+    //   限期（提交页红牌自动封）—— bannedUntil 还没到
+    // 限期封禁过期后允许登录，不用管理员手动解。
+    const timedBanActive = user.bannedUntil && new Date(user.bannedUntil) > new Date();
+    if (user.banned || timedBanActive) {
+      return res.status(403).json({
+        success: false,
+        banned: true,
+        banType: user.banned ? 'manually' : 'automatically',
+        banReason: user.banReason || '',
+        bannedUntil: user.bannedUntil || null,
+        message: 'You are banned.',
+      });
     }
 
     const match = await bcrypt.compare(password, user.password);
