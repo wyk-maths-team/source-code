@@ -26,7 +26,7 @@ async function handler(req, res) {
 
     // 聚合：每位用戶對每題的最早 AC 時間 → 按日期累計
     const pipeline = [
-      { $match: { correct: true, systemError: false } },
+      { $match: { status: 'AC' } },
       {
         $group: {
           _id: { username: '$username', problemId: '$problemId' },

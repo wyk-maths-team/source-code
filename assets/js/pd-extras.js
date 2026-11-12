@@ -583,21 +583,28 @@ function bindSubmitEvent() {
         return;
       }
 
-      if (result.systemError) {
-        setWorkbenchStatusHtml(statusBoxHtml(result.subid, 'System Error: please report.', 'status-system'));
-      } else if (result.score !== undefined) {
-        let txt, cls;
-        if (result.score === 100) { txt = 'Accepted'; cls = 'status-accepted'; }
-        else if (result.score === 0) { txt = 'Wrong Answer'; cls = 'status-wrong'; }
-        else { txt = `Partial Score (${result.score}%)`; cls = 'status-partial'; }
-        setWorkbenchStatusHtml(statusBoxHtml(result.subid, txt, cls));
+      // 结果只有一个来源：result.status（AC / PS60 / WA / V60 / SE），
+      // 以前在这里按 score 现拼一遍，和列表页的规则老是对不上。
+      const st = result.status || 'Pending';
+      const stMap = {
+        AC: ['Accepted', 'status-accepted'],
+        WA: ['Wrong Answer', 'status-wrong'],
+        SE: ['System Error: please report.', 'status-system'],
+        Pending: ['Pending', 'status-pending'],
+      };
+      let stLabel, stCls;
+      if (stMap[st]) {
+        stLabel = stMap[st][0]; stCls = stMap[st][1];
+      } else if (st[0] === 'PS') {
+        stLabel = 'Partial Score (' + parseInt(st.slice(2), 10) + ')'; stCls = 'status-partial';
+      } else if (st[0] === 'V') {
+        stLabel = 'Violation'; stCls = 'status-violation';
       } else {
-        const txt = result.correct ? 'Accepted' : 'Wrong Answer';
-        const cls = result.correct ? 'status-accepted' : 'status-wrong';
-        setWorkbenchStatusHtml(statusBoxHtml(result.subid, txt, cls));
+        stLabel = 'Wrong Answer'; stCls = 'status-wrong';
       }
+      setWorkbenchStatusHtml(statusBoxHtml(result.subid, stLabel, stCls));
 
-      if (result.correct || result.score === 100) {
+      if (st === 'AC') {   // 状态是唯一真相，不再看 correct/score
         PD.setProblemState(problemId, 'passed');
         if (localStorage.getItem('nekoModeUnlocked') === 'true' && localStorage.getItem('showNekos') === 'true') fetchNekoAndShow();
       } else if (S.userStates[problemId] !== 'passed') PD.setProblemState(problemId, 'failed');

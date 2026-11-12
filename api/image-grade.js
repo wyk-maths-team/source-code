@@ -8,6 +8,7 @@ import { buildImageGradePrompt } from '../lib/grade-prompt.js';
 import { effortForDifficulty } from '../lib/thinking.js';
 import crypto from 'crypto';
 import { wrapHandler } from '../lib/errors.js';
+import { encodeStatus } from '../lib/submission-status.js';
 
 // ⭐ 必须配置这个，否则 Vercel 免费版 10 秒后必断连！
 export const config = { maxDuration: 300 };
@@ -144,7 +145,7 @@ async function handleCreate(req, res, db, decoded) {
       // 更新数据库
       await db.collection('submissions').updateOne(
         { subid },
-        { $set: { marked: true, score: finalScore, comment, correct: finalScore === 100, markedAt: new Date(), aiGraded: true, tokenUsage: actualCost } }
+        { $set: { status: encodeStatus({ score: finalScore }), comment, markedAt: new Date(), aiGraded: true, tokenUsage: actualCost } }
       );
 
       // 判分走这里就结束了，所以计数和成就必须在这一步补上 ——

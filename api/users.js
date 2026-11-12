@@ -498,7 +498,7 @@ async function handler(req, res) {
 
       try {
         const pipeline = [
-          { $match: { correct: true, systemError: false } },
+          { $match: { status: 'AC' } },
           {
             $group: {
               _id: { username: '$username', problemId: '$problemId' },
@@ -761,12 +761,7 @@ if (isPeriodMode) {
   const since = new Date(nowMs - windowMs);
 
   // 1) 聚合：窗口内每个用户 AC 的不同题目
-  const AC_FILTER = {
-    $or: [
-      { type: 'image', marked: true, score: 100 },
-      { type: { $ne: 'image' }, correct: true, systemError: { $ne: true } },
-    ],
-  };
+  const AC_FILTER = { status: 'AC' };
 
   const rows = await db.collection('submissions').aggregate([
     { $match: { timestamp: { $gte: since }, ...AC_FILTER } },

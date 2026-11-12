@@ -14,6 +14,7 @@ import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { waitUntil } from '@vercel/functions';
 import { wrapHandler } from '../lib/errors.js';
+import { encodeStatus } from '../lib/submission-status.js';
 import { guestBlockedFromProblem } from '../lib/guestGuard.js';
 import {
   generateSubid,
@@ -328,15 +329,13 @@ async function handleSingleSubmit(ctx) {
   }
 
   // ── Base submission doc ──
+  // 结果只存一个 status（见 lib/submission-status.js）。
+  // 图片提交此刻还没批分，所以先不写 status —— 那正是「Pending」的含义。
   const submissionData = {
     username: effectiveUsername,
     problemId: pid,
     type,
     timestamp: submitTime,
-    correct: false,
-    systemError: false,
-    marked: false,
-    score: 0,
     comment: '',
     subid: generateSubid(),
     answer: type === 'text' ? String(answer) : '',
@@ -388,8 +387,7 @@ async function handleSingleSubmit(ctx) {
         success: true,
         subid: submissionData.subid,
         imageUrl: submissionData.image,
-        correct: false,
-        systemError: false,
+        status: 'Pending',
         message: 'Image submitted',
       });
     }
@@ -435,8 +433,7 @@ async function handleSingleSubmit(ctx) {
     return sendSuccess(db, rawUsername, res, {
       success: true,
       subid: submissionData.subid,
-      correct: jr.correct,
-      systemError: jr.systemError,
+      status: encodeStatus({ score: jr.score, correct: jr.correct, systemError: jr.systemError }),
       score: jr.score,             // 给客户端的是真实分数
       contestScore: currentScore,  // 服务器计分（带惩罚）另外给一份，便于调试/展示排名
       message: jr.systemError
@@ -460,8 +457,7 @@ async function handleSingleSubmit(ctx) {
       success: true,
       subid: submissionData.subid,
       imageUrl: submissionData.image,
-      correct: false,
-      systemError: false,
+      status: 'Pending',
       message: 'Image submitted for marking',
     });
   }
@@ -469,11 +465,8 @@ async function handleSingleSubmit(ctx) {
   // Text → judge
   const jr = await judge({ problem, answer });
 
-  submissionData.correct = jr.correct;
-  submissionData.systemError = jr.systemError;
-  submissionData.score = jr.score;
   submissionData.comment = jr.comment;
-  submissionData.marked = jr.marked || !jr.systemError;
+  submissionData.status = encodeStatus({ score: jr.score, correct: jr.correct, systemError: jr.systemError });
 
   await db.collection('submissions').insertOne(submissionData);
 
@@ -487,9 +480,8 @@ async function handleSingleSubmit(ctx) {
     return sendSuccess(db, rawUsername, res, {
       success: true,
       subid: submissionData.subid,
-      correct: jr.correct,
-      systemError: jr.systemError,
-      score: jr.score,         // 或 score: jr.score
+      status: encodeStatus({ score: jr.score, correct: jr.correct, systemError: jr.systemError }),
+      score: jr.score,
       message: jr.systemError
         ? 'Logic execution failed'
         : (jr.marked ? 'Judged by custom logic' : undefined),
@@ -563,10 +555,7 @@ async function handleBatch(req, res, db, username, now) {
         problemId: pid,
         type: 'text',
         timestamp: now,
-        correct: jr.correct,
-        systemError: jr.systemError,
-        marked: true,
-        score: jr.score,
+        status: encodeStatus({ score: jr.score, correct: jr.correct, systemError: jr.systemError }),
         comment: jr.comment,
         subid,
         answer: userAnswer,

@@ -6,6 +6,7 @@ import { runCustomLogic } from '../lib/logic-runner.js';
 import { ObjectId } from 'mongodb';
 import { wrapHandler } from '../lib/errors.js';
 import { auditLog } from '../lib/audit.js';
+import { statusOf, labelOf, statusFilter, parseStatus, encodeStatus } from '../lib/submission-status.js';
 // ⭐ 移除 executeCustomLogic 死函數（原使用 vm，但 import 被註釋 → 一旦被呼叫就 ReferenceError）
 
 // =============== 快取 ===============
@@ -37,38 +38,17 @@ function buildProblemIdFilter(rawIds) {
   return out;
 }
 
+// 状态只从 submissions.status 读，格式见 lib/submission-status.js
 function deriveStatus(s) {
-  // 违规优先：分数和评语都还在，但对外一律显示 Violation（不分红黄）
-  if (s.violation) return 'Violation';
-  if (s.marked && s.score !== undefined) {
-    if (s.score === 100) return 'Accepted';
-    if (s.score === 0) return 'Wrong Answer';
-    return `Partial Score (${s.score})`;
-  }
-  if (s.type === 'image' && !s.marked) return 'Pending';
-  if (s.systemError) return 'System Error';
-  if (typeof s.correct === 'boolean') return s.correct ? 'Accepted' : 'Wrong Answer';
-  return 'Pending';
+  // 图片提交后还没批分时没有 status，那个状态叫 Pending
+  if (!s || (!s.status && s.type === 'image' && !s.marked)) return 'Pending';
+  return labelOf(statusOf(s));
 }
 
 function buildStatusFilter(status) {
-  switch (status) {
-    case 'accepted':
-      return { $or: [{ marked: true, score: 100 }, { type: 'text', systemError: false, correct: true }] };
-    case 'wrong':
-      return { $or: [{ marked: true, score: 0 }, { type: 'text', systemError: false, correct: false }] };
-    case 'partial':
-      return { marked: true, score: { $gt: 0, $lt: 100 } };
-    case 'pending':
-      return { type: 'image', marked: false };
-    case 'system':
-      return { systemError: true };
-    case 'violation':
-      // 违规是独立标记，和分数无关，所以单独一个分支
-      return { violation: true };
-    default:
-      return null;
-  }
+  // 全部走 status 字段，规则集中在 lib/submission-status.js
+  if (status === 'pending') return { type: 'image', status: { $exists: false } };
+  return statusFilter(status);
 }
 
 /**
@@ -154,13 +134,13 @@ async function handler(req, res) {
         {
           projection: {
             subid: 1, username: 1, problemId: 1, type: 1, timestamp: 1,
-            correct: 1, systemError: 1, marked: 1, score: 1, comment: 1,
+            comment: 1,
             answer: 1, image: 1, markedAt: 1, _id: 0,
             // ⭐ 新增下面这三个
             judgingMs: 1,      // AI 耗时
             tokenUsage: 1,     // Token 消耗
             usedModel: 1,      // 使用的模型
-            violation: 1, violationType: 1, flagged: 1,  // 违规标记（不覆盖分数/评语）
+            status: 1,         // 结果（AC / PS60 / WA / V60 / SE）
           }
         }
       ),
@@ -197,17 +177,13 @@ async function handler(req, res) {
       problemId: sub.problemId,
       type: sub.type,
       timestamp: sub.timestamp,
-      marked: !!sub.marked,
-      score: sub.score,
-      correct: sub.correct,
-      systemError: !!sub.systemError,
+      status: statusOf(sub),
+      ...parseStatus(statusOf(sub)),
       markedAt: sub.markedAt || null,
       // ⭐ 返回给前端
       judgingMs: sub.judgingMs || null,
       tokenUsage: sub.tokenUsage || 0,
       usedModel: sub.usedModel || null,
-      violation: !!sub.violation,
-      violationType: sub.violationType || null,
     };
 
     if (sub.type === 'image') {
@@ -261,9 +237,9 @@ async function handler(req, res) {
       { subid },
       {
         $set: {
-          violation: true,
+          // 结果改写成 V+原分；评语和原来的分数值本身都还在 status 里
+          status: 'V' + String(Math.max(0, Math.min(99, Math.round(Number(sub.score) || 0)))).padStart(2, '0'),
           violationType: flagType,
-          flagged: true,
           violationAt: new Date(),
           violationBy: req.user ? req.user.username : 'system',
         },
@@ -430,11 +406,8 @@ async function handler(req, res) {
         { subid },
         {
           $set: {
-            correct: !!jr.correct,
-            systemError: !!jr.systemError,
-            score: jr.systemError ? 0 : Number(jr.score) || 0,
+            status: encodeStatus({ score: jr.systemError ? 0 : Number(jr.score) || 0, correct: !!jr.correct, systemError: !!jr.systemError }),
             comment: jr.comment || '',
-            marked: jr.marked || !jr.systemError,
             regradedAt: new Date(),
             regradedBy: decoded.username,
             regradedFrom: oldScore,
@@ -465,9 +438,8 @@ async function handler(req, res) {
       return res.status(200).json({
         success: true,
         kind: sub.type,
+        status: encodeStatus({ score: jr.systemError ? 0 : Number(jr.score) || 0, correct: !!jr.correct, systemError: !!jr.systemError }),
         score: jr.systemError ? 0 : Number(jr.score) || 0,
-        correct: !!jr.correct,
-        systemError: !!jr.systemError,
         comment: jr.comment || '',
         previousScore: oldScore,
         firstAC: isFirstAC,
@@ -554,11 +526,8 @@ async function handler(req, res) {
       { subid },
       {
         $set: {
-          score: judged.score,
+          status: encodeStatus({ score: judged.score }),
           comment: judged.comment,
-          correct: judged.score === 100,
-          systemError: false,
-          marked: true,
           regradedAt: new Date(),
           regradedBy: decoded.username,
           regradedFrom: oldScore,
@@ -605,8 +574,7 @@ async function handler(req, res) {
       username: sub.username,
       problemId: sub.problemId,
       $or: [
-        { type: 'image', marked: true, score: 100 },
-        { type: { $ne: 'image' }, correct: true, systemError: { $ne: true } },
+        { status: 'AC' },
       ],
     });
 
@@ -652,7 +620,7 @@ async function handler(req, res) {
 
       const [total, toMark, subs] = await Promise.all([
         db.collection('submissions').countDocuments(filter),
-        db.collection('submissions').countDocuments({ type: 'image', marked: false }),
+        db.collection('submissions').countDocuments({ type: 'image', status: { $exists: false } }),
         db.collection('submissions').find(filter, { projection: { image: 0 } })
           .sort({ timestamp: -1 })
           .skip((pageNum - 1) * limitNum)
@@ -674,7 +642,7 @@ async function handler(req, res) {
         displayName: dispMap[s.username] || s.username,
         problemName: nameMap[s.problemId] || `Problem #${s.problemId}`,
         status: deriveStatus(s),
-        violation: !!s.violation,
+        violation: deriveStatus(s) === 'Violation',
         answer: s.type === 'image' ? '[Image]' : s.answer
       }));
 
@@ -747,10 +715,7 @@ async function handler(req, res) {
         { _id: oid },
         {
           $set: {
-            correct,
-            systemError,
-            marked: true,
-            score,
+            status: encodeStatus({ score, correct, systemError }),
             comment,
             markedAt: new Date()
           }
@@ -860,9 +825,9 @@ async function handler(req, res) {
       db.collection('submissions').find(filter, {
         projection: {
           subid: 1, username: 1, problemId: 1, type: 1, timestamp: 1,
-          correct: 1, systemError: 1, marked: 1, score: 1, answer: 1,
-          // violation 必须取出来，否则 deriveStatus 看不到它，徽章会退回分数显示
-          violation: 1, violationType: 1
+          answer: 1,
+          // 结果只有一个来源：status
+          status: 1,
         }
       }).sort({ timestamp: -1 })
         .skip((pageNum - 1) * limitNum)
@@ -921,7 +886,7 @@ async function handler(req, res) {
         answer: answerDisplay,
         answerHidden,
         status,
-        violation: !!s.violation,   // 前端要据此上紫色样式
+        violation: status === 'Violation',   // 前端据此上紫色样式
       };
     });
 

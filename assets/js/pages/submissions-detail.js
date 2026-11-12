@@ -10,20 +10,17 @@ const container = document.getElementById('mainContent');
 
 function escapeHtml(s) { return ((window.DSHUI && window.DSHUI.esc) || function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]; }); })(s); }
 
+// 后端已经把 status 解析成 verdict / score / correct 一起送过来，
+// 前端不再自己拼判断 —— 以前五套规则各写一份，改一处漏一处。
 function computeStatus(sub) {
-  // 违规是独立状态：分数和评语照旧保留，只是多一层紫色标记。
-  // 不管红牌黄牌，对外都只显示 Violation —— 具体是哪张卡是管理员内部的事。
-  if (sub.violation || sub.status === 'Violation') {
-    return { text: 'Violation', cls: 'status-violation' };
+  switch (sub.verdict) {
+    case 'AC': return { text: 'Accepted', cls: 'status-accepted' };
+    case 'PS': return { text: 'Partial Score (' + sub.score + ')', cls: 'status-partial' };
+    case 'V':  return { text: 'Violation', cls: 'status-violation' };
+    case 'SE': return { text: 'System Error', cls: 'status-system' };
+    case 'WA': return { text: 'Wrong Answer', cls: 'status-wrong' };
   }
-  if (sub.marked && sub.score !== undefined) {
-    if (sub.score === 100) return { text: 'Accepted', cls: 'status-accepted' };
-    if (sub.score === 0) return { text: 'Wrong Answer', cls: 'status-wrong' };
-    return { text: `Partial Score (${sub.score}%)`, cls: 'status-partial' };
-  }
-  if (sub.type === 'image' && !sub.marked) return { text: 'Pending', cls: 'status-pending' };
-  if (sub.systemError) return { text: 'System Error', cls: 'status-system' };
-  if (typeof sub.correct === 'boolean') return sub.correct ? { text: 'Accepted', cls: 'status-accepted' } : { text: 'Wrong Answer', cls: 'status-wrong' };
+  // 没有 status 就是还没批的图片提交
   return { text: 'Pending', cls: 'status-pending' };
 }
 

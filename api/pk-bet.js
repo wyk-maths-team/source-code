@@ -599,7 +599,7 @@ async function collectAttempts(db, room) {
     username: { $in: room.players.map(p => p.username) },
     problemId: { $in: room.problemIds },
     timestamp: { $gte: new Date(room.startAt), $lte: new Date(room.endAt) },
-    systemError: { $ne: true },
+    status: 'AC',
   }, { projection: { username: 1, problemId: 1, timestamp: 1, correct: 1, score: 1, _id: 0 } }).toArray();
 
   const latest = new Map();

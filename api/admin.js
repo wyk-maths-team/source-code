@@ -22,6 +22,7 @@ import * as nodeUtil        from 'util';
 import * as nodeQuerystring from 'querystring';
 import * as nodeUrl         from 'url';
 import { wrapHandler } from '../lib/errors.js';
+import { encodeStatus } from '../lib/submission-status.js';
 import zlib from 'zlib';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -269,7 +270,7 @@ async function handleMarkerList(req, res, db) {
   if (req.method !== 'GET') return fail(res, 405, 'Method not allowed');
 
   const submissions = await db.collection('submissions')
-    .find({ type: 'image', marked: false })
+    .find({ type: 'image', status: { $exists: false } })
     .sort({ timestamp: -1 })
     .project({ username: 1, problemId: 1, subid: 1, timestamp: 1, _id: 0 })
     .toArray();
@@ -412,8 +413,7 @@ async function handleMarkSubmit(req, res, db, decoded) {
     { subid },
     {
       $set: {
-        marked: true,
-        score: numScore,
+        status: encodeStatus({ score: numScore }),
         comment: comment || '',
         markedAt: new Date(),
       },

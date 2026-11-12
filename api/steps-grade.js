@@ -11,6 +11,7 @@ import { effortForDifficulty } from '../lib/thinking.js';
 import { consumeTokens } from '../lib/token.js';
 import crypto from 'crypto';
 import { wrapHandler } from '../lib/errors.js';
+import { encodeStatus } from '../lib/submission-status.js';
 import {
   updateUserStats,
   rewardFirstAC,
@@ -209,8 +210,8 @@ async function handleCreate(req, res, db, decoded) {
       const finalScore = result.score;
       await db.collection('submissions').insertOne({
         subid, username: decoded.username, problemId: String(problemId), type: 'steps',
-        timestamp: new Date(), correct: finalScore === 100, systemError: false, marked: true,
-        score: finalScore, comment: result.comment, answer: steps.trim(), markedAt: new Date(),
+        timestamp: new Date(), status: encodeStatus({ score: finalScore }),
+        comment: result.comment, answer: steps.trim(), markedAt: new Date(),
         aiGraded: true, handledBy: 'api', usedModel: modelKey, taskId,
         judgingMs: result.elapsed, judgingModel: modelKey, tokenUsage: result.tokenUsage || tokenCost
       });
@@ -325,7 +326,7 @@ async function handlePoll(req, res, db, decoded) {
       try {
         await db.collection('submissions').insertOne({
           subid, username: claimed.username, problemId: claimed.problemId, type: 'steps',
-          timestamp: new Date(), correct: finalScore === 100, systemError: false, marked: true, score: finalScore, comment,
+          timestamp: new Date(), status: encodeStatus({ score: finalScore }), comment,
           answer: claimed.steps, markedAt: new Date(), aiGraded: true, handledBy: claimed.handledBy || 'bridge',
           usedModel: claimed.usedModel || null, taskId, judgingMs: claimed.elapsedMs || null, tokenUsage: claimed.result?.tokenUsage || tokenCost
         });
