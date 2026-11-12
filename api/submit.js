@@ -81,8 +81,21 @@ async function finishSubmit(db, username, result, context = {}) {
 }
 
 async function sendSuccess(db, username, res, result, context = {}) {
-  // 成就检查已经由 finishSubmit 同步跑过、结果就在 result 里，
-  // 这里再跑一次只会白烧一遍聚合查询，所以只保留响应。
+  // 这里必须真的跑一次成就检查。
+  //
+  // 以前这块注释写着「已经由 finishSubmit 跑过」，但 finishSubmit 从头到尾
+  // 没有任何调用点，于是普通提交的成就从来没被检查、也没被广播过 ——
+  // 只有课程画板和论文页因为自己有独立的调用才正常。
+  try {
+    const out = await runPostSubmit(db, username, context);
+    if (out.unlocked && out.unlocked.length) {
+      result.unlockedAchievements = out.expand(out.unlocked);
+      result.achievementReward = out.rewarded;
+    }
+  } catch (e) {
+    // 成就坏了不能把判分结果一起拖下水
+    console.error('[submit] achievement check failed:', e);
+  }
   res.status(200).json(result);
 }
 

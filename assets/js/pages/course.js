@@ -554,8 +554,14 @@
         try {
           const sub = await API.post('/api/submit', { problemId: pid, type: 'image', image });
           if (!sub || !sub.success) throw new Error((sub && sub.message) || 'Submit failed');
+          if (sub.unlockedAchievements && typeof window.showAchievementToasts === 'function') {
+            window.showAchievementToasts(sub.unlockedAchievements);
+          }
           statusEl.textContent = 'Grading…';
           const graded = await API.post('/api/image-grade', { problemId: pid, subid: sub.subid, imageUrl: sub.imageUrl });
+          if (graded && graded.unlockedAchievements && typeof window.showAchievementToasts === 'function') {
+            window.showAchievementToasts(graded.unlockedAchievements);
+          }
           if (graded && graded.success && graded.grade) {
             const g = graded.grade;
             card.insertAdjacentHTML('beforeend', '<div class="ip-result" style="padding:0 16px 14px;"><strong>' + esc(String(g.score != null ? g.score : '')) + '</strong> ' + esc(g.comment || '') + '</div>');
@@ -1331,6 +1337,9 @@
         API.post('/api/submit', { problemId: box.pid, type: 'image', image: dataUrl })
           .then(function (sub) {
             if (!sub || !sub.success) throw new Error((sub && sub.message) || 'Submit failed');
+            if (sub.unlockedAchievements && typeof window.showAchievementToasts === 'function') {
+              window.showAchievementToasts(sub.unlockedAchievements);
+            }
             status.textContent = 'Grading…';
             // 2) 交给图片判分（同步返回结果）
             return API.post('/api/image-grade', {
@@ -1343,6 +1352,9 @@
             if (!res || !res.success) throw new Error((res && res.message) || 'Grading failed');
             if (res.tokens && window.updateTopbarTokens) {
               window.updateTopbarTokens(res.tokens.daily, res.tokens.global);
+            }
+            if (res.unlockedAchievements && typeof window.showAchievementToasts === 'function') {
+              window.showAchievementToasts(res.unlockedAchievements);
             }
             showBoxResult(wrap, res.result, res.subid);
           })

@@ -147,10 +147,21 @@ async function handleCreate(req, res, db, decoded) {
         { $set: { marked: true, score: finalScore, comment, correct: finalScore === 100, markedAt: new Date(), aiGraded: true, tokenUsage: actualCost } }
       );
 
-      const statsCol = db.collection('userstats');
-      await statsCol.updateOne({ username: decoded.username }, { $setOnInsert: { username: decoded.username, states: {} } }, { upsert: true });
-      if (finalScore === 100) await statsCol.updateOne({ username: decoded.username }, { $set: { [`states.${problemId}`]: 'passed' } });
-      else await statsCol.updateOne({ username: decoded.username, [`states.${problemId}`]: { $ne: 'passed' } }, { $set: { [`states.${problemId}`]: 'failed' } });
+      // 判分走这里就结束了，所以计数和成就必须在这一步补上 ——
+      // 提交那一刻答案还是 pending，根本不知道对错。
+      const { updateUserStats, rewardFirstAC, runPostSubmit } = await import('../lib/submission.js');
+      const isAC = finalScore === 100;
+      let achOut = null;
+      try {
+        const firstAC = await updateUserStats(db, decoded.username, String(problemId), isAC);
+        if (firstAC) await rewardFirstAC(db, { username: decoded.username, rawUsername: decoded.username, problem });
+        achOut = await runPostSubmit(db, decoded.username, {
+          justAC: isAC,
+          problemId: String(problemId),
+        });
+      } catch (e) {
+        console.error('[image-grade] post-grade side effects failed:', e);
+      }
 
       await db.collection('steps_grading_tasks').updateOne({ taskId }, { $set: { status: 'done', result: { score: finalScore, comment }, completedAt: new Date() } });
       const newTokens = await consumeTokens(db, decoded.username, actualCost);
@@ -158,12 +169,15 @@ async function handleCreate(req, res, db, decoded) {
       auditLog(db, 'image_grade', { problemId, score: finalScore, taskId }, decoded.username, 'info').catch(() => {});
 
       // ⭐ 直接把结果塞给前端，绝不降级！
-      return res.status(200).json({ 
-        success: true, 
-        status: 'done', 
-        result: { score: finalScore, comment }, 
+      return res.status(200).json({
+        success: true,
+        status: 'done',
+        result: { score: finalScore, comment },
         subid,
-        tokens: newTokens 
+        tokens: newTokens,
+        ...(achOut && achOut.unlocked && achOut.unlocked.length
+          ? { unlockedAchievements: achOut.expand(achOut.unlocked), achievementReward: achOut.rewarded }
+          : {}),
       });
 
     } catch (err) {
