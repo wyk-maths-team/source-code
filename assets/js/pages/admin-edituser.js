@@ -83,6 +83,16 @@
               <label>
                 <input type="checkbox" id="editBanned" ${targetUser.banned ? 'checked' : ''} ${canBan ? '' : 'disabled'}> Banned
               </label>
+              <div id="banReasonWrap" style="margin-top:.5rem; ${targetUser.banned ? '' : 'display:none;'}">
+                <input type="text" id="editBanReason" maxlength="300"
+                  placeholder="Reason shown to the student (e.g. setting illegal names)"
+                  value="${escapeHtml(String(targetUser.banReason || ''))}"
+                  style="width:100%;padding:.55rem .7rem;border:1px solid var(--border-color);border-radius:6px;font:inherit;"
+                  ${canBan ? '' : 'disabled'}>
+                <div style="font-size:.78rem;color:var(--text-secondary);margin-top:.35rem;">
+                  Shown on the student's home page. Manual bans are permanent until you untick the box.
+                </div>
+              </div>
             </div>
             <div style="margin-top:1.5rem;">
               <button type="submit" class="btn btn-primary">Save Changes</button>
@@ -94,6 +104,15 @@
       `;
 
       document.getElementById('mainContent').innerHTML = html;
+
+      // 勾选封禁时才显示原因输入框
+      const banBox = document.getElementById('editBanned');
+      const banWrap = document.getElementById('banReasonWrap');
+      if (banBox && banWrap) {
+        banBox.addEventListener('change', () => {
+          banWrap.style.display = banBox.checked ? '' : 'none';
+        });
+      }
 
       document.getElementById('editForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -108,7 +127,13 @@
         if (newUsername !== targetUser.username) updateBody.newUsername = newUsername;
         if (password) updateBody.password = password;
         if (role !== undefined) updateBody.role = role;
-        if (banned !== undefined) updateBody.banned = banned;
+        if (banned !== undefined) {
+          updateBody.banned = banned;
+          if (banned) {
+            const reasonEl = document.getElementById('editBanReason');
+            updateBody.banReason = reasonEl ? reasonEl.value.trim() : '';
+          }
+        }
 
         try {
                     const result = await apiCall(`/api/users?action=adminUpdate&username=${encodeURIComponent(username)}`, 'PUT', updateBody);

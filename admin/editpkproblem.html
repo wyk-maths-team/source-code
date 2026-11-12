@@ -1,14 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script id="auth-gate">(function(){try{
-  if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");return;}
-  // 被封禁的账号只能待在首页，其余页面一律送回去
-  var b=localStorage.getItem("ban_info");
-  if(b){var p=location.pathname.replace(/\/+$/,"");if(p!=="/index.html"&&p!=="/index"&&p!==""){document.documentElement.style.display="none";location.replace("/index.html?banned=1");return;}}
-}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='c2dee2d0';</script>
+<script>window.__BUILD_V='b3bd3621';</script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -18,7 +13,7 @@
 <meta name="robots" content="noindex, nofollow, noarchive"> 
 <title>Edit PK Problem - WYK Maths Team</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="/assets/css/styles.css?v=c2dee2d0" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=b3bd3621" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 <style>
     /* ── 中性色变量（由 tools/extract-colors.mjs 生成）──────────────
@@ -217,15 +212,18 @@
   }
   .img-up-field button:hover { border-color: var(--accent); color: var(--accent); }
 </style>
-<script src="/assets/js/core/ui.js?v=c2dee2d0"></script>
-<script src="/assets/js/core/net.js?v=c2dee2d0"></script>
-<script src="/assets/js/core/api.js?v=c2dee2d0"></script>
-  <script src="/assets/js/core/padstore.js?v=c2dee2d0"></script>
-  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=c2dee2d0">
-  <script src="/assets/js/core/radial-menu.js?v=c2dee2d0"></script>
-  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=c2dee2d0">
-  <script src="/assets/js/core/ban-screen.js?v=c2dee2d0"></script>
-<script src="/assets/js/core/page.js?v=c2dee2d0"></script>
+<script src="/assets/js/core/ui.js?v=b3bd3621"></script>
+<script src="/assets/js/core/net.js?v=b3bd3621"></script>
+<script src="/assets/js/core/ban-guard.js?v=b3bd3621"></script>
+<script src="/assets/js/core/api.js?v=b3bd3621"></script>
+  <script src="/assets/js/core/padstore.js?v=b3bd3621"></script>
+  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=b3bd3621">
+  <script src="/assets/js/core/radial-menu.js?v=b3bd3621"></script>
+  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=b3bd3621">
+  <script src="/assets/js/core/ban-screen.js?v=b3bd3621"></script>
+  <link rel="stylesheet" href="/assets/css/ban-index.css?v=b3bd3621">
+  <script src="/assets/js/core/ban-index.js?v=b3bd3621"></script>
+<script src="/assets/js/core/page.js?v=b3bd3621"></script>
 </head>
 <body class="index-body">
   <div id="appContainer">
@@ -307,12 +305,12 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=c2dee2d0"></script>
-  <script src="/assets/js/app.js?v=c2dee2d0"></script>
-  <script src="/assets/js/topbar.js?v=c2dee2d0"></script>
-  <script src="/assets/js/sidebar.js?v=c2dee2d0"></script>
+  <script src="/assets/js/auth.js?v=b3bd3621"></script>
+  <script src="/assets/js/app.js?v=b3bd3621"></script>
+  <script src="/assets/js/topbar.js?v=b3bd3621"></script>
+  <script src="/assets/js/sidebar.js?v=b3bd3621"></script>
 
-  <script src="/assets/js/pages/admin-editpkproblem.js?v=c2dee2d0"></script>
-<script src="/assets/js/pk-notify.js?v=c2dee2d0"></script>
+  <script src="/assets/js/pages/admin-editpkproblem.js?v=b3bd3621"></script>
+<script src="/assets/js/pk-notify.js?v=b3bd3621"></script>
 </body>
 </html>

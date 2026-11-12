@@ -260,8 +260,12 @@ async function apiCall(endpoint, method = 'GET', body = null) {
   }
   if (res.status === 403) {
     const data = await res.json();
-    if (data.banned || (data.message && /banned/i.test(data.message))) {
-      // 封禁有单独的一屏，不再用 alert 一句话带过
+    if (data.banned) {
+      // 本地闸门挡下来的请求不算会话失效 —— 页面上已经有红色横幅了，
+      // 再盖一层全屏遮挡只会让人没法读内容。
+      if (data.guardBlocked) throw new Error('Banned');
+
+      // 真的是服务端拒绝的，才走全屏那一屏
       if (window.BanScreen && window.BanScreen.show) {
         window.BanScreen.show({
           type: data.banType || 'manually',
@@ -269,6 +273,9 @@ async function apiCall(endpoint, method = 'GET', body = null) {
           until: data.bannedUntil || null,
         });
       }
+      throw new Error('Banned');
+    }
+    if (data.message && /banned/i.test(data.message)) {
       throw new Error('Banned');
     }
     throw new Error(data.message || 'Forbidden');

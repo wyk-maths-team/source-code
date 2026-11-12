@@ -1,7 +1,7 @@
-// assets/js/core/ban-index.js —— 封禁账号在首页的只读模式
+// assets/js/core/ban-index.js —— 被封账号的首页提示
 //
-// 被封的人能登进来，但只能看首页：整页转成红色调，
-// 除了说明封禁原因的那一块，其他交互全部禁用。
+// 被封的人可以正常浏览全站、看资讯，只是所有 API 请求都被 ban-guard 拦住了。
+// 这里只做两件事：给页面加一层红色调，并在顶部说明封禁情况。
 
 (function () {
   'use strict';
@@ -33,8 +33,6 @@
   }
 
   function apply(info) {
-    if (!info) return;
-
     document.documentElement.classList.add('banned-mode');
 
     const how = info.type === 'automatically' ? 'automatically' : 'manually';
@@ -50,69 +48,16 @@
         '<div class="ban-banner__line"><strong>' + how + '</strong> for <strong>' + esc(why) + '</strong>.</div>' +
         (when ? '<div class="ban-banner__line">The ban lifts on <strong>' + esc(when) + '</strong> (Hong Kong time).</div>'
               : '<div class="ban-banner__line">This ban is permanent until a teacher lifts it.</div>') +
-        '<div class="ban-banner__line ban-banner__line--muted">While banned this page is the only one you can open — any other link sends you back here.</div>' +
+        '<div class="ban-banner__line ban-banner__line--muted">You can still read the site, but submitting answers, sending messages and everything else that needs the server is turned off.</div>' +
       '</div>';
     document.body.insertBefore(bar, document.body.firstChild);
 
-    // 除了这条横幅，页面上所有可点的东西都停掉
-    const kill = () => {
-      // 导览/提示这些浮层在封禁状态下没有意义，直接收掉。
-      // 它们用的是 id（#tour-root / #tour-welcome）而不是 class，得单独点名。
-      document.querySelectorAll('[id^="tour-"], [id*="-tour"], .tour-tip, .tour-welcome-card').forEach((el) => {
-        if (bar && bar.contains(el)) return;
-        const host = el.closest('[id^="tour-"]') || el;
-        host.style.display = 'none';
+    // 导览弹窗对已经被封的人没有意义，收掉（它们用的是 id，不是 class）
+    setTimeout(() => {
+      document.querySelectorAll('[id^="tour-"], .tour-tip').forEach((el) => {
+        if (!bar.contains(el)) el.style.display = 'none';
       });
-
-      document.querySelectorAll('a, button, input, select, textarea, [role="button"], [tabindex]').forEach((el) => {
-        if (bar.contains(el)) return;
-        el.setAttribute('tabindex', '-1');
-        el.setAttribute('aria-disabled', 'true');
-        if (el.tagName === 'BUTTON' || el.tagName === 'INPUT') el.disabled = true;
-        el.style.pointerEvents = 'none';
-        el.style.cursor = 'not-allowed';
-      });
-    };
-    kill();
-    setTimeout(kill, 300);
-    setTimeout(kill, 1200);
-
-    // 页面还会异步插进来一堆东西（导览、通知、弹层）。
-    // 光靠定时扫会漏，用一个 observer 持续收编新节点。
-    if (window.MutationObserver) {
-      const mo = new MutationObserver((records) => {
-        let dirty = false;
-        for (const rec of records) {
-          for (const node of rec.addedNodes) {
-            if (node.nodeType !== 1) continue;
-            if (node === bar || bar.contains(node)) continue;
-            // 覆盖层直接收掉：封禁状态下没有任何弹窗是有意义的
-            const cs = getComputedStyle(node);
-            if (cs.position === 'fixed' && node.classList.length && /overlay|modal|tour|toast|popup/i.test(node.className)) {
-              node.style.display = 'none';
-            }
-            dirty = true;
-          }
-        }
-        if (dirty) kill();
-      });
-      mo.observe(document.body, { childList: true, subtree: true });
-    }
-
-    // 拦截冒泡阶段的点击，兜住那些没被扫到的元素
-    document.addEventListener('click', (e) => {
-      if (bar.contains(e.target)) return;
-      e.preventDefault();
-      e.stopPropagation();
-    }, true);
-
-    // 键盘也别想溜过去（Tab / Enter / 快捷键）
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Tab' || e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    }, true);
+    }, 500);
   }
 
   function init() {
