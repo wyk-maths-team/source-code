@@ -105,7 +105,10 @@
       return (
         '<tr style="border-bottom: 1px solid var(--border-color);">' +
           '<td style="padding: 10px;">' +
-            '<div style="font-weight:bold; color:var(--text-primary);">' + escapeHtml(u.displayName || u.username) + '</div>' +
+            // 名字直接点进个人主页，省得再去翻一遍
+            '<a class="user-name-link" href="/users/' + encodeURIComponent(u.username) + '" title="Open profile">' +
+              escapeHtml(u.displayName || u.username) +
+            '</a>' +
             '<div style="font-size: 12px; color:var(--text-secondary);">@' + escapeHtml(u.username) + '</div>' +
           '</td>' +
           '<td style="padding: 10px; font-size: 14px;">' + escapeHtml(u.realName || '-') + '</td>' +
