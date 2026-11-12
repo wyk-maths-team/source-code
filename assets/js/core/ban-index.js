@@ -50,6 +50,7 @@
         '<div class="ban-banner__line"><strong>' + how + '</strong> for <strong>' + esc(why) + '</strong>.</div>' +
         (when ? '<div class="ban-banner__line">The ban lifts on <strong>' + esc(when) + '</strong> (Hong Kong time).</div>'
               : '<div class="ban-banner__line">This ban is permanent until a teacher lifts it.</div>') +
+        '<div class="ban-banner__line ban-banner__line--muted">While banned this page is the only one you can open — any other link sends you back here.</div>' +
       '</div>';
     document.body.insertBefore(bar, document.body.firstChild);
 

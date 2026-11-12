@@ -101,7 +101,10 @@ loginForm.addEventListener('submit', async (e) => {
     const result = await window.login(username, password);
 
     if (result.success) {
-      const redirect = new URLSearchParams(window.location.search).get('redirect') || '/';
+      // 被封禁的账号只能停在首页 —— 直接送去首页，别先跳到原页面
+      // 再被 auth-gate 弹回来（那样看起来像登录失败）。
+      let redirect = new URLSearchParams(window.location.search).get('redirect') || '/';
+      if (result.banned) redirect = '/index.html';
 
       // ⭐ 1. 卡片轻微下沉
       const card = document.querySelector('.login-card');
