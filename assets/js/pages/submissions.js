@@ -43,7 +43,7 @@
     return `${localDate.getUTCFullYear()}-${pad(localDate.getUTCMonth() + 1)}-${pad(localDate.getUTCDate())} ` + `${pad(localDate.getUTCHours())}:${pad(localDate.getUTCMinutes())}:${pad(localDate.getUTCSeconds())}`;
   }
 
-  const RESULT_LABELS = { accepted: 'Accepted', wrong: 'Wrong Answer', partial: 'Partial Score', pending: 'Pending', system: 'System Error' };
+  const RESULT_LABELS = { accepted: 'Accepted', wrong: 'Wrong Answer', partial: 'Partial Score', pending: 'Pending', system: 'System Error', violation: 'Violation' };
 
   // ⭐ 自动补全核心逻辑（同 Admin 版本）
   function setupAutocomplete(inputId, dropdownId, actionType, onSelectCallback) {
@@ -128,7 +128,7 @@
 
   function renderResultFilterCell() {
     if (state.result) return `<div class="filter-current">Result: <b>${escapeHtml(RESULT_LABELS[state.result] || state.result)}</b><button type="button" class="btn-remove" data-clear="result"><i class="fas fa-times"></i></button></div>`;
-    return `<form class="adv-filter-form" id="formResult" autocomplete="off"><select id="filterResult"><option value="">All</option><option value="accepted">Accepted</option><option value="wrong">Wrong Answer</option><option value="partial">Partial Score</option><option value="pending">Pending</option><option value="system">System Error</option></select><div class="adv-filter-buttons"><button type="submit" class="btn-apply">Apply</button></div></form>`;
+    return `<form class="adv-filter-form" id="formResult" autocomplete="off"><select id="filterResult"><option value="">All</option><option value="accepted">Accepted</option><option value="wrong">Wrong Answer</option><option value="partial">Partial Score</option><option value="pending">Pending</option><option value="system">System Error</option><option value="violation">Violation</option></select><div class="adv-filter-buttons"><button type="submit" class="btn-apply">Apply</button></div></form>`;
   }
 
   /**

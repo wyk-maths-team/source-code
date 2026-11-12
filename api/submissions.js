@@ -63,6 +63,9 @@ function buildStatusFilter(status) {
       return { type: 'image', marked: false };
     case 'system':
       return { systemError: true };
+    case 'violation':
+      // 违规是独立标记，和分数无关，所以单独一个分支
+      return { violation: true };
     default:
       return null;
   }
@@ -857,7 +860,9 @@ async function handler(req, res) {
       db.collection('submissions').find(filter, {
         projection: {
           subid: 1, username: 1, problemId: 1, type: 1, timestamp: 1,
-          correct: 1, systemError: 1, marked: 1, score: 1, answer: 1
+          correct: 1, systemError: 1, marked: 1, score: 1, answer: 1,
+          // violation 必须取出来，否则 deriveStatus 看不到它，徽章会退回分数显示
+          violation: 1, violationType: 1
         }
       }).sort({ timestamp: -1 })
         .skip((pageNum - 1) * limitNum)
@@ -915,7 +920,8 @@ async function handler(req, res) {
         timestamp: s.timestamp,
         answer: answerDisplay,
         answerHidden,
-        status
+        status,
+        violation: !!s.violation,   // 前端要据此上紫色样式
       };
     });
 
