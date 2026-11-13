@@ -198,7 +198,11 @@ window.selectProblem = async function(id) {
   document.getElementById('ppChapter').textContent = p.chapterName ? p.chapterName : (p.chapter ? `Ch.${p.chapter}` : '');
   document.getElementById('ppSource').textContent = p.source || '';
   document.getElementById('ppMaxScore').textContent = `Max: ${p.maxScore || 100}`;
-  document.getElementById('ppStatement').innerHTML = p.statement || 'No statement.';
+  // 同样要净化，理由同上
+  var rawStmt = p.statement || 'No statement.';
+  document.getElementById('ppStatement').innerHTML = (window.DOMPurify && window.DOMPurify.sanitize)
+    ? window.DOMPurify.sanitize(rawStmt, { FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'] })
+    : String(rawStmt).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; });
   
   // ⭐ 修复：兼容 ans 字段
   document.getElementById('ppAnswer').innerHTML = p.ans || p.answer || 'No answer.';

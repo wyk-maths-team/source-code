@@ -57,7 +57,12 @@
       return String(s ?? '').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
     }
     function renderProblemStatement(html) {
-      pkpStatement.innerHTML = html || '(no statement)';
+      // 题面是管理员写的富文本，但渲染点一样要净化 —— 库里的 statement 已经
+      // 被人塞过 webhook.site 探针，不能让它在这里执行。
+      var raw = html || '(no statement)';
+      pkpStatement.innerHTML = (window.DOMPurify && window.DOMPurify.sanitize)
+        ? window.DOMPurify.sanitize(raw, { FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'] })
+        : String(raw).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; });
 
       const imgs = Array.from(pkpStatement.querySelectorAll('img'));
 

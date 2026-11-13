@@ -58,6 +58,25 @@
     return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
   }
 
+  /**
+   * 題面淨化：保留排版與數學記號，去掉一切可執行的東西。
+   * 有 DOMPurify 就用它；沒有就退回最小化的手工清理，宁可少顯示也不執行。
+   */
+  function sanitizeStatement(html) {
+    var raw = String(html || '');
+    if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
+      return window.DOMPurify.sanitize(raw, {
+        FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button'],
+        FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onbegin', 'onend'],
+        ALLOW_DATA_ATTR: true,
+      });
+    }
+    // 沒有 DOMPurify 時：先當純文本，再放行最常見的排版標籤
+    var div = document.createElement('div');
+    div.textContent = raw;
+    return div.innerHTML;
+  }
+
   function executeScriptsIn(el) {
     if (!el) return;
     el.querySelectorAll('script').forEach(old => {
@@ -632,9 +651,11 @@ async function renderStatement(statement) {
   const stmt = document.getElementById('statementContent');
   if (!stmt) return false;
 
-  // 先寫入原始 HTML，讓使用者盡快看到純文字內容
-  stmt.innerHTML = statement || '';
-  executeScriptsIn(stmt);
+  // 題目 HTML 是管理員寫的富文本，但它同時也是一個使用者可見的渲染點。
+  // 這裡必須淨化：不能執行題面裡的 <script>，也不能讓 <img onerror> 之類
+  // 的東西跑起來 —— 一條巧妙的 statement 就能把 localStorage.auth_token
+  // 送到外部（2026-11-13 就有人在試，庫裡還留著四個 webhook.site 探針）。
+  stmt.innerHTML = sanitizeStatement(statement);
 
   // 等 KaTeX 就緒
   const ok = await waitForKaTeX();
