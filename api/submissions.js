@@ -38,11 +38,11 @@ function buildProblemIdFilter(rawIds) {
   return out;
 }
 
-// 状态只从 submissions.status 读，格式见 lib/submission-status.js
+// 状态只从 submissions.status 读，格式见 lib/submission-status.js。
+// 这里返回原始值（AC / PS60 / ...），前端用 SubStatus 转成文案和颜色。
 function deriveStatus(s) {
-  // 图片提交后还没批分时没有 status，那个状态叫 Pending
-  if (!s || (!s.status && s.type === 'image' && !s.marked)) return 'Pending';
-  return labelOf(statusOf(s));
+  if (!s) return 'WA';
+  return statusOf(s);
 }
 
 function buildStatusFilter(status) {
@@ -177,8 +177,9 @@ async function handler(req, res) {
       problemId: sub.problemId,
       type: sub.type,
       timestamp: sub.timestamp,
+      // 只给原始状态值，其余（分数、对错）由前端用 SubStatus 解析 ——
+      // 以前这里把解析结果也铺平发出去，看起来像数据库里还有那些字段
       status: statusOf(sub),
-      ...parseStatus(statusOf(sub)),
       markedAt: sub.markedAt || null,
       // ⭐ 返回给前端
       judgingMs: sub.judgingMs || null,

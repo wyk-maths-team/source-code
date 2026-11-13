@@ -27,14 +27,12 @@
   let lastQuerySnapshot = null;
 
   function escapeHtml(s) { return ((window.DSHUI && window.DSHUI.esc) || function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]; }); })(s); }
-  function statusClass(statusText) {
-    if (statusText === 'Violation') return 'status-violation';
-    if (statusText === 'Accepted') return 'status-accepted';
-    if (statusText === 'Wrong Answer') return 'status-wrong';
-    if (statusText.startsWith('Partial Score')) return 'status-partial';
-    if (statusText === 'Pending') return 'status-pending';
-    if (statusText === 'System Error') return 'status-system';
-    return 'status-system';
+  // 后端给的是原始值（AC / PS60 / WA / V60 / SE），文案和颜色统一走 SubStatus
+  function statusClass(raw) {
+    return (window.SubStatus && window.SubStatus.cls) ? window.SubStatus.cls(raw) : 'status-wrong';
+  }
+  function statusLabel(raw) {
+    return (window.SubStatus && window.SubStatus.label) ? window.SubStatus.label(raw) : String(raw || '');
   }
   function makeSnapshot() { return JSON.stringify({ user: state.user, problem: state.problem, result: state.result, start: state.start, end: state.end, page: state.page }); }
   function formatTime(ts) {
@@ -395,7 +393,7 @@
     if (!submissions || submissions.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="loading-msg">No submissions found.</td></tr>'; return; }
     let html = '';
     submissions.forEach(s => {
-      const time = formatTime(s.timestamp); const statusText = s.status || 'Pending'; const cls = statusClass(statusText);
+      const time = formatTime(s.timestamp); const rawStatus = s.status || ''; const statusText = statusLabel(rawStatus); const cls = statusClass(rawStatus);
       const subId = s.subid || '-'; const problemDisplay = `${escapeHtml(s.problemId)} - ${escapeHtml(s.problemName || '')}`;
       const isMine = currentUsername && s.username === currentUsername; const answerHtml = renderAnswerCell(s);
       html += `<tr${isMine ? ' class="mine"' : ''}>

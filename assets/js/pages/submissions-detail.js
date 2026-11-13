@@ -10,17 +10,12 @@ const container = document.getElementById('mainContent');
 
 function escapeHtml(s) { return ((window.DSHUI && window.DSHUI.esc) || function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]; }); })(s); }
 
-// 后端已经把 status 解析成 verdict / score / correct 一起送过来，
-// 前端不再自己拼判断 —— 以前五套规则各写一份，改一处漏一处。
+// 后端只给原始状态值，解析统一走 SubStatus
 function computeStatus(sub) {
-  switch (sub.verdict) {
-    case 'AC': return { text: 'Accepted', cls: 'status-accepted' };
-    case 'PS': return { text: 'Partial Score (' + sub.score + ')', cls: 'status-partial' };
-    case 'V':  return { text: 'Violation', cls: 'status-violation' };
-    case 'SE': return { text: 'System Error', cls: 'status-system' };
-    case 'WA': return { text: 'Wrong Answer', cls: 'status-wrong' };
+  var raw = sub && sub.status;
+  if (window.SubStatus) {
+    return { text: window.SubStatus.label(raw), cls: window.SubStatus.cls(raw) };
   }
-  // 没有 status 就是还没批的图片提交
   return { text: 'Pending', cls: 'status-pending' };
 }
 
