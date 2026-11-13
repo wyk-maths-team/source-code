@@ -25,6 +25,8 @@
     WA: 'status-wrong',
     SE: 'status-system',
     Pending: 'status-pending',
+    PS: 'status-partial',     // 黄色：部分分
+    V: 'status-violation',    // 紫色：违规
   };
 
   function parse(status) {
