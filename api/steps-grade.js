@@ -112,10 +112,14 @@ async function handleCreate(req, res, db, decoded) {
 
   // PDF 课程里的框允许用尚未建档的 ID：显式传 autoCreate 时现建一条占位题。
   // statement 用前端传来的该页文字，参考答案留空（AI 只能评推理质量）。
+  //
+  // 只有管理员能这么建题。之前任何登录用户只要塞一个 autoCreate:true 就能
+  // 凭空造一条公开题目（statement 还是自己写的），等于把题库对所有学生开放写入。
   if (!problem) {
     const { autoCreate, statementHint } = req.body || {};
     const pid = String(problemId);
-    if (!autoCreate || !/^[A-Za-z][A-Za-z0-9_-]{1,39}$/.test(pid)) {
+    const isAdmin = decoded.role === 'admin' || decoded.role === 'root';
+    if (!autoCreate || !isAdmin || !/^[A-Za-z][A-Za-z0-9_-]{1,39}$/.test(pid)) {
       return res.status(404).json({ success: false, message: 'Problem not found' });
     }
     const existing = await db.collection('problems').findOne({ id: pid }, { projection: { id: 1 } });

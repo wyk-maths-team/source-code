@@ -27,7 +27,7 @@ import { wrapHandler } from '../lib/errors.js';
 // token 的加减退统一走 lib/wallet.js，别在这里再写一份
 // 注意：下注只能用 deductGlobalOnly —— 不能用 deductTokens（它会先扣 daily，
 // 而奖金进 global，等于每天白送一次「每日额度换永久资产」）。
-import { totalTokens, deductGlobalOnly, refundTokens, addTokens } from '../lib/wallet.js';
+import { totalTokens } from '../lib/wallet.js';
 
 const MIN_STAKE = 10000;
 const FEE_RATE = 0.01;                 // 手续费 1%
@@ -193,17 +193,21 @@ async function handler(req, res) {
     // ⭐ PK 只认 global：daily 每天重置，若能用它下注而奖金进 global，
     //    就等于每天白送一次「每日额度 → 永久资产」的兑换。
     const have = Number(me?.token?.global) || 0;
-    const charged = deductGlobalOnly(me?.token, amount);
-    if (!charged) {
+    // 原子扣费：以前是「读余额 -> 算 -> 覆盖写回」，两个并发邀请会各自
+    // 读到同一个旧余额、都判定够钱，最后只扣了一次 —— 多出来的邀请等于白送。
+    const paid = await db.collection('users').updateOne(
+      { username, 'token.global': { $gte: amount } },
+      { $inc: { 'token.global': -amount } }
+    );
+    if (paid.modifiedCount !== 1) {
       return res.status(400).json({
         success: false,
-        message: `Not enough permanent tokens: you need ${amount.toLocaleString()} but have ${have.toLocaleString()}. PK stakes can only be paid from your permanent balance — the daily allowance cannot be staked.`,
+        message: `Not enough permanent tokens: you need ${amount.toLocaleString()} but have ${have.toLocaleString()}. `,
         code: 'INSUFFICIENT_TOKENS',
         need: amount,
         have,
       });
     }
-    await db.collection('users').updateOne({ username }, { $set: { token: charged.token } });
 
     const invite = {
       id: genId('PKB'),
@@ -212,8 +216,8 @@ async function handler(req, res) {
       to,
       toDisplay: target.displayName || to,
       stake: amount,
-      // 记下这次各扣了多少，退款时按原路返回
-      taken: charged.taken,
+      // 只扣了 global，退款也回 global
+      taken: { daily: 0, global: amount },
       status: 'pending',
       createdAt: now,
       expiresAt: new Date(now.getTime() + INVITE_TTL_MS),
@@ -253,30 +257,20 @@ async function handler(req, res) {
     const me = await db.collection('users').findOne({ username }, { projection: { token: 1, displayName: 1 } });
     // ⭐ 与 invite 一致：只能用 global 匹配赌注
     const myTokens = Number(me?.token?.global) || 0;
-    const charged = deductGlobalOnly(me?.token, invite.stake);
-    if (!charged) {
+    // 同样是原子扣费，并发 accept 不会各自判定够钱却只扣一次。
+    const paid = await db.collection('users').updateOne(
+      { username, 'token.global': { $gte: invite.stake } },
+      { $inc: { 'token.global': -invite.stake } }
+    );
+    if (paid.modifiedCount !== 1) {
       return res.status(400).json({
         success: false,
-        message: `Not enough permanent tokens to match this stake: need ${invite.stake.toLocaleString()}, you have ${myTokens.toLocaleString()}. PK stakes can only be paid from your permanent balance.`,
+        message: `Not enough permanent tokens to match this stake: need ${invite.stake.toLocaleString()}, you have ${myTokens.toLocaleString()}.`,
         code: 'INSUFFICIENT_TOKENS',
         need: invite.stake,
         have: myTokens,
       });
     }
-
-    // 双方 rating → 平均难度
-    const [rA, rB] = await Promise.all([
-      computeRating(db, invite.from),
-      computeRating(db, username),
-    ]);
-    const targetDiff = Math.min(6,ratingToDifficulty((0.5*Math.max(rA,rB) + 1.5*Math.min(rA,rB)) / 2));
-    // 排除双方任一人已经 AC 过的题：先做过的人没法再交，否则等于白送 0 分
-    const picked = await pickProblems(db, targetDiff, [invite.from, username]);
-    if (!picked) {
-      return res.status(500).json({ success: false, message: 'No public problems available' });
-    }
-
-    await db.collection('users').updateOne({ username }, { $set: { token: charged.token } });
 
     const now = new Date();
     const pool = invite.stake * 2;
@@ -565,12 +559,16 @@ async function refundInvite(db, invite, status) {
   );
   if (r.modifiedCount !== 1) return;
 
-  const user = await db.collection('users').findOne({ username: invite.from }, { projection: { token: 1 } });
-
-  // 按原路退回。老记录没有 taken，refundTokens 会退回 daily（绝不退 global，
-  // 那正是「每日额度洗成永久额度」的口子）。
-  const restored = refundTokens(user?.token, invite.taken, invite.stake);
-  await db.collection('users').updateOne({ username: invite.from }, { $set: { token: restored } });
+  // 按原路退回：只退 global（下注也只扣 global）。
+  // 用 $inc 而不是读-改-写，避免和别的加币操作互相覆盖。
+  const back = Number(invite.taken && invite.taken.global);
+  const amount = Number.isFinite(back) && back > 0 ? back : 0;
+  if (amount > 0) {
+    await db.collection('users').updateOne(
+      { username: invite.from },
+      { $inc: { 'token.global': amount } }
+    );
+  }
 }
 
 function publicRoom(room) {
@@ -600,7 +598,7 @@ async function collectAttempts(db, room) {
     problemId: { $in: room.problemIds },
     timestamp: { $gte: new Date(room.startAt), $lte: new Date(room.endAt) },
     status: 'AC',
-  }, { projection: { username: 1, problemId: 1, timestamp: 1, correct: 1, score: 1, _id: 0 } }).toArray();
+  }, { projection: { username: 1, problemId: 1, timestamp: 1, status: 1, _id: 0 } }).toArray();
 
   const latest = new Map();
   for (const s of subs) {
@@ -616,7 +614,10 @@ async function collectAttempts(db, room) {
     const pid = key.slice(idx + 1);
     let timeSec = Math.floor((new Date(s.timestamp) - new Date(room.startAt)) / 1000) + 1;
     timeSec = Math.max(1, Math.min(DURATION_SEC, timeSec));
-    const score = Number.isFinite(Number(s.score)) ? Number(s.score) : (s.correct ? 100 : 0);
+    // 只查了 status: 'AC'，所以每一笔都是满分。
+    // 以前这里读 s.score / s.correct，字段被 status 取代之后就恒为 0，
+    // 导致所有 PK 房间的分差都变成「两人都 0 分 → 平分」。
+    const score = 100;
 
     // 单题得分 = timeFactor × 难度² × 答案分数
     //
@@ -723,12 +724,13 @@ async function settleRoom(db, room) {
   const diff = prize - (weakPrize + strongPrize);
   strongPrize += diff;
 
-  // 发奖
+  // 发奖：$inc 而不是读-改-写。结算虽然已经幂等，但同一用户的另一笔
+  // 结算或成就奖励可能同时在跑，覆盖写会吞掉别人的增加。
   for (const [p, amount] of [[weakP, weakPrize], [strongP, strongPrize]]) {
-    const u = await db.collection('users').findOne({ username: p.username }, { projection: { token: 1 } });
+    if (!Number.isFinite(amount) || amount <= 0) continue;
     await db.collection('users').updateOne(
       { username: p.username },
-      { $set: { token: addTokens(u?.token, amount) } }
+      { $inc: { 'token.global': amount } }
     );
   }
 
