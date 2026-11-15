@@ -157,25 +157,29 @@ function fmtRecentTime(ts) {
   } catch (e) { return ''; }
 }
 
+// 渲染成 .ac-item 卡片（页面用的是 grid 列表，不是 table）
 function renderRecentAc(items) {
   var body = document.getElementById('recentAcBody');
   if (!body) return;
-  if (!items || !items.length) {
-    body.innerHTML = '<tr><td colspan="4" class="recent-ac-empty">No accepted submissions yet.</td></tr>';
-    return;
-  }
   var esc = (window.DSHUI && DSHUI.esc) || function (x) {
     return String(x == null ? '' : x).replace(/[&<>"']/g, function (c) {
       return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
     });
   };
+  if (!items || !items.length) {
+    body.innerHTML = '<div class="recent-ac-empty">No accepted submissions yet.</div>';
+    return;
+  }
   body.innerHTML = items.map(function (it) {
-    return '<tr>' +
-      '<td><a href="/users/' + encodeURIComponent(it.username) + '">' + esc(it.displayName) + '</a></td>' +
-      '<td><a href="/problems/' + encodeURIComponent(it.problemId) + '">' + esc(it.problemName) + '</a></td>' +
-      '<td title="' + esc(it.answerHidden ? 'Answer hidden' : it.answer) + '">' + (it.answerHidden ? '<span class="recent-ac-locked"><i class="fas fa-lock"></i> hidden</span>' : esc(it.answer || '(image)')) + '</td>' +
-      '<td><a href="/submissions/' + encodeURIComponent(it.subid) + '/detail">' + esc(fmtRecentTime(it.timestamp)) + '</a></td>' +
-    '</tr>';
+    var ans = it.answerHidden
+      ? '<span class="recent-ac-locked"><i class="fas fa-lock"></i> hidden</span>'
+      : esc(it.answer || '(image)');
+    return '<div class="ac-item">' +
+      '<a class="ac-who" href="/users/' + encodeURIComponent(it.username) + '">' + esc(it.displayName) + '</a>' +
+      '<a class="ac-problem" href="/problems/' + encodeURIComponent(it.problemId) + '" title="' + esc(it.problemName) + '">' + esc(it.problemName) + '</a>' +
+      '<span class="ac-answer" title="' + esc(it.answerHidden ? 'Answer hidden' : it.answer) + '">' + ans + '</span>' +
+      '<a class="ac-time" href="/submissions/' + encodeURIComponent(it.subid) + '/detail">' + esc(fmtRecentTime(it.timestamp)) + '</a>' +
+    '</div>';
   }).join('');
 }
 
@@ -201,10 +205,33 @@ async function loadTokenMeter() {
   } catch (e) { /* 同上 */ }
 }
 
+// ── 静默刷新：只在用户还在动的时候才去刷 ──
+// 页面开着但人走了（切标签页、去吃饭）的情况下，继续每分钟打一次接口没有意义，
+// 还白白把服务端缓存一直焐热。这里记一个「最后一次交互时间」，超过 IDLE_MS
+// 就跳过这一轮，等用户一动自动恢复。
+var IDLE_MS = 60 * 1000;
+var __lastActiveAt = Date.now();
+var __isVisible = !document.hidden;
+
+function markActive() { __lastActiveAt = Date.now(); }
+['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart', 'scroll', 'focus'].forEach(function (evt) {
+  window.addEventListener(evt, markActive, { passive: true });
+});
+document.addEventListener('visibilitychange', function () {
+  __isVisible = !document.hidden;
+  if (__isVisible) { markActive(); loadRecentAc(); }
+});
+
 loadRecentAc();
 loadTokenMeter();
-// 服务端有一分钟缓存，这里每分钟取一次不会打穿数据库
-__recentAcTimer = setInterval(loadRecentAc, 60 * 1000);
+
+__recentAcTimer = setInterval(function () {
+  // 标签页在后台，或者人已经安静了一阵子 —— 这一轮不刷
+  if (!__isVisible) return;
+  if (Date.now() - __lastActiveAt > IDLE_MS) return;
+  loadRecentAc();
+}, 60 * 1000);
+
 window.addEventListener('beforeunload', function () { if (__recentAcTimer) clearInterval(__recentAcTimer); });
 
 async function loadUpdates() {
