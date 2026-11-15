@@ -1,6 +1,6 @@
 if (!isLoggedIn()) window.location.href = '/index.html';
 (function () {
-  const s = localStorage.getItem('fontSize') || '16';
+  const s = localStorage.getItem('fontSize') || '14';
   document.documentElement.style.fontSize = s + 'px';
 })();
 
@@ -63,11 +63,22 @@ function renderDetail(sub, problemName, attempts) {
   let answerHtml;
   if (sub.type === 'image' && sub.image) answerHtml = `<img src="${escapeHtml(sub.image)}" class="answer-image" alt="Submission image">`;
   else if (sub.answerHidden) answerHtml = `<div class="answer-text">${hiddenScrambleHtml('Answer hidden')}</div>`;
-  else answerHtml = `<div class="answer-text"><strong>Answer:</strong> ${escapeHtml(String(sub.answer || 'No answer recorded'))}</div>`;
+  else {
+    // 学生常交整份 .tex 源文件，先剥掉 documentclass / begin{document} 这些壳，
+    // 再交给 KaTeX；普通答案原样通过。
+    const rawAnswer = escapeHtml(String(sub.answer || 'No answer recorded'));
+    const shown = (window.LatexDoc && window.LatexDoc.convert) ? window.LatexDoc.convert(rawAnswer) : rawAnswer;
+    answerHtml = `<div class="answer-text"><strong>Answer:</strong> ${shown}</div>`;
+  }
 
   let commentHtml;
   if (sub.commentHidden) commentHtml = hiddenScrambleHtml('Comment hidden');
-  else if (sub.comment) commentHtml = escapeHtml(sub.comment).replace(/\n/g, '<br>');
+  else if (sub.comment) {
+    const rawComment = escapeHtml(sub.comment);
+    const conv = (window.LatexDoc && window.LatexDoc.convert) ? window.LatexDoc.convert(rawComment) : rawComment;
+    // convert() 会把 LaTeX 文档里的 \\ 变成 <br>，普通评语仍需把真实换行转过去
+    commentHtml = conv.indexOf('<br>') === -1 ? conv.replace(/\n/g, '<br>') : conv;
+  }
   else commentHtml = '<span class="no-comment">No comment yet.</span>';
 
   return `<div class="detail-container" id="detailRoot">
