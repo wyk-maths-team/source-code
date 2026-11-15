@@ -1665,7 +1665,15 @@
         if (pad) return pad;
         pad = createDrawPad(board, 'coursePad:' + (course.track || '') + ':' + (course.id || '') + ':' + p.id, { transparent: true });
         pad.restore();
-        board.appendChild(buildPadToolbar(pad));
+
+        // 工具条和卷子那边一样浮在画板顶部：颜色 / 粗细 / 橡皮 / 撤销 / 清空
+        const tools = buildPadToolbar(pad);
+        tools.style.position = 'absolute';
+        tools.style.left = '6px';
+        tools.style.top = '6px';
+        tools.style.zIndex = '3';
+        tools.style.display = 'flex';
+        board.appendChild(tools);
 
         const unlock = document.createElement('button');
         unlock.type = 'button';
