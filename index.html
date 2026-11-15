@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>window.__BUILD_V='77f5af6f';</script>
-<script src="/assets/js/arch-render.js?v=77f5af6f"></script>
+<script>window.__BUILD_V='4d741d84';</script>
+<script src="/assets/js/arch-render.js?v=4d741d84"></script>
 <meta charset="UTF-8">
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -13,7 +13,7 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-<link rel="stylesheet" href="/assets/css/styles.css?v=77f5af6f" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=4d741d84" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.7/purify.min.js"></script>
 
@@ -426,23 +426,98 @@
     .updates-body { padding: 14px 16px 18px; gap: 10px; }
     .update-card { padding: 12px 14px; }
   }
+    /* ── Recent Accepted 表格 ── */
+    .recent-ac-panel {
+      margin-top: 1.5rem;
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 1.1rem 1.25rem 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    }
+    .recent-ac-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: .75rem;
+    }
+    .recent-ac-header h2 { margin: 0; font-size: 1.05rem; color: var(--text-primary); }
+    .recent-ac-note { font-size: .76rem; color: var(--text-secondary); }
+    .recent-ac-table-wrap { overflow-x: auto; }
+    .recent-ac-table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+    .recent-ac-table th {
+      text-align: left;
+      font-weight: 600;
+      font-size: .74rem;
+      letter-spacing: .03em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      padding: 0 10px 6px 0;
+      border-bottom: 1px solid var(--border-color);
+      white-space: nowrap;
+    }
+    .recent-ac-table td {
+      padding: 8px 10px 8px 0;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-primary);
+      vertical-align: top;
+    }
+    .recent-ac-table tr:last-child td { border-bottom: none; }
+    .recent-ac-table td:nth-child(3) {
+      font-family: ui-monospace, monospace;
+      font-size: .78rem;
+      color: var(--text-secondary);
+      max-width: 320px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .recent-ac-table a { color: var(--accent); text-decoration: none; }
+    .recent-ac-table a:hover { text-decoration: underline; }
+    .recent-ac-empty { text-align: center; color: var(--text-secondary); padding: 18px 0; }
+    .recent-ac-locked {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: .74rem;
+      color: var(--text-secondary);
+      opacity: .8;
+    }
+    .token-meter {
+      display: flex;
+      align-items: baseline;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: .85rem;
+      padding-top: .7rem;
+      border-top: 1px dashed var(--border-color);
+    }
+    .token-meter-label { font-size: .78rem; color: var(--text-secondary); }
+    .token-meter-value {
+      font-family: ui-monospace, monospace;
+      font-size: .95rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
 </style>
-<script src="/assets/js/core/ui.js?v=77f5af6f"></script>
-<script src="/assets/js/core/net.js?v=77f5af6f"></script>
-<script src="/assets/js/core/ban-guard.js?v=77f5af6f"></script>
-<script src="/assets/js/core/latex-doc.js?v=77f5af6f"></script>
-<script src="/assets/js/core/status.js?v=77f5af6f"></script>
-  <link rel="stylesheet" href="/assets/css/script-panel.css?v=77f5af6f">
-  <script src="/assets/js/core/script-panel.js?v=77f5af6f"></script>
-<script src="/assets/js/core/api.js?v=77f5af6f"></script>
-  <script src="/assets/js/core/padstore.js?v=77f5af6f"></script>
-  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=77f5af6f">
-  <script src="/assets/js/core/radial-menu.js?v=77f5af6f"></script>
-  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=77f5af6f">
-  <script src="/assets/js/core/ban-screen.js?v=77f5af6f"></script>
-  <link rel="stylesheet" href="/assets/css/ban-index.css?v=77f5af6f">
-  <script src="/assets/js/core/ban-index.js?v=77f5af6f"></script>
-<script src="/assets/js/core/page.js?v=77f5af6f"></script>
+<script src="/assets/js/core/ui.js?v=4d741d84"></script>
+<script src="/assets/js/core/net.js?v=4d741d84"></script>
+<script src="/assets/js/core/ban-guard.js?v=4d741d84"></script>
+<script src="/assets/js/core/latex-doc.js?v=4d741d84"></script>
+<script src="/assets/js/core/status.js?v=4d741d84"></script>
+  <link rel="stylesheet" href="/assets/css/script-panel.css?v=4d741d84">
+  <script src="/assets/js/core/script-panel.js?v=4d741d84"></script>
+<script src="/assets/js/core/api.js?v=4d741d84"></script>
+  <script src="/assets/js/core/padstore.js?v=4d741d84"></script>
+  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=4d741d84">
+  <script src="/assets/js/core/radial-menu.js?v=4d741d84"></script>
+  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=4d741d84">
+  <script src="/assets/js/core/ban-screen.js?v=4d741d84"></script>
+  <link rel="stylesheet" href="/assets/css/ban-index.css?v=4d741d84">
+  <script src="/assets/js/core/ban-index.js?v=4d741d84"></script>
+<script src="/assets/js/core/page.js?v=4d741d84"></script>
 </head>
 <body class="index-body">
   <div id="appContainer">
@@ -491,6 +566,28 @@
           </div>
         </section>
 
+        <!-- ═══════ Recent AC (public) ═══════ -->
+        <section class="recent-ac-panel" id="recentAcPanel">
+          <div class="recent-ac-header">
+            <h2><i class="fas fa-circle-check"></i> Recent Accepted</h2>
+            <span class="recent-ac-note">latest 10 · refreshed every minute</span>
+          </div>
+          <div class="recent-ac-table-wrap">
+            <table class="recent-ac-table">
+              <thead>
+                <tr><th>Who</th><th>Problem</th><th>Answer</th><th>When</th></tr>
+              </thead>
+              <tbody id="recentAcBody">
+                <tr><td colspan="4" class="recent-ac-empty">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="token-meter" id="tokenMeter" title="Total tokens consumed by AI grading across the site">
+            <span class="token-meter-label">Total tokens used</span>
+            <span class="token-meter-value" id="tokenMeterValue">—</span>
+          </div>
+        </section>
+
         <!-- ═══════ Recent Updates ═══════ -->
         <section class="updates-panel">
           <div class="updates-header">
@@ -525,16 +622,16 @@
     </div>
   </div>
 
-  <script src="/assets/js/auth.js?v=77f5af6f"></script>
-  <script src="/assets/js/app.js?v=77f5af6f"></script>
-  <script src="/assets/js/topbar.js?v=77f5af6f"></script>
-  <script src="/assets/js/sidebar.js?v=77f5af6f"></script>
-  <script src="/assets/js/heartbeat.js?v=77f5af6f"></script>
-  <script src="/assets/js/pk-invite.js?v=77f5af6f"></script>
+  <script src="/assets/js/auth.js?v=4d741d84"></script>
+  <script src="/assets/js/app.js?v=4d741d84"></script>
+  <script src="/assets/js/topbar.js?v=4d741d84"></script>
+  <script src="/assets/js/sidebar.js?v=4d741d84"></script>
+  <script src="/assets/js/heartbeat.js?v=4d741d84"></script>
+  <script src="/assets/js/pk-invite.js?v=4d741d84"></script>
 
-  <script src="/assets/js/pages/index.js?v=77f5af6f"></script>
+  <script src="/assets/js/pages/index.js?v=4d741d84"></script>
 
-  <script src="/assets/js/tour.js?v=77f5af6f"></script>
-<script src="/assets/js/pk-notify.js?v=77f5af6f"></script>
+  <script src="/assets/js/tour.js?v=4d741d84"></script>
+<script src="/assets/js/pk-notify.js?v=4d741d84"></script>
 </body>
 </html>

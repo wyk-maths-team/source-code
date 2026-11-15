@@ -143,7 +143,71 @@
       }
     }
 
-    async function loadUpdates() {
+    // ── Recent Accepted 表格 + 全局 token 计数（公开，未登录也能看）──
+var __recentAcTimer = null;
+
+function fmtRecentTime(ts) {
+  try {
+    var d = new Date(ts);
+    var diff = (Date.now() - d.getTime()) / 1000;
+    if (diff < 60) return Math.max(1, Math.floor(diff)) + 's ago';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return d.toLocaleDateString('zh-HK');
+  } catch (e) { return ''; }
+}
+
+function renderRecentAc(items) {
+  var body = document.getElementById('recentAcBody');
+  if (!body) return;
+  if (!items || !items.length) {
+    body.innerHTML = '<tr><td colspan="4" class="recent-ac-empty">No accepted submissions yet.</td></tr>';
+    return;
+  }
+  var esc = (window.DSHUI && DSHUI.esc) || function (x) {
+    return String(x == null ? '' : x).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+  };
+  body.innerHTML = items.map(function (it) {
+    return '<tr>' +
+      '<td><a href="/users/' + encodeURIComponent(it.username) + '">' + esc(it.displayName) + '</a></td>' +
+      '<td><a href="/problems/' + encodeURIComponent(it.problemId) + '">' + esc(it.problemName) + '</a></td>' +
+      '<td title="' + esc(it.answerHidden ? 'Answer hidden' : it.answer) + '">' + (it.answerHidden ? '<span class="recent-ac-locked"><i class="fas fa-lock"></i> hidden</span>' : esc(it.answer || '(image)')) + '</td>' +
+      '<td><a href="/submissions/' + encodeURIComponent(it.subid) + '/detail">' + esc(fmtRecentTime(it.timestamp)) + '</a></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function renderTokenMeter(n) {
+  var el = document.getElementById('tokenMeterValue');
+  if (!el) return;
+  el.textContent = Number(n || 0).toLocaleString();
+}
+
+async function loadRecentAc() {
+  try {
+    var res = await fetch('/api/stats?action=recent-ac');
+    var data = await res.json();
+    if (data && data.success) renderRecentAc(data.items);
+  } catch (e) { /* 首页这一块挂了不影响其它部分 */ }
+}
+
+async function loadTokenMeter() {
+  try {
+    var res = await fetch('/api/stats?action=tokens-used');
+    var data = await res.json();
+    if (data && data.success) renderTokenMeter(data.totalTokensUsed);
+  } catch (e) { /* 同上 */ }
+}
+
+loadRecentAc();
+loadTokenMeter();
+// 服务端有一分钟缓存，这里每分钟取一次不会打穿数据库
+__recentAcTimer = setInterval(loadRecentAc, 60 * 1000);
+window.addEventListener('beforeunload', function () { if (__recentAcTimer) clearInterval(__recentAcTimer); });
+
+async function loadUpdates() {
       renderSkeleton();
       try {
         const res = await fetch('/api/updates');

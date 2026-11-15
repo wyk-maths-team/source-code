@@ -829,6 +829,8 @@ async function handler(req, res) {
           answer: 1,
           // 结果只有一个来源：status
           status: 1,
+          // 列表要给 AI 批改过的条目加框，前端得知道是哪一条
+          aiGraded: 1, usedModel: 1,
         }
       }).sort({ timestamp: -1 })
         .skip((pageNum - 1) * limitNum)
@@ -888,6 +890,8 @@ async function handler(req, res) {
         answerHidden,
         status,
         violation: status === 'Violation',   // 前端据此上紫色样式
+        aiGraded: !!s.aiGraded,
+        usedModel: s.usedModel || '',
       };
     });
 

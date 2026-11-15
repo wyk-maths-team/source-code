@@ -167,6 +167,12 @@ async function handleCreate(req, res, db, decoded) {
       await db.collection('steps_grading_tasks').updateOne({ taskId }, { $set: { status: 'done', result: { score: finalScore, comment }, completedAt: new Date() } });
       const newTokens = await consumeTokens(db, decoded.username, actualCost);
 
+      // 全局 token 计数（图片批改这条路径也要算上）
+      try {
+        const { addTokensUsed } = await import('../lib/token-meter.js');
+        await addTokensUsed(db, actualCost);
+      } catch (e) { console.error('[image-grade] token meter failed:', e); }
+
       auditLog(db, 'image_grade', { problemId, score: finalScore, taskId }, decoded.username, 'info').catch(() => {});
 
       // ⭐ 直接把结果塞给前端，绝不降级！

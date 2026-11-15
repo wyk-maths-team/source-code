@@ -97,6 +97,18 @@ async function sendSuccess(db, username, res, result, context = {}) {
     // 成就坏了不能把判分结果一起拖下水
     console.error('[submit] achievement check failed:', e);
   }
+
+  // 全局 token 计数：原子 $inc，失败不影响本次提交
+  try {
+    const used = Number(result.tokenUsage) || 0;
+    if (used > 0) {
+      const { addTokensUsed } = await import('../lib/token-meter.js');
+      await addTokensUsed(db, used);
+    }
+  } catch (e) {
+    console.error('[submit] token meter failed:', e);
+  }
+
   res.status(200).json(result);
 }
 

@@ -165,6 +165,13 @@ async function handler(req, res) {
     }
 
     // ── 每日 token 快照（财富榜的周/月/日榜靠它算增量）──
+    // 每小时用真实值重算一次全局 token 消耗，纠正提交时累加可能产生的漂移
+    if (action === 'recomputeTokenMeter') {
+      const { recomputeTokensUsed } = await import('../lib/token-meter.js');
+      const total = await recomputeTokensUsed(db);
+      return res.status(200).json({ success: true, totalTokensUsed: total });
+    }
+
     if (action === 'snapshotTokens') {
       const today = new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10);
       const users = await db.collection('users').find(
