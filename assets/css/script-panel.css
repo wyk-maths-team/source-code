@@ -1,0 +1,113 @@
+/* assets/css/script-panel.css —— 管理员看到的内嵌脚本面板 */
+
+.sp-box {
+  margin: 16px 0 8px;
+  border: 1px solid #f0b429;
+  border-radius: 10px;
+  background: #fffdf5;
+  overflow: hidden;
+  font-size: .86rem;
+}
+
+[data-theme="dark"] .sp-box,
+:root.dark .sp-box {
+  background: #2a2317;
+  border-color: #8a6d1f;
+}
+
+[data-theme="scifi"] .sp-box {
+  background: #241d0f;
+  border-color: #8a6d1f;
+}
+
+.sp-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #fef3c7;
+  border-bottom: 1px solid #f0b429;
+  color: #7c4a03;
+}
+
+[data-theme="dark"] .sp-head,
+:root.dark .sp-head,
+[data-theme="scifi"] .sp-head {
+  background: #3a2d13;
+  color: #fcd34d;
+  border-bottom-color: #8a6d1f;
+}
+
+.sp-head > .fa-triangle-exclamation { color: #d97706; }
+
+.sp-title { font-weight: 700; }
+
+.sp-note {
+  font-size: .78rem;
+  opacity: .75;
+}
+
+.sp-run {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid #d97706;
+  background: #d97706;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .12s ease;
+}
+
+.sp-run:hover:not(:disabled) { background: #b45309; }
+.sp-run:disabled { background: #9ca3af; border-color: #9ca3af; cursor: default; }
+
+.sp-item { border-top: 1px solid rgba(240, 180, 41, .35); }
+.sp-item:first-of-type { border-top: none; }
+
+.sp-label {
+  padding: 6px 14px 0;
+  font-size: .74rem;
+  color: #92400e;
+  font-family: ui-monospace, monospace;
+}
+
+[data-theme="dark"] .sp-label,
+:root.dark .sp-label,
+[data-theme="scifi"] .sp-label { color: #fbbf24; }
+
+.sp-code {
+  margin: 6px 0 0;
+  padding: 10px 14px 12px;
+  overflow-x: auto;
+  background: #1f1a10;
+  color: #e8e0cf;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .8rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sp-code .sp-kw {
+  background: rgba(239, 68, 68, .28);
+  color: #fecaca;
+  padding: 0 2px;
+  border-radius: 3px;
+  font-weight: 700;
+}
+
+.sp-code .sp-comment { color: #8a8574; font-style: italic; }
+
+.sp-warn {
+  padding: 8px 14px 10px;
+  font-size: .76rem;
+  color: #92400e;
+  background: rgba(240, 180, 41, .12);
+}
+
+.sp-ran .sp-run { background: #059669; border-color: #059669; }

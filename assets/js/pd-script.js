@@ -655,7 +655,17 @@ async function renderStatement(statement) {
   // 這裡必須淨化：不能執行題面裡的 <script>，也不能讓 <img onerror> 之類
   // 的東西跑起來 —— 一條巧妙的 statement 就能把 localStorage.auth_token
   // 送到外部（2026-11-13 就有人在試，庫裡還留著四個 webhook.site 探針）。
-  stmt.innerHTML = sanitizeStatement(statement);
+  //
+  // 管理員例外：腳本不執行，但原樣顯示出來（關鍵字標紅），按 Execute 才跑。
+  var split = (window.ScriptPanel && window.ScriptPanel.split)
+    ? window.ScriptPanel.split(statement)
+    : { clean: statement, scripts: [] };
+
+  stmt.innerHTML = sanitizeStatement(split.clean);
+
+  if (split.scripts.length && window.ScriptPanel && window.ScriptPanel.isAdmin()) {
+    window.ScriptPanel.render(stmt, split.scripts);
+  }
 
   // 等 KaTeX 就緒
   const ok = await waitForKaTeX();

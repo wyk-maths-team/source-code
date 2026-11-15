@@ -575,7 +575,23 @@
           stmtPreview.innerHTML = '<span class="stmt-preview-empty">Nothing to preview yet.</span>';
           return;
         }
-        stmtPreview.innerHTML = val;
+        // 预览也是一個渲染點：這裡同樣不能讓 <script> 跑起來。
+        // 編輯器裡誰都可能貼進一段外部 HTML，貼完就自動預覽，等於自己執行自己。
+        const split = (window.ScriptPanel && window.ScriptPanel.split)
+          ? window.ScriptPanel.split(val)
+          : { clean: val, scripts: [] };
+
+        stmtPreview.innerHTML = (window.DOMPurify && window.DOMPurify.sanitize)
+          ? window.DOMPurify.sanitize(split.clean, {
+              FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'],
+              FORBID_ATTR: ['onerror', 'onload', 'onclick'],
+            })
+          : split.clean.replace(/<[^>]*on\w+\s*=\s*["'][^"']*["']/gi, '');
+
+        // 編輯器使用者本來就是管理員，所以腳本一律列出來等他們按 Execute
+        if (split.scripts.length && window.ScriptPanel) {
+          window.ScriptPanel.render(stmtPreview, split.scripts);
+        }
 
         const applyMath = () => {
           if (typeof window.renderMathInElement !== 'function') return false;
