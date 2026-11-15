@@ -355,6 +355,66 @@
             background: var(--warning-bg);
             color: var(--warning-text);
         }
+        /* ── AI 批改过的行：整行加框，和人工批改区分开 ── */
+        tr.ai-graded > td {
+            background: rgba(99, 102, 241, .06);
+            border-top: 1px solid rgba(99, 102, 241, .35);
+            border-bottom: 1px solid rgba(99, 102, 241, .35);
+        }
+        tr.ai-graded > td:first-child {
+            border-left: 1px solid rgba(99, 102, 241, .35);
+            box-shadow: inset 3px 0 0 #6366f1;
+        }
+        tr.ai-graded > td:last-child {
+            border-right: 1px solid rgba(99, 102, 241, .35);
+        }
+        /* 相邻的 AI 行之间不要双线 */
+        tr.ai-graded + tr.ai-graded > td { border-top: none; }
+
+        .ai-tag {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 17px;
+            height: 17px;
+            margin-right: 5px;
+            border-radius: 4px;
+            background: rgba(99, 102, 241, .16);
+            color: #6366f1;
+            font-size: .62rem;
+            vertical-align: middle;
+        }
+
+        [data-theme="dark"] tr.ai-graded > td {
+            background: rgba(129, 140, 248, .10);
+            border-color: rgba(129, 140, 248, .45);
+        }
+        [data-theme="dark"] tr.ai-graded > td:first-child {
+            border-left-color: rgba(129, 140, 248, .45);
+            box-shadow: inset 3px 0 0 #818cf8;
+        }
+        [data-theme="dark"] .ai-tag {
+            background: rgba(129, 140, 248, .22);
+            color: #a5b4fc;
+        }
+
+        [data-theme="scifi"] tr.ai-graded > td {
+            background: rgba(0, 229, 255, .07);
+            border-color: rgba(0, 229, 255, .38);
+        }
+        [data-theme="scifi"] tr.ai-graded > td:first-child {
+            border-left-color: rgba(0, 229, 255, .38);
+            box-shadow: inset 3px 0 0 #00e5ff;
+        }
+        [data-theme="scifi"] .ai-tag {
+            background: rgba(0, 229, 255, .18);
+            color: #67e8f9;
+        }
+
+        /* 自己的提交仍然要高亮，叠加在 AI 框之上也看得清 */
+        tr.mine.ai-graded > td { background: rgba(99, 102, 241, .12); }
+        [data-theme="dark"] tr.mine.ai-graded > td { background: rgba(129, 140, 248, .16); }
+        [data-theme="scifi"] tr.mine.ai-graded > td { background: rgba(0, 229, 255, .12); }
         /* 违规：紫色，和详情页同一套配色 */
         .status-violation {
             background: #efe4ff;

@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>window.__BUILD_V='e75f57c5';</script>
-<script src="/assets/js/arch-render.js?v=e75f57c5"></script>
+<script>window.__BUILD_V='de7315e5';</script>
+<script src="/assets/js/arch-render.js?v=de7315e5"></script>
 <meta charset="UTF-8">
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -13,7 +13,7 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-<link rel="stylesheet" href="/assets/css/styles.css?v=e75f57c5" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=de7315e5" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.7/purify.min.js"></script>
 
@@ -426,98 +426,185 @@
     .updates-body { padding: 14px 16px 18px; gap: 10px; }
     .update-card { padding: 12px 14px; }
   }
-    /* ── Recent Accepted 表格 ── */
+    /* ── Recent Accepted 极客卡片列表 ── */
     .recent-ac-panel {
       margin-top: 1.5rem;
       background: var(--card-bg);
       border-radius: 12px;
-      padding: 1.1rem 1.25rem 1rem;
-      box-shadow: 0 1px 3px rgba(0,0,0,.08);
+      padding: 1.2rem;
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-sm);
     }
+    
     .recent-ac-header {
       display: flex;
       align-items: baseline;
       justify-content: space-between;
       gap: 12px;
       flex-wrap: wrap;
-      margin-bottom: .75rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.8rem;
+      border-bottom: 1px dashed var(--border-color);
     }
-    .recent-ac-header h2 { margin: 0; font-size: 1.05rem; color: var(--text-primary); }
-    .recent-ac-note { font-size: .76rem; color: var(--text-secondary); }
-    .recent-ac-table-wrap { overflow-x: auto; }
-    .recent-ac-table { width: 100%; border-collapse: collapse; font-size: .84rem; }
-    .recent-ac-table th {
-      text-align: left;
-      font-weight: 600;
-      font-size: .74rem;
-      letter-spacing: .03em;
-      text-transform: uppercase;
-      color: var(--text-secondary);
-      padding: 0 10px 6px 0;
-      border-bottom: 1px solid var(--border-color);
-      white-space: nowrap;
-    }
-    .recent-ac-table td {
-      padding: 8px 10px 8px 0;
-      border-bottom: 1px solid var(--border-color);
+    
+    .recent-ac-header h2 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
       color: var(--text-primary);
-      vertical-align: top;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
-    .recent-ac-table tr:last-child td { border-bottom: none; }
-    .recent-ac-table td:nth-child(3) {
-      font-family: ui-monospace, monospace;
-      font-size: .78rem;
+    
+    .recent-ac-note {
+      font-size: 0.75rem;
       color: var(--text-secondary);
-      max-width: 320px;
+      font-family: monospace;
+    }
+
+    .recent-ac-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* 单条记录卡片 */
+    .ac-item {
+      display: grid;
+      grid-template-columns: 110px 1fr 150px 80px;
+      align-items: center;
+      padding: 10px 14px;
+      background: var(--bg-color);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      transition: all 0.2s ease;
+    }
+    
+    .ac-item:hover {
+      border-color: var(--accent);
+      transform: translateX(2px);
+      box-shadow: -2px 0 0 var(--accent) inset;
+    }
+
+    /* 列内容对齐 */
+    .ac-who {
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .recent-ac-table a { color: var(--accent); text-decoration: none; }
-    .recent-ac-table a:hover { text-decoration: underline; }
-    .recent-ac-empty { text-align: center; color: var(--text-secondary); padding: 18px 0; }
-    .recent-ac-locked {
-      display: inline-flex;
+      display: flex;
       align-items: center;
-      gap: 4px;
-      font-size: .74rem;
-      color: var(--text-secondary);
-      opacity: .8;
+      gap: 6px;
     }
+    
+    .ac-who::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #2ecc71; /* AC 绿点 */
+    }
+
+    .ac-problem {
+      color: var(--accent);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ac-answer {
+      font-family: ui-monospace, monospace;
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      background: var(--hover-bg);
+      padding: 2px 8px;
+      border-radius: 4px;
+      justify-self: start;
+      max-width: 100%;
+    }
+
+    .ac-time {
+      text-align: right;
+      font-family: monospace;
+      color: var(--text-subtle);
+      font-size: 0.75rem;
+    }
+
+    /* 空状态 */
+    .recent-ac-empty {
+      text-align: center;
+      color: var(--text-secondary);
+      padding: 24px 0;
+      font-size: 0.9rem;
+    }
+
+    /* Token 仪表盘 */
     .token-meter {
       display: flex;
-      align-items: baseline;
-      justify-content: flex-end;
-      gap: 10px;
-      margin-top: .85rem;
-      padding-top: .7rem;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 1.2rem;
+      padding-top: 0.8rem;
       border-top: 1px dashed var(--border-color);
     }
-    .token-meter-label { font-size: .78rem; color: var(--text-secondary); }
+    
+    .token-meter-label {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
     .token-meter-value {
       font-family: ui-monospace, monospace;
-      font-size: .95rem;
-      font-weight: 700;
+      font-size: 1.1rem;
+      font-weight: 800;
       color: var(--accent);
+      text-shadow: 0 0 10px rgba(74,144,217,0.3);
+    }
+
+    /* 移动端响应式适配 */
+    @media (max-width: 640px) {
+      .ac-item {
+        grid-template-columns: 1fr auto;
+        grid-template-areas: 
+          "who time"
+          "prob ans";
+        gap: 6px 12px;
+        padding: 12px;
+      }
+      .ac-who { grid-area: who; }
+      .ac-time { grid-area: time; }
+      .ac-problem { grid-area: prob; }
+      .ac-answer { grid-area: ans; justify-self: end; }
     }
 
 </style>
-<script src="/assets/js/core/ui.js?v=e75f57c5"></script>
-<script src="/assets/js/core/net.js?v=e75f57c5"></script>
-<script src="/assets/js/core/ban-guard.js?v=e75f57c5"></script>
-<script src="/assets/js/core/latex-doc.js?v=e75f57c5"></script>
-<script src="/assets/js/core/status.js?v=e75f57c5"></script>
-  <link rel="stylesheet" href="/assets/css/script-panel.css?v=e75f57c5">
-  <script src="/assets/js/core/script-panel.js?v=e75f57c5"></script>
-<script src="/assets/js/core/api.js?v=e75f57c5"></script>
-  <script src="/assets/js/core/padstore.js?v=e75f57c5"></script>
-  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=e75f57c5">
-  <script src="/assets/js/core/radial-menu.js?v=e75f57c5"></script>
-  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=e75f57c5">
-  <script src="/assets/js/core/ban-screen.js?v=e75f57c5"></script>
-  <link rel="stylesheet" href="/assets/css/ban-index.css?v=e75f57c5">
-  <script src="/assets/js/core/ban-index.js?v=e75f57c5"></script>
-<script src="/assets/js/core/page.js?v=e75f57c5"></script>
+<script src="/assets/js/core/ui.js?v=de7315e5"></script>
+<script src="/assets/js/core/net.js?v=de7315e5"></script>
+<script src="/assets/js/core/ban-guard.js?v=de7315e5"></script>
+<script src="/assets/js/core/latex-doc.js?v=de7315e5"></script>
+<script src="/assets/js/core/status.js?v=de7315e5"></script>
+  <link rel="stylesheet" href="/assets/css/script-panel.css?v=de7315e5">
+  <script src="/assets/js/core/script-panel.js?v=de7315e5"></script>
+<script src="/assets/js/core/api.js?v=de7315e5"></script>
+  <script src="/assets/js/core/padstore.js?v=de7315e5"></script>
+  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=de7315e5">
+  <script src="/assets/js/core/radial-menu.js?v=de7315e5"></script>
+  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=de7315e5">
+  <script src="/assets/js/core/ban-screen.js?v=de7315e5"></script>
+  <link rel="stylesheet" href="/assets/css/ban-index.css?v=de7315e5">
+  <script src="/assets/js/core/ban-index.js?v=de7315e5"></script>
+<script src="/assets/js/core/page.js?v=de7315e5"></script>
 </head>
 <body class="index-body">
   <div id="appContainer">
@@ -569,21 +656,16 @@
         <!-- ═══════ Recent AC (public) ═══════ -->
         <section class="recent-ac-panel" id="recentAcPanel">
           <div class="recent-ac-header">
-            <h2><i class="fas fa-circle-check"></i> Recent Accepted</h2>
-            <span class="recent-ac-note">latest 10 · refreshed every minute</span>
+            <h2><i class="fas fa-circle-check" style="color: #2ecc71;"></i> Recent Accepted</h2>
+            <span class="recent-ac-note">latest 10 · live updates</span>
           </div>
-          <div class="recent-ac-table-wrap">
-            <table class="recent-ac-table">
-              <thead>
-                <tr><th>Who</th><th>Problem</th><th>Answer</th><th>When</th></tr>
-              </thead>
-              <tbody id="recentAcBody">
-                <tr><td colspan="4" class="recent-ac-empty">Loading…</td></tr>
-              </tbody>
-            </table>
+          
+          <div class="recent-ac-list" id="recentAcBody">
+            <div class="recent-ac-empty">Loading...</div>
           </div>
+
           <div class="token-meter" id="tokenMeter" title="Total tokens consumed by AI grading across the site">
-            <span class="token-meter-label">Total tokens used</span>
+            <span class="token-meter-label"><i class="fas fa-microchip"></i> Total AI Tokens Used</span>
             <span class="token-meter-value" id="tokenMeterValue">—</span>
           </div>
         </section>
@@ -622,16 +704,16 @@
     </div>
   </div>
 
-  <script src="/assets/js/auth.js?v=e75f57c5"></script>
-  <script src="/assets/js/app.js?v=e75f57c5"></script>
-  <script src="/assets/js/topbar.js?v=e75f57c5"></script>
-  <script src="/assets/js/sidebar.js?v=e75f57c5"></script>
-  <script src="/assets/js/heartbeat.js?v=e75f57c5"></script>
-  <script src="/assets/js/pk-invite.js?v=e75f57c5"></script>
+  <script src="/assets/js/auth.js?v=de7315e5"></script>
+  <script src="/assets/js/app.js?v=de7315e5"></script>
+  <script src="/assets/js/topbar.js?v=de7315e5"></script>
+  <script src="/assets/js/sidebar.js?v=de7315e5"></script>
+  <script src="/assets/js/heartbeat.js?v=de7315e5"></script>
+  <script src="/assets/js/pk-invite.js?v=de7315e5"></script>
 
-  <script src="/assets/js/pages/index.js?v=e75f57c5"></script>
+  <script src="/assets/js/pages/index.js?v=de7315e5"></script>
 
-  <script src="/assets/js/tour.js?v=e75f57c5"></script>
-<script src="/assets/js/pk-notify.js?v=e75f57c5"></script>
+  <script src="/assets/js/tour.js?v=de7315e5"></script>
+<script src="/assets/js/pk-notify.js?v=de7315e5"></script>
 </body>
 </html>
