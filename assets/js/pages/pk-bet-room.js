@@ -7,7 +7,8 @@ Page.boot({ title: 'PK Room', requireAuth: true });
 
 Page.ready(async (user) => {
   const params = new URLSearchParams(location.search);
-  const roomId = params.get('id') || params.get('roomId');
+  let roomId = params.get('id') || params.get('roomId');
+  const inviteId = params.get('invite');
   const board = document.getElementById('pkbBoard');
 
   let room = null;
@@ -186,6 +187,29 @@ Page.ready(async (user) => {
     }
   }
 
+  // 消息里的链接带的是邀请号，不是房间号。先当房间查，查不到再当邀请处理：
+  // 自己能接的就去接，接完拿真正的 roomId 继续，其余情况给出可读的原因。
+  async function resolveInviteIfNeeded() {
+    if (!roomId || !/^PKB/.test(roomId)) return true;
+    try {
+      const probe = await apiCall(`/api/pk-bet?action=room&roomId=${encodeURIComponent(roomId)}`);
+      if (probe && probe.success) return true;   // 真的是房间
+    } catch (e) { /* 继续往下当邀请处理 */ }
+
+    const inviteToUse = inviteId || roomId;
+    const res = await apiCall('/api/pk-bet?action=accept', 'POST', { inviteId: inviteToUse });
+    if (res && res.success && res.roomId) {
+      roomId = res.roomId;
+      return true;
+    }
+
+    const why = (res && res.message) || 'This invitation cannot be accepted.';
+    board.innerHTML = '<div class="pkb-err">' + esc(why) +
+      '<div style="margin-top:10px;font-size:.82rem;opacity:.75;">' +
+      'Ask your opponent to send a new challenge.</div></div>';
+    return false;
+  }
+
   async function refresh() {
     if (stopped) return;
     try {
@@ -232,6 +256,10 @@ Page.ready(async (user) => {
       board.innerHTML = '<div class="pkb-err">Network error. Retrying…</div>';
     }
   }
+
+  // 链接里可能是邀请号而不是房间号 —— 先把它换成真正的 roomId
+  const resolved = await resolveInviteIfNeeded();
+  if (!resolved) return;
 
   await refresh();
   // 首次加载就可能已经结束（跳结果页或显示 closed），此时不要再起定时器

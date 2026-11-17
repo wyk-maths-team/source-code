@@ -229,7 +229,9 @@ async function handler(req, res) {
       username: to,
       from: username,
       kind: 'pk-invite',
-      roomId: invite.id,
+      // invite.id 是邀请号，不是房间号 —— 以前塞进 roomId 字段，
+      // 点进消息里的人会被带到 /pk-bet-room?id=<邀请号>，那边查不到房间。
+      inviteId: invite.id,
       stake: amount,
       read: false,
       createdAt: now,
@@ -270,6 +272,23 @@ async function handler(req, res) {
         need: invite.stake,
         have: myTokens,
       });
+    }
+
+    // 双方 rating → 平均难度，再按难度抽三道双方都没 AC 过的题。
+    // 这一段之前被一次批量替换误删，导致 picked 未定义、accept 直接 500。
+    const [rA, rB] = await Promise.all([
+      computeRating(db, invite.from),
+      computeRating(db, username),
+    ]);
+    const targetDiff = Math.min(6, ratingToDifficulty((0.5 * Math.max(rA, rB) + 1.5 * Math.min(rA, rB)) / 2));
+    const picked = await pickProblems(db, targetDiff, [invite.from, username]);
+    if (!picked) {
+      // 抽不到题就把刚扣的钱退回去，否则邀请方和被邀请方都会白丢一笔
+      await db.collection('users').updateOne(
+        { username },
+        { $inc: { 'token.global': invite.stake } }
+      );
+      return res.status(400).json({ success: false, message: 'No suitable problems available right now. Try again later.' });
     }
 
     const now = new Date();
