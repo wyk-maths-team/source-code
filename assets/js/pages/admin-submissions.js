@@ -357,7 +357,7 @@ function renderTable(submissions) {
     const answerHtml = s.type === 'image' ? '<i>Image</i>' : s.answerHidden ? '<span style="color:var(--text-secondary);font-style:italic;">Hidden</span>' : escapeHtml(String(s.answer || '-'));
     html += `<tr>
       <td class="col-id">${escapeHtml(subId)}</td>
-      <td class="col-datetime">${time}</td>
+      <td class="col-datetime"><a href="/submissions/${encodeURIComponent(subId)}/detail">${time}</a></td>
       <td class="col-user left-align"><a href="/users/${encodeURIComponent(s.username)}">${userDisplay}</a></td>
       <td class="col-problem left-align"><a href="/problems/${encodeURIComponent(s.problemId)}">${problemDisplay}</a></td>
       <td class="col-answer">${answerHtml}</td>
