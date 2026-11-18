@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import { connectToDatabase } from './_db.js';
 import { auditLog } from '../lib/audit.js';
 import { toWyk } from '../lib/username.js';
+import { invalidateUserCache } from '../lib/auth.js';
 import { wrapHandler } from '../lib/errors.js';
 
 /**
@@ -189,7 +190,8 @@ async function handler(req, res) {
           username: existingUser.username,
           role: existingUser.role || 'student',
           displayName: existingUser.displayName || username,
-          pfp: existingUser.pfp || ''
+          pfp: existingUser.pfp || '',
+          tv: Number(existingUser.tokenVersion) || 0,
         }, process.env.JWT_SECRET, { expiresIn: '7d' });
         return res.redirect(`/?token=${loginToken}`);
       }
@@ -204,8 +206,14 @@ async function handler(req, res) {
   if (action === 'complete-setup') {
     if (req.method !== 'POST') return res.status(405).end();
 
-    const { token, password } = req.body;
+    const { token, password } = req.body || {};
     if (!token || !password) return res.status(400).json({ success: false, message: 'Missing fields' });
+    if (String(password).length < 4) {
+      return res.status(400).json({ success: false, message: 'Password too short (min 4 characters)' });
+    }
+    if (String(password).length > 128) {
+      return res.status(400).json({ success: false, message: 'Password too long (max 128 chars)' });
+    }
 
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -224,7 +232,8 @@ async function handler(req, res) {
         password: hashedPassword,
         role: 'student',
         displayName: displayName || username,
-        realName: realName || '',      
+        realName: realName || '',
+        tokenVersion: 0,
         createdAt: new Date(),
         token: {
           daily: 30000,
@@ -241,6 +250,7 @@ async function handler(req, res) {
         role: 'student',
         displayName: displayName || username,
         pfp: '',
+        tv: 0,
       }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
       res.json({ success: true, username, token: loginToken });
@@ -277,14 +287,28 @@ async function handler(req, res) {
       if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
       const hashed = await bcrypt.hash(password, 10);
-      await db.collection('users').updateOne(
-        { username: decoded.username },
-        { $set: { password: hashed, passwordResetAt: new Date() } }
+      const targetUsername = toWyk(decoded.username);
+
+      // ⭐ 改密码必须同时撤销全部已签发的会话。
+      //   tokenVersion + 1 之后，旧 token 里的 tv 对不上，verifyToken 直接判无效。
+      //   以前改完密码旧 token 还能用满 7 天 —— 账号被盗时重置等于没重置。
+      const bumped = await db.collection('users').findOneAndUpdate(
+        { username: targetUsername },
+        {
+          $set: { password: hashed, passwordResetAt: new Date() },
+          $inc: { tokenVersion: 1 },
+        },
+        { returnDocument: 'after', projection: { tokenVersion: 1 } }
       );
+      const bumpedDoc = bumped && (bumped.value !== undefined ? bumped.value : bumped);
+      const newTv = Number(bumpedDoc && bumpedDoc.tokenVersion) || 0;
+      invalidateUserCache(targetUsername);
 
       await auditLog(db, 'password_reset_via_microsoft', {
-        username: decoded.username,
-      }, decoded.username, 'warn').catch(() => {});
+        username: targetUsername,
+        sessionsRevoked: true,
+        tokenVersion: newTv,
+      }, targetUsername, 'warn').catch(() => {});
 
       return res.json({ success: true });
     } catch (err) {

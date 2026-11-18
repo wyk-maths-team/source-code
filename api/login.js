@@ -1,4 +1,4 @@
-﻿// api/login.js
+// api/login.js
 import { connectToDatabase } from './_db.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
@@ -77,7 +77,8 @@ async function handler(req, res) {
       username: user.username,
       role: user.role || 'student',
       displayName: user.displayName || user.username,
-      pfp: user.pfp || ''   // 新增
+      pfp: user.pfp || '',
+      tv: Number(user.tokenVersion) || 0,   // ⭐ 会话版本：改密码后旧 token 立即失效
     }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
     // 封禁的人也能登进来 —— 但只有 index 能用，别的页面会被前端踢回去。

@@ -1,4 +1,39 @@
 // publichttps://cdn.jsdelivr.net/gh/wyk-math-team/resources/script/auth.js
+//
+// ⭐ JWT payload 解码（必须用 base64url，不能用裸 atob）
+//
+// JWT 的 payload 段是 base64url（RFC 4648 §5）：'+' 写成 '-'，'/' 写成 '_'，
+// 并省略末尾的 '='。而 atob() 只接受标准 base64，遇到 '-' 或 '_' 会直接抛
+// InvalidCharacterError。
+//
+// 这里以前三个地方都是裸 atob(token.split('.')[1])，于是只要 payload 里恰好
+// 出现这两个字符，解码就失败 —— 症状正是「登录成功但被当成未登录」：
+// 登录接口返回 200、token 也确实写进了 localStorage，但下一页初始化解析失败，
+// 逻辑把 token 删掉再跳回首页，全程没有任何提示。
+// 是否复现取决于 payload 的具体字节，所以看起来像随机故障。
+function b64urlToJson(part) {
+  if (!part) throw new Error('empty jwt segment');
+  var s = String(part).replace(/-/g, '+').replace(/_/g, '/');
+  var pad = s.length % 4;
+  if (pad === 1) throw new Error('bad jwt segment length');
+  if (pad) s += new Array(5 - pad).join('=');
+  var bin = atob(s);
+  // JWT 规定 UTF-8：先取字节再按 UTF-8 解码，避免中文 displayName 变乱码
+  var bytes = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  var json;
+  try {
+    json = new TextDecoder('utf-8').decode(bytes);
+  } catch (e) {
+    json = bin;
+  }
+  return JSON.parse(json);
+}
+
+function decodeJwtPayload(token) {
+  return b64urlToJson(String(token || '').split('.')[1]);
+}
+window.decodeJwtPayload = decodeJwtPayload;
 (function() {
   const urlParams = new URLSearchParams(window.location.search);
   const token = urlParams.get('token');
@@ -7,7 +42,7 @@
   // ⭐ 解析 payload，判断是不是真正的登录 token
   let payload;
   try {
-    payload = JSON.parse(atob(token.split('.')[1]));
+    payload = decodeJwtPayload(token);
   } catch {
     return;   // 不是合法 JWT，不管
   }
@@ -80,7 +115,7 @@ function getCurrentUser() {
   const token = getToken();
   if (!token) return null;
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    const payload = decodeJwtPayload(token);
     if (payload.exp * 1000 < Date.now()) {
       setToken(null);
       return null;
@@ -128,7 +163,7 @@ async function login(username, password) {
 function logout() {
   const token = getToken();
 
-  // ⭐ 1. 通知後端：離線 + 清 HttpOnly cookie
+  // ⭐ 1. 通知後端離線
   // （HttpOnly cookie 前端 JS 讀不到，只能請後端清）
   if (token) {
     try {
@@ -139,13 +174,7 @@ function logout() {
       }).catch(() => {});
     } catch (e) {}
   }
-  try {
-    fetch('/api/root-session?action=logout', {
-      method: 'POST',
-      credentials: 'include',
-      keepalive: true,
-    }).catch(() => {});
-  } catch (e) {}
+  // root-session 已永久取消：root_persist cookie 不再存在，无需清理。
 
   // ⭐ 2. 清 localStorage（全部）
   try {
@@ -326,49 +355,34 @@ window.addEventListener('storage', (e) => {
   // ── 有 token：驗證是否過期 ──
   if (token) {
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      const payload = decodeJwtPayload(token);
       if (payload.exp * 1000 < Date.now()) {
         setToken(null);
-        tryRestoreRootCookie(isPublic);
+        bounceToLogin(isPublic, 'expired');
         return;
       }
       restoreSettings();
       return;
-    } catch {
+    } catch (e) {
+      // 解码失败分两种：token 真的损坏，或我们自己的解码出错。
+      // 无论哪种都不该静默删掉 token 再跳首页 —— 那会让用户完全不知道
+      // 发生了什么，看起来就像「登录了但没登录」。
+      console.warn('[auth] token payload decode failed:', e);
       setToken(null);
-      tryRestoreRootCookie(isPublic);
+      bounceToLogin(isPublic, 'invalid');
       return;
     }
   }
 
   // ── 無 token：先嘗試用 root cookie 自動恢復 ──
-  tryRestoreRootCookie(isPublic);
+  // root-session 功能已永久取消：无 token 时直接按需登录处理
+  bounceToLogin(isPublic, 'signed_out');
 })();
 
-// ⭐ 無 token 時嘗試用 root_persist cookie 換新 token
+// 已停用：root_persist cookie 自动登录（功能永久取消，保留空壳避免旧缓存页面报错）
 function tryRestoreRootCookie(isPublic) {
-  fetch('/api/root-session', {
-    method: 'GET',
-    credentials: 'include',
-    cache: 'no-store',
-  })
-    .then(r => {
-      if (!r.ok) throw new Error('no_session');
-      return r.json();
-    })
-    .then(data => {
-      if (data.success && data.token) {
-        setToken(data.token);
-        currentUser = null;          // 讓 getCurrentUser 重新解析
-        location.reload();
-        return;
-      }
-      throw new Error('bad_response');
-    })
-    .catch(() => {
-      if (!isPublic) window.location.href = '/index.html';
-      else restoreSettings();
-    });
+  // root-session 永久取消：不再请求服务端，直接按「没有可恢复会话」处理。
+  bounceToLogin(isPublic, 'signed_out');
 }
 
 function restoreSettings() {

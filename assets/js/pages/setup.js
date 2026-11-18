@@ -12,7 +12,7 @@
 
     let accountName = '';
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      const payload = window.decodeJwtPayload(token);
       accountName = toWyk(payload.username);
       document.getElementById('setupUsername').textContent = accountName;
       const hint = document.getElementById('setupUsernameNote');

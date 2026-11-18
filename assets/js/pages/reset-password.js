@@ -13,7 +13,7 @@
     } else {
       // 从 JWT payload 里读出 username 显示（不验证签名，仅展示用）
       try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
+        const payload = window.decodeJwtPayload(token);
         if (payload.username) {
           subtitle.innerHTML = `For account <code>${payload.username.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</code>`;
         } else {

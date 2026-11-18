@@ -1,12 +1,32 @@
 // 如果已登录，直接跳转
 if (typeof isLoggedIn === 'function' && isLoggedIn()) {
-  window.location.href = '/';
+  // 有 redirect 就回原页面，别一律回首页
+  const back = new URLSearchParams(location.search).get('redirect');
+  window.location.href = back || '/';
 }
 
 const loginForm = document.getElementById('loginForm');
 const loginError = document.getElementById('loginError');
 const agreeTerms = document.getElementById('agreeTerms'); // ⭐ 新增：免责声明复选框
 const msLoginBtn = document.getElementById('msLoginBtn'); // ⭐ 新增：微软登录按钮
+
+// ⭐ 被会话检查踢回登录页时，明确告诉用户为什么。
+// 以前这条路径是静默的：token 解析失败/过期 → 删 token → 跳首页 →
+// 用户看到的是「登录了但没登录」，没有任何线索。
+(function showSessionNotice() {
+  const p = new URLSearchParams(location.search);
+  const reason = p.get('reason');
+  if (!reason) return;
+  const MSG = {
+    expired: 'Your session has expired. Please sign in again.',
+    invalid: 'Your saved session could not be read. Please sign in again.',
+  };
+  const text = MSG[reason];
+  if (!text) return;   // signed_out 等正常情况不打扰
+  if (!loginError) return;
+  loginError.textContent = text;
+  loginError.style.display = 'block';
+})();
 
 // 控制登录按钮的状态
 function updateAuthState() {

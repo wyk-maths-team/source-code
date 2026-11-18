@@ -1,6 +1,6 @@
 // api/users.js
 import { connectToDatabase } from './_db.js';
-import { verifyToken } from '../lib/auth.js';
+import { verifyToken, invalidateUserCache } from '../lib/auth.js';
 import bcrypt from 'bcrypt';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';   // ⭐ 唯一来源，不再本地重复定义
@@ -1139,11 +1139,32 @@ if (isPeriodMode) {
       if (!match) return res.status(400).json({ success: false, message: 'Old password is incorrect' });
 
       const hashed = await bcrypt.hash(newPassword, 10);
-      await db.collection('users').updateOne(
+
+      // ⭐ 改密码 = 撤销全部会话。tokenVersion + 1 之后，包括当前这个 token
+      //   在内的所有旧 token 都会在 verifyToken 里被判无效，前端会被踢回登录页。
+      const bumped = await db.collection('users').findOneAndUpdate(
         { username: decoded.username },
-        { $set: { password: hashed } }
+        {
+          $set: { password: hashed, passwordChangedAt: new Date() },
+          $inc: { tokenVersion: 1 },
+        },
+        { returnDocument: 'after', projection: { tokenVersion: 1 } }
       );
-      return res.status(200).json({ success: true, message: 'Password updated successfully' });
+      const bumpedDoc = bumped && (bumped.value !== undefined ? bumped.value : bumped);
+      const newTv = Number(bumpedDoc && bumpedDoc.tokenVersion) || 0;
+      invalidateUserCache(decoded.username);
+
+      await auditLog(db, 'password_changed', {
+        username: decoded.username,
+        sessionsRevoked: true,
+        tokenVersion: newTv,
+      }, decoded.username, 'warn').catch(() => {});
+
+      return res.status(200).json({
+        success: true,
+        message: 'Password updated successfully. Please sign in again.',
+        reauth: true,
+      });
     }
     // ========== 成就相关 ==========
 

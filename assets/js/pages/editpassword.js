@@ -47,6 +47,19 @@
         });
 
         if (result.success) {
+          if (result.reauth) {
+            // ⭐ 改密码会撤销全部会话（tokenVersion + 1），当前 token 同样失效。
+            //   与其让用户继续点页面、然后每个请求都 401，不如立刻引导重新登录。
+            messageEl.textContent = 'Password changed. Please sign in again with your new password.';
+            messageEl.className = 'message success';
+            messageEl.style.display = 'block';
+            form.reset();
+            setTimeout(function () {
+              if (typeof logout === 'function') logout();
+              else location.replace('/login.html?reason=signed_out');
+            }, 1600);
+            return;
+          }
           messageEl.textContent = 'Password changed successfully!';
           messageEl.className = 'message success';
           messageEl.style.display = 'block';
