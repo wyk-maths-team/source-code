@@ -437,63 +437,6 @@
             </div>
             <div class="form-group"><label>Difficulty: <input type="number" id="editDifficulty" step="0.01" value="${problem.difficulty || 0}" /></label></div>
             <div class="form-group">
-              <div class="dc-panel">
-                <div class="dc-title"><i class="fas fa-calculator"></i> Difficulty Calculator</div>
-                <div class="dc-row">
-                  <span class="dc-label">你的 MO 水平：</span>
-                  <div class="dc-levels" id="dcLevels">
-                    <button type="button" class="dc-level" data-level="5">5</button>
-                    <button type="button" class="dc-level" data-level="6">6</button>
-                    <button type="button" class="dc-level" data-level="7">7</button>
-                    <button type="button" class="dc-level" data-level="8">8</button>
-                    <button type="button" class="dc-level" data-level="9">9</button>
-                  </div>
-                </div>
-                <div class="dc-row">
-                  <span class="dc-label">解題時間：</span>
-                  <span class="dc-time-group">
-                    <input type="number" id="dcMin" class="dc-time-input" placeholder="Min" min="0">
-                    <span>:</span>
-                    <input type="number" id="dcSec" class="dc-time-input" placeholder="Sec" min="0" max="59">
-                  </span>
-                </div>
-                <div class="dc-row" style="flex-direction: column; align-items: flex-start; gap: 0.3rem;">
-                  <span class="dc-label" style="min-width: auto;">思維難度 / 解答長度微調：</span>
-                  <div class="dc-slider-wrap">
-                    <input type="range" id="dcAdjust" min="-0.5" max="0.5" step="0.01" value="0">
-                    <span class="dc-slider-val" id="dcAdjustVal">0.00</span>
-                    <span class="dc-hint">EZ ← → HD</span>
-                  </div>
-                </div>
-                <div class="dc-row" style="flex-direction: column; align-items: flex-start; gap: 0.3rem;">
-                  <span class="dc-label" style="min-width: auto;">投機取巧：</span>
-                  <div class="dc-cheat-btns" id="dcCheatBtns">
-                    <button type="button" class="dc-cheat-btn active" data-cheat="0">無</button>
-                    <button type="button" class="dc-cheat-btn" data-cheat="-0.5">難發現 (−0.5)</button>
-                    <button type="button" class="dc-cheat-btn" data-cheat="-1">容易發現 (−1)</button>
-                  </div>
-                </div>
-                <div class="dc-row" style="margin-top: 0.4rem;">
-                  <button type="button" class="btn btn-primary" id="dcComputeBtn" style="padding: 0.5rem 1.2rem;">
-                    <i class="fas fa-arrow-down"></i> 套用建議難度
-                  </button>
-                  <button type="button" class="btn btn-secondary" id="dcResetBtn" style="padding: 0.5rem 1rem;">
-                    <i class="fas fa-rotate-left"></i> 重置
-                  </button>
-                </div>
-                <div class="dc-result" id="dcResult" style="display:none">
-                  <div class="dc-result-row"><span>標準化時間 (Level 5 基準)</span><strong id="dcStdTime">—</strong></div>
-                  <div class="dc-result-row"><span>基礎難度</span><strong id="dcBaseDiff">—</strong></div>
-                  <div class="dc-result-row"><span>微調比例</span><strong id="dcAdjustShow">0.00</strong></div>
-                  <div class="dc-result-row"><span>投機降級</span><strong id="dcCheatShow">0</strong></div>
-                  <div class="dc-result-divider"></div>
-                  <div class="dc-result-row">
-                    <span style="font-weight: 700; color: var(--text-primary);">建議難度</span>
-                    <strong id="dcSuggestedDiff" style="color: var(--accent); font-size: 1.35rem;">—</strong>
-                  </div>
-                </div>
-              </div>
-            </div>
             <div class="form-group"><label>Tags (comma-separated): <input type="text" id="editTags" value="${(problem.tags || []).join(', ')}" /></label></div>
             <div class="form-group"><label><input type="checkbox" id="editPublic" ${problem.public !== false ? 'checked' : ''}> Public (visible to students)</label></div>
             <div class="form-group">
@@ -517,6 +460,9 @@
               <button type="submit" class="btn btn-primary">Save Changes</button>
               <a href="/admin/problems" class="btn btn-secondary">Cancel</a>
               <button type="button" class="btn btn-danger" id="deleteProblemBtn">Delete Problem</button>
+              <button type="button" class="btn btn-secondary" id="rejudgeAllBtn"
+                title="Run every submission on this problem through its grader again (text, steps and images)">
+                <i class="fas fa-rotate"></i> REJUDGE ALL</button>
               <a href="/problems/${encodeURIComponent(problemId)}" class="btn btn-secondary" style="margin-left:0.5rem;" title="View as student">👁️</a>
             </div>
           </form>
@@ -865,99 +811,6 @@
           resultEl.style.display = 'none';
         });
       })();
-      // ═══════ Difficulty Calculator ═══════
-      const LEVEL_TIME_FACTOR = { 5: 1.00, 6: 0.75, 7: 0.55, 8: 0.40, 9: 0.28 };
-      let dcLevel = 5;
-      let dcCheat = 0;
-
-      const dcMinEl       = document.getElementById('dcMin');
-      const dcSecEl       = document.getElementById('dcSec');
-      const dcAdjustEl    = document.getElementById('dcAdjust');
-      const dcAdjustVal   = document.getElementById('dcAdjustVal');
-      const dcResultEl    = document.getElementById('dcResult');
-      const dcStdTimeEl   = document.getElementById('dcStdTime');
-      const dcBaseDiffEl  = document.getElementById('dcBaseDiff');
-      const dcAdjustShow  = document.getElementById('dcAdjustShow');
-      const dcCheatShow   = document.getElementById('dcCheatShow');
-      const dcSuggestEl   = document.getElementById('dcSuggestedDiff');
-      const dcDifficultyInput = document.getElementById('editDifficulty');
-
-      function computeBaseDifficulty(stdMinutes) {
-        if (stdMinutes <= 30) return 1.042 * Math.log(stdMinutes) + 3.696;
-        return 0.000688 * stdMinutes * stdMinutes - 0.00657 * stdMinutes + 6.818;
-      }
-      function computeAll() {
-        const min = parseFloat(dcMinEl.value) || 0;
-        const sec = parseFloat(dcSecEl.value) || 0;
-        const total = min + sec / 60;
-        if (total <= 0) { dcResultEl.style.display = 'none'; return null; }
-        const factor = LEVEL_TIME_FACTOR[dcLevel] || 1.0;
-        const stdMinutes = total / factor;
-        const baseDiff = computeBaseDifficulty(stdMinutes);
-        const adjust = parseFloat(dcAdjustEl.value) || 0;
-        let suggested = baseDiff * (1 + adjust);
-        suggested += dcCheat;
-        suggested = Math.max(0, Math.min(10, suggested));
-        const ratio = 1 + adjust;
-        return { total, factor, stdMinutes, baseDiff, adjust, ratio, cheat: dcCheat, suggested };
-      }
-      function renderResult() {
-        const r = computeAll();
-        if (!r) { dcResultEl.style.display = 'none'; return; }
-        dcResultEl.style.display = 'flex';
-        dcStdTimeEl.textContent   = r.stdMinutes.toFixed(2) + ' min';
-        dcBaseDiffEl.textContent  = r.baseDiff.toFixed(2);
-        dcAdjustShow.textContent  = (r.adjust >= 0 ? '+' : '') + r.adjust.toFixed(2) + ' （×' + r.ratio.toFixed(2) + '）';
-        dcCheatShow.textContent   = r.cheat === 0 ? '0' : r.cheat.toFixed(1);
-        dcSuggestEl.textContent   = r.suggested.toFixed(2);
-      }
-      document.querySelectorAll('#dcLevels .dc-level').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.querySelectorAll('#dcLevels .dc-level').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          dcLevel = parseInt(btn.dataset.level, 10);
-          renderResult();
-        });
-      });
-      document.querySelector('#dcLevels .dc-level[data-level="5"]').classList.add('active');
-      document.querySelectorAll('#dcCheatBtns .dc-cheat-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.querySelectorAll('#dcCheatBtns .dc-cheat-btn').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          dcCheat = parseFloat(btn.dataset.cheat) || 0;
-          renderResult();
-        });
-      });
-      dcAdjustEl.addEventListener('input', () => {
-        const v = parseFloat(dcAdjustEl.value) || 0;
-        dcAdjustVal.textContent = (v >= 0 ? '+' : '') + v.toFixed(1);
-        renderResult();
-      });
-      dcMinEl.addEventListener('input', renderResult);
-      dcSecEl.addEventListener('input', renderResult);
-      document.getElementById('dcComputeBtn').addEventListener('click', () => {
-        const r = computeAll();
-        if (!r) { (window.DSHUI ? DSHUI.toast('Please enter a valid time greater than 0.') : alert('Please enter a valid time greater than 0.')); return; }
-        dcDifficultyInput.value = r.suggested.toFixed(2);
-        dcDifficultyInput.style.transition = 'box-shadow .3s';
-        dcDifficultyInput.style.boxShadow = '0 0 0 3px rgba(74,144,217,.5)';
-        setTimeout(() => { dcDifficultyInput.style.boxShadow = ''; }, 800);
-      });
-      document.getElementById('dcResetBtn').addEventListener('click', () => {
-        dcMinEl.value = ''; dcSecEl.value = '';
-        dcAdjustEl.value = '0'; dcAdjustVal.textContent = '0.00';
-        dcCheat = 0;
-        document.querySelectorAll('#dcCheatBtns .dc-cheat-btn').forEach(b => {
-          b.classList.toggle('active', b.dataset.cheat === '0');
-        });
-        dcResultEl.style.display = 'none';
-      });
-      [dcMinEl, dcSecEl].forEach(el => {
-        el.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') { e.preventDefault(); document.getElementById('dcComputeBtn').click(); }
-        });
-      });
-      dcAdjustEl.dispatchEvent(new Event('input'));
 
       // ---- 提交（成功後返回上一頁） ----
       document.getElementById('editForm').addEventListener('submit', async (e) => {
@@ -1000,6 +853,39 @@
       });
 
       // ---- 刪除 ----
+      // ---- 整题重判：把这道题的每一次提交都重新跑一遍判分 ----
+      document.getElementById('rejudgeAllBtn').addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        const ok = confirm(
+          'Rejudge EVERY submission on ' + problemId + '?\n\n' +
+          'Text, steps and image submissions will all be sent back through grading. ' +
+          'Image submissions are graded by the vision model, so this can take a while and costs tokens.'
+        );
+        if (!ok) return;
+
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Rejudging…';
+        const msgEl = document.getElementById('message');
+        if (msgEl) { msgEl.textContent = 'Starting…'; msgEl.style.color = 'var(--text-secondary)'; }
+
+        try {
+          const res = await apiCall('/api/problem?action=adminRejudgeAll', 'POST', { id: problemId });
+          if (msgEl) {
+            msgEl.textContent = res.message || ('Rejudged ' + (res.done || 0) + ' submission(s).');
+            msgEl.style.color = res.success ? '#2e7d32' : 'var(--danger)';
+          }
+          if (res.failed) {
+            console.warn('[rejudge-all] failures:', res.failed);
+          }
+        } catch (err) {
+          if (msgEl) { msgEl.textContent = 'Rejudge failed: ' + err.message; msgEl.style.color = 'var(--danger)'; }
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = original;
+        }
+      });
+
       document.getElementById('deleteProblemBtn').addEventListener('click', async () => {
         if (!confirm(`Are you sure you want to delete problem "${problemId}"? This cannot be undone.`)) return;
         try {

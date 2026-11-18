@@ -328,6 +328,24 @@ window.addEventListener('storage', (e) => {
   }
 });
 
+/**
+ * 会话不可用时的统一出口。
+ *
+ * 公开页（首页、登录页、题库等）只是清掉本地状态，让人继续浏览；
+ * 需要登录的页面才真的跳走，并带上 expired / invalid 让登录页给出对应文案。
+ *
+ * 之前这个函数被误删过，四处调用全在抛 ReferenceError，
+ * 结果是 token 过期时页面既不跳转也不清状态，看起来像「登着但什么都没权限」。
+ */
+function bounceToLogin(isPublic, reason) {
+  try { setToken(null); } catch (e) {}
+  try { clearCurrentUser(); } catch (e) {}
+  if (isPublic) return;
+  var back = encodeURIComponent(location.pathname + location.search);
+  var why = reason ? '&reason=' + encodeURIComponent(reason) : '';
+  window.location.replace('/login.html?redirect=' + back + why);
+}
+
 // 初始化：检查 token 是否有效
 (function() {
   const rawPath = window.location.pathname;

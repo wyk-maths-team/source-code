@@ -432,6 +432,47 @@ async function handler(req, res) {
       return res.status(405).json({ error: 'Method not allowed' });
     }
     // ----- 圖片上傳（→ GitHub static repo） -----
+    // ----- 整题重判：把这道题的所有提交重新跑一遍判分 -----
+    // 文本走 judge()，steps 走模型评分，图片走视觉模型直接看图。
+    // 管理员批量重判不扣学生的 token，也不要求提交者在线。
+    if (action === 'adminRejudgeAll') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+      const id = String((req.body && req.body.id) || '').trim();
+      if (!id) return res.status(400).json({ success: false, message: 'Missing id' });
+
+      const problem = await db.collection('problems').findOne({ id });
+      if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
+
+      const subs = await db.collection('submissions')
+        .find({ problemId: id }, { projection: { subid: 1, username: 1, problemId: 1, type: 1, answer: 1, image: 1, status: 1 } })
+        .toArray();
+
+      if (!subs.length) {
+        return res.status(200).json({ success: true, done: 0, failed: [], message: 'No submissions on this problem.' });
+      }
+
+      const { rejudgeOne } = await import('../lib/rejudge.js');
+      let done = 0;
+      const failed = [];
+
+      // 串行跑：模型调用有速率限制，并发反而更容易一起失败
+      for (const sub of subs) {
+        const r = await rejudgeOne(db, sub, problem, { by: req.user.username });
+        if (r.ok) done += 1;
+        else failed.push({ subid: sub.subid, error: r.error || 'unknown' });
+      }
+
+      await auditLog(db, 'problem_rejudge_all', { problemId: id, total: subs.length, done, failed: failed.length }, req.user.username, 'warn').catch(() => {});
+
+      return res.status(200).json({
+        success: true,
+        total: subs.length,
+        done,
+        failed,
+        message: 'Rejudged ' + done + '/' + subs.length + (failed.length ? ' (' + failed.length + ' failed)' : ''),
+      });
+    }
+
     if (action === 'adminUploadImage') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
       const { image, problemId } = req.body || {};

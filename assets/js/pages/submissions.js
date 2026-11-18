@@ -398,16 +398,14 @@
       const isMine = currentUsername && s.username === currentUsername; const answerHtml = renderAnswerCell(s);
       // AI 批改过的行整行加框，和人工批改区分开
       const rowCls = [isMine ? 'mine' : '', s.aiGraded ? 'ai-graded' : ''].filter(Boolean).join(' ');
-      const aiTag = s.aiGraded
-        ? '<span class="ai-tag" title="Graded by ' + escapeHtml(s.usedModel || 'AI') + '"><i class="fas fa-robot"></i></span>'
-        : '';
+      // 行框已经能区分 AI 批改，不再额外放一个小机器人图标
       html += `<tr${rowCls ? ' class="' + rowCls + '"' : ''}>
         <td class="col-datetime"><a href="/submissions/${encodeURIComponent(subId)}/detail">${time}</a></td>
         <td class="col-user left-align"><a href="/users/${encodeURIComponent(s.username)}">${escapeHtml(s.username)} - ${escapeHtml(s.displayName || s.username)}</a></td>
         <td class="col-problem left-align"><a href="/problems/${encodeURIComponent(s.problemId)}">${problemDisplay}</a></td>
         <td class="col-answer">${answerHtml}</td>
         <td class="col-status">
-          ${aiTag}<span class="status-badge ${cls}">${escapeHtml(statusText)}</span>
+          <span class="status-badge ${cls}">${escapeHtml(statusText)}</span>
           ${subId && subId !== '-'
             ? '<button class="copy-subid" data-subid="' + escapeHtml(subId) + '" title="Copy submission ID for messages">'
               + '<i class="fas fa-copy"></i></button>'

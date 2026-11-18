@@ -110,7 +110,21 @@ function renderDetail(sub, problemName, attempts) {
     </div>
     <div class="attempts-info"><strong>Total attempts on this problem:</strong> ${attempts}</div>
     <div id="answerPlaceholder">${answerHtml}</div>
-    <div class="comment-box"><h3>Teacher's Comment</h3><p id="commentText">${commentHtml}</p></div>
+    <div class="comment-box">
+      <h3>Teacher's Comment</h3>
+      ${IS_ADMIN
+        ? `<div class="admin-edit-row" id="adminEditRow">
+             <label class="ae-label">Score</label>
+             <input type="number" id="adminScore" min="0" max="100" step="1" class="ae-score"
+               value="${window.SubStatus ? window.SubStatus.parse(sub.status).score : ''}">
+             <label class="ae-label">Comment</label>
+             <textarea id="adminComment" class="ae-comment" rows="2"
+               placeholder="Feedback for the student">${escapeHtml(sub.comment || '')}</textarea>
+             <button type="button" class="ae-save" id="adminSaveBtn">Save</button>
+           </div>`
+        : ''}
+      <p id="commentText">${commentHtml}</p>
+    </div>
     <a href="javascript:history.back()" class="back-link">← Back to submissions</a>
   </div>`;
 }
@@ -124,6 +138,32 @@ async function loadDetail() {
     CAN_REPORT = !!data.canReport;
     IS_ADMIN = !!data.isAdmin;
     container.innerHTML = renderDetail(data.submission, data.problemName, data.attempts);
+
+    // 管理员：改完分数/评语直接存，走同一条 adminMark 接口
+    const saveBtn = document.getElementById('adminSaveBtn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async () => {
+        const scoreEl = document.getElementById('adminScore');
+        const commentEl = document.getElementById('adminComment');
+        const score = Math.max(0, Math.min(100, Math.round(Number(scoreEl.value))));
+        if (!Number.isFinite(score)) return;
+        const original = saveBtn.textContent;
+        saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+        try {
+          const res = await apiCall('/api/admin?action=markSubmit', 'PUT', {
+            subid: subid, score, comment: commentEl.value,
+          });
+          if (!res.success) throw new Error(res.message || 'Save failed');
+          if (window.DSHUI && DSHUI.toast) DSHUI.toast('Saved', 'ok');
+          // 重新拉一次，让徽章和评语都跟着变
+          setTimeout(() => location.reload(), 400);
+        } catch (e) {
+          if (window.DSHUI && DSHUI.toast) DSHUI.toast(e.message, 'err');
+        } finally {
+          saveBtn.disabled = false; saveBtn.textContent = original;
+        }
+      });
+    }
     startScramble();
 
     // ⭐ 修复并确认 LaTeX 渲染

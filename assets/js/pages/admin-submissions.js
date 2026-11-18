@@ -22,13 +22,12 @@ let lastQuerySnapshot = null;
 
 function escapeHtml(s) { return ((window.DSHUI && window.DSHUI.esc) || function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]; }); })(s); }
 
-function statusClass(statusText) {
-  if (statusText === 'Accepted') return 'status-accepted';
-  if (statusText === 'Wrong Answer') return 'status-wrong';
-  if (statusText.startsWith('Partial Score')) return 'status-partial';
-  if (statusText === 'Pending') return 'status-pending';
-  if (statusText === 'System Error') return 'status-system';
-  return 'status-system';
+// 后端给的是原始值（AC / PS60 / WA / V60 / SE），文案和颜色统一走 SubStatus
+function statusClass(raw) {
+  return (window.SubStatus && window.SubStatus.cls) ? window.SubStatus.cls(raw) : 'status-wrong';
+}
+function statusLabel(raw) {
+  return (window.SubStatus && window.SubStatus.label) ? window.SubStatus.label(raw) : String(raw || '');
 }
 function formatTime(ts) {
   const d = new Date(ts);
@@ -349,22 +348,23 @@ function renderTable(submissions) {
   let html = '';
   submissions.forEach(s => {
     const time = formatTime(s.timestamp);
-    const statusText = s.status || 'Pending';
-    const cls = statusClass(statusText);
+    const rawStatus = s.status || '';
+    const statusText = statusLabel(rawStatus);
+    const cls = statusClass(rawStatus);
     const subId = s.subid || s._id || '-';
     const problemDisplay = `${escapeHtml(s.problemId)} - ${escapeHtml(s.problemName || '')}`;
     const userDisplay = `${escapeHtml(s.username)}${s.displayName && s.displayName !== s.username ? ` - ${escapeHtml(s.displayName)}` : ''}`;
     const answerHtml = s.type === 'image' ? '<i>Image</i>' : s.answerHidden ? '<span style="color:var(--text-secondary);font-style:italic;">Hidden</span>' : escapeHtml(String(s.answer || '-'));
     html += `<tr>
-      <td class="col-id"><a href="/submissions/${encodeURIComponent(subId)}/detail">${escapeHtml(subId)}</a></td>
+      <td class="col-id">${escapeHtml(subId)}</td>
       <td class="col-datetime">${time}</td>
       <td class="col-user left-align"><a href="/users/${encodeURIComponent(s.username)}">${userDisplay}</a></td>
       <td class="col-problem left-align"><a href="/problems/${encodeURIComponent(s.problemId)}">${problemDisplay}</a></td>
       <td class="col-answer">${answerHtml}</td>
       <td class="col-status"><a href="/submissions/${encodeURIComponent(subId)}/detail"><span class="status-badge ${cls}">${escapeHtml(statusText)}</span></a></td>
       <td class="col-actions" style="white-space:nowrap;">
-        <button class="btn-sm btn-primary" data-rejudge="${escapeHtml(s._id)}">Rej</button>
-        <button class="btn-sm btn-danger" data-delete="${escapeHtml(s._id)}">Del</button>
+        <button class="btn-sm btn-primary" data-rejudge="${escapeHtml(s._id)}" title="Rejudge"><i class="fas fa-rotate"></i></button>
+        <button class="btn-sm btn-danger" data-delete="${escapeHtml(s._id)}" title="Delete"><i class="fas fa-trash"></i></button>
       </td>
     </tr>`;
   });

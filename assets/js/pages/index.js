@@ -170,14 +170,17 @@ function renderRecentAc(items) {
     body.innerHTML = '<div class="recent-ac-empty">No accepted submissions yet.</div>';
     return;
   }
+  // 名字太长把三列挤歪，这里截一段；完整名字留在 title 里
+  function shortName(name) {
+    var s = String(name == null ? '' : name);
+    return s.length > 18 ? s.slice(0, 17) + '\u2026' : s;
+  }
+
   body.innerHTML = items.map(function (it) {
-    var ans = it.answerHidden
-      ? '<span class="recent-ac-locked"><i class="fas fa-lock"></i> hidden</span>'
-      : esc(it.answer || '(image)');
+    var who = shortName(it.displayName);
     return '<div class="ac-item">' +
-      '<a class="ac-who" href="/users/' + encodeURIComponent(it.username) + '">' + esc(it.displayName) + '</a>' +
+      '<a class="ac-who" href="/users/' + encodeURIComponent(it.username) + '" title="' + esc(it.displayName) + '">' + esc(who) + '</a>' +
       '<a class="ac-problem" href="/problems/' + encodeURIComponent(it.problemId) + '" title="' + esc(it.problemName) + '">' + esc(it.problemName) + '</a>' +
-      '<span class="ac-answer" title="' + esc(it.answerHidden ? 'Answer hidden' : it.answer) + '">' + ans + '</span>' +
       '<a class="ac-time" href="/submissions/' + encodeURIComponent(it.subid) + '/detail">' + esc(fmtRecentTime(it.timestamp)) + '</a>' +
     '</div>';
   }).join('');

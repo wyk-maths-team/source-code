@@ -249,9 +249,30 @@
             border-right: 1px solid var(--table-border);
             text-align: center;
             vertical-align: middle;
-            white-space: nowrap;
+            /* 表头允许换行：否则日期列里的筛选控件会把整列撑宽 */
+            white-space: normal;
             font-size: 0.8rem;
             letter-spacing: 0.01em;
+            min-width: 0;
+        }
+
+        /* 表头里的筛选表单永远不许撑宽列 */
+        .submissions-table thead th .adv-filter-form,
+        .submissions-table thead th .filter-current {
+            max-width: 100%;
+        }
+        .submissions-table thead th .adv-filter-form input,
+        .submissions-table thead th .adv-filter-form select,
+        .submissions-table thead th .adv-filter-form button,
+        .submissions-table thead th .filter-current,
+        .submissions-table thead th .filter-current b {
+            max-width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+        .submissions-table thead th .adv-filter-form input[type="datetime-local"],
+        .submissions-table thead th .adv-filter-form input[type="text"] {
+            width: 100%;
         }
         .submissions-table thead th:last-child {
             border-right: none;
@@ -301,6 +322,10 @@
         }
         .col-datetime {
             width: 16%;
+            min-width: 0;
+        }
+        /* 只有正文里的时间戳不许断行，表头允许换行 */
+        .submissions-table tbody td.col-datetime {
             white-space: nowrap;
         }
         .col-user {

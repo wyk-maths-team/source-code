@@ -3,9 +3,9 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='e7d8f6ec';</script>
+<script>window.__BUILD_V='d1af4ba0';</script>
 
-<script src="/assets/js/arch-render.js?v=e7d8f6ec"></script>
+<script src="/assets/js/arch-render.js?v=d1af4ba0"></script>
   
 <meta charset="UTF-8" />
 <script>(function(){try{
@@ -22,7 +22,7 @@
   <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.amcharts.com">
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=e7d8f6ec" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=d1af4ba0" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
   <style>
@@ -154,6 +154,13 @@
     }
     [data-theme="dark"] .hidden-scramble { color: var(--c-text-subtle); }
     [data-theme="dark"] .hidden-scramble .scramble-text { opacity: 0.55; }
+    /* 管理员就地修改分数 / 评语 */
+    .admin-edit-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:.7rem;padding:.6rem .7rem;background:var(--c-surface-muted);border:1px dashed var(--border-color);border-radius:8px}
+    .ae-label{font-size:.74rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.03em}
+    .ae-score{width:72px;padding:.3rem .45rem;border-radius:6px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-primary);font:inherit;font-size:.85rem}
+    .ae-comment{flex:1 1 260px;min-width:160px;padding:.35rem .5rem;border-radius:6px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-primary);font:inherit;font-size:.85rem;resize:vertical}
+    .ae-save{padding:.35rem .9rem;border-radius:6px;border:none;cursor:pointer;background:var(--accent);color:#fff;font:inherit;font-size:.82rem;font-weight:600}
+    .ae-save:disabled{opacity:.6;cursor:default}
   </style>
 
   <!-- ⭐ PWA manifest（必須靜態寫入，不能 JS 注入） -->
@@ -165,22 +172,22 @@
   <meta name="apple-mobile-web-app-title" content="WYK Maths">
   <meta name="mobile-web-app-capable" content="yes">
 
-<script src="/assets/js/core/ui.js?v=e7d8f6ec"></script>
-<script src="/assets/js/core/net.js?v=e7d8f6ec"></script>
-<script src="/assets/js/core/ban-guard.js?v=e7d8f6ec"></script>
-<script src="/assets/js/core/latex-doc.js?v=e7d8f6ec"></script>
-<script src="/assets/js/core/status.js?v=e7d8f6ec"></script>
-  <link rel="stylesheet" href="/assets/css/script-panel.css?v=e7d8f6ec">
-  <script src="/assets/js/core/script-panel.js?v=e7d8f6ec"></script>
-<script src="/assets/js/core/api.js?v=e7d8f6ec"></script>
-  <script src="/assets/js/core/padstore.js?v=e7d8f6ec"></script>
-  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=e7d8f6ec">
-  <script src="/assets/js/core/radial-menu.js?v=e7d8f6ec"></script>
-  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=e7d8f6ec">
-  <script src="/assets/js/core/ban-screen.js?v=e7d8f6ec"></script>
-  <link rel="stylesheet" href="/assets/css/ban-index.css?v=e7d8f6ec">
-  <script src="/assets/js/core/ban-index.js?v=e7d8f6ec"></script>
-<script src="/assets/js/core/page.js?v=e7d8f6ec"></script>
+<script src="/assets/js/core/ui.js?v=d1af4ba0"></script>
+<script src="/assets/js/core/net.js?v=d1af4ba0"></script>
+<script src="/assets/js/core/ban-guard.js?v=d1af4ba0"></script>
+<script src="/assets/js/core/latex-doc.js?v=d1af4ba0"></script>
+<script src="/assets/js/core/status.js?v=d1af4ba0"></script>
+  <link rel="stylesheet" href="/assets/css/script-panel.css?v=d1af4ba0">
+  <script src="/assets/js/core/script-panel.js?v=d1af4ba0"></script>
+<script src="/assets/js/core/api.js?v=d1af4ba0"></script>
+  <script src="/assets/js/core/padstore.js?v=d1af4ba0"></script>
+  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=d1af4ba0">
+  <script src="/assets/js/core/radial-menu.js?v=d1af4ba0"></script>
+  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=d1af4ba0">
+  <script src="/assets/js/core/ban-screen.js?v=d1af4ba0"></script>
+  <link rel="stylesheet" href="/assets/css/ban-index.css?v=d1af4ba0">
+  <script src="/assets/js/core/ban-index.js?v=d1af4ba0"></script>
+<script src="/assets/js/core/page.js?v=d1af4ba0"></script>
 </head>
 <body class="index-body">
   <div id="appContainer">
@@ -189,18 +196,18 @@
     <main class="main-content" id="mainContent"></main>
   </div>
 
-  <script src="/assets/js/auth.js?v=e7d8f6ec"></script>
-  <script src="/assets/js/app.js?v=e7d8f6ec"></script>
-  <script src="/assets/js/topbar.js?v=e7d8f6ec"></script>
+  <script src="/assets/js/auth.js?v=d1af4ba0"></script>
+  <script src="/assets/js/app.js?v=d1af4ba0"></script>
+  <script src="/assets/js/topbar.js?v=d1af4ba0"></script>
   
-<script src="/assets/js/sidebar.js?v=e7d8f6ec"></script>
-<script src="/assets/js/heartbeat.js?v=e7d8f6ec"></script>
-<script src="/assets/js/pk-invite.js?v=e7d8f6ec"></script>
+<script src="/assets/js/sidebar.js?v=d1af4ba0"></script>
+<script src="/assets/js/heartbeat.js?v=d1af4ba0"></script>
+<script src="/assets/js/pk-invite.js?v=d1af4ba0"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 
-  <script src="/assets/js/pages/submissions-detail.js?v=e7d8f6ec"></script>
-  <script src="/assets/js/tour.js?v=e7d8f6ec"></script>
-<script src="/assets/js/pk-notify.js?v=e7d8f6ec"></script>
+  <script src="/assets/js/pages/submissions-detail.js?v=d1af4ba0"></script>
+  <script src="/assets/js/tour.js?v=d1af4ba0"></script>
+<script src="/assets/js/pk-notify.js?v=d1af4ba0"></script>
 </body>
 </html>
