@@ -417,6 +417,14 @@
       "destination": "/admin/send-message.html"
     },
     {
+      "source": "/admin/webreports",
+      "destination": "/admin/webreports.html"
+    },
+    {
+      "source": "/reports",
+      "destination": "/reports.html"
+    },
+    {
       "source": "/admin/tokens",
       "destination": "/admin/tokens.html"
     },

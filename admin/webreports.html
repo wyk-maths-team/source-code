@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>window.__BUILD_V='bf201841';</script>
+  <meta charset="UTF-8">
+  <title>Web Reports · Admin</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/assets/css/styles.css?v=bf201841" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+  <script src="/assets/js/core/ui.js?v=bf201841"></script>
+  <script src="/assets/js/core/net.js?v=bf201841"></script>
+  <script src="/assets/js/core/ban-guard.js?v=bf201841"></script>
+  <script src="/assets/js/core/latex-doc.js?v=bf201841"></script>
+  <script src="/assets/js/core/status.js?v=bf201841"></script>
+  <script src="/assets/js/core/api.js?v=bf201841"></script>
+  <script src="/assets/js/core/padstore.js?v=bf201841"></script>
+  <script src="/assets/js/core/page.js?v=bf201841"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    /* 不要动 #mainContent 的布局（侧栏靠它让位），只在内层加留白 */
+    #mainContent > div { padding: 24px; box-sizing: border-box; }
+    .wr-wrap { max-width: 900px; margin: 0 auto; }
+    .wr-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    .wr-bar h1 { margin: 0; font-size: 1.2rem; color: var(--text-primary); }
+    .wr-filter {
+      margin-left: auto; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-color);
+      background: var(--card-bg); color: var(--text-primary); font: inherit; font-size: .84rem;
+    }
+    .wr-reload {
+      padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border-color);
+      background: var(--card-bg); color: var(--text-primary); cursor: pointer; font-size: .84rem;
+    }
+    .wr-card {
+      background: var(--card-bg); border: 1px solid var(--border-color);
+      border-radius: 12px; padding: 16px 18px; margin-bottom: 14px;
+    }
+    .wr-card.open { border-left: 4px solid #f0b429; }
+    .wr-card.handled { border-left: 4px solid #2ecc71; opacity: .85; }
+    .wr-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+    .wr-user { font-weight: 700; color: var(--text-primary); text-decoration: none; }
+    .wr-user:hover { text-decoration: underline; }
+    .wr-badge { font-size: .68rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: #fff3cd; color: #856404; }
+    .wr-badge.handled { background: #d4edda; color: #155724; }
+    .wr-time { margin-left: auto; font-size: .74rem; color: var(--text-secondary); }
+    .wr-body { white-space: pre-wrap; color: var(--text-primary); font-size: .9rem; line-height: 1.6; }
+    .wr-imgs { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .wr-imgs a img { width: 110px; height: 110px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border-color); }
+    .wr-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .wr-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: 7px; border: 1px solid var(--border-color);
+      background: var(--bg-color); color: var(--text-primary); cursor: pointer; font: inherit; font-size: .82rem;
+    }
+    .wr-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .wr-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .wr-empty { text-align: center; color: var(--text-secondary); padding: 40px 0; }
+    [data-theme="dark"] .wr-badge { background: #4d3e1b; color: #dfc88f; }
+    [data-theme="dark"] .wr-badge.handled { background: #1b4d2e; color: #8fdf8f; }
+    [data-theme="scifi"] .wr-badge { background: #2e2410; color: #ffd166; }
+    [data-theme="scifi"] .wr-badge.handled { background: #0b2a24; color: #7ef2c8; }
+  </style>
+</head>
+<body>
+  <header class="topbar" id="topbarContainer"></header>
+  <aside class="sidebar" id="sidebarContainer"></aside>
+  <main class="main-content" id="mainContent">
+    <div class="wr-wrap">
+      <div class="wr-bar">
+        <h1><i class="fas fa-flag"></i> Web Reports</h1>
+        <select class="wr-filter" id="wrStatus">
+          <option value="all">All</option>
+          <option value="open" selected>Open only</option>
+        </select>
+        <button type="button" class="wr-reload" id="wrReload"><i class="fas fa-sync-alt"></i> Reload</button>
+      </div>
+      <div id="wrList"><div class="wr-empty">Loading…</div></div>
+    </div>
+  </main>
+  <script src="/assets/js/pk-notify.js?v=bf201841"></script>
+  <script>
+    Page.boot({ title: 'Web Reports', requireAuth: true });
+
+    Page.ready(function (user) {
+      if (!user || (user.role !== 'admin' && user.role !== 'root')) {
+        window.location.href = '/index.html';
+        return;
+      }
+
+      var listEl = document.getElementById('wrList');
+      var statusEl = document.getElementById('wrStatus');
+
+      var esc = function (s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+          return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+        });
+      };
+      function fmt(ts) {
+        try { return new Date(ts).toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong' }); }
+        catch (e) { return ''; }
+      }
+
+      async function load() {
+        listEl.innerHTML = '<div class="wr-empty">Loading…</div>';
+        try {
+          var qs = statusEl.value === 'open' ? '&status=open' : '';
+          var res = await apiCall('/api/reports?action=list' + qs);
+          var items = (res && res.items) || [];
+          if (!items.length) {
+            listEl.innerHTML = '<div class="wr-empty">No reports.</div>';
+            return;
+          }
+          listEl.innerHTML = items.map(function (r) {
+            var imgs = (r.images || []).map(function (u) {
+              return '<a href="' + esc(u) + '" target="_blank" rel="noopener"><img src="' + esc(u) + '" alt="screenshot"></a>';
+            }).join('');
+            // 发消息：把 username / reportid 带过去，发送页会预填
+            var msgHref = '/admin/send-message?username=' + encodeURIComponent(r.username) +
+                          '&reportid=' + encodeURIComponent(r.id) +
+                          '&reportkind=webreport';
+            return '<div class="wr-card ' + (r.status === 'handled' ? 'handled' : 'open') + '">' +
+              '<div class="wr-head">' +
+                '<a class="wr-user" href="/users/' + encodeURIComponent(r.username) + '">' + esc(r.username) + '</a>' +
+                '<span class="wr-badge' + (r.status === 'handled' ? ' handled' : '') + '">' +
+                  (r.status === 'handled' ? 'Handled' : 'Open') + '</span>' +
+                '<span class="wr-time">' + esc(fmt(r.createdAt)) + '</span>' +
+              '</div>' +
+              '<div class="wr-body">' + esc(r.body) + '</div>' +
+              (imgs ? '<div class="wr-imgs">' + imgs + '</div>' : '') +
+              '<div class="wr-actions">' +
+                '<a class="wr-btn primary" href="' + msgHref + '"><i class="fas fa-paper-plane"></i> Message student</a>' +
+                '<button class="wr-btn" data-toggle="' + esc(r.id) + '" data-open="' + (r.status === 'handled' ? '0' : '1') + '">' +
+                  (r.status === 'handled'
+                    ? '<i class="fas fa-rotate-left"></i> Reopen'
+                    : '<i class="fas fa-check"></i> Mark handled') +
+                '</button>' +
+                '<button class="wr-btn" data-copy="' + esc(r.id) + '"><i class="fas fa-copy"></i> Copy ID</button>' +
+              '</div>' +
+            '</div>';
+          }).join('');
+
+          listEl.querySelectorAll('[data-toggle]').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+              var id = btn.dataset.toggle;
+              var wasOpen = btn.dataset.open === '1';
+              btn.disabled = true;
+              try {
+                await apiCall('/api/reports?action=handle', 'POST', { id: id, reopen: !wasOpen });
+                load();
+              } catch (e) {
+                btn.disabled = false;
+              }
+            });
+          });
+
+          listEl.querySelectorAll('[data-copy]').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+              try {
+                await navigator.clipboard.writeText(btn.dataset.copy);
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied';
+                setTimeout(function () { btn.innerHTML = '<i class="fas fa-copy"></i> Copy ID'; }, 1200);
+              } catch (e) {}
+            });
+          });
+        } catch (e) {
+          listEl.innerHTML = '<div class="wr-empty" style="color:var(--danger);">Could not load reports.</div>';
+        }
+      }
+
+      document.getElementById('wrReload').addEventListener('click', load);
+      statusEl.addEventListener('change', load);
+      load();
+    });
+  </script>
+</body>
+</html>

@@ -29,6 +29,7 @@
   // 字段：href / page / icon / label / adminOnly / guestOk / match
   const EXTRA_NAV = [
     { href: '/messages', page: 'messages', icon: 'fa-envelope', label: 'Messages' },
+    { href: '/reports', page: 'reports', icon: 'fa-flag', label: 'Reports' },
   ];
 
   function renderExtraNav() {
