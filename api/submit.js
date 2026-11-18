@@ -407,11 +407,9 @@ async function handleSingleSubmit(ctx) {
     // Text in contest → auto-judge
     const jr = await judge({ problem, answer });
 
-    submissionData.correct = jr.correct;
-    submissionData.systemError = jr.systemError;
-    submissionData.score = jr.score;
+    // 结果只存 status；这五条旧字段在状态重构后已经不该再写
+    submissionData.status = encodeStatus({ score: jr.score, correct: jr.correct, systemError: jr.systemError });
     submissionData.comment = jr.comment;
-    submissionData.marked = jr.marked || !jr.systemError;
 
     await db.collection('submissions').insertOne(submissionData);
 
@@ -583,8 +581,7 @@ async function handleBatch(req, res, db, username, now) {
       results.push({
         problemId: pid,
         subid,
-        correct: jr.correct,
-        systemError: jr.systemError,
+        status: encodeStatus({ score: jr.score, correct: jr.correct, systemError: jr.systemError }),
         score: jr.score,
         comment: jr.comment,
       });
