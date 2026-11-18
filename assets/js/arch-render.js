@@ -113,7 +113,7 @@
         showing = false;
         processQueue();
       }, 500);
-    }, 4000);
+    }, 6000);
   }
 
   window.showAchievementToast = function (a) {
@@ -122,7 +122,12 @@
     processQueue();
   };
   window.showAchievementToasts = function (arr) {
-    if (!Array.isArray(arr)) return;
+    if (!Array.isArray(arr) || !arr.length) {
+      // 没有新成就时什么都不做；打一行日志方便排查「为什么没弹」
+      if (window.console) console.debug('[achievement] nothing new to show');
+      return;
+    }
+    if (window.console) console.debug('[achievement] showing', arr.map((a) => a && a.id));
     for (const a of arr) window.showAchievementToast(a);
   };
 })();
