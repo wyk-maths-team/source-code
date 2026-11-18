@@ -22,9 +22,10 @@ async function handler(req, res) {
 
   if (action === 'recent-ac') {
     const now = Date.now();
-    // 未登录的访客走公共缓存；登录用户要按自己的进度打码，不能复用
-    const viewerEarly = await verifyToken(req).catch(() => null);
-    const canUseCache = !viewerEarly;
+    // 未登录的访客走公共缓存；登录用户要按自己的进度打码，不能复用。
+    // 只解析一次，后面判定打码直接用这个结果。
+    const viewer = await verifyToken(req).catch(() => null);
+    const canUseCache = !viewer;
     if (canUseCache && _cache.recentAc.data && now - _cache.recentAc.at < CACHE_MS) {
       res.setHeader('X-Cache', 'HIT');
       return res.status(200).json({ success: true, items: _cache.recentAc.data, cached: true });
@@ -46,7 +47,6 @@ async function handler(req, res) {
 
     // 首页是公开的，答案不能直接摊开 —— 和题目页一样：
     // 管理员、本人、以及已经通过这道题的人才看得到原文，其余打码。
-    const viewer = await verifyToken(req).catch(() => null);
     let passed = new Set();
     let isAdmin = false;
     const myName = viewer && viewer.username;
