@@ -203,6 +203,10 @@ async function handler(req, res) {
         if (typeof pdfUrl === 'string' && pdfUrl.trim()) newProblem.pdfUrl = pdfUrl.trim();
         const layout = normalizeMcq(mcq);
         if (layout) newProblem.mcq = layout;
+        if (Array.isArray(mcSlots)) {
+          const clean = mcSlots.map((x) => normalizeMcq(x)).filter(Boolean);
+          newProblem.mcSlots = clean;
+        }
         await db.collection('problems').insertOne(newProblem);
         await bumpProblemsVersion(db);
         await auditLog(db, 'problem_create', {
@@ -215,7 +219,7 @@ async function handler(req, res) {
       }
 
       if (req.method === 'PUT') {
-        const { id, ids, name, statement, ans, difficulty, tags, public: isPublic, logic, FS, hints, pdfUrl, mcq, applyLayoutToPaper } = req.body || {};
+        const { id, ids, name, statement, ans, difficulty, tags, public: isPublic, logic, FS, hints, pdfUrl, mcq, mcSlots, applyLayoutToPaper } = req.body || {};
 
         // 批量更新 public
         if (Array.isArray(ids) && ids.length && isPublic !== undefined) {
@@ -250,6 +254,29 @@ async function handler(req, res) {
         if (FS !== undefined) upd.FS = FS === true;
         if (hints !== undefined) upd.hints = normalizeHints(hints);
         if (pdfUrl !== undefined) upd.pdfUrl = String(pdfUrl || '').trim();
+
+        // 多个作答框（一页可以放多个）。空数组表示清掉。
+        if (mcSlots !== undefined) {
+          if (mcSlots === null) {
+            upd.mcSlots = [];
+          } else {
+            if (!Array.isArray(mcSlots)) {
+              return res.status(400).json({ success: false, message: 'mcSlots must be an array' });
+            }
+            const clean = [];
+            for (const raw of mcSlots) {
+              const one = normalizeMcq(raw);
+              if (!one) {
+                return res.status(400).json({ success: false, message: 'Each answer box needs a rectangle and all four circles' });
+              }
+              clean.push(one);
+            }
+            upd.mcSlots = clean;
+            // 第一条同时写到 mcq，保持学生端和旧数据的读取方式不变
+            if (clean.length) upd.mcq = clean[0];
+            else upd.mcq = null;
+          }
+        }
 
         // 版式：只有传了合法结构才收，传 null 表示清掉
         let layout = null;

@@ -1,24 +1,23 @@
 // assets/js/pages/admin-mc-editor.js —— 选择题作答框，极简版
 //
-// 不再有拖拽调形、不再有模板。就是：
-//   - 左边一个悬浮栏，上面一个 + 按钮
-//   - 按一下，在「当前滚动到屏幕中央的那一页」的中心放一个竖长方形，
-//     里面竖着排 A B C D 四个圆圈
-//   - 放好之后可以整体拖着走，可以按 × 删掉
+// 左边一个悬浮栏，一个 + 按钮。按一下，在「当前滚动到屏幕中央的那一页」
+// 的正中心放一个竖长方形，里面竖排 A B C D 四个圆圈。
 //
-// 尺寸和间距都是固定的，所有题长一样，学生端渲染时用同一套比例。
+// 一页可以放多个框；第一个是第 1 题，第二个是第 2 题，依此类推。
+// 每个框右上角有自己的小 × 可以单独删掉。
+//
+// 尺寸固定，所有题长一样。
 
 (function () {
   'use strict';
   if (window.McEditor) return;
 
-  // 固定形状：相对一页宽高
   const SHAPE = {
-    w: 0.16,          // 长方形宽
-    h: 0.30,          // 长方形高
-    r: 0.010,         // 圆圈半径（相对页宽）
-    padTop: 0.045,    // 第一个圈距顶
-    gap: 0.070,       // 圈与圈的间距
+    w: 0.16,
+    h: 0.30,
+    r: 0.010,
+    padTop: 0.045,
+    gap: 0.070,
   };
 
   let state = null;
@@ -36,7 +35,6 @@
     return Math.min(1, Math.max(0, n));
   }
 
-  /** 从中心点生成一份完整版式（框 + 四个圈） */
   function layoutAt(cx, cy, page) {
     const x = clamp01(cx - SHAPE.w / 2);
     const y = clamp01(cy - SHAPE.h / 2);
@@ -53,10 +51,16 @@
   }
 
   function mount(host, opts) {
-    const { pdfUrl: initialUrl = '', layout: initialLayout = null, onChange } = opts || {};
+    const { pdfUrl: initialUrl = '', layout: initialLayout = null, slots: initialSlots = null, onChange } = opts || {};
+
+    // 兼容旧字段：mcq 是单条，mcSlots 是多条
+    let store = [];
+    if (Array.isArray(initialSlots) && initialSlots.length) store = initialSlots.filter((s) => s && s.box);
+    else if (initialLayout && initialLayout.box) store = [initialLayout];
+
     state = {
       pdfUrl: initialUrl,
-      layout: initialLayout && initialLayout.box ? initialLayout : null,
+      slots: store,
       onChange: onChange || function () {},
       pages: [],
     };
@@ -64,7 +68,6 @@
     host.innerHTML = '';
     host.className = 'mce';
 
-    // ── 顶部：PDF 地址 ──
     const bar = el('div', 'mce-bar');
     bar.innerHTML =
       '<label class="mce-url-label">Paper PDF</label>' +
@@ -73,11 +76,10 @@
       '<button type="button" class="mce-btn" id="mceLoad"><i class="fas fa-rotate"></i> Load</button>';
     host.appendChild(bar);
 
-    // ── 左侧悬浮栏 ──
     const dock = el('div', 'mce-dock');
     dock.innerHTML =
-      '<button type="button" class="mce-plus" id="mcePlus" title="Drop an answer box on the page in view"><i class="fas fa-plus"></i></button>' +
-      '<button type="button" class="mce-mini" id="mceRemove" title="Remove the answer box"><i class="fas fa-xmark"></i></button>' +
+      '<button type="button" class="mce-plus" id="mcePlus" title="Add an answer box to the page in view"><i class="fas fa-plus"></i></button>' +
+      '<div class="mce-count" id="mceCount">0 boxes</div>' +
       '<div class="mce-dock-note" id="mceDockNote">Scroll to a page, then press +</div>';
     host.appendChild(dock);
 
@@ -88,30 +90,36 @@
 
     const urlInput = bar.querySelector('#mceUrl');
     urlInput.addEventListener('input', () => { state.pdfUrl = urlInput.value.trim(); });
-
     bar.querySelector('#mceLoad').addEventListener('click', () => loadPdf(stage, placeholder));
-
-    dock.querySelector('#mcePlus').addEventListener('click', addBox);
-    dock.querySelector('#mceRemove').addEventListener('click', removeBox);
+    dock.querySelector('#mcePlus').addEventListener('click', addSlot);
 
     function emit() {
-      try { state.onChange(state.layout); } catch (e) { console.error('[mc-editor]', e); }
+      try { state.onChange(state.slots); } catch (e) { console.error('[mc-editor]', e); }
     }
 
-    /** 找出当前滚动到视口中央的那一页 */
+    function updateCount() {
+      const n = state.slots.length;
+      const c = dock.querySelector('#mceCount');
+      if (c) c.textContent = n + (n === 1 ? ' box' : ' boxes');
+      const note = dock.querySelector('#mceDockNote');
+      if (note) {
+        note.textContent = n
+          ? 'Q' + n + ' just added · all ' + n + ' shown'
+          : 'Scroll to a page, then press +';
+      }
+    }
+
     function pageInView() {
-      if (!state.pages.length) return { page: 1, overlay: null };
+      if (!state.pages.length) return { page: 1, overlay: null, wrap: null };
       const mid = window.innerHeight / 2;
       let best = state.pages[0];
       let bestDist = Infinity;
       for (const p of state.pages) {
         const r = p.wrap.getBoundingClientRect();
-        const center = r.top + r.height / 2;
-        const d = Math.abs(center - mid);
+        const d = Math.abs(r.top + r.height / 2 - mid);
         if (d < bestDist) { bestDist = d; best = p; }
       }
-      const idx = state.pages.indexOf(best);
-      return { page: idx + 1, overlay: best.overlay, wrap: best.wrap };
+      return { page: state.pages.indexOf(best) + 1, overlay: best.overlay, wrap: best.wrap };
     }
 
     async function loadPdf(stageEl, ph) {
@@ -135,8 +143,8 @@
           p.overlay.style.height = canvas.style.height || (canvas.height + 'px');
         });
 
-        dock.querySelector('#mceDockNote').textContent = 'Scroll to a page, then press +';
         redraw();
+        updateCount();
       } catch (e) {
         stageEl.innerHTML = '';
         const err = el('div', 'mce-placeholder');
@@ -145,79 +153,83 @@
       }
     }
 
-    /** 在当前页中心放一个框 */
-    function addBox() {
-      const { page, overlay, wrap } = pageInView();
-      if (!overlay) {
-        // 没加载 PDF 时用一个占位页，仍然允许先摆好
-        const fake = document.querySelector('.mce-fakepage');
-        if (fake) {
-          const ov = fake.querySelector('.mce-overlay');
-          const rect = ov.getBoundingClientRect();
-          state.layout = layoutAt(0.5, 0.5, 1);
-          // 用占位页尺寸反推，保持视觉在中心
-          void rect;
-        } else {
-          state.layout = layoutAt(0.5, 0.5, 1);
-        }
-      } else {
-        // 放到这一页的正中央
-        state.layout = layoutAt(0.5, 0.5, page);
-      }
-      emit();
+    /** 在当前页中心追加一个框；同页已有框就依次错开，免得叠成一坨 */
+    function addSlot() {
+      const { page, wrap } = pageInView();
+      const samePage = state.slots.filter((s) => s.page === page).length;
+      const step = 0.035 * SHAPE.h / 0.30;      // 每多一个往下挪一点
+      const cx = 0.5 + Math.min(3, samePage) * 0.02;
+      const cy = 0.5 + Math.min(6, samePage) * step;
+      state.slots.push(layoutAt(cx, cy, page));
       redraw();
-      const note = dock.querySelector('#mceDockNote');
-      note.textContent = 'Question ' + (state.layout ? state.layout.page : 1) + ' · page ' + state.layout.page;
-      if (wrap && wrap.scrollIntoView) {
-        wrap.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      }
+      updateCount();
+      emit();
+      if (wrap && wrap.scrollIntoView) wrap.scrollIntoView({ block: 'center', behavior: 'smooth' });
     }
 
-    function removeBox() {
-      state.layout = null;
-      emit();
+    function removeSlot(idx) {
+      state.slots.splice(idx, 1);
       redraw();
-      dock.querySelector('#mceDockNote').textContent = 'Scroll to a page, then press +';
+      updateCount();
+      emit();
     }
 
     function redraw() {
       state.pages.forEach((p, i) => {
         p.overlay.innerHTML = '';
-        const isTarget = state.layout && (i + 1) === state.layout.page;
-        if (!isTarget) return;
+        const pageNo = i + 1;
 
-        const b = state.layout.box;
+        state.slots.forEach((slot, idx) => {
+          if (slot.page !== pageNo) return;
 
-        const boxEl = el('div', 'mce-box');
-        boxEl.style.left = (b.x * 100) + '%';
-        boxEl.style.top = (b.y * 100) + '%';
-        boxEl.style.width = (b.w * 100) + '%';
-        boxEl.style.height = (b.h * 100) + '%';
-        p.overlay.appendChild(boxEl);
+          const b = slot.box;
+          const boxEl = el('div', 'mce-box');
+          boxEl.style.left = (b.x * 100) + '%';
+          boxEl.style.top = (b.y * 100) + '%';
+          boxEl.style.width = (b.w * 100) + '%';
+          boxEl.style.height = (b.h * 100) + '%';
 
-        for (const o of state.layout.options) {
-          const c = el('div', 'mce-opt');
-          c.textContent = o.key;
-          c.style.left = (o.x * 100) + '%';
-          c.style.top = (o.y * 100) + '%';
-          c.style.width = (o.r * 200) + '%';
-          boxEl.appendChild(c);
-        }
+          // 序号 + 删除
+          const badge = el('div', 'mce-badge', 'Q' + (idx + 1));
+          boxEl.appendChild(badge);
 
-        // 整体拖动
-        dragWhole(boxEl, p.overlay, (dx, dy, rect) => {
-          const bx = clamp01(state.layout.box.x + dx / rect.width);
-          const by = clamp01(state.layout.box.y + dy / rect.height);
-          const shiftX = bx - state.layout.box.x;
-          const shiftY = by - state.layout.box.y;
-          state.layout.box.x = bx;
-          state.layout.box.y = by;
-          for (const o of state.layout.options) {
-            o.x = clamp01(o.x + shiftX);
-            o.y = clamp01(o.y + shiftY);
+          const del = el('button', 'mce-del');
+          del.type = 'button';
+          del.title = 'Remove this box';
+          del.innerHTML = '<i class="fas fa-xmark"></i>';
+          del.addEventListener('pointerdown', (e) => e.stopPropagation());
+          del.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            removeSlot(idx);
+          });
+          boxEl.appendChild(del);
+
+          for (const o of slot.options) {
+            const c = el('div', 'mce-opt');
+            c.textContent = o.key;
+            c.style.left = (o.x * 100) + '%';
+            c.style.top = (o.y * 100) + '%';
+            c.style.width = (o.r * 200) + '%';
+            boxEl.appendChild(c);
           }
-          redraw();
-          emit();
+
+          p.overlay.appendChild(boxEl);
+
+          dragWhole(boxEl, p.overlay, (dx, dy, rect) => {
+            const nx = clamp01(slot.box.x + dx / rect.width);
+            const ny = clamp01(slot.box.y + dy / rect.height);
+            const shiftX = nx - slot.box.x;
+            const shiftY = ny - slot.box.y;
+            slot.box.x = nx;
+            slot.box.y = ny;
+            for (const o of slot.options) {
+              o.x = clamp01(o.x + shiftX);
+              o.y = clamp01(o.y + shiftY);
+            }
+            redraw();
+            emit();
+          });
         });
       });
     }
@@ -225,6 +237,7 @@
     function dragWhole(node, parent, onMove) {
       node.addEventListener('pointerdown', (e) => {
         if (e.button != null && e.button !== 0) return;
+        if (e.target.closest('.mce-del')) return;
         e.preventDefault();
         let px = e.clientX, py = e.clientY;
         const move = (ev) => {
@@ -244,7 +257,6 @@
       });
     }
 
-    // 没有 PDF 时给一张占位页，方便先把框摆好
     if (initialUrl) loadPdf(stage, placeholder);
     else {
       stage.innerHTML = '';
@@ -260,10 +272,13 @@
       redraw();
     }
 
+    updateCount();
+
     return {
-      getLayout: () => state.layout,
+      getLayout: () => state.slots[0] || null,
+      getSlots: () => state.slots,
       getPdfUrl: () => state.pdfUrl,
-      clear: removeBox,
+      add: addSlot,
     };
   }
 

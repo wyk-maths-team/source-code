@@ -192,3 +192,47 @@
   .mce { padding-left: 14px; }
   .mce-dock { position: static; float: none; margin: 0 0 10px; width: auto; flex-direction: row; }
 }
+
+
+/* 框的序号和单框删除按钮 */
+.mce-badge {
+  position: absolute;
+  top: -18px;
+  left: -1px;
+  font-size: .62rem;
+  font-weight: 700;
+  color: #fff;
+  background: #4a90d9;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.mce-del {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid #fff;
+  background: #e74c3c;
+  color: #fff;
+  font-size: .58rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.mce-del:hover { background: #c0392b; }
+
+.mce-count {
+  font-size: .66rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: center;
+}

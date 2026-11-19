@@ -831,9 +831,13 @@
 
         // 选择题版式：编辑器里拿到的最新值
         let mcqPayload = undefined;
+        let mcSlotsPayload = undefined;
         let pdfUrlPayload = undefined;
         if (window.__mcEditorHandle) {
           mcqPayload = window.__mcEditorHandle.getLayout();
+          mcSlotsPayload = typeof window.__mcEditorHandle.getSlots === 'function'
+            ? window.__mcEditorHandle.getSlots()
+            : undefined;
           pdfUrlPayload = window.__mcEditorHandle.getPdfUrl();
         }
         const isPublic = document.getElementById('editPublic').checked;
@@ -851,6 +855,7 @@
             id: problemId, name, statement, ans, difficulty, tags, public: isPublic, logic, FS, hints,
           // 每题位置独立：只写自己，不推给同卷其他题
           ...(mcqPayload ? { mcq: mcqPayload, applyLayoutToPaper: false } : {}),
+          ...(Array.isArray(mcSlotsPayload) ? { mcSlots: mcSlotsPayload } : {}),
           ...(pdfUrlPayload !== undefined ? { pdfUrl: pdfUrlPayload } : {})
           });
           const msgEl = document.getElementById('message');
@@ -940,6 +945,7 @@
           handle = window.McEditor.mount(host, {
             pdfUrl: problem.pdfUrl || '',
             layout: problem.mcq || null,
+            slots: Array.isArray(problem.mcSlots) ? problem.mcSlots : null,
             onChange() {},
           });
           window.__mcEditorHandle = handle;
