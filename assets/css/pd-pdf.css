@@ -64,3 +64,68 @@
 [data-theme="dark"] .mc-table td:first-child{background:#232830;color:#a8b4c0}
 .mc-submit-btn{display:block;margin:.8rem auto 1.5rem;padding:.65rem 3rem;background:#28a745;color:#fff;border:none;border-radius:6px;font-size:1rem;font-weight:700;cursor:pointer;letter-spacing:1px}
 .mc-submit-btn:hover{background:#218838}
+/* ── Answer Sheet：逐题对错 ───────────────────────────── */
+.mc-result {
+  display: none;
+  margin: .5rem 0 .4rem;
+  padding: .45rem .5rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .55);
+  border: 1px solid rgba(255, 255, 255, .8);
+}
+
+.mc-result.show { display: block; }
+
+.mc-result-head {
+  font-size: .76rem;
+  font-weight: 700;
+  color: #0a2a4a;
+  margin-bottom: .35rem;
+}
+
+.mc-marks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.mc-mark {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: .6rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.mc-mark.ok {
+  background: #2ecc71;
+  color: #fff;
+}
+
+.mc-mark.bad {
+  background: #e74c3c;
+  color: #fff;
+}
+
+.mc-mark.skip {
+  background: #cbd5e0;
+  color: #4a5568;
+}
+
+/* 冷却中的提交按钮 */
+.mc-submit-btn:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+[data-theme="dark"] .mc-result {
+  background: rgba(30, 40, 55, .6);
+  border-color: rgba(120, 150, 190, .35);
+}
+
+[data-theme="dark"] .mc-result-head { color: #d6e4f5; }
+[data-theme="dark"] .mc-mark.skip { background: #334155; color: #94a3b8; }

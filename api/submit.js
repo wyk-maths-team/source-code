@@ -492,6 +492,8 @@ async function handleSingleSubmit(ctx) {
       subid: submissionData.subid,
       status: encodeStatus({ score: jr.score, correct: jr.correct, systemError: jr.systemError }),
       score: jr.score,
+      // 答题卡要拿这句话画逐题对错，必须带出去
+      comment: jr.comment || '',
       message: jr.systemError
         ? 'Logic execution failed'
         : (jr.marked ? 'Judged by custom logic' : undefined),

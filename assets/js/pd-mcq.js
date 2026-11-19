@@ -26,6 +26,8 @@
     return window.pdfjsLib;
   }
 
+  let _cooldownTicker = null;
+
   let _pdfRenderToken = 0;
   let _pdfCurrentDoc  = null;
 
@@ -314,7 +316,9 @@
       for (const ch of LETTERS) row += `<td><input type="radio" name="mcq-${i}" value="${ch}"></td>`;
       html += row + '</tr>';
     }
-    html += `</tbody></table><button id="mc-submit-btn" class="mc-submit-btn">submit</button>`;
+    html += `</tbody></table>`
+      + '<div class="mc-result" id="mcResult"></div>'
+      + '<button id="mc-submit-btn" class="mc-submit-btn">submit</button>';
     mount.innerHTML = html;
 
     const answerInputEl = document.getElementById('answerInput');
@@ -368,15 +372,97 @@
 
     syncRadiosFromInput();
 
-    mount.querySelector('#mc-submit-btn')?.addEventListener('click', () => {
+    const submitBtn = mount.querySelector('#mc-submit-btn');
+    const resultEl  = mount.querySelector('#mcResult');
+
+    /**
+     * 把 logic 返回的 comment 解析成逐题彩色格子。
+     *
+     * 约定的格式（见题目的 logic）：
+     *   Correct: 30/45 (67%)<br>✅❌✅✅⏭️<br>...
+     * 每五个一组用 <br> 分行。这里不依赖分组，直接把所有标记按顺序取出来。
+     */
+    function renderResult(comment) {
+      if (!resultEl) return;
+      const raw = String(comment || '');
+      const headMatch = raw.match(/Correct:\s*\d+\s*\/\s*\d+[^<]*/i);
+      const head = headMatch ? headMatch[0].trim() : '';
+
+      // 只看能表示对错的字符，其余一律忽略
+      const marks = [];
+      for (const ch of raw) {
+        if (ch === '\u2705') marks.push('ok');
+        else if (ch === '\u274c') marks.push('bad');
+        else if (ch === '\u23ed') marks.push('skip');
+      }
+
+      resultEl.innerHTML = '';
+      if (head) {
+        const h = document.createElement('div');
+        h.className = 'mc-result-head';
+        h.textContent = head;
+        resultEl.appendChild(h);
+      }
+      if (!marks.length) return;
+
+      const grid = document.createElement('div');
+      grid.className = 'mc-marks';
+      marks.forEach((kind, i) => {
+        const cell = document.createElement('span');
+        cell.className = 'mc-mark ' + kind;
+        cell.textContent = String(i + 1);
+        cell.title = 'Q' + (i + 1) + ' \u00b7 ' + (kind === 'ok' ? 'correct' : kind === 'bad' ? 'wrong' : 'left blank');
+        grid.appendChild(cell);
+      });
+      resultEl.appendChild(grid);
+      resultEl.classList.add('show');
+    }
+
+    /** 冷却跟主提交按钮共用一套：PD.cooldown 是唯一真相 */
+    function syncCooldown() {
+      if (!submitBtn) return;
+      const cd = window.PD && window.PD.cooldown;
+      const wb = window.PD && window.PD.workbench;
+      const mode = (wb && wb.mode) || 'text';
+      if (!cd || typeof cd.isOn !== 'function') {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'submit';
+        return;
+      }
+      if (cd.isOn(mode)) {
+        const left = Math.ceil(cd.remaining(mode) / 1000);
+        submitBtn.disabled = true;
+        submitBtn.textContent = left > 0 ? 'cooling ' + left + 's' : 'cooling\u2026';
+      } else {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'submit';
+      }
+    }
+
+    // 主按钮冷却时，这里的按钮也跟着走
+    _cooldownTicker = setInterval(syncCooldown, 500);
+    syncCooldown();
+
+    // 提交结果回到页面后，把 comment 渲染出来
+    window.addEventListener('pd:submit-result', (e) => {
+      const d = (e && e.detail) || {};
+      renderResult(d.comment);
+    });
+
+    submitBtn?.addEventListener('click', () => {
+      const cd = window.PD && window.PD.cooldown;
+      const wb = window.PD && window.PD.workbench;
+      const mode = (wb && wb.mode) || 'text';
+      if (cd && typeof cd.isOn === 'function' && cd.isOn(mode)) return;   // 冷却中，别重复提交
+
       let answer = '';
       for (let i = 1; i <= TOTAL; i++) {
         const sel = mount.querySelector(`input[name="mcq-${i}"]:checked`);
         answer += sel ? sel.value : 'X';
       }
-      // ⭐ extras 可能還沒載完，用可選鏈
       PD.workbench?.setMode?.('text');
-      document.getElementById('answerInput').value = answer;
+      const input = document.getElementById('answerInput');
+      if (input) input.value = answer;
       document.getElementById('checkAnswerBtn')?.click();
     });
   }
@@ -385,6 +471,7 @@
   // 生命週期
   // ─────────────────────────────────────────────────────────────
   window.addEventListener('pagehide', () => {
+    if (_cooldownTicker) { clearInterval(_cooldownTicker); _cooldownTicker = null; }
     if (window.__pdfResizeObserver) {
       try { window.__pdfResizeObserver.disconnect(); } catch {}
       window.__pdfResizeObserver = null;

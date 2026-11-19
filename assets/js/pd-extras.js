@@ -600,6 +600,20 @@ function bindSubmitEvent() {
       updateProblemDetailIcon();
 
       if (window.PD.cooldown) window.PD.cooldown.start(payload.type === 'image' ? 'photo' : 'text');
+
+      // 把批改结果广播出去：答题卡的浮窗要拿 comment 画逐题对错
+      try {
+        window.dispatchEvent(new CustomEvent('pd:submit-result', {
+          detail: {
+            problemId,
+            status: st,
+            subid: result.subid,
+            comment: result.comment || '',
+            score: result.score,
+            type: payload.type,
+          },
+        }));
+      } catch (e) {}
       if (result.unlockedAchievements && typeof showAchievementToasts === 'function') showAchievementToasts(result.unlockedAchievements);
             // ⭐ 刷新 Topbar 的 Token
       if (window.updateTopbarTokens) {
