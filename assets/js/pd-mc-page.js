@@ -1,55 +1,58 @@
-// assets/js/pd-mc-page.js —— 把一道 MC 题接成「整份 PDF + 覆盖式答题」的页面
+// assets/js/pd-mc-page.js —— 学生端：整份 PDF + 覆盖式作答
 //
-// 由 pd-script 在题目数据到手之后调用（见 pd-script.js 里的 mountMcSheet）。
-// 只在题目同时满足三个条件时接管：
-//   1. tags 里带 MC
-//   2. 有 pdfUrl
-//   3. 有 mcq 版式（box + 四个圈）
-// 缺任何一条就回退成普通题目，不做任何改造。
+// 一道题可以有多个作答框（mcSlots），也可以只有一个（旧的 mcq）。
+// 每个框是一道小题：点圆圈选答案，框左边有 check 可以单独批改这个框。
+// 页尾 Submit 把这一页上所有已作答的框一次交上去。
+//
+// 提交时答案按框的顺序拼成 "B|A|D"，交给 problem.logic 判分。
 
 (function () {
   'use strict';
   if (window.MCPage) return;
 
-  const PICKS_KEY = (pid) => 'mcPicks:' + pid;
+  function el(tag, cls, html) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (html != null) n.innerHTML = html;
+    return n;
+  }
+
+  function storageKey(pid) { return 'mcPicks:' + pid; }
 
   function loadPicks(pid) {
-    try { return JSON.parse(localStorage.getItem(PICKS_KEY(pid)) || '{}'); } catch (e) { return {}; }
+    try { return JSON.parse(localStorage.getItem(storageKey(pid)) || '{}') || {}; } catch (e) { return {}; }
   }
   function savePicks(pid, picks) {
-    try { localStorage.setItem(PICKS_KEY(pid), JSON.stringify(picks)); } catch (e) {}
+    try { localStorage.setItem(storageKey(pid), JSON.stringify(picks)); } catch (e) {}
   }
 
   /**
    * @param {object} opts
-   *   host      放 PDF 的容器（会被整体接管）
-   *   problemId 当前题号
+   *   host       容器
+   *   problemId
    *   pdfUrl
-   *   layout    { page, box, options }
-   *   paperIds  同一份卷子的其他题号（整卷提交用）
+   *   slots      数组，每项 { page, box, options }
    */
   async function mount(opts) {
-    const { host, problemId, pdfUrl, layout, paperIds } = opts;
-    if (!host || !pdfUrl || !layout) return false;
+    const { host, problemId, pdfUrl, slots } = opts;
+    if (!host || !pdfUrl || !Array.isArray(slots) || !slots.length) return false;
 
-    const picks = loadPicks(problemId);
-    const answers = new Map();          // problemId -> 选的字母
-    const views = new Map();            // problemId -> drawQuestion 的返回
+    const picks = loadPicks(problemId);          // { 0: 'B', 1: 'A', ... }
+    const views = new Map();                     // idx -> drawQuestion 返回值
 
     host.innerHTML = '';
     host.classList.add('mcs-sheet');
 
-    const toolbar = document.createElement('div');
-    toolbar.className = 'mcs-toolbar';
+    // ── 工具条 ──
+    const toolbar = el('div', 'mcs-toolbar');
     toolbar.innerHTML =
-      '<span class="mcs-progress">Answered <b id="mcsAnswered">0</b> / <b id="mcsTotal">' + paperIds.length + '</b></span>' +
+      '<span class="mcs-progress">Answered <b id="mcsAnswered">0</b> / <b>' + slots.length + '</b></span>' +
       '<span class="mcs-spacer"></span>' +
       '<a class="mcs-open" target="_blank" rel="noopener" href="' + pdfUrl + '">' +
         '<i class="fas fa-external-link-alt"></i> Open PDF</a>';
     host.appendChild(toolbar);
 
-    const scroll = document.createElement('div');
-    scroll.className = 'mcs-scroll';
+    const scroll = el('div', 'mcs-scroll');
     host.appendChild(scroll);
 
     let pages;
@@ -60,45 +63,47 @@
       return false;
     }
 
-    const pageEl = pages[Math.max(0, (layout.page || 1) - 1)];
-    if (!pageEl) {
-      host.innerHTML = '<div class="mcs-error">The layout points at page ' + layout.page + ' but the PDF has ' + pages.length + '.</div>';
-      return false;
-    }
+    // 每个框按自己的页去画
+    slots.forEach((slot, idx) => {
+      const pageEl = pages[Math.max(0, (Number(slot.page) || 1) - 1)];
+      if (!pageEl) return;
 
-    // 当前题先画上
-    function drawFor(pid, lay) {
-      const picked = answers.get(pid) || '';
-      const view = window.MCSHEET.drawQuestion(pageEl, lay, {
-        keyLabel: pid,
+      const picked = picks[idx] || '';
+      const view = window.MCSHEET.drawQuestion(pageEl, slot, {
+        keyLabel: 'Q' + (idx + 1),
         picked,
-        showCheck: paperIds.length === 1,
+        showCheck: slots.length > 0,
         onPick(key) {
-          answers.set(pid, key);
-          const cur = loadPicks(problemId);
-          cur[pid] = key;
-          savePicks(problemId, cur);
+          picks[idx] = key;
+          savePicks(problemId, picks);
           view.setPick(key);
           updateProgress();
         },
         onCheck() {
-          const pick = answers.get(pid);
+          const pick = picks[idx];
           if (!pick) {
             if (window.DSHUI && DSHUI.toast) DSHUI.toast('Pick an option first', 'err');
             return;
           }
-          checkOne(pid, pick, view);
+          checkOne(idx, view);
         },
       });
-      views.set(pid, view);
-      return view;
+      views.set(idx, view);
+    });
+
+    function updateProgress() {
+      const n = Object.keys(picks).filter((k) => picks[k]).length;
+      const a = document.getElementById('mcsAnswered');
+      if (a) a.textContent = String(n);
     }
 
-    async function checkOne(pid, pick, view) {
+    /** 单框批改：把当前所有已答的答案按顺序拼起来提交 */
+    async function checkOne(idx, view) {
       view.setChecking(true);
       try {
-        const res = await apiCall('/api/paper-mc?action=check', 'POST', { problemId: pid, pick });
-        if (!res.success) throw new Error(res.message || 'Check failed');
+        const answer = slots.map((_, i) => picks[i] || '').join('|');
+        const res = await apiCall('/api/paper-mc?action=check', 'POST', { problemId, pick: answer });
+        if (!res || !res.success) throw new Error((res && res.message) || 'Check failed');
         view.markResult(!!res.correct);
         if (window.DSHUI && DSHUI.toast) {
           DSHUI.toast(res.comment || (res.correct ? 'Correct' : 'Incorrect'), res.correct ? 'ok' : 'err');
@@ -110,60 +115,48 @@
       }
     }
 
-    function updateProgress() {
-      const n = answers.size;
-      const a = document.getElementById('mcsAnswered');
-      if (a) a.textContent = String(n);
-    }
+    // ── 页尾 Submit ──
+    const footer = el('div', 'mcs-footer');
+    const btn = el('button', 'mcs-submit');
+    btn.type = 'button';
+    btn.textContent = 'Submit paper';
+    btn.addEventListener('click', async () => {
+      const answered = slots.map((_, i) => picks[i] || '').join('|');
+      if (!answered.replace(/\|/g, '')) {
+        if (window.DSHUI && DSHUI.toast) DSHUI.toast('Answer at least one question first', 'err');
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = 'Marking…';
+      try {
+        const res = await apiCall('/api/paper-mc?action=check', 'POST', { problemId, pick: answered });
+        if (!res || !res.success) throw new Error((res && res.message) || 'Submit failed');
+        // 判分是按整串答案给出的，这里只把结果标在每题上：
+        // 整题对 → 全部绿；整题错 → 只把学生选的标红，不透露正确答案
+        slots.forEach((_, i) => {
+          const v = views.get(i);
+          if (!v || !picks[i]) return;
+          v.markResult(!!res.correct);
+        });
+        btn.textContent = res.correct ? 'Marked · correct' : 'Marked · see comments';
+        if (window.DSHUI && DSHUI.toast) {
+          DSHUI.toast(res.comment || (res.correct ? 'Correct' : 'Incorrect'), res.correct ? 'ok' : 'err');
+        }
+        if (window.updateTopbarTokens) {
+          apiCall('/api/token').then((t) => {
+            if (t && t.success) window.updateTopbarTokens(t.daily, t.global);
+          }).catch(() => {});
+        }
+      } catch (e) {
+        btn.disabled = false;
+        btn.textContent = 'Submit paper';
+        if (window.DSHUI && DSHUI.toast) DSHUI.toast(e.message, 'err');
+      }
+    });
+    footer.appendChild(btn);
+    host.appendChild(footer);
 
-    drawFor(problemId, layout);
     updateProgress();
-
-    // 整卷提交
-    if (paperIds.length > 1) {
-      const footer = document.createElement('div');
-      footer.className = 'mcs-footer';
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'mcs-submit';
-      btn.textContent = 'Submit paper';
-      btn.addEventListener('click', async () => {
-        const items = paperIds
-          .map((pid) => ({ problemId: pid, pick: answers.get(pid) || '' }))
-          .filter((x) => x.pick);
-        if (!items.length) {
-          if (window.DSHUI && DSHUI.toast) DSHUI.toast('Answer at least one question first', 'err');
-          return;
-        }
-        btn.disabled = true;
-        btn.textContent = 'Marking…';
-        try {
-          const res = await apiCall('/api/paper-mc?action=submit', 'POST', { items });
-          if (!res.success) throw new Error(res.message || 'Submit failed');
-          (res.results || []).forEach((r) => {
-            const v = views.get(r.problemId);
-            if (!v || r.attempted === false || r.error) return;
-            v.markResult(!!r.correct);
-          });
-          btn.textContent = 'Marked · ' + res.correct + '/' + res.attempted;
-          if (window.DSHUI && DSHUI.toast) {
-            DSHUI.toast('Marked ' + res.attempted + ' answered, ' + res.correct + ' correct', 'ok');
-          }
-          if (window.updateTopbarTokens) {
-            apiCall('/api/token').then((t) => {
-              if (t && t.success) window.updateTopbarTokens(t.daily, t.global);
-            }).catch(() => {});
-          }
-        } catch (e) {
-          btn.disabled = false;
-          btn.textContent = 'Submit paper';
-          if (window.DSHUI && DSHUI.toast) DSHUI.toast(e.message, 'err');
-        }
-      });
-      footer.appendChild(btn);
-      host.appendChild(footer);
-    }
-
     return true;
   }
 

@@ -558,7 +558,12 @@
    * 三个条件缺一不可：MC 标签、pdfUrl、mcq 版式。
    */
   async function mountMcSheet(problem) {
-    if (!problem || !problem.mcq || !problem.pdfUrl) return false;
+    if (!problem || !problem.pdfUrl) return false;
+    // 新版有多框（mcSlots），旧数据只有单框（mcq），两种都接受
+    const slots = Array.isArray(problem.mcSlots) && problem.mcSlots.length
+      ? problem.mcSlots
+      : (problem.mcq ? [problem.mcq] : []);
+    if (!slots.length) return false;
     const tags = Array.isArray(problem.tags) ? problem.tags : [];
     if (!tags.some((t) => String(t || '').trim().toUpperCase() === 'MC')) return false;
 
@@ -572,25 +577,13 @@
     }
     if (!window.MCPage) return false;
 
-    // 同一份卷子的其他题：按题号前缀归组，用于整卷提交
     const pid = String(problem.id || problemId || '');
-    const prefix = (pid.match(/^([A-Za-z]{1,6}\d{0,4})\d{2}$/) || [])[1] || pid;
-    let paperIds = [pid];
-    try {
-      const res = await apiCall('/api/problem?action=list&tag=MC');
-      const all = (res && res.problems) || [];
-      const same = all
-        .map((x) => String(x.id))
-        .filter((x) => x && (x.match(/^([A-Za-z]{1,6}\d{0,4})\d{2}$/) || [])[1] === prefix);
-      if (same.length) paperIds = same.sort();
-    } catch (e) { /* 拿不到就只做单题 */ }
 
     return window.MCPage.mount({
       host,
       problemId: pid,
       pdfUrl: problem.pdfUrl,
-      layout: problem.mcq,
-      paperIds,
+      slots,
     });
   }
 
@@ -1013,6 +1006,7 @@ async function renderRichText(target, text) {
           favorited: pageData.favorited,
         });
         S.problem = { ...problem };
+        if (Array.isArray(problem.mcSlots)) S.problem.mcSlots = problem.mcSlots;
         S.problem = { ...problem };
           renderStatement(problem.statement);
         updateProblemDetailIcon();
