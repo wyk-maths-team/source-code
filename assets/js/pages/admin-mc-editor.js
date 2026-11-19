@@ -1,13 +1,14 @@
 // assets/js/pages/admin-mc-editor.js —— 选择题版式编辑器
 //
-// 只在题目带 MC 标签时出现。管理员在这块里：
-//   - 填整份卷子的 PDF 地址（任意 https 地址都可以，GitHub raw 也行）
-//   - 在 PDF 上摆放一个透明答题框和四个选项圈
-//   - 拖动移动、拖右下角缩放，实时看到学生端会是什么样子
-//   - 用 "Add option" 模式把 A 圈直接丢到鼠标位置，再摆其余三个
+// 两个模式，对应两种工作：
 //
-// 坐标一律以 0-1 比例存进 problem.mcq，所以换屏幕不会错位。
-// 保存时由 api/problem.js 负责把版式写回同一份卷子的每一道题。
+//   Adjust  拖动框和圈，决定这个形状长什么样；改完可以「存为模板」。
+//           模板只存形状（框多大、四个圈相对框左上角偏多少），不含位置。
+//
+//   Place   在页面上点一下，用模板形状在点击处生成一套结构；
+//           生成后仍然能继续拖动。位置属于这一道题，不会影响别的题。
+//
+// 坐标一律 0-1 比例，换屏幕不会错位。
 
 (function () {
   'use strict';
@@ -28,59 +29,101 @@
     return Math.min(1, Math.max(0, n));
   }
 
-  /** 空白版式：一个居中的框 + 四个等距的圈 */
-  function defaultLayout() {
+  function fallbackShape() {
     return {
-      page: 1,
-      box: { x: 0.08, y: 0.55, w: 0.5, h: 0.34 },
+      boxW: 0.5, boxH: 0.34,
       options: [
-        { key: 'A', x: 0.13, y: 0.60, r: 0.012 },
-        { key: 'B', x: 0.13, y: 0.66, r: 0.012 },
-        { key: 'C', x: 0.13, y: 0.72, r: 0.012 },
-        { key: 'D', x: 0.13, y: 0.78, r: 0.012 },
+        { key: 'A', dx: 0.03, dy: 0.05, r: 0.012 },
+        { key: 'B', dx: 0.03, dy: 0.12, r: 0.012 },
+        { key: 'C', dx: 0.03, dy: 0.19, r: 0.012 },
+        { key: 'D', dx: 0.03, dy: 0.26, r: 0.012 },
       ],
     };
   }
 
-  function normalizeLayout(raw) {
-    if (!raw || !raw.box || !Array.isArray(raw.options)) return defaultLayout();
+  function defaultLayout(shape) {
+    const s = shape || fallbackShape();
+    const x0 = 0.08, y0 = 0.55;
+    return {
+      page: 1,
+      box: { x: x0, y: y0, w: s.boxW, h: s.boxH },
+      options: s.options.map((o) => ({
+        key: o.key,
+        x: clamp01(x0 + o.dx),
+        y: clamp01(y0 + o.dy),
+        r: o.r,
+      })),
+    };
+  }
+
+  function normalizeLayout(raw, shape) {
+    const d = defaultLayout(shape);
+    if (!raw || !raw.box || !Array.isArray(raw.options)) return d;
     const byKey = new Map();
     for (const o of raw.options) {
       const k = String(o && o.key || '').toUpperCase();
       if (!'ABCD'.includes(k)) continue;
       byKey.set(k, { key: k, x: clamp01(o.x), y: clamp01(o.y), r: clamp01(o.r) || 0.012 });
     }
-    const options = ['A', 'B', 'C', 'D'].map((k) => byKey.get(k) || {
-      key: k, x: 0.13, y: 0.6 + 0.06 * 'ABCD'.indexOf(k), r: 0.012,
-    });
     return {
       page: Math.max(1, Math.round(Number(raw.page) || 1)),
-      box: { x: clamp01(raw.box.x), y: clamp01(raw.box.y), w: clamp01(raw.box.w) || 0.5, h: clamp01(raw.box.h) || 0.3 },
-      options,
+      box: {
+        x: clamp01(raw.box.x),
+        y: clamp01(raw.box.y),
+        w: clamp01(raw.box.w) || d.box.w,
+        h: clamp01(raw.box.h) || d.box.h,
+      },
+      options: ['A', 'B', 'C', 'D'].map((k) => byKey.get(k) || d.options['ABCD'.indexOf(k)]),
     };
   }
 
-  /**
-   * 挂载。
-   * @param {HTMLElement} host
-   * @param {object} opts { pdfUrl, layout, onChange(layout) }
-   */
+  /** 从当前版式提炼形状（就是「存为模板」要发出去的东西） */
+  function shapeFrom(layout) {
+    return {
+      boxW: layout.box.w,
+      boxH: layout.box.h,
+      options: layout.options.map((o) => ({
+        key: o.key,
+        dx: Math.round((o.x - layout.box.x) * 10000) / 10000,
+        dy: Math.round((o.y - layout.box.y) * 10000) / 10000,
+        r: o.r,
+      })),
+    };
+  }
+
+  /** 用形状 + 放置点生成一份完整版式 */
+  function layoutFrom(shape, anchor, page) {
+    const s = shape || fallbackShape();
+    const x0 = clamp01(anchor && anchor.x);
+    const y0 = clamp01(anchor && anchor.y);
+    return {
+      page: Math.max(1, Math.round(Number(page) || 1)),
+      box: { x: x0, y: y0, w: s.boxW, h: s.boxH },
+      options: s.options.map((o) => ({
+        key: o.key,
+        x: clamp01(x0 + o.dx),
+        y: clamp01(y0 + o.dy),
+        r: o.r,
+      })),
+    };
+  }
+
   function mount(host, opts) {
     const { pdfUrl: initialUrl = '', layout: initialLayout = null, onChange } = opts || {};
     state = {
       pdfUrl: initialUrl,
       layout: normalizeLayout(initialLayout),
+      shape: fallbackShape(),
       onChange: onChange || function () {},
-      mode: 'move',          // 'move' | 'add'
+      mode: 'adjust',
       pages: [],
-      activePage: null,
       pdfVisible: false,
     };
 
     host.innerHTML = '';
     host.className = 'mce';
 
-    // ── 顶部控制条 ──
+    // ── 顶部：PDF 地址 ──
     const bar = el('div', 'mce-bar');
     bar.innerHTML =
       '<label class="mce-url-label">Paper PDF URL</label>' +
@@ -90,39 +133,34 @@
       '<button type="button" class="mce-btn" id="mceToggle"><i class="fas fa-eye"></i> Show PDF</button>';
     host.appendChild(bar);
 
-    // ── 模式切换 ──
+    // ── 模式 ──
     const modes = el('div', 'mce-modes');
     modes.innerHTML =
-      '<button type="button" class="mce-mode on" data-mode="move"><i class="fas fa-arrows-up-down-left-right"></i> Move / resize</button>' +
-      '<button type="button" class="mce-mode" data-mode="add"><i class="fas fa-crosshairs"></i> Add option at cursor</button>' +
-      '<span class="mce-hint" id="mceHint">Drag the box or a circle. Drag the bottom-right corner to resize.</span>' +
-      '<button type="button" class="mce-btn" id="mceHome"><i class="fas fa-arrow-up"></i> Reset to page 1</button>' +
-      '<button type="button" class="mce-btn" id="mceReset"><i class="fas fa-undo"></i> Reset layout</button>';
+      '<button type="button" class="mce-mode on" data-mode="adjust"><i class="fas fa-arrows-up-down-left-right"></i> Adjust</button>' +
+      '<button type="button" class="mce-mode" data-mode="place"><i class="fas fa-crosshairs"></i> Place</button>' +
+      '<span class="mce-hint" id="mceHint">Drag the box or a circle to shape it. Adjust sets the shape; Place stamps it somewhere.</span>' +
+      '<button type="button" class="mce-btn" id="mceSaveTmpl" title="Store the current shape as the reusable template"><i class="fas fa-bookmark"></i> Save as template</button>' +
+      '<button type="button" class="mce-btn" id="mceApplyTmpl" title="Reshape this layout from the saved template"><i class="fas fa-wand-magic-sparkles"></i> Apply template</button>' +
+      '<button type="button" class="mce-btn" id="mceHome"><i class="fas fa-arrow-up"></i> Reset to page 1</button>';
     host.appendChild(modes);
 
     const help = el('div', 'mce-help');
     help.innerHTML =
-      'Coordinates are stored as ratios of the page, so the layout survives any screen size. ' +
-      'Saving writes this layout to every MC question on the same paper.';
+      '<b>Adjust</b> — move the box and the four circles until the shape is right. ' +
+      '<b>Save as template</b> keeps that shape for other questions. ' +
+      '<b>Place</b> — click anywhere on a page and the template is stamped there; drag it afterwards if needed. ' +
+      'The placement belongs to this question only, so the same shape can sit anywhere on the paper.';
     host.appendChild(help);
 
-    // ── 舞台 ──
     const stage = el('div', 'mce-stage');
     host.appendChild(stage);
-
     const placeholder = el('div', 'mce-placeholder', 'Enter a PDF URL above and press “Load PDF” to place the answer sheet.');
     stage.appendChild(placeholder);
 
-    // ── 事件接线 ──
     const urlInput = bar.querySelector('#mceUrl');
-    urlInput.addEventListener('input', () => {
-      state.pdfUrl = urlInput.value.trim();
-      emit();
-    });
+    urlInput.addEventListener('input', () => { state.pdfUrl = urlInput.value.trim(); emit(); });
 
-    bar.querySelector('#mceLoad').addEventListener('click', () => {
-      loadPdf(stage, placeholder);
-    });
+    bar.querySelector('#mceLoad').addEventListener('click', () => loadPdf(stage, placeholder));
 
     bar.querySelector('#mceToggle').addEventListener('click', (e) => {
       state.pdfVisible = !state.pdfVisible;
@@ -137,25 +175,42 @@
       b.addEventListener('click', () => {
         state.mode = b.dataset.mode;
         modes.querySelectorAll('.mce-mode').forEach((x) => x.classList.toggle('on', x === b));
-        modes.querySelector('#mceHint').textContent = state.mode === 'add'
-          ? 'Click on the page to drop the A circle there; B, C and D are placed below it.'
-          : 'Drag the box or a circle. Drag the bottom-right corner to resize.';
+        modes.querySelector('#mceHint').textContent = state.mode === 'place'
+          ? 'Click a page to stamp the template there. Drag afterwards to fine-tune.'
+          : 'Drag the box or a circle to shape it. Save as template when the shape is right.';
+        layout();
       });
     });
 
-    modes.querySelector('#mceReset').addEventListener('click', () => {
-      state.layout = defaultLayout();
-      emit();
-      layout();
+    modes.querySelector('#mceSaveTmpl').addEventListener('click', async () => {
+      const shape = shapeFrom(state.layout);
+      try {
+        const r = await apiCall('/api/mc-template?action=save', 'POST', { shape });
+        if (!r || !r.success) throw new Error((r && r.message) || 'Save failed');
+        state.shape = r.shape || shape;
+        if (window.DSHUI && DSHUI.toast) DSHUI.toast('Template saved', 'ok');
+      } catch (e) {
+        if (window.DSHUI && DSHUI.toast) DSHUI.toast(e.message, 'err');
+      }
     });
 
-    // 加载整份 PDF 之后页面会变得很长，作答框可能留在半途看不见。
-    // 这个按钮把它拉回第一页并恢复预设大小，省得手动找。
+    modes.querySelector('#mceApplyTmpl').addEventListener('click', async () => {
+      try {
+        const r = await apiCall('/api/mc-template?action=get');
+        if (!r || !r.success) throw new Error('Could not read the template');
+        state.shape = r.shape || fallbackShape();
+        const at = { x: state.layout.box.x, y: state.layout.box.y };
+        state.layout = layoutFrom(state.shape, at, state.layout.page);
+        emit();
+        layout();
+        if (window.DSHUI && DSHUI.toast) DSHUI.toast('Template applied', 'ok');
+      } catch (e) {
+        if (window.DSHUI && DSHUI.toast) DSHUI.toast(e.message, 'err');
+      }
+    });
+
     modes.querySelector('#mceHome').addEventListener('click', () => {
-      const preset = defaultLayout();
-      state.layout.page = 1;
-      state.layout.box = preset.box;
-      state.layout.options = preset.options.map((o) => ({ ...o }));
+      state.layout = defaultLayout(state.shape);
       emit();
       layout();
       const first = state.pages[0];
@@ -164,17 +219,13 @@
       }
     });
 
-    // ── 渲染 ──
     function emit() {
       try { state.onChange(state.layout, state.pdfUrl); } catch (e) { console.error('[mc-editor]', e); }
     }
 
     async function loadPdf(stageEl, ph) {
       if (!state.pdfUrl) return;
-      if (!window.MCSHEET) {
-        ph.textContent = 'PDF viewer is still loading, try again in a moment.';
-        return;
-      }
+      if (!window.MCSHEET) { ph.textContent = 'PDF viewer is still loading, try again in a moment.'; return; }
       ph.textContent = 'Loading…';
       if (!state.pdfVisible) {
         state.pdfVisible = true;
@@ -187,8 +238,7 @@
         stageEl.appendChild(inner);
         state.pages = await window.MCSHEET.renderPdf(inner, state.pdfUrl);
 
-        // 每页的 overlay 必须精确等于这一页画布的大小：
-        // 否则页数一多，百分比高度会按整份文档算，作答框就被拉得很高。
+        // 每页 overlay 锁定到自己画布的大小，否则页一多，百分比高度会按整份文档算
         state.pages.forEach((p) => {
           const canvas = p.wrap.querySelector('.mcs-canvas');
           if (!canvas) return;
@@ -209,34 +259,19 @@
       }
     }
 
-    function pageFor(n) {
-      return state.pages[Math.max(0, Math.min(state.pages.length - 1, n - 1))] || null;
-    }
-
     function buildOverlay() {
-      state.pages.forEach((p) => {
+      state.pages.forEach((p, idx) => {
         p.overlay.innerHTML = '';
         p.overlay.classList.add('mce-overlay');
+        p.overlay.dataset.pageNo = String(idx + 1);
         p.overlay.addEventListener('click', (e) => {
-          if (state.mode !== 'add') return;
+          if (state.mode !== 'place') return;
           if (e.target !== p.overlay && !e.target.classList.contains('mce-ghost')) return;
-
-          const pageNo = Number(p.wrap.dataset.page || 1) || 1;
           const rect = p.overlay.getBoundingClientRect();
           const x = clamp01((e.clientX - rect.left) / rect.width);
           const y = clamp01((e.clientY - rect.top) / rect.height);
-
-          // 换页就把整份结构搬过去；同页则只挪圆圈
-          if (pageNo !== state.layout.page) {
-            state.layout.page = pageNo;
-            state.layout.box = { x: clamp01(x - 0.04), y: clamp01(y - 0.04), w: 0.5, h: 0.3 };
-          }
-          state.layout.options = ['A', 'B', 'C', 'D'].map((k, i) => ({
-            key: k,
-            x,
-            y: clamp01(y + i * 0.06),
-            r: state.layout.options[i] ? state.layout.options[i].r : 0.012,
-          }));
+          // 放置：用模板形状，把框的左上角放在点击处
+          state.layout = layoutFrom(state.shape, { x, y }, idx + 1);
           emit();
           layout();
         });
@@ -247,12 +282,9 @@
     function layout() {
       state.pages.forEach((p, i) => {
         p.overlay.innerHTML = '';
-        // 每一页都可以放结构：点哪一页的空白处就把结构摆到哪一页
         p.overlay.style.pointerEvents = 'auto';
-        p.wrap.dataset.activePage = String(i + 1);
         const isTarget = (i + 1) === state.layout.page;
         if (!isTarget) {
-          // 非当前页只画一圈淡轮廓，提示这里可以放结构
           const ghost = el('div', 'mce-ghost');
           p.overlay.appendChild(ghost);
           return;
@@ -261,13 +293,13 @@
         const boxEl = el('div', 'mce-box');
         boxEl.dataset.role = 'box';
         applyRect(boxEl, state.layout.box);
-        const tag = el('div', 'mce-tag', 'Answer area');
-        boxEl.appendChild(tag);
+        boxEl.appendChild(el('div', 'mce-tag', 'Answer area'));
         const grip = el('div', 'mce-grip');
         boxEl.appendChild(grip);
         p.overlay.appendChild(boxEl);
 
         bindDrag(boxEl, p.overlay, (dx, dy, rect) => {
+          if (state.mode !== 'adjust') return;
           state.layout.box.x = clamp01(state.layout.box.x + dx / rect.width);
           state.layout.box.y = clamp01(state.layout.box.y + dy / rect.height);
           applyRect(boxEl, state.layout.box);
@@ -275,7 +307,7 @@
         }, { skip: '.mce-grip' });
 
         bindDrag(grip, p.overlay, (dx, dy, rect) => {
-          // 最小 8% x 6%：否则往左上拖两下就缩成一条线，看起来像「一拉就扁」
+          if (state.mode !== 'adjust') return;
           state.layout.box.w = Math.max(0.08, clamp01(state.layout.box.w + dx / rect.width));
           state.layout.box.h = Math.max(0.06, clamp01(state.layout.box.h + dy / rect.height));
           applyRect(boxEl, state.layout.box);
@@ -299,7 +331,6 @@
             emit();
           });
 
-          // 滚轮改半径
           c.addEventListener('wheel', (e) => {
             e.preventDefault();
             o.r = Math.max(0.004, Math.min(0.06, (Number(o.r) || 0.012) + (e.deltaY < 0 ? 0.002 : -0.002)));
@@ -317,50 +348,36 @@
       node.style.height = (b.h * 100) + '%';
     }
 
-    /**
-     * 通用拖动。
-     *
-     * 指针事件必须挂在 window 上：只挂在被拖元素上时，鼠标一离开元素
-     * （或者 setPointerCapture 在部分浏览器里没生效）就收不到 pointermove，
-     * 表现就是「拉不动」或者「拉一下就扁」。
-     */
+    /** 指针事件挂 window：只挂元素上的话，鼠标一离开就收不到 move，看起来像拉不动 */
     function bindDrag(node, parent, onMove, opts) {
-      const skipSelector = (opts && opts.skip) || null;
-
+      const skip = (opts && opts.skip) || null;
       node.addEventListener('pointerdown', (e) => {
-        if (state.mode !== 'move') return;
-        if (skipSelector && e.target.closest(skipSelector)) return;
+        if (skip && e.target.closest(skip)) return;
         if (e.button != null && e.button !== 0) return;
         e.preventDefault();
         e.stopPropagation();
 
-        let px = e.clientX;
-        let py = e.clientY;
-
+        let px = e.clientX, py = e.clientY;
         const move = (ev) => {
           const rect = parent.getBoundingClientRect();
           if (!rect.width || !rect.height) return;
           onMove(ev.clientX - px, ev.clientY - py, rect);
-          px = ev.clientX;
-          py = ev.clientY;
+          px = ev.clientX; py = ev.clientY;
         };
-
         const up = () => {
           window.removeEventListener('pointermove', move, true);
           window.removeEventListener('pointerup', up, true);
           window.removeEventListener('pointercancel', up, true);
         };
-
         window.addEventListener('pointermove', move, true);
         window.addEventListener('pointerup', up, true);
         window.addEventListener('pointercancel', up, true);
       });
     }
 
-    // 先按已有版式画一次，即使没加载 PDF 也能看到结构
+    // 先按已有版式画一次（没有 PDF 时给横线占位页）
     if (initialUrl) loadPdf(stage, placeholder);
     else {
-      // 没有 PDF 时给一块等比画布，方便先把结构摆好
       stage.innerHTML = '';
       const fake = el('div', 'mce-scroll');
       const page = el('div', 'mcs-page mce-fakepage');
@@ -371,8 +388,25 @@
       fake.appendChild(page);
       stage.appendChild(fake);
       state.pages = [{ wrap: page, overlay }];
-      buildOverlay();
+      overlay.dataset.pageNo = '1';
+      overlay.addEventListener('click', (e) => {
+        if (state.mode !== 'place') return;
+        if (e.target !== overlay && !e.target.classList.contains('mce-ghost')) return;
+        const rect = overlay.getBoundingClientRect();
+        state.layout = layoutFrom(state.shape, {
+          x: clamp01((e.clientX - rect.left) / rect.width),
+          y: clamp01((e.clientY - rect.top) / rect.height),
+        }, 1);
+        emit();
+        layout();
+      });
+      layout();
     }
+
+    // 打开时把模板读进来，Place 用的是它
+    apiCall('/api/mc-template?action=get').then((r) => {
+      if (r && r.success && r.shape) state.shape = r.shape;
+    }).catch(() => {});
 
     return {
       getLayout: () => state.layout,
@@ -380,5 +414,5 @@
     };
   }
 
-  window.McEditor = { mount, defaultLayout, normalizeLayout };
+  window.McEditor = { mount, defaultLayout, normalizeLayout, shapeFrom, layoutFrom };
 })();

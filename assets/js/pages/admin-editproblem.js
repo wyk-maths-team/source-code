@@ -849,7 +849,8 @@
         try {
           const result = await apiCall('/api/problem?action=adminProblems', 'PUT', {
             id: problemId, name, statement, ans, difficulty, tags, public: isPublic, logic, FS, hints,
-          ...(mcqPayload ? { mcq: mcqPayload } : {}),
+          // 每题位置独立：只写自己，不推给同卷其他题
+          ...(mcqPayload ? { mcq: mcqPayload, applyLayoutToPaper: false } : {}),
           ...(pdfUrlPayload !== undefined ? { pdfUrl: pdfUrlPayload } : {})
           });
           const msgEl = document.getElementById('message');
