@@ -189,10 +189,18 @@
         p.overlay.classList.add('mce-overlay');
         p.overlay.addEventListener('click', (e) => {
           if (state.mode !== 'add') return;
-          if (e.target !== p.overlay) return;      // 只认空白处
+          if (e.target !== p.overlay && !e.target.classList.contains('mce-ghost')) return;
+
+          const pageNo = Number(p.wrap.dataset.page || 1) || 1;
           const rect = p.overlay.getBoundingClientRect();
           const x = clamp01((e.clientX - rect.left) / rect.width);
           const y = clamp01((e.clientY - rect.top) / rect.height);
+
+          // 换页就把整份结构搬过去；同页则只挪圆圈
+          if (pageNo !== state.layout.page) {
+            state.layout.page = pageNo;
+            state.layout.box = { x: clamp01(x - 0.04), y: clamp01(y - 0.04), w: 0.5, h: 0.3 };
+          }
           state.layout.options = ['A', 'B', 'C', 'D'].map((k, i) => ({
             key: k,
             x,
@@ -209,12 +217,16 @@
     function layout() {
       state.pages.forEach((p, i) => {
         p.overlay.innerHTML = '';
+        // 每一页都可以放结构：点哪一页的空白处就把结构摆到哪一页
+        p.overlay.style.pointerEvents = 'auto';
+        p.wrap.dataset.activePage = String(i + 1);
         const isTarget = (i + 1) === state.layout.page;
         if (!isTarget) {
-          p.overlay.style.pointerEvents = 'none';
+          // 非当前页只画一圈淡轮廓，提示这里可以放结构
+          const ghost = el('div', 'mce-ghost');
+          p.overlay.appendChild(ghost);
           return;
         }
-        p.overlay.style.pointerEvents = 'auto';
 
         const boxEl = el('div', 'mce-box');
         boxEl.dataset.role = 'box';
@@ -225,16 +237,17 @@
         boxEl.appendChild(grip);
         p.overlay.appendChild(boxEl);
 
-        drag(boxEl, p.overlay, (dx, dy, rect) => {
+        bindDrag(boxEl, p.overlay, (dx, dy, rect) => {
           state.layout.box.x = clamp01(state.layout.box.x + dx / rect.width);
           state.layout.box.y = clamp01(state.layout.box.y + dy / rect.height);
           applyRect(boxEl, state.layout.box);
           emit();
-        });
+        }, { skip: '.mce-grip' });
 
-        resize(grip, boxEl, p.overlay, (dx, dy, rect) => {
-          state.layout.box.w = clamp01(state.layout.box.w + dx / rect.width);
-          state.layout.box.h = clamp01(state.layout.box.h + dy / rect.height);
+        bindDrag(grip, p.overlay, (dx, dy, rect) => {
+          // 最小 8% x 6%：否则往左上拖两下就缩成一条线，看起来像「一拉就扁」
+          state.layout.box.w = Math.max(0.08, clamp01(state.layout.box.w + dx / rect.width));
+          state.layout.box.h = Math.max(0.06, clamp01(state.layout.box.h + dy / rect.height));
           applyRect(boxEl, state.layout.box);
           emit();
         });
@@ -248,7 +261,7 @@
           c.style.width = (o.r * 200 * 100) + '%';
           p.overlay.appendChild(c);
 
-          drag(c, p.overlay, (dx, dy, rect) => {
+          bindDrag(c, p.overlay, (dx, dy, rect) => {
             o.x = clamp01(o.x + dx / rect.width);
             o.y = clamp01(o.y + dy / rect.height);
             c.style.left = (o.x * 100) + '%';
@@ -259,7 +272,7 @@
           // 滚轮改半径
           c.addEventListener('wheel', (e) => {
             e.preventDefault();
-            o.r = clamp01(o.r + (e.deltaY < 0 ? 0.002 : -0.002)) || 0.006;
+            o.r = Math.max(0.004, Math.min(0.06, (Number(o.r) || 0.012) + (e.deltaY < 0 ? 0.002 : -0.002)));
             c.style.width = (o.r * 200 * 100) + '%';
             emit();
           }, { passive: false });
@@ -274,53 +287,44 @@
       node.style.height = (b.h * 100) + '%';
     }
 
-    /** 通用拖动：传回相对容器的位移（像素），调用方自己换算成比例 */
-    function drag(node, parent, onMove) {
-      let dragging = false, sx = 0, sy = 0;
+    /**
+     * 通用拖动。
+     *
+     * 指针事件必须挂在 window 上：只挂在被拖元素上时，鼠标一离开元素
+     * （或者 setPointerCapture 在部分浏览器里没生效）就收不到 pointermove，
+     * 表现就是「拉不动」或者「拉一下就扁」。
+     */
+    function bindDrag(node, parent, onMove, opts) {
+      const skipSelector = (opts && opts.skip) || null;
+
       node.addEventListener('pointerdown', (e) => {
         if (state.mode !== 'move') return;
-        if (e.target.closest('.mce-grip')) return;
+        if (skipSelector && e.target.closest(skipSelector)) return;
+        if (e.button != null && e.button !== 0) return;
         e.preventDefault();
-        dragging = true;
-        sx = e.clientX; sy = e.clientY;
-        node.setPointerCapture(e.pointerId);
-      });
-      node.addEventListener('pointermove', (e) => {
-        if (!dragging) return;
-        const rect = parent.getBoundingClientRect();
-        onMove(e.clientX - sx, e.clientY - sy, rect);
-        sx = e.clientX; sy = e.clientY;
-      });
-      const stop = (e) => {
-        if (!dragging) return;
-        dragging = false;
-        try { node.releasePointerCapture(e.pointerId); } catch (err) {}
-      };
-      node.addEventListener('pointerup', stop);
-      node.addEventListener('pointercancel', stop);
-    }
+        e.stopPropagation();
 
-    function resize(grip, node, parent, onMove) {
-      let on = false, sx = 0, sy = 0;
-      grip.addEventListener('pointerdown', (e) => {
-        if (state.mode !== 'move') return;
-        e.preventDefault(); e.stopPropagation();
-        on = true; sx = e.clientX; sy = e.clientY;
-        grip.setPointerCapture(e.pointerId);
+        let px = e.clientX;
+        let py = e.clientY;
+
+        const move = (ev) => {
+          const rect = parent.getBoundingClientRect();
+          if (!rect.width || !rect.height) return;
+          onMove(ev.clientX - px, ev.clientY - py, rect);
+          px = ev.clientX;
+          py = ev.clientY;
+        };
+
+        const up = () => {
+          window.removeEventListener('pointermove', move, true);
+          window.removeEventListener('pointerup', up, true);
+          window.removeEventListener('pointercancel', up, true);
+        };
+
+        window.addEventListener('pointermove', move, true);
+        window.addEventListener('pointerup', up, true);
+        window.addEventListener('pointercancel', up, true);
       });
-      grip.addEventListener('pointermove', (e) => {
-        if (!on) return;
-        const rect = parent.getBoundingClientRect();
-        onMove(e.clientX - sx, e.clientY - sy, rect);
-        sx = e.clientX; sy = e.clientY;
-      });
-      const stop = (e) => {
-        if (!on) return;
-        on = false;
-        try { grip.releasePointerCapture(e.pointerId); } catch (err) {}
-      };
-      grip.addEventListener('pointerup', stop);
-      grip.addEventListener('pointercancel', stop);
     }
 
     // 先按已有版式画一次，即使没加载 PDF 也能看到结构

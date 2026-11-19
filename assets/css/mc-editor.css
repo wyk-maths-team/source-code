@@ -203,3 +203,16 @@
 [data-theme="dark"] .mce-tag { background: #1e1e1e; color: #6ba7e0; }
 [data-theme="dark"] .mce-opt { background: rgba(30,30,30,.9); color: #6ba7e0; }
 [data-theme="dark"] .mce-stage { background: #14181f; }
+
+
+/* 非当前页的淡轮廓：提示这里也能放结构，但不抢注意力 */
+.mce-ghost {
+  position: absolute;
+  inset: 6%;
+  border: 1px dashed rgba(74, 144, 217, .28);
+  border-radius: 6px;
+  pointer-events: auto;
+  cursor: crosshair;
+}
+
+[data-theme="dark"] .mce-ghost { border-color: rgba(107, 167, 224, .3); }

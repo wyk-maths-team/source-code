@@ -905,46 +905,54 @@
       });
 
       // ---- 选择题版式编辑器 ----
-      (function mountMcEditor() {
+      // 看门狗：只有 Tags 里真的含 MC 才挂载。加了标签自动挂，去掉就把那块收掉。
+      (function mcEditorWatchdog() {
         const host = document.getElementById('mcEditorHost');
-        if (!host) return;
-        if (!window.McEditor) {
-          host.innerHTML = '<small style="color:#666;">Layout editor did not load.</small>';
-          return;
-        }
-        const initialTags = String(document.getElementById('editTags').value || '');
-        const isMc = initialTags.split(',').map(t => t.trim().toUpperCase()).includes('MC');
-
-        const handle = window.McEditor.mount(host, {
-          pdfUrl: problem.pdfUrl || '',
-          layout: problem.mcq || null,
-          onChange() { /* 每次改动都会反映到 handle 上，保存时统一读取 */ },
-        });
-        window.__mcEditorHandle = handle;
-
-        if (!isMc) {
-          const note = document.createElement('small');
-          note.style.cssText = 'display:block;color:#b45309;margin-top:6px;';
-          note.textContent = 'Add "MC" to the Tags above to make this a multiple-choice question. The layout below is kept either way.';
-          host.appendChild(note);
-        }
-
-        // 标签变化时提示一下，不强制切换
         const tagsInput = document.getElementById('editTags');
-        tagsInput.addEventListener('input', () => {
-          const nowMc = tagsInput.value.split(',').map(t => t.trim().toUpperCase()).includes('MC');
-          const existing = host.querySelector('.mce-tag-note');
-          if (existing) existing.remove();
-          if (nowMc !== isMc) {
-            const n = document.createElement('small');
-            n.className = 'mce-tag-note';
-            n.style.cssText = 'display:block;color:#b45309;margin-top:6px;';
-            n.textContent = nowMc
-              ? 'MC tag added — the grading logic will be filled in automatically on save.'
-              : 'MC tag removed — this question will render as a normal problem.';
-            host.appendChild(n);
+        if (!host || !tagsInput) return;
+
+        const tagsOf = () => String(tagsInput.value || '')
+          .split(',').map(t => t.trim().toUpperCase()).filter(Boolean);
+        const isMcNow = () => tagsOf().includes('MC');
+
+        let handle = null;
+        let mounted = false;
+
+        function unmount() {
+          if (!mounted) return;
+          host.innerHTML = '';
+          // host 本身在 mount 时被加上了 .mce，只清 innerHTML 会留下一个空壳
+          host.className = '';
+          host.removeAttribute('style');
+          window.__mcEditorHandle = null;
+          handle = null;
+          mounted = false;
+        }
+
+        function mountEditor() {
+          if (mounted) return;
+          if (!window.McEditor) {
+            host.innerHTML = '<small style="color:#666;">Layout editor did not load.</small>';
+            return;
           }
-        });
+          host.innerHTML = '';
+          handle = window.McEditor.mount(host, {
+            pdfUrl: problem.pdfUrl || '',
+            layout: problem.mcq || null,
+            onChange() {},
+          });
+          window.__mcEditorHandle = handle;
+          mounted = true;
+        }
+
+        function sync() {
+          if (isMcNow()) mountEditor();
+          else unmount();
+        }
+
+        tagsInput.addEventListener('input', sync);
+        tagsInput.addEventListener('change', sync);
+        sync();   // 打开页面时先按当前标签决定
       })();
 
       document.getElementById('deleteProblemBtn').addEventListener('click', async () => {
