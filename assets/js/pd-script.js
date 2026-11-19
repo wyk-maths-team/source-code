@@ -495,7 +495,9 @@
   // ─────────────────────────────────────────────────────────────
   // [7] 動態載入器
   // ─────────────────────────────────────────────────────────────
-  const MCQ_CSS_URL   = '/css/pd-pdf.css';        // PDF + MCQ 樣式
+  // 样式表在 /assets/css/ 下。之前写成 /css/ 一直 404，浮窗因此没有
+  // position:fixed，直接掉到文档最底下。
+  const MCQ_CSS_URL   = '/assets/css/pd-pdf.css';
   function assetV(){ return window.__BUILD_V ? '?v=' + window.__BUILD_V : ''; }
   const MCQ_JS_URL    = '/assets/js/pd-mcq.js' + assetV();
   const EXTRAS_JS_URL = '/assets/js/pd-extras.js' + assetV();
