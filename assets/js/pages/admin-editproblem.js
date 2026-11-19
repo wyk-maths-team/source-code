@@ -438,6 +438,14 @@
             <div class="form-group"><label>Difficulty: <input type="number" id="editDifficulty" step="0.01" value="${problem.difficulty || 0}" /></label></div>
             <div class="form-group">
             <div class="form-group"><label>Tags (comma-separated): <input type="text" id="editTags" value="${(problem.tags || []).join(', ')}" /></label></div>
+            <div class="form-group">
+              <label>Multiple-choice layout (only used when the Tags include MC)</label>
+              <div id="mcEditorHost"></div>
+              <small style="color:#666;display:block;margin-top:.3rem;">
+                The four circles are what students click; the dashed box is the transparent answer area drawn over the PDF.
+                Saving applies this layout to every MC question on the same paper.
+              </small>
+            </div>
             <div class="form-group"><label><input type="checkbox" id="editPublic" ${problem.public !== false ? 'checked' : ''}> Public (visible to students)</label></div>
             <div class="form-group">
               <label>
@@ -820,6 +828,14 @@
         const ans = document.getElementById('editAns').value.trim();
         const difficulty = parseFloat(document.getElementById('editDifficulty').value) || 0;
         const tags = document.getElementById('editTags').value.split(',').map(t => t.trim()).filter(t => t);
+
+        // 选择题版式：编辑器里拿到的最新值
+        let mcqPayload = undefined;
+        let pdfUrlPayload = undefined;
+        if (window.__mcEditorHandle) {
+          mcqPayload = window.__mcEditorHandle.getLayout();
+          pdfUrlPayload = window.__mcEditorHandle.getPdfUrl();
+        }
         const isPublic = document.getElementById('editPublic').checked;
         const logic = document.getElementById('editLogic').value.trim();
         const FS = document.getElementById('editFS').checked;
@@ -832,7 +848,9 @@
           .filter((h) => h.content);
         try {
           const result = await apiCall('/api/problem?action=adminProblems', 'PUT', {
-            id: problemId, name, statement, ans, difficulty, tags, public: isPublic, logic, FS, hints
+            id: problemId, name, statement, ans, difficulty, tags, public: isPublic, logic, FS, hints,
+          ...(mcqPayload ? { mcq: mcqPayload } : {}),
+          ...(pdfUrlPayload !== undefined ? { pdfUrl: pdfUrlPayload } : {})
           });
           const msgEl = document.getElementById('message');
           msgEl.textContent = result.message;
@@ -885,6 +903,49 @@
           btn.innerHTML = original;
         }
       });
+
+      // ---- 选择题版式编辑器 ----
+      (function mountMcEditor() {
+        const host = document.getElementById('mcEditorHost');
+        if (!host) return;
+        if (!window.McEditor) {
+          host.innerHTML = '<small style="color:#666;">Layout editor did not load.</small>';
+          return;
+        }
+        const initialTags = String(document.getElementById('editTags').value || '');
+        const isMc = initialTags.split(',').map(t => t.trim().toUpperCase()).includes('MC');
+
+        const handle = window.McEditor.mount(host, {
+          pdfUrl: problem.pdfUrl || '',
+          layout: problem.mcq || null,
+          onChange() { /* 每次改动都会反映到 handle 上，保存时统一读取 */ },
+        });
+        window.__mcEditorHandle = handle;
+
+        if (!isMc) {
+          const note = document.createElement('small');
+          note.style.cssText = 'display:block;color:#b45309;margin-top:6px;';
+          note.textContent = 'Add "MC" to the Tags above to make this a multiple-choice question. The layout below is kept either way.';
+          host.appendChild(note);
+        }
+
+        // 标签变化时提示一下，不强制切换
+        const tagsInput = document.getElementById('editTags');
+        tagsInput.addEventListener('input', () => {
+          const nowMc = tagsInput.value.split(',').map(t => t.trim().toUpperCase()).includes('MC');
+          const existing = host.querySelector('.mce-tag-note');
+          if (existing) existing.remove();
+          if (nowMc !== isMc) {
+            const n = document.createElement('small');
+            n.className = 'mce-tag-note';
+            n.style.cssText = 'display:block;color:#b45309;margin-top:6px;';
+            n.textContent = nowMc
+              ? 'MC tag added — the grading logic will be filled in automatically on save.'
+              : 'MC tag removed — this question will render as a normal problem.';
+            host.appendChild(n);
+          }
+        });
+      })();
 
       document.getElementById('deleteProblemBtn').addEventListener('click', async () => {
         if (!confirm(`Are you sure you want to delete problem "${problemId}"? This cannot be undone.`)) return;

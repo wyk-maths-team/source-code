@@ -1,0 +1,205 @@
+/* 选择题版式编辑器 —— 只在 /admin/editproblem 出现，全部英文界面 */
+
+.mce {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 14px;
+  background: var(--card-bg);
+  margin: 1rem 0;
+}
+
+.mce-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.mce-url-label {
+  font-size: .74rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.mce-url {
+  flex: 1 1 320px;
+  min-width: 200px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-color);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: .84rem;
+}
+
+.mce-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 7px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-color);
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: .82rem;
+}
+
+.mce-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.mce-modes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.mce-mode {
+  padding: 6px 12px;
+  border-radius: 7px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-color);
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: .82rem;
+}
+
+.mce-mode.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.mce-hint {
+  font-size: .76rem;
+  color: var(--text-secondary);
+  flex: 1 1 220px;
+}
+
+.mce-help {
+  font-size: .76rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin-bottom: 10px;
+}
+
+.mce-stage {
+  position: relative;
+  background: #e9ecef;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.mce-stage.mce-pdf-hidden .mce-scroll .mcs-canvas { opacity: .12; }
+.mce-stage.mce-pdf-hidden .mce-fakecanvas { opacity: .3; }
+
+.mce-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 72vh;
+  overflow-y: auto;
+}
+
+.mce-placeholder {
+  padding: 46px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: .86rem;
+}
+
+/* 没有 PDF 时的占位页。
+   padding-bottom 撑高的写法在 flex 列里配合 absolute overlay 会算错高度，
+   这里直接给一个明确高度，位置才对得上。 */
+.mce-fakepage {
+  position: relative;
+  width: 100%;
+  height: 760px;
+  background: #fff;
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.mce-fakepage .mce-overlay {
+  position: absolute;
+  inset: 0;
+}
+
+.mce-fakecanvas {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 23px, rgba(0,0,0,.045) 23px 24px),
+    #fff;
+}
+
+.mce-overlay { pointer-events: auto; }
+
+.mce-box {
+  position: absolute;
+  border: 1.5px dashed #4a90d9;
+  background: rgba(74, 144, 217, .08);
+  cursor: move;
+  touch-action: none;
+}
+
+.mce-tag {
+  position: absolute;
+  top: -18px;
+  left: 0;
+  font-size: .66rem;
+  font-weight: 700;
+  color: #4a90d9;
+  background: #fff;
+  padding: 0 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.mce-grip {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: #4a90d9;
+  border: 2px solid #fff;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.mce-opt {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(74, 144, 217, .8);
+  background: rgba(255, 255, 255, .9);
+  color: #4a90d9;
+  font-size: .62rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: move;
+  min-width: 16px;
+  min-height: 16px;
+  touch-action: none;
+}
+
+.mce-opt:hover { background: rgba(74, 144, 217, .18); }
+
+[data-theme="dark"] .mce-box { border-color: #6ba7e0; }
+[data-theme="dark"] .mce-tag { background: #1e1e1e; color: #6ba7e0; }
+[data-theme="dark"] .mce-opt { background: rgba(30,30,30,.9); color: #6ba7e0; }
+[data-theme="dark"] .mce-stage { background: #14181f; }
