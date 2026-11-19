@@ -442,8 +442,8 @@
               <label>Multiple-choice layout (only used when the Tags include MC)</label>
               <div id="mcEditorHost"></div>
               <small style="color:#666;display:block;margin-top:.3rem;">
-                Scroll the paper to the question, press <b>+</b> in the dock on the left, and an answer box drops in the middle of that page.
-                Drag it if it needs nudging. The box belongs to this question only.
+                Load the paper, then drag the box and the four circles into place. Drag the bottom-right grip to resize;
+                scroll over a circle to change its radius. <b>Reset to page 1</b> puts it back on the first page at the default size.
               </small>
             </div>
             <div class="form-group"><label><input type="checkbox" id="editPublic" ${problem.public !== false ? 'checked' : ''}> Public (visible to students)</label></div>
