@@ -35,14 +35,26 @@ function updateAuthState() {
 
   // 不真正禁用按钮：未勾选时要能点，点了把焦点送过去
   btn.disabled = false;
+  // 微软按钮初始带 pointer-events:none（避免没勾条款就点走）。
+  // 这里必须同时把 pointer-events 恢复成 auto，只改 opacity 的话
+  // 勾了条款按钮依然点不动 —— 这就是「Microsoft 登录不可用」的原因。
   if (agreeTerms.checked) {
     btn.style.opacity = '1';
     btn.style.cursor = 'pointer';
-    if (msLoginBtn) msLoginBtn.style.opacity = '1';
+    if (msLoginBtn) {
+      msLoginBtn.style.opacity = '1';
+      msLoginBtn.style.pointerEvents = 'auto';
+      msLoginBtn.style.cursor = 'pointer';
+      msLoginBtn.removeAttribute('aria-disabled');
+    }
   } else {
     btn.style.opacity = '0.5';
     btn.style.cursor = 'not-allowed';
-    if (msLoginBtn) msLoginBtn.style.opacity = '0.5';
+    if (msLoginBtn) {
+      msLoginBtn.style.opacity = '0.5';
+      msLoginBtn.style.pointerEvents = 'none';
+      msLoginBtn.setAttribute('aria-disabled', 'true');
+    }
   }
 }
 
