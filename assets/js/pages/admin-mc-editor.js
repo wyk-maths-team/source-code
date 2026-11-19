@@ -258,7 +258,7 @@
           c.textContent = o.key;
           c.style.left = (o.x * 100) + '%';
           c.style.top = (o.y * 100) + '%';
-          c.style.width = (o.r * 200 * 100) + '%';
+          c.style.width = (o.r * 200) + '%';
           p.overlay.appendChild(c);
 
           bindDrag(c, p.overlay, (dx, dy, rect) => {
@@ -273,7 +273,7 @@
           c.addEventListener('wheel', (e) => {
             e.preventDefault();
             o.r = Math.max(0.004, Math.min(0.06, (Number(o.r) || 0.012) + (e.deltaY < 0 ? 0.002 : -0.002)));
-            c.style.width = (o.r * 200 * 100) + '%';
+            c.style.width = (o.r * 200) + '%';
             emit();
           }, { passive: false });
         }

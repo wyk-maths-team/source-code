@@ -95,17 +95,18 @@
   background: #e9ecef;
   border-radius: 8px;
   padding: 8px;
+  overflow: visible;
 }
 
 .mce-stage.mce-pdf-hidden .mce-scroll .mcs-canvas { opacity: .12; }
 .mce-stage.mce-pdf-hidden .mce-fakecanvas { opacity: .3; }
 
+/* 跟 course 的 PDF 一样：整份渲染，滚动交给文档本身 */
 .mce-scroll {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: 72vh;
-  overflow-y: auto;
+  overflow: visible;
 }
 
 .mce-placeholder {
@@ -145,7 +146,7 @@
 .mce-box {
   position: absolute;
   border: 1.5px dashed #4a90d9;
-  background: rgba(74, 144, 217, .08);
+  background: rgba(74, 144, 217, .03);
   cursor: move;
   touch-action: none;
 }
@@ -177,6 +178,7 @@
   touch-action: none;
 }
 
+/* 圆圈：必须有 height，只给 width 会塌成一条横线 */
 .mce-opt {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -184,17 +186,21 @@
   align-items: center;
   justify-content: center;
   padding: 0;
+  box-sizing: border-box;
+  aspect-ratio: 1 / 1;
+  height: auto;
   border-radius: 50%;
-  border: 2px solid rgba(74, 144, 217, .8);
-  background: rgba(255, 255, 255, .9);
-  color: #4a90d9;
+  border: 2px solid rgba(74, 144, 217, .85);
+  background: rgba(255, 255, 255, .92);
+  color: #2f7bc4;
   font-size: .62rem;
   font-weight: 700;
   line-height: 1;
   cursor: move;
-  min-width: 16px;
-  min-height: 16px;
+  min-width: 18px;
+  min-height: 18px;
   touch-action: none;
+  overflow: hidden;
 }
 
 .mce-opt:hover { background: rgba(74, 144, 217, .18); }

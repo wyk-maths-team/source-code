@@ -128,7 +128,7 @@
       // 圆心定位：left/top 是圆心，用 transform 回退半个直径
       c.style.left = (o.x * 100) + '%';
       c.style.top = (o.y * 100) + '%';
-      c.style.width = (o.r * 200 * 100) + '%';   // r 是半径（相对页宽），直径 = 2r
+      c.style.width = (o.r * 200) + '%';   // r 是半径（相对页宽），直径 = 2r
       c.style.transform = 'translate(-50%, -50%)';
       if (picked === o.key) c.classList.add('picked');
       c.addEventListener('click', (e) => {
