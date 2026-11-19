@@ -96,6 +96,7 @@
       '<button type="button" class="mce-mode on" data-mode="move"><i class="fas fa-arrows-up-down-left-right"></i> Move / resize</button>' +
       '<button type="button" class="mce-mode" data-mode="add"><i class="fas fa-crosshairs"></i> Add option at cursor</button>' +
       '<span class="mce-hint" id="mceHint">Drag the box or a circle. Drag the bottom-right corner to resize.</span>' +
+      '<button type="button" class="mce-btn" id="mceHome"><i class="fas fa-arrow-up"></i> Reset to page 1</button>' +
       '<button type="button" class="mce-btn" id="mceReset"><i class="fas fa-undo"></i> Reset layout</button>';
     host.appendChild(modes);
 
@@ -148,6 +149,21 @@
       layout();
     });
 
+    // 加载整份 PDF 之后页面会变得很长，作答框可能留在半途看不见。
+    // 这个按钮把它拉回第一页并恢复预设大小，省得手动找。
+    modes.querySelector('#mceHome').addEventListener('click', () => {
+      const preset = defaultLayout();
+      state.layout.page = 1;
+      state.layout.box = preset.box;
+      state.layout.options = preset.options.map((o) => ({ ...o }));
+      emit();
+      layout();
+      const first = state.pages[0];
+      if (first && first.wrap && first.wrap.scrollIntoView) {
+        first.wrap.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      }
+    });
+
     // ── 渲染 ──
     function emit() {
       try { state.onChange(state.layout, state.pdfUrl); } catch (e) { console.error('[mc-editor]', e); }
@@ -170,6 +186,20 @@
         const inner = el('div', 'mce-scroll');
         stageEl.appendChild(inner);
         state.pages = await window.MCSHEET.renderPdf(inner, state.pdfUrl);
+
+        // 每页的 overlay 必须精确等于这一页画布的大小：
+        // 否则页数一多，百分比高度会按整份文档算，作答框就被拉得很高。
+        state.pages.forEach((p) => {
+          const canvas = p.wrap.querySelector('.mcs-canvas');
+          if (!canvas) return;
+          p.overlay.style.position = 'absolute';
+          p.overlay.style.left = '0';
+          p.overlay.style.top = '0';
+          p.overlay.style.inset = 'auto';
+          p.overlay.style.width = canvas.style.width || (canvas.width + 'px');
+          p.overlay.style.height = canvas.style.height || (canvas.height + 'px');
+        });
+
         buildOverlay();
       } catch (e) {
         stageEl.innerHTML = '';
