@@ -10,6 +10,7 @@ import { wrapHandler } from '../lib/errors.js';
 import { findUserActiveContests } from '../lib/submission.js';
 import { guestBlockedFromProblem } from '../lib/guestGuard.js';
 import { excludeFromBank } from '../lib/bankFilter.js';
+import { applyMcqLogic, normalizeMcq, isMcq, paperKeyOf, MC_TAG } from '../lib/mcq.js';
 //説明：所有的題目相關的操作都在這裏。
 // ============== 輔助函數 ==============
 // ============== 輔助函數 ==============
@@ -177,7 +178,7 @@ async function handler(req, res) {
       }
 
       if (req.method === 'POST') {
-        const { id, name, statement, ans, difficulty, tags, public: isPublic, logic, FS, hints } = req.body || {};
+        const { id, name, statement, ans, difficulty, tags, public: isPublic, logic, FS, hints, pdfUrl, mcq } = req.body || {};
         if (!id || !name || !statement || ans === undefined) {
           return res.status(400).json({ success: false, message: 'Missing fields' });
         }
@@ -185,18 +186,23 @@ async function handler(req, res) {
         const exist = await db.collection('problems').findOne({ id: idStr });
         if (exist) return res.status(400).json({ success: false, message: 'Problem ID already exists' });
 
+        const tagList = Array.isArray(tags) ? tags : [];
         const newProblem = {
           id: idStr,
           name,
           statement,
           ans: String(ans),
           difficulty: Number(difficulty) || 0,
-          tags: Array.isArray(tags) ? tags : [],
+          tags: tagList,
           public: isPublic === false ? false : true,
-          logic: logic || '',
+          // 带 MC 标签又没写 logic 的题，自动套上选择题判分
+          logic: applyMcqLogic(tagList, logic),
           FS: FS === true,
           hints: normalizeHints(hints),
         };
+        if (typeof pdfUrl === 'string' && pdfUrl.trim()) newProblem.pdfUrl = pdfUrl.trim();
+        const layout = normalizeMcq(mcq);
+        if (layout) newProblem.mcq = layout;
         await db.collection('problems').insertOne(newProblem);
         await bumpProblemsVersion(db);
         await auditLog(db, 'problem_create', {
@@ -209,7 +215,7 @@ async function handler(req, res) {
       }
 
       if (req.method === 'PUT') {
-        const { id, ids, name, statement, ans, difficulty, tags, public: isPublic, logic, FS, hints } = req.body || {};
+        const { id, ids, name, statement, ans, difficulty, tags, public: isPublic, logic, FS, hints, pdfUrl, mcq, applyLayoutToPaper } = req.body || {};
 
         // 批量更新 public
         if (Array.isArray(ids) && ids.length && isPublic !== undefined) {
@@ -243,15 +249,62 @@ async function handler(req, res) {
         if (logic !== undefined) upd.logic = logic;
         if (FS !== undefined) upd.FS = FS === true;
         if (hints !== undefined) upd.hints = normalizeHints(hints);
+        if (pdfUrl !== undefined) upd.pdfUrl = String(pdfUrl || '').trim();
+
+        // 版式：只有传了合法结构才收，传 null 表示清掉
+        let layout = null;
+        let layoutGiven = false;
+        if (mcq !== undefined) {
+          layoutGiven = true;
+          if (mcq === null) { upd.mcq = null; }
+          else {
+            layout = normalizeMcq(mcq);
+            if (!layout) return res.status(400).json({ success: false, message: 'Invalid MCQ layout: need a box and all four option circles' });
+            upd.mcq = layout;
+          }
+        }
+
+        // 带 MC 标签又没写 logic 时补上选择题判分；去掉标签时清掉自动写入的那份
+        const effectiveTags = tags !== undefined ? (Array.isArray(tags) ? tags : []) : (before.tags || []);
+        const effectiveLogic = logic !== undefined ? logic : (before.logic || '');
+        const resolved = applyMcqLogic(effectiveTags, effectiveLogic);
+        if (resolved !== effectiveLogic) upd.logic = resolved;
 
         if (Object.keys(upd).length === 0) {
           return res.status(400).json({ success: false, message: 'No fields to update' });
         }
 
         await db.collection('problems').updateOne({ id: idStr }, { $set: upd });
+
+        // 一份卷子共用一套版式：把新结构写到同卷的其他题上
+        let paperUpdated = 0;
+        if (layout && applyLayoutToPaper !== false) {
+          const prefix = paperKeyOf(idStr);
+          if (prefix && prefix !== idStr) {
+            const siblings = await db.collection('problems')
+              .find({ id: { $ne: idStr } }, { projection: { id: 1 } })
+              .toArray();
+            const targets = siblings
+              .map((x) => String(x.id))
+              .filter((sid) => paperKeyOf(sid) === prefix);
+            if (targets.length) {
+              const r2 = await db.collection('problems').updateMany(
+                { id: { $in: targets } },
+                { $set: { mcq: layout } }
+              );
+              paperUpdated = r2.modifiedCount || 0;
+            }
+          }
+        }
         await bumpProblemsVersion(db);
         await auditProblemChange(db, req.user.username, idStr, before, { ...before, ...upd });
-        return res.status(200).json({ success: true, message: 'Problem updated' });
+        return res.status(200).json({
+          success: true,
+          message: paperUpdated
+            ? 'Problem updated, layout applied to ' + paperUpdated + ' more question(s) on this paper'
+            : 'Problem updated',
+          paperUpdated,
+        });
       }
 
       if (req.method === 'DELETE') {

@@ -1,0 +1,181 @@
+/* assets/css/mcs.css —— 选择题卷子：PDF 上的覆盖式答题层 */
+
+.mcs-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mcs-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  position: sticky;
+  top: 64px;
+  z-index: 20;
+}
+
+.mcs-toolbar .mcs-progress { font-size: .84rem; color: var(--text-secondary); }
+.mcs-toolbar .mcs-progress b { color: var(--text-primary); }
+.mcs-toolbar .mcs-spacer { margin-left: auto; }
+
+.mcs-scroll {
+  position: relative;
+  overflow-y: auto;
+  max-height: calc(100dvh - 190px);
+  background: #e9ecef;
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mcs-page {
+  position: relative;
+  align-self: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .14);
+  background: #fff;
+  line-height: 0;
+}
+
+.mcs-canvas { display: block; }
+
+.mcs-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;   /* 只有里面的元素吃事件 */
+}
+
+/* 透明答题框：学生看到的是一个淡淡的轮廓，不会挡住题面 */
+.mcs-box {
+  position: absolute;
+  border: 1.5px dashed rgba(74, 144, 217, .55);
+  border-radius: 6px;
+  background: rgba(74, 144, 217, .04);
+  pointer-events: none;
+}
+
+.mcs-tag {
+  position: absolute;
+  top: -20px;
+  left: -2px;
+  font-size: .68rem;
+  font-weight: 700;
+  color: #4a90d9;
+  background: #fff;
+  padding: 0 5px;
+  border-radius: 3px;
+  line-height: 1.4;
+}
+
+.mcs-opt {
+  position: absolute;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(120, 120, 120, .55);
+  background: rgba(255, 255, 255, .75);
+  color: #444;
+  font-size: .62rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  min-width: 18px;
+  min-height: 18px;
+  transition: background .12s, border-color .12s, color .12s;
+}
+
+.mcs-opt:hover { border-color: var(--accent); color: var(--accent); }
+
+.mcs-opt.picked {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.mcs-opt.right {
+  background: #2ecc71;
+  border-color: #2ecc71;
+  color: #fff;
+}
+
+.mcs-opt.wrong {
+  background: #e74c3c;
+  border-color: #e74c3c;
+  color: #fff;
+}
+
+.mcs-check {
+  position: absolute;
+  pointer-events: auto;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: #fff;
+  color: #4a90d9;
+  font-size: .62rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mcs-check:hover { border-color: var(--accent); background: rgba(74, 144, 217, .12); }
+.mcs-check:disabled { opacity: .55; cursor: default; }
+
+.mcs-submit {
+  padding: 10px 26px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mcs-submit:disabled { opacity: .6; cursor: default; }
+
+.mcs-footer {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 20px;
+}
+
+.mcs-loading, .mcs-error {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-secondary);
+  background: var(--card-bg);
+  border-radius: 10px;
+}
+
+.mcs-error { color: var(--danger); }
+
+.mcs-comment {
+  margin-top: 4px;
+  font-size: .76rem;
+  color: var(--text-secondary);
+  max-width: 220px;
+  white-space: normal;
+  line-height: 1.4;
+}
+
+[data-theme="dark"] .mcs-scroll { background: #14181f; }
+[data-theme="dark"] .mcs-opt { background: rgba(30, 30, 30, .8); color: #ddd; border-color: rgba(200, 200, 200, .5); }
+
+@media (max-width: 820px) {
+  .mcs-scroll { max-height: calc(100dvh - 170px); }
+  .mcs-toolbar { position: static; }
+}

@@ -499,6 +499,9 @@
   function assetV(){ return window.__BUILD_V ? '?v=' + window.__BUILD_V : ''; }
   const MCQ_JS_URL    = '/assets/js/pd-mcq.js' + assetV();
   const EXTRAS_JS_URL = '/assets/js/pd-extras.js' + assetV();
+  const MCSHEET_JS_URL = '/assets/js/pd-mc-sheet.js' + assetV();
+  const MCPAGE_JS_URL   = '/assets/js/pd-mc-page.js' + assetV();
+  const MCSHEET_CSS_URL = '/assets/css/mcs.css' + assetV();
 
   let _mcqPromise = null;
   let _extrasPromise = null;
@@ -532,6 +535,63 @@
       return null;
     });
     return _extrasPromise;
+  }
+
+  // ── 选择题卷子：整份 PDF + 覆盖式答题 ──
+  let _mcReady = null;
+  function loadMcSheet() {
+    if (_mcReady) return _mcReady;
+    _mcReady = Promise.all([
+      loadScript(MCSHEET_JS_URL),
+      loadScript(MCPAGE_JS_URL),
+      loadCssOnce(MCSHEET_CSS_URL),
+    ]).catch((e) => {
+      console.error('[loadMcSheet]', e);
+      _mcReady = null;
+      throw e;
+    });
+    return _mcReady;
+  }
+
+  /**
+   * 题目是选择题就接管渲染。返回 true 表示页面已被替换。
+   * 三个条件缺一不可：MC 标签、pdfUrl、mcq 版式。
+   */
+  async function mountMcSheet(problem) {
+    if (!problem || !problem.mcq || !problem.pdfUrl) return false;
+    const tags = Array.isArray(problem.tags) ? problem.tags : [];
+    if (!tags.some((t) => String(t || '').trim().toUpperCase() === 'MC')) return false;
+
+    const host = document.getElementById('statementContent');
+    if (!host) return false;
+
+    try {
+      await loadMcSheet();
+    } catch (e) {
+      return false;
+    }
+    if (!window.MCPage) return false;
+
+    // 同一份卷子的其他题：按题号前缀归组，用于整卷提交
+    const pid = String(problem.id || problemId || '');
+    const prefix = (pid.match(/^([A-Za-z]{1,6}\d{0,4})\d{2}$/) || [])[1] || pid;
+    let paperIds = [pid];
+    try {
+      const res = await apiCall('/api/problem?action=list&tag=MC');
+      const all = (res && res.problems) || [];
+      const same = all
+        .map((x) => String(x.id))
+        .filter((x) => x && (x.match(/^([A-Za-z]{1,6}\d{0,4})\d{2}$/) || [])[1] === prefix);
+      if (same.length) paperIds = same.sort();
+    } catch (e) { /* 拿不到就只做单题 */ }
+
+    return window.MCPage.mount({
+      host,
+      problemId: pid,
+      pdfUrl: problem.pdfUrl,
+      layout: problem.mcq,
+      paperIds,
+    });
   }
 
 // ─────────────────────────────────────────────────────────────
@@ -660,6 +720,13 @@ async function renderStatement(statement) {
   var split = (window.ScriptPanel && window.ScriptPanel.split)
     ? window.ScriptPanel.split(statement)
     : { clean: statement, scripts: [] };
+
+  // 选择题卷子：整份 PDF + 覆盖式答题，接管成功就不再渲染普通题面
+  try {
+    if (await mountMcSheet(S.problem)) return true;
+  } catch (e) {
+    console.warn('[mc] mount failed, falling back to text:', e && e.message);
+  }
 
   stmt.innerHTML = sanitizeStatement(split.clean);
 
@@ -885,7 +952,16 @@ async function renderRichText(target, text) {
           state: cachedState,
           favorited: false,
         });
-        renderStatement(cached.statement);
+        // 选择题卷子依赖版式和 PDF 地址，缓存里没有 —— 先不渲染题面，
+        // 等真实数据到达后由 renderStatement 接管成 PDF 答题层。
+        const cachedIsMc = Array.isArray(cached.tags)
+          && cached.tags.some((t) => String(t || '').trim().toUpperCase() === 'MC');
+        if (cachedIsMc) {
+          const host = document.getElementById('statementContent');
+          if (host) host.innerHTML = '<div class="mcs-loading">Loading question…</div>';
+        } else {
+          renderStatement(cached.statement);
+        }
 
         updateProblemDetailIcon();
         document.title = S.problemName + ' - WYK Maths Team';
@@ -936,7 +1012,9 @@ async function renderRichText(target, text) {
           state: pageData.state,
           favorited: pageData.favorited,
         });
-        renderStatement(problem.statement);
+        S.problem = { ...problem };
+        S.problem = { ...problem };
+          renderStatement(problem.statement);
         updateProblemDetailIcon();
         document.title = S.problemName + ' - WYK Maths Team';
       } else {
