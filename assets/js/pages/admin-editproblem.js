@@ -442,8 +442,8 @@
               <label>Multiple-choice layout (only used when the Tags include MC)</label>
               <div id="mcEditorHost"></div>
               <small style="color:#666;display:block;margin-top:.3rem;">
-                The four circles are what students click; the dashed box is the transparent answer area drawn over the PDF.
-                Saving applies this layout to every MC question on the same paper.
+                Scroll the paper to the question, press <b>+</b> in the dock on the left, and an answer box drops in the middle of that page.
+                Drag it if it needs nudging. The box belongs to this question only.
               </small>
             </div>
             <div class="form-group"><label><input type="checkbox" id="editPublic" ${problem.public !== false ? 'checked' : ''}> Public (visible to students)</label></div>
