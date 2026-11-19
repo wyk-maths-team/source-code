@@ -1015,8 +1015,16 @@ async function renderRichText(target, text) {
         // ⭐ 有快取 → 只更新變化部分，不重渲染骨架
         const stmtChanged = (cached.statement || '') !== (problem.statement || '');
 
-        if (stmtChanged) {
-          // statement 變了 → 重渲染那部分（可能是老師改了題目）
+        // 选择题卷子依赖版式和 PDF 地址，这些不在缓存里：
+        // 缓存路径只留了个 Loading 占位，真实数据到了必须重新接管，
+        // 否则永远卡在「Loading question…」。
+        const isMc = Array.isArray(problem.tags)
+          && problem.tags.some((t) => String(t || '').trim().toUpperCase() === 'MC')
+          && !!problem.pdfUrl;
+
+        if (stmtChanged || isMc) {
+          // statement 變了（老師改了題目），或者是选择题需要版式
+          S.problem = { ...problem };
           renderStatement(problem.statement);
         }
         // 否則完全不動 DOM，用戶看到的內容無縫
