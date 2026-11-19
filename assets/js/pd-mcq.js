@@ -159,6 +159,9 @@
   function mountPdfQuizSplit() {
     const pdfMount = document.getElementById('pdf-quiz-split');
     if (!pdfMount) return;
+    // 已经接管过就别再来一次：重复挂载会把答题卡从浮窗里搬走，留下空壳
+    if (pdfMount.dataset.mcqMounted === '1') return;
+    pdfMount.dataset.mcqMounted = '1';
     const pdfUrl = pdfMount.dataset.pdf;
     if (!pdfUrl) return;
 
@@ -286,6 +289,8 @@
   function mountMcQuiz() {
     const mount = document.getElementById('mc-quiz-mount');
     if (!mount) return;
+    if (mount.dataset.mcqRendered === '1') return;
+    mount.dataset.mcqRendered = '1';
 
     // ⭐ 不再 injectStyle（CSS 已由 loadMcq 載入）
 

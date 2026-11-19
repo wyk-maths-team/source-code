@@ -520,6 +520,28 @@
     return _mcqPromise;
   }
 
+  /**
+   * 题面渲染完之后，如果里面出现了 PDF / 答题卡容器，就把 MCQ 这套装上去。
+   * 启动阶段检查过一次，但那时 statement 还没渲染。
+   */
+  let _mcqMounting = false;
+  async function mountPdfQuizIfPresent() {
+    if (_mcqMounting) return;
+    const hasSplit = !!document.getElementById('pdf-quiz-split');
+    const hasQuizMount = !!document.getElementById('mc-quiz-mount');
+    if (!hasSplit) return;
+
+    _mcqMounting = true;
+    try {
+      if (!window.PD.mcq) await loadMcq();
+      if (window.PD.mcq && typeof window.PD.mcq.init === 'function') {
+        await window.PD.mcq.init();
+      }
+    } finally {
+      _mcqMounting = false;
+    }
+  }
+
   function loadExtras() {
     if (window.PD.extras) return Promise.resolve(window.PD.extras);
     if (_extrasPromise) return _extrasPromise;
@@ -662,6 +684,11 @@ async function renderStatement(statement) {
     : { clean: statement, scripts: [] };
 
   stmt.innerHTML = sanitizeStatement(split.clean);
+
+  // 题面里如果写了 PDF + 答题卡的容器（<div id="pdf-quiz-split" data-pdf="...">），
+  // 这时候才刚出现在 DOM 里；启动阶段的 needMcq 检查已经错过了，
+  // 所以渲染完必须再挂一次，否则 Answer Sheet 永远不出现。
+  try { mountPdfQuizIfPresent(); } catch (e) { console.warn('[mcq] mount failed:', e && e.message); }
 
   if (split.scripts.length && window.ScriptPanel && window.ScriptPanel.isAdmin()) {
     window.ScriptPanel.render(stmt, split.scripts);
