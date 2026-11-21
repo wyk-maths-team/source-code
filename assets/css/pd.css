@@ -133,6 +133,47 @@
 .wb-status.ok{color:#2e7d32;font-weight:600}
 .wb-status.err{color:var(--danger);font-weight:600}
 .wb-status.busy{color:var(--accent);font-weight:600}
+
+/* ── 流式批改进度 ──────────────────────────────────────────
+   AI 批改要挂几十秒，原来只有一句 "Waiting (37s)"，看不出是在跑
+   还是卡死了。这里给三件事：转圈（在动）、阶段文字（在做什么）、
+   细进度条（还要多久）。文字换行时向上滚入，看起来像在推进。 */
+.wb-status.wb-stream{
+  position:relative;display:flex;align-items:center;gap:7px;
+  padding-bottom:6px;min-height:1.5em
+}
+.wb-spin{
+  width:11px;height:11px;flex:none;border-radius:50%;
+  border:2px solid rgba(128,128,128,.28);
+  border-top-color:currentColor;
+  animation:wbSpin .7s linear infinite
+}
+@keyframes wbSpin{to{transform:rotate(360deg)}}
+.wb-stage{
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  animation:wbRise .28s cubic-bezier(.2,.7,.3,1)
+}
+@keyframes wbRise{
+  from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.wb-secs{
+  margin-left:auto;flex:none;font-variant-numeric:tabular-nums;
+  font-family:Consolas,Monaco,monospace;font-size:.78rem;opacity:.65;font-weight:400
+}
+.wb-bar{
+  position:absolute;left:0;right:0;bottom:0;height:2px;
+  background:rgba(128,128,128,.18);border-radius:2px;overflow:hidden
+}
+.wb-bar i{
+  display:block;height:100%;width:0;background:currentColor;border-radius:2px;
+  transition:width .55s cubic-bezier(.3,.8,.3,1)
+}
+@media (prefers-reduced-motion: reduce){
+  .wb-spin{animation-duration:1.6s}
+  .wb-stage{animation:none}
+  .wb-bar i{transition:none}
+}
 .wb-footer-actions{display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap}
 .wb-btn-secondary{padding:8px 14px;border:1px solid var(--border-color);border-radius:7px;background:none;color:var(--text-secondary);cursor:pointer;font-family:inherit;font-size:.84rem;font-weight:600;transition:all .15s}
 .wb-btn-secondary:hover{border-color:var(--accent);color:var(--accent)}

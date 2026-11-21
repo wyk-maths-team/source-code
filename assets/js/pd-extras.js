@@ -320,6 +320,94 @@ function getSubmissionPayload() {
 
 // ⭐ 等待计时器
 let waitInterval = null;
+
+// ── 流式批改进度 ──────────────────────────────────────────
+// 每个阶段给一个大致百分比。这些不是精确进度（模型那一段的耗时由服务商决定），
+// 但足以让人看出「在推进」而不是「卡住了」。
+const STAGE_PCT = {
+  authorize: 6, problem: 15, quota: 22, tokens: 28,
+  prepare: 36, model: 48, retry: 54, save: 86,
+};
+let waitStartedAt = 0, waitStage = '', waitPct = 0;
+
+// model 那一段占了整次批改的大半时间，服务端只会在换模型时才发事件，
+// 中间几十秒没有任何新信号。这里按固定节奏轮换几条如实的提示，
+// 让文字一直在动 —— 注意：这几条描述的都是「正在做的事」，
+// 不是编出来的假进度。最后一条停在「still grading」，不循环回开头，
+// 免得看起来像倒退了。
+const MODEL_TIPS = [
+  'Reading your working…',
+  'Checking each step against the reference…',
+  'Letting the model think it through…',
+  'Still grading — long answers take longer…',
+];
+let tipTimer = null, tipIndex = 0, tipModel = '';
+
+function stopModelTips() {
+  if (tipTimer) { clearInterval(tipTimer); tipTimer = null; }
+  tipIndex = 0;
+}
+
+function startModelTips(firstLabel, model) {
+  stopModelTips();
+  tipModel = model || '';
+  tipTimer = setInterval(function () {
+    if (tipIndex < MODEL_TIPS.length - 1) tipIndex++;
+    waitStage = MODEL_TIPS[tipIndex];
+    paintWaiting();
+  }, 7000);
+}
+
+function paintWaiting() {
+  const el = document.getElementById('wbStatus');
+  if (!el) return;
+  const secs = Math.max(0, Math.round((Date.now() - waitStartedAt) / 1000));
+  el.className = 'wb-status busy wb-stream';
+  el.innerHTML =
+    '<span class="wb-spin" aria-hidden="true"></span>' +
+    '<span class="wb-stage">' + esc(waitStage) + '</span>' +
+    '<span class="wb-secs">' + secs + 's</span>' +
+    '<span class="wb-bar" aria-hidden="true"><i style="width:' + waitPct + '%"></i></span>';
+}
+
+function startStreamWaiting(label) {
+  waitStartedAt = Date.now();
+  waitStage = label || 'Submitting…';
+  waitPct = 4;
+  paintWaiting();
+  if (waitInterval) clearInterval(waitInterval);
+  // 秒表单独更新：整块重绘会让阶段文字每秒重放一次动画，看着很抖
+  waitInterval = setInterval(function () {
+    const el = document.querySelector('#wbStatus .wb-secs');
+    if (el) el.textContent = Math.round((Date.now() - waitStartedAt) / 1000) + 's';
+  }, 500);
+}
+
+function updateStreamStage(payload) {
+  const id = payload && payload.id;
+  const label = (payload && payload.label) || 'Grading…';
+
+  if (id === 'model') {
+    // 换模型 / 首次进入模型阶段：文字从服务端那句开始，之后由 tips 接管轮换
+    startModelTips(label, payload.model);
+    waitStage = label;
+  } else {
+    stopModelTips();
+    if (label === waitStage) return;
+    waitStage = label;
+  }
+
+  const pct = payload && STAGE_PCT[id];
+  if (typeof pct === 'number' && pct > waitPct) waitPct = pct;
+  paintWaiting();
+}
+
+function stopStreamWaiting() {
+  stopModelTips();
+  if (waitInterval) { clearInterval(waitInterval); waitInterval = null; }
+}
+
+// 旧接口保留：image-grade 那条同步路径还在用
 function startWaiting() {
   let s = 0;
   setWorkbenchStatus('Waiting (0s)', 'busy');
@@ -334,49 +422,126 @@ function stopWaiting() {
 }
 
 // ⭐ 移除 Polling，改为直接同步处理
+// ⭐ 流式批改：同一个 POST，Accept 换成 text/event-stream
+// 服务端每到一个阶段就推一条事件，前端用转圈 + 阶段文字 + 进度条显示。
+// 老调用方（course.js / mobile）不带这个 Accept，仍然拿一次性 JSON。
 async function handleStepsSubmit(stepsText, checkBtn) {
-  startWaiting();
+  startStreamWaiting('Submitting…');
+  let settled = false;
+
   try {
-    const res = await apiCall('/api/steps-grade', 'POST', { problemId, steps: stepsText });
-    stopWaiting();
-    
-    if (!res?.success) {
-      setWorkbenchStatus(res?.message || 'Submission failed', 'err');
-      S.cooldown = false;
-      checkBtn.disabled = false;
+    const token = (window.getToken && window.getToken()) || localStorage.getItem('auth_token') || '';
+    const headers = { 'Content-Type': 'application/json', Accept: 'text/event-stream' };
+    if (token) headers.Authorization = 'Bearer ' + token;
+
+    const res = await fetch('/api/steps-grade', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ problemId, steps: stepsText }),
+    });
+
+    const ctype = String(res.headers.get('content-type') || '');
+
+    // 不是事件流（旧部署、代理不支持、或提前返回了 4xx）：按原方式处理
+    if (!ctype.includes('text/event-stream')) {
+      const data = await res.json().catch(() => ({}));
+      settled = true;
+      applyGradeResponse(data, checkBtn);
       return;
     }
 
-    // 如果是 Root，走后端轮询
-    // if (res.status === 'pending') {
-    //   setWorkbenchStatus('Waiting for local bridge...', 'busy');
-    //   pollGradeResult({ endpoint: '/api/steps-grade', taskId: res.taskId, checkBtn, maxAttempts: 100 });
-    //   return;
-    // }
+    await readGradeStream(res, {
+      onStage: (s) => updateStreamStage(s),
+      onResult: (d) => { settled = true; applyGradeResponse(d, checkBtn); },
+      onError: (d) => {
+        settled = true;
+        setWorkbenchStatus((d && d.message) || 'AI grading failed', 'err');
+        S.cooldown = false;
+        checkBtn.disabled = false;
+      },
+    });
 
-    // 非 Root，直接拿结果
-    if (res.status === 'done') {
-      renderStepsResult(res.result, res.subid);
-      if (window.PD.cooldown) window.PD.cooldown.start('steps');
-      
-      // ⭐ 顺手更新 topbar 的 token
-      if (res.tokens && window.updateTopbarTokens) {
-        window.updateTopbarTokens(res.tokens.daily, res.tokens.global);
-      }
-      return;
-    }
-
-    if (res.status === 'error') {
-      setWorkbenchStatus('AI error: ' + (res.message || 'unknown'), 'err');
-      S.cooldown = false;
-      checkBtn.disabled = false;
-    }
   } catch (err) {
-    stopWaiting();
     setWorkbenchStatus('Network error: ' + (err.message || 'Submission failed'), 'err');
     S.cooldown = false;
     checkBtn.disabled = false;
+  } finally {
+    stopStreamWaiting();
+    // 流断了但没有结果：批改在服务端会继续跑完（submissions 照写），
+    // 所以别让学生以为失败了 —— 告诉他去提交记录看。
+    if (!settled) {
+      setWorkbenchStatus('Connection lost while grading — the result will still be saved to your submissions', 'err');
+      S.cooldown = false;
+      checkBtn.disabled = false;
+    }
   }
+}
+
+/** 把服务端返回（JSON 或 SSE 的 result/error）落到 UI 上 */
+function applyGradeResponse(res, checkBtn) {
+  if (!res || res.success === false) {
+    setWorkbenchStatus((res && res.message) || 'Submission failed', 'err');
+    S.cooldown = false;
+    if (checkBtn) checkBtn.disabled = false;
+    return;
+  }
+  if (res.status === 'done') {
+    renderStepsResult(res.result, res.subid);
+    if (window.PD.cooldown) window.PD.cooldown.start('steps');
+    if (res.tokens && window.updateTopbarTokens) {
+      window.updateTopbarTokens(res.tokens.daily, res.tokens.global);
+    }
+    return;
+  }
+  if (res.status === 'error') {
+    setWorkbenchStatus('AI error: ' + (res.message || 'unknown'), 'err');
+    S.cooldown = false;
+    if (checkBtn) checkBtn.disabled = false;
+    return;
+  }
+  if (res.handledBy === 'bridge') {
+    setWorkbenchStatus('Handed to the local grader — check your submissions in a minute', 'busy');
+    return;
+  }
+}
+
+/** 最小的 SSE 解析：按 \n\n 分帧，只关心 stage / result / error */
+async function readGradeStream(res, handlers) {
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '', evt = '', data = [];
+
+  const flush = () => {
+    if (evt || data.length) {
+      const raw = data.join('\n');
+      let payload = null;
+      try { payload = raw ? JSON.parse(raw) : null; } catch (e) { payload = null; }
+      if (payload) {
+        if (evt === 'stage' && handlers.onStage) handlers.onStage(payload);
+        else if (evt === 'result' && handlers.onResult) handlers.onResult(payload);
+        else if (evt === 'error' && handlers.onError) handlers.onError(payload);
+        // ping / hello 忽略
+      }
+      evt = ''; data = [];
+    }
+  };
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let idx;
+    while ((idx = buf.indexOf('\n\n')) !== -1) {
+      const frame = buf.slice(0, idx);
+      buf = buf.slice(idx + 2);
+      for (const line of frame.split('\n')) {
+        if (line.startsWith('event:')) evt = line.slice(6).trim();
+        else if (line.startsWith('data:')) data.push(line.slice(5).trim());
+      }
+      flush();
+    }
+  }
+  flush();
 }
 
 // Polling 保留给 Root/Bridge

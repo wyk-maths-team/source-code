@@ -108,6 +108,67 @@ async function handleCreate(req, res, db, decoded) {
   if (!problemId || !steps || !steps.trim()) return res.status(400).json({ success: false, message: 'Missing or empty steps' });
   if (steps.trim().length > MAX_STEPS_LEN) return res.status(400).json({ success: false, message: 'Steps too long' });
 
+  // ══════════ 流式进度 ══════════
+  // 一次批改要挂几十秒。以前浏览器只能盯着 "Waiting (37s)"，既看不出是在跑
+  // 还是卡死了，也看不出模型已经换了第二个 —— 于是学生重新点提交，
+  // 多扣一次 token、多写一条 submission。
+  //
+  // 这里在同一个端点上按 Accept 分流：要 SSE 的给事件流，不要的仍然拿
+  // 一次性 JSON（course.js、mobile 走的是后者，行为完全不变）。
+  //
+  // 客户端断开后批改必须继续 —— submissions 要写、token 要扣，
+  // 所以 streamClosed 只关推送，不中止业务。
+  const wantsStream = String(req.headers.accept || '').includes('text/event-stream');
+  const startedAt = Date.now();
+  let streamOpen = false, streamClosed = false, hbTimer = null;
+
+  function emit(event, data) {
+    if (!streamOpen || streamClosed) return;
+    try { res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); }
+    catch { streamClosed = true; }
+  }
+
+  function stage(id, label, extra) {
+    emit('stage', Object.assign({ id, label, elapsedMs: Date.now() - startedAt }, extra || {}));
+  }
+
+  function openStream() {
+    if (!wantsStream || streamOpen) return;
+    streamOpen = true;
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',      // 不关掉中间层缓冲，事件会被攒到最后一起发
+    });
+    // 模型那一段可能几十秒没有任何事件，没心跳会被中间层当成空闲连接掐掉
+    hbTimer = setInterval(() => emit('ping', { t: Date.now() }), 15000);
+    if (hbTimer.unref) hbTimer.unref();
+    req.on('close', () => { streamClosed = true; });
+    res.on('close', () => { streamClosed = true; });
+  }
+
+  function closeStream() {
+    if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
+    if (!streamOpen || streamClosed) return;
+    try { res.end(); } catch { /* 已断开 */ }
+  }
+
+  /** 统一出口：流式发事件，非流式发 JSON */
+  function respond(status, body) {
+    const isError = status >= 400 || (body && body.success === false);
+    if (streamOpen) {
+      if (!streamClosed) emit(isError ? 'error' : 'result', Object.assign({ status }, body));
+      closeStream();
+      return;
+    }
+    return res.status(status).json(body);
+  }
+
+  openStream();
+  stage('authorize', 'Checking your account…');
+  stage('problem', 'Loading the problem…');
+
   let problem = await db.collection('problems').findOne({ id: String(problemId) }, { projection: { id: 1, statement: 1, ans: 1, difficulty: 1, tags: 1 } });
 
   // PDF 课程里的框允许用尚未建档的 ID：显式传 autoCreate 时现建一条占位题。
@@ -120,7 +181,7 @@ async function handleCreate(req, res, db, decoded) {
     const pid = String(problemId);
     const isAdmin = decoded.role === 'admin' || decoded.role === 'root';
     if (!autoCreate || !isAdmin || !/^[A-Za-z][A-Za-z0-9_-]{1,39}$/.test(pid)) {
-      return res.status(404).json({ success: false, message: 'Problem not found' });
+      return respond(404, { success: false, message: 'Problem not found' });
     }
     const existing = await db.collection('problems').findOne({ id: pid }, { projection: { id: 1 } });
     if (!existing) {
@@ -141,13 +202,14 @@ async function handleCreate(req, res, db, decoded) {
     } else {
       problem = await db.collection('problems').findOne({ id: pid }, { projection: { id: 1, statement: 1, ans: 1, difficulty: 1, tags: 1 } });
     }
-    if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
+    if (!problem) return respond(404, { success: false, message: 'Problem not found' });
   }
   // 每日 AI 额度（rating > 2200 豁免）
+  stage('quota', "Checking today's AI quota…");
   const { checkAiQuota, addAiUsage } = await import('../lib/aiQuota.js');
   const quota = await checkAiQuota(db, decoded.username).catch(() => ({ allowed: true }));
   if (!quota.allowed) {
-    return res.status(429).json({
+    return respond(429, {
       success: false,
       code: 'DAILY_AI_LIMIT',
       message: quota.message,
@@ -161,11 +223,12 @@ async function handleCreate(req, res, db, decoded) {
   //   真正的扣费在判分结束后按 AI 返回的 usage 结算
   const tokenCost = Math.max(3000, Math.round((Number(problem.difficulty) || 1) * 1000));
   const { getTokenBalance } = await import('../lib/token.js');
+  stage('tokens', 'Checking your token balance…');
   const currentToken = await getTokenBalance(db, decoded.username);
   const available = (currentToken.daily || 0) + (currentToken.global || 0);
 
   if (available < tokenCost) {
-    return res.status(400).json({
+    return respond(400, {
       success: false,
       message: `Insufficient tokens. You need at least ${tokenCost.toLocaleString()} to run AI grading, but only have ${available.toLocaleString()}. Please solve easier problems to earn tokens.`
     });
@@ -175,6 +238,7 @@ async function handleCreate(req, res, db, decoded) {
   // const tokenCost = (problem.difficulty >= 5) ? 30000 : 3000; // 预计成本
 
   // 写入任务记录
+  stage('prepare', 'Building the grading prompt…');
   await db.collection('steps_grading_tasks').insertOne({
     taskId, username: decoded.username, problemId: String(problemId), steps: steps.trim(),
     status: 'pending', handledBy: null, difficulty: Number(problem.difficulty) || 0,
@@ -198,8 +262,10 @@ async function handleCreate(req, res, db, decoded) {
   // 普通题按难度分级：1-3 low，4-7 high，8+ max
   const effort = effortForDifficulty(problem && problem.difficulty);
 
-  for (const modelKey of chain) {
+  for (let mi = 0; mi < chain.length; mi++) {
+    const modelKey = chain[mi];
     try {
+      stage('model', `Grading with ${modelKey}…`, { model: modelKey, attempt: mi + 1, total: chain.length });
       const result = await tryOneModel({ modelKey, prompt, effort });
       if (isM0) result.score = snapM0Score(result.score);
       const subid = genSubid();
@@ -212,6 +278,7 @@ async function handleCreate(req, res, db, decoded) {
 
       // 写入 submissions
       const finalScore = result.score;
+      stage('save', 'Recording your result…');
       await db.collection('submissions').insertOne({
         subid, username: decoded.username, problemId: String(problemId), type: 'steps',
         timestamp: new Date(), status: encodeStatus({ score: finalScore }),
@@ -258,7 +325,7 @@ async function handleCreate(req, res, db, decoded) {
       auditLog(db, 'steps_grade', { problemId, score: finalScore, taskId, model: modelKey, handledBy: 'api' }, decoded.username, 'info').catch(() => {});
 
       // ⭐ 同步返回完成结果
-      return res.status(200).json({
+      return respond(200, {
         success: true,
         status: 'done',
         result: { score: finalScore, comment: result.comment },
@@ -272,16 +339,21 @@ async function handleCreate(req, res, db, decoded) {
     } catch (err) {
       const msg = String(err.message || err).slice(0, 200);
       errors.push(`${modelKey}: ${msg}`);
+      const isLast = mi === chain.length - 1;
+      stage('retry', isLast
+        ? `${modelKey} failed, giving up on the API`
+        : `${modelKey} did not answer, trying the next model…`,
+        { model: modelKey, error: msg, attempt: mi + 1, total: chain.length });
       if (err.permanent) {
         await db.collection('steps_grading_tasks').updateOne({ taskId }, { $set: { status: 'error', error: msg, completedAt: new Date() } });
-        return res.status(200).json({ success: true, status: 'error', message: msg });
+        return respond(200, { success: true, status: 'error', message: msg });
       }
     }
   }
 
   // 全部失败，让 bridge 接手
   await db.collection('steps_grading_tasks').updateOne({ taskId }, { $set: { apiAttemptedAt: new Date(), apiErrors: errors }, $unset: { apiLockedAt: '' } });
-  return res.status(202).json({ success: true, taskId, handledBy: 'bridge' });
+  return respond(202, { success: true, taskId, handledBy: 'bridge' });
 }
 
 // handlePoll 保持完全不变（给 root 和 bridge 兜底用的）
