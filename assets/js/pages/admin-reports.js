@@ -63,8 +63,52 @@
   }
 
   // ═══════════ 渲染 ═══════════
+  // ── 過濾（全在客戶端）──
+  // 舉報量不大，每次輸入都打一次接口只會讓表格閃。
+  function currentFilters() {
+    return {
+      username: (($('filterUsername') || {}).value || '').trim().toLowerCase(),
+      problem: (($('filterProblem') || {}).value || '').trim().toLowerCase(),
+      reason: (($('filterReason') || {}).value || '').trim().toLowerCase(),
+      state: (($('filterState') || {}).value || 'all'),
+    };
+  }
+
+  function matchesFilter(r, f) {
+    if (f.username && String(r.username || '').toLowerCase().indexOf(f.username) === -1) return false;
+    if (f.problem && String(r.problemId || '').toLowerCase().indexOf(f.problem) === -1) return false;
+    if (f.reason && String(r.reason || '').toLowerCase().indexOf(f.reason) === -1) return false;
+    if (f.state === 'pending' && r.resolved) return false;
+    if (f.state === 'resolved' && !r.resolved) return false;
+    return true;
+  }
+
+  function visibleReports() {
+    const f = currentFilters();
+    return _reports
+      .map((r, i) => ({ r, i }))
+      .filter(({ r }) => matchesFilter(r, f));
+  }
+
+  function updateFilterCount(shown) {
+    const el = $('filterCount');
+    if (!el) return;
+    el.textContent = shown === _reports.length
+      ? _reports.length + (_reports.length === 1 ? ' report' : ' reports')
+      : shown + ' of ' + _reports.length;
+  }
+
   function renderTable() {
     const container = $('reportsList');
+    const rows = visibleReports();
+    updateFilterCount(rows.length);
+
+    if (!rows.length) {
+      container.innerHTML = _reports.length
+        ? '<p>No reports match the current filters.</p>'
+        : '<p>No reports yet.</p>';
+      return;
+    }
 
     let html = `<table>
       <thead><tr>
@@ -77,7 +121,7 @@
         <th>Actions</th>
       </tr></thead><tbody>`;
 
-    _reports.forEach((r, idx) => {
+    rows.forEach(({ r, i: idx }) => {
       const time = new Date(r.timestamp).toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong' });
       const isResolved = !!r.resolved;
       const rowClass = isResolved ? 'report-resolved' : 'report-pending';
@@ -239,5 +283,52 @@
   }
 
   // ═══════════ 啟動 ═══════════
+  // 過濾純客戶端：輸入即篩，不重新請求。
+  (function bindFilters() {
+    const ids = ['filterUsername', 'filterProblem', 'filterReason', 'filterState'];
+    let timer = null;
+    let primed = false;
+
+    function apply() {
+      if (!primed || !_reports.length) return;   // 資料還沒到就先別動 DOM
+      renderTable();
+    }
+
+    ids.forEach((id) => {
+      const el = $(id);
+      if (!el) return;
+      if (el.tagName === 'SELECT') {
+        el.addEventListener('change', apply);
+      } else {
+        el.addEventListener('input', () => {
+          clearTimeout(timer);
+          timer = setTimeout(apply, 200);
+        });
+      }
+    });
+
+    const reset = $('filterReset');
+    if (reset) {
+      reset.addEventListener('click', () => {
+        ids.forEach((id) => {
+          const el = $(id);
+          if (!el) return;
+          el.value = id === 'filterState' ? 'all' : '';
+        });
+        apply();
+      });
+    }
+
+    // 第一次資料到達前不要動 DOM，否則會把「載入中」的表格清掉。
+    // renderTable 是函式宣告，嚴格模式下不能重新賦值，所以用輪詢等資料。
+    const waitForData = setInterval(() => {
+      if (_reports.length || $('reportsList').innerHTML.indexOf('Loading') === -1) {
+        primed = true;
+        clearInterval(waitForData);
+      }
+    }, 100);
+    setTimeout(() => clearInterval(waitForData), 15000);
+  })();
+
   loadReports();
 })();

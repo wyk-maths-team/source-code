@@ -37,6 +37,16 @@
         <i class="fa-solid fa-bullhorn fa-fw"></i> System Messages
       </a>
     </li>
+    <li>
+      <a href="/admin/reports" class="sidebar-link require-login sidebar-link-admin" data-page="admin-reports">
+        <i class="fa-solid fa-triangle-exclamation fa-fw"></i> Problem Reports
+      </a>
+    </li>
+    <li>
+      <a href="/admin/submission-reports" class="sidebar-link require-login sidebar-link-admin" data-page="admin-submission-reports">
+        <i class="fa-solid fa-file-circle-exclamation fa-fw"></i> Submission Reports
+      </a>
+    </li>
   `;
 
   // ═══════════════ 扩展导航 ═══════════════

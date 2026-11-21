@@ -429,6 +429,10 @@
       "destination": "/admin/sysmessages.html"
     },
     {
+      "source": "/admin/submission-reports",
+      "destination": "/admin/submission-reports.html"
+    },
+    {
       "source": "/reports",
       "destination": "/reports.html"
     },

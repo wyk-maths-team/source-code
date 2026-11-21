@@ -3,8 +3,8 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='291f03ae';</script>
-<script src="/assets/js/arch-render.js?v=291f03ae"></script>
+<script>window.__BUILD_V='ca1d7aae';</script>
+<script src="/assets/js/arch-render.js?v=ca1d7aae"></script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -17,7 +17,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=291f03ae" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=ca1d7aae" />
 
 <style>
     /* ── 中性色变量（由 tools/extract-colors.mjs 生成）──────────────
@@ -87,6 +87,16 @@
   .btn-danger { color: var(--danger); border-color: var(--danger); }
   .btn-primary { color: var(--accent); border-color: var(--accent); }
   .message { margin: 1rem 0; min-height: 1.2em; }
+    .report-filters {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 1rem;
+    }
+    .report-filter {
+      padding: 6px 10px; border-radius: 8px; border: 1px solid var(--c-border);
+      background: var(--c-surface); color: var(--c-text); font: inherit; font-size: .84rem;
+      width: 180px;
+    }
+    .report-filter:focus { outline: none; border-color: var(--accent, #4a90d9); }
+    .report-filter-count { margin-left: auto; font-size: .78rem; color: var(--c-text-muted); }
   .message.err  { color: var(--danger); }
   .message.ok   { color: #2e7d32; }
 
@@ -108,22 +118,22 @@
   .reason-cell.empty { color: var(--text-secondary); font-style: italic; }
   th.col-center, td.col-center { text-align: center; width: 60px; }
 </style>
-<script src="/assets/js/core/ui.js?v=291f03ae"></script>
-<script src="/assets/js/core/net.js?v=291f03ae"></script>
-<script src="/assets/js/core/ban-guard.js?v=291f03ae"></script>
-<script src="/assets/js/core/latex-doc.js?v=291f03ae"></script>
-<script src="/assets/js/core/status.js?v=291f03ae"></script>
-  <link rel="stylesheet" href="/assets/css/script-panel.css?v=291f03ae">
-  <script src="/assets/js/core/script-panel.js?v=291f03ae"></script>
-<script src="/assets/js/core/api.js?v=291f03ae"></script>
-  <script src="/assets/js/core/padstore.js?v=291f03ae"></script>
-  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=291f03ae">
-  <script src="/assets/js/core/radial-menu.js?v=291f03ae"></script>
-  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=291f03ae">
-  <script src="/assets/js/core/ban-screen.js?v=291f03ae"></script>
-  <link rel="stylesheet" href="/assets/css/ban-index.css?v=291f03ae">
-  <script src="/assets/js/core/ban-index.js?v=291f03ae"></script>
-<script src="/assets/js/core/page.js?v=291f03ae"></script>
+<script src="/assets/js/core/ui.js?v=ca1d7aae"></script>
+<script src="/assets/js/core/net.js?v=ca1d7aae"></script>
+<script src="/assets/js/core/ban-guard.js?v=ca1d7aae"></script>
+<script src="/assets/js/core/latex-doc.js?v=ca1d7aae"></script>
+<script src="/assets/js/core/status.js?v=ca1d7aae"></script>
+  <link rel="stylesheet" href="/assets/css/script-panel.css?v=ca1d7aae">
+  <script src="/assets/js/core/script-panel.js?v=ca1d7aae"></script>
+<script src="/assets/js/core/api.js?v=ca1d7aae"></script>
+  <script src="/assets/js/core/padstore.js?v=ca1d7aae"></script>
+  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=ca1d7aae">
+  <script src="/assets/js/core/radial-menu.js?v=ca1d7aae"></script>
+  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=ca1d7aae">
+  <script src="/assets/js/core/ban-screen.js?v=ca1d7aae"></script>
+  <link rel="stylesheet" href="/assets/css/ban-index.css?v=ca1d7aae">
+  <script src="/assets/js/core/ban-index.js?v=ca1d7aae"></script>
+<script src="/assets/js/core/page.js?v=ca1d7aae"></script>
 </head>
 <body class="index-body">
 <div id="appContainer">
@@ -132,20 +142,32 @@
   <main class="main-content" id="mainContent">
     <div class="admin-container">
       <h2>Reports</h2>
+      <div class="report-filters">
+        <input type="search" id="filterUsername" class="report-filter" placeholder="Username…" autocomplete="off">
+        <input type="search" id="filterProblem" class="report-filter" placeholder="Problem id…" autocomplete="off">
+        <input type="search" id="filterReason" class="report-filter" placeholder="Reason contains…" autocomplete="off">
+        <select id="filterState" class="report-filter">
+          <option value="all">All</option>
+          <option value="pending">Pending only</option>
+          <option value="resolved">Resolved only</option>
+        </select>
+        <button type="button" id="filterReset" class="btn-sm btn-secondary">Clear</button>
+        <span id="filterCount" class="report-filter-count"></span>
+      </div>
       <div id="reportsList"></div>
       <div id="message" class="message"></div>
     </div>
   </main>
 </div>
 
-<script src="/assets/js/auth.js?v=291f03ae"></script>
-<script src="/assets/js/app.js?v=291f03ae"></script>
-<script src="/assets/js/topbar.js?v=291f03ae"></script>
-<script src="/assets/js/sidebar.js?v=291f03ae"></script>
-<script src="/assets/js/heartbeat.js?v=291f03ae"></script>
-<script src="/assets/js/pk-invite.js?v=291f03ae"></script>
+<script src="/assets/js/auth.js?v=ca1d7aae"></script>
+<script src="/assets/js/app.js?v=ca1d7aae"></script>
+<script src="/assets/js/topbar.js?v=ca1d7aae"></script>
+<script src="/assets/js/sidebar.js?v=ca1d7aae"></script>
+<script src="/assets/js/heartbeat.js?v=ca1d7aae"></script>
+<script src="/assets/js/pk-invite.js?v=ca1d7aae"></script>
 
-<script src="/assets/js/pages/admin-reports.js?v=291f03ae"></script>
-<script src="/assets/js/pk-notify.js?v=291f03ae"></script>
+<script src="/assets/js/pages/admin-reports.js?v=ca1d7aae"></script>
+<script src="/assets/js/pk-notify.js?v=ca1d7aae"></script>
 </body>
 </html>
