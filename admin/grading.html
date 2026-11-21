@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>window.__BUILD_V='10f1059f';</script>
-<script src="/assets/js/arch-render.js?v=10f1059f"></script>
+<script>window.__BUILD_V='cf111127';</script>
+<script src="/assets/js/arch-render.js?v=cf111127"></script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -19,25 +19,25 @@
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=10f1059f" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=cf111127" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 
-<script src="/assets/js/core/ui.js?v=10f1059f"></script>
-<script src="/assets/js/core/net.js?v=10f1059f"></script>
-<script src="/assets/js/core/ban-guard.js?v=10f1059f"></script>
-<script src="/assets/js/core/latex-doc.js?v=10f1059f"></script>
-<script src="/assets/js/core/status.js?v=10f1059f"></script>
-  <link rel="stylesheet" href="/assets/css/script-panel.css?v=10f1059f">
-  <script src="/assets/js/core/script-panel.js?v=10f1059f"></script>
-<script src="/assets/js/core/api.js?v=10f1059f"></script>
-  <script src="/assets/js/core/padstore.js?v=10f1059f"></script>
-  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=10f1059f">
-  <script src="/assets/js/core/radial-menu.js?v=10f1059f"></script>
-  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=10f1059f">
-  <script src="/assets/js/core/ban-screen.js?v=10f1059f"></script>
-  <link rel="stylesheet" href="/assets/css/ban-index.css?v=10f1059f">
-  <script src="/assets/js/core/ban-index.js?v=10f1059f"></script>
-<script src="/assets/js/core/page.js?v=10f1059f"></script>
+<script src="/assets/js/core/ui.js?v=cf111127"></script>
+<script src="/assets/js/core/net.js?v=cf111127"></script>
+<script src="/assets/js/core/ban-guard.js?v=cf111127"></script>
+<script src="/assets/js/core/latex-doc.js?v=cf111127"></script>
+<script src="/assets/js/core/status.js?v=cf111127"></script>
+  <link rel="stylesheet" href="/assets/css/script-panel.css?v=cf111127">
+  <script src="/assets/js/core/script-panel.js?v=cf111127"></script>
+<script src="/assets/js/core/api.js?v=cf111127"></script>
+  <script src="/assets/js/core/padstore.js?v=cf111127"></script>
+  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=cf111127">
+  <script src="/assets/js/core/radial-menu.js?v=cf111127"></script>
+  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=cf111127">
+  <script src="/assets/js/core/ban-screen.js?v=cf111127"></script>
+  <link rel="stylesheet" href="/assets/css/ban-index.css?v=cf111127">
+  <script src="/assets/js/core/ban-index.js?v=cf111127"></script>
+<script src="/assets/js/core/page.js?v=cf111127"></script>
 
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#1a1a2e">
@@ -79,10 +79,27 @@
   :root[data-theme="scifi"] .gr-tab.active { background: rgba(0,229,255,.10); }
 
   /* ── 按难度 ── */
+  .gr-diff-head {
+    display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap;
+    margin: -4px 0 10px;
+  }
   .gr-diff-note {
-    font-size: .74rem; color: var(--text-secondary); margin: -4px 0 10px; line-height: 1.5;
+    flex: 1; min-width: 240px;
+    font-size: .74rem; color: var(--text-secondary); line-height: 1.5;
   }
   .gr-diff-note strong { color: var(--text-primary); font-weight: 700; }
+  .gr-btn-sm { padding: 6px 12px; font-size: .78rem; flex: none; }
+  .gr-recalc-msg {
+    font-size: .76rem; padding: 8px 12px; margin-bottom: 10px;
+    border-radius: 8px; border: 1px solid var(--border-color);
+    background: var(--content-bg); color: var(--text-secondary);
+  }
+  .gr-recalc-msg.ok { border-color: rgba(46,160,67,.35); color: #2e7d32; }
+  .gr-recalc-msg.warn { border-color: rgba(230,140,30,.35); color: #b45309; }
+  :root[data-theme="dark"] .gr-recalc-msg.ok { color: #8fdf8f; }
+  :root[data-theme="dark"] .gr-recalc-msg.warn { color: #ffb86c; }
+  :root[data-theme="scifi"] .gr-recalc-msg.ok { color: #78ffb0; border-color: rgba(120,255,176,.32); }
+  :root[data-theme="scifi"] .gr-recalc-msg.warn { color: #ffd166; border-color: rgba(255,209,102,.32); }
   .gr-diff .gr-stat .k { text-transform: none; letter-spacing: 0; }
   .gr-diff .gr-stat .v { font-size: 1.15rem; }
 
@@ -192,9 +209,15 @@
 
         <section class="gr-stats" id="grStats"></section>
 
-        <div class="gr-diff-note" id="grDiffNote" style="display:none">
-          Average grading time by difficulty — <strong>steps only</strong>. Image grading is recorded too, but its input is a picture, so mixing it in would skew the average.
+        <div class="gr-diff-head" id="grDiffHead" style="display:none">
+          <span class="gr-diff-note">
+            Average grading time by difficulty — <strong>steps only</strong>. Image grading is recorded too, but its input is a picture, so mixing it in would skew the average.
+          </span>
+          <button id="grRecalc" class="gr-btn gr-btn-sm" title="Difficulty is a snapshot taken when the run was recorded. If you have changed a problem's difficulty since, the old rows still carry the old value.">
+            <i class="fas fa-arrows-rotate"></i> Recalculate difficulty
+          </button>
         </div>
+        <div class="gr-recalc-msg" id="grRecalcMsg" style="display:none"></div>
         <section class="gr-stats gr-diff" id="grDiff" style="display:none"></section>
 
         <section class="gr-filters">
@@ -240,14 +263,14 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=10f1059f"></script>
-  <script src="/assets/js/app.js?v=10f1059f"></script>
-  <script src="/assets/js/topbar.js?v=10f1059f"></script>
-  <script src="/assets/js/sidebar.js?v=10f1059f"></script>
-  <script src="/assets/js/core/polling.js?v=10f1059f"></script>
-  <script src="/assets/js/heartbeat.js?v=10f1059f"></script>
-  <script src="/assets/js/pk-invite.js?v=10f1059f"></script>
+  <script src="/assets/js/auth.js?v=cf111127"></script>
+  <script src="/assets/js/app.js?v=cf111127"></script>
+  <script src="/assets/js/topbar.js?v=cf111127"></script>
+  <script src="/assets/js/sidebar.js?v=cf111127"></script>
+  <script src="/assets/js/core/polling.js?v=cf111127"></script>
+  <script src="/assets/js/heartbeat.js?v=cf111127"></script>
+  <script src="/assets/js/pk-invite.js?v=cf111127"></script>
 
-  <script src="/assets/js/pages/admin-grading.js?v=10f1059f"></script>
+  <script src="/assets/js/pages/admin-grading.js?v=cf111127"></script>
 </body>
 </html>

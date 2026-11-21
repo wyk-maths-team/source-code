@@ -16,7 +16,7 @@ import { connectToDatabase } from './_db.js';
 import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { wrapHandler } from '../lib/errors.js';
-import { COLLECTION as HISTORY, durationByDifficulty } from '../lib/grading-history.js';
+import { COLLECTION as HISTORY, durationByDifficulty, recalcDifficulty } from '../lib/grading-history.js';
 
 const MAX_LIMIT = 200;
 const STATUSES = ['pending', 'processing', 'done', 'error'];
@@ -131,7 +131,9 @@ async function listQueue(db, req, limit) {
 
 async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
-  if (req.method !== 'GET') {
+
+  const isPost = req.method === 'POST';
+  if (!isPost && req.method !== 'GET') {
     return res.status(405).json({ success: false, message: 'Method not allowed' });
   }
 
@@ -142,6 +144,25 @@ async function handler(req, res) {
 
   const db = await connectToDatabase();
   const action = req.query.action || 'list';
+
+  // ── 按当前题目难度刷新历史 ──
+  // 难度是写入时的快照。你手动改了题目难度之后，老记录还停在旧值，
+  // 同一道题会被算进两个档位，预期时间跟着失真。这个按钮把它们拉回来。
+  // 唯一的写操作，但它只改 difficulty 一个字段，且必须显式 POST。
+  if (isPost && action === 'recalcDifficulty') {
+    const dryRun = req.query.dry === '1';
+    const r = await recalcDifficulty(db, { dryRun });
+    return res.status(200).json({
+      success: true,
+      dryRun,
+      ...r,
+      note: 'Grading ETA is cached for 10 minutes per instance; the progress bar picks this up on its own.',
+    });
+  }
+
+  if (isPost) {
+    return res.status(400).json({ success: false, message: 'Unknown action' });
+  }
 
   // ── 列表 ──
   if (action === 'list') {

@@ -21,7 +21,9 @@
   var moreBtn = document.getElementById('grMore');
   var statsEl = document.getElementById('grStats');
   var diffEl = document.getElementById('grDiff');
-  var diffNoteEl = document.getElementById('grDiffNote');
+  var diffHeadEl = document.getElementById('grDiffHead');
+  var recalcBtn = document.getElementById('grRecalc');
+  var recalcMsgEl = document.getElementById('grRecalcMsg');
   var refreshBtn = document.getElementById('grRefresh');
   var statusSel = document.getElementById('grStatus');
   var rangeSel = document.getElementById('grRange');
@@ -88,14 +90,14 @@
     var rows = h.byDifficulty || [];
     if (rows.length) {
       diffEl.style.display = '';
-      if (diffNoteEl) diffNoteEl.style.display = '';
+      if (diffHeadEl) diffHeadEl.style.display = '';
       diffEl.innerHTML = rows.map(function (r) {
         var range = (r.p50Ms && r.p90Ms) ? ('p50 ' + fmtMs(r.p50Ms) + ' · p90 ' + fmtMs(r.p90Ms)) : '';
         return card('Difficulty ' + r.difficulty, fmtMs(r.avgMs), '', (r.n + ' runs') + (range ? ' · ' + range : ''));
       }).join('');
     } else {
       diffEl.style.display = 'none';
-      if (diffNoteEl) diffNoteEl.style.display = 'none';
+      if (diffHeadEl) diffHeadEl.style.display = 'none';
     }
   }
 
@@ -187,6 +189,54 @@
       refreshBtn.classList.remove('spinning');
     }
   }
+
+  // ── 按当前题目难度重算 ──
+  // difficulty 是记录时的快照。你手动改过题目难度之后，那些老记录
+  // 还扛着旧值，同一道题会被分进两个档，平均时间跟着失真。
+  function showRecalcMsg(text, cls) {
+    if (!recalcMsgEl) return;
+    recalcMsgEl.textContent = text;
+    recalcMsgEl.className = 'gr-recalc-msg' + (cls ? ' ' + cls : '');
+    recalcMsgEl.style.display = '';
+  }
+
+  async function recalcDifficulty() {
+    if (!recalcBtn || recalcBtn.disabled) return;
+    var original = recalcBtn.innerHTML;
+    recalcBtn.disabled = true;
+    recalcBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Recalculating…';
+
+    try {
+      var token = (window.getToken && window.getToken()) || localStorage.getItem('auth_token') || '';
+      var res = await fetch('/api/admin-grading?action=recalcDifficulty', {
+        method: 'POST',
+        headers: token ? { Authorization: 'Bearer ' + token } : {},
+      });
+      var data = await res.json().catch(function () { return {}; });
+
+      if (!res.ok || !data.success) throw new Error(data.message || ('HTTP ' + res.status));
+
+      var parts = ['Scanned ' + data.scanned];
+      if (data.updated) parts.push('updated ' + data.updated);
+      else parts.push('nothing to update');
+
+      var cls = 'ok';
+      if (data.missing) {
+        parts.push(data.missing + ' have no matching problem any more (left untouched)');
+        cls = 'warn';
+      }
+      showRecalcMsg(parts.join(' · ') + '. ' + (data.note || ''), cls);
+
+      await loadStats();
+    } catch (e) {
+      showRecalcMsg('Recalculate failed: ' + (e.message || 'unknown'), 'warn');
+    } finally {
+      recalcBtn.disabled = false;
+      recalcBtn.innerHTML = original;
+    }
+  }
+
+  if (recalcBtn) recalcBtn.addEventListener('click', recalcDifficulty);
 
   // ── 事件 ──
   refreshBtn.addEventListener('click', reloadAll);
