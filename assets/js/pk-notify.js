@@ -20,7 +20,7 @@
   if (window.__pkNotifyLoaded) return;
   window.__pkNotifyLoaded = true;
 
-  var POLL_MS = 20000;
+  var POLL_MS = (window.__POLL__ || {}).pkNotify || 20000;
   var FIRST_DELAY_MS = 3000;
   var DISMISS_KEY = 'pk_notify_dismissed';   // 记住被关掉的邀请 id
 

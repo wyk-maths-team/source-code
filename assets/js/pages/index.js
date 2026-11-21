@@ -270,7 +270,8 @@ async function loadTokenMeter() {
 // 页面开着但人走了（切标签页、去吃饭）的情况下，继续每分钟打一次接口没有意义，
 // 还白白把服务端缓存一直焐热。这里记一个「最后一次交互时间」，超过 IDLE_MS
 // 就跳过这一轮，等用户一动自动恢复。
-var IDLE_MS = 60 * 1000;
+var POLL = window.__POLL__ || {};
+var IDLE_MS = POLL.homeIdle || 60 * 1000;
 var __lastActiveAt = Date.now();
 var __isVisible = !document.hidden;
 
@@ -291,7 +292,7 @@ __recentAcTimer = setInterval(function () {
   if (!__isVisible) return;
   if (Date.now() - __lastActiveAt > IDLE_MS) return;
   loadRecentAc();
-}, 60 * 1000);
+}, POLL.homeRecentAc || 60 * 1000);
 
 window.addEventListener('beforeunload', function () { if (__recentAcTimer) clearInterval(__recentAcTimer); });
 

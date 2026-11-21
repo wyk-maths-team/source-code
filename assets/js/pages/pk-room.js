@@ -574,10 +574,12 @@
     // 鼠标移动中 → 5 秒一次
     // 鼠标静止   → 15 秒一次
     // 2 分钟无任何活动 / 标签页隐藏 → 暂停
-    const POLL_MOVING_MS   = 5_000;      // 移動中
-    const POLL_STILL_MS    = 15_000;     // 靜止
-    const MOVING_WINDOW_MS = 3_000;      // 3 秒內有 mousemove 就算「移動中」
-    const IDLE_MS          = 2 * 60_000; // 2 分鐘無活動 → 休眠
+    // 节奏来自 core/polling.js（全站唯一来源）
+    const P = window.__POLL__ || {};
+    const POLL_MOVING_MS   = P.pkRoomMoving || 5_000;   // 對手在動
+    const POLL_STILL_MS    = P.pkRoomStill  || 15_000;  // 對面靜止
+    const MOVING_WINDOW_MS = 3_000;                     // 3 秒內有 mousemove 就算「移動中」
+    const IDLE_MS          = P.pkRoomIdle   || 2 * 60_000; // 2 分鐘無活動 → 休眠
 
     let lastMoveAt     = Date.now();
     let lastActivityAt = Date.now();

@@ -2,15 +2,31 @@
 //
 // action=recent-ac   最近 10 条 AC 提交（只给题目、用户、分数、时间）
 // action=tokens-used 累计消耗的 token（读 metadata，由提交时原子累加）
+//
+// 缓存策略（这是全站调用量最大的端点之一，值得说清楚）：
+//
+//   首页每 60 秒轮询一次 recent-ac。30 个人同时开着页面 = 每分钟 30 次回源。
+//   这些人不是同一秒按下刷新的，请求均匀散在这一分钟里 —— 所以 CDN 缓存
+//   60 秒能把「在线人数次/分钟」压成「1 次/分钟」，收益随并发线性放大。
+//
+//   安全性靠两件事：
+//     1. 匿名响应本身不含任何个人数据（不查 users、答案全打码），可以共享；
+//     2. 登录响应带打码结果，是因人而异的，必须 private/no-store，
+//        并且两边都发 Vary: Authorization —— 否则 CDN 会把匿名那份
+//        发给登录用户（内容不泄漏，但会退化成打码视图）。
 
 import { connectToDatabase } from './_db.js';
 import { wrapHandler } from '../lib/errors.js';
 import { labelOf } from '../lib/submission-status.js';
 import { verifyToken } from '../lib/auth.js';
 
-// 一分钟缓存：首页不需要毫秒级新鲜，10 条 AC 每分钟刷一次足够
+// 进程内缓存：CDN 没命中时（比如首次请求）的最后一道
 const CACHE_MS = 60 * 1000;
 const _cache = { recentAc: { at: 0, data: null } };
+
+// 共享缓存头和私有头分开写，避免哪天有人误用同一个常量
+const PUBLIC_CACHE = 'public, max-age=30, s-maxage=60, stale-while-revalidate=600';
+const PRIVATE_CACHE = 'private, no-store, max-age=0';
 
 async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -20,12 +36,18 @@ async function handler(req, res) {
   const db = await connectToDatabase();
   const action = req.query.action || 'recent-ac';
 
+  // 任何情况下都按 Authorization 分区，匿名与登录不会串味
+  res.setHeader('Vary', 'Authorization');
+
   if (action === 'recent-ac') {
     const now = Date.now();
     // 未登录的访客走公共缓存；登录用户要按自己的进度打码，不能复用。
-    // 只解析一次，后面判定打码直接用这个结果。
     const viewer = await verifyToken(req).catch(() => null);
     const canUseCache = !viewer;
+
+    // 登录用户的响应绝不能进共享缓存
+    res.setHeader('Cache-Control', viewer ? PRIVATE_CACHE : PUBLIC_CACHE);
+
     if (canUseCache && _cache.recentAc.data && now - _cache.recentAc.at < CACHE_MS) {
       res.setHeader('X-Cache', 'HIT');
       return res.status(200).json({ success: true, items: _cache.recentAc.data, cached: true });
@@ -91,6 +113,8 @@ async function handler(req, res) {
   }
 
   if (action === 'tokens-used') {
+    // 全站累计数字，与看的人无关：任何人都可以共享同一份缓存
+    res.setHeader('Cache-Control', PUBLIC_CACHE);
     const meta = await db.collection('metadata').findOne({ _id: 'globalTokens' });
     return res.status(200).json({
       success: true,

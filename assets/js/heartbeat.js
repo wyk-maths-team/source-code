@@ -3,9 +3,11 @@
 (function () {
   'use strict';
 
+  // 间隔来自 core/polling.js（全站唯一来源）；__HB_CONFIG__ 仍可覆盖
+  const POLL = window.__POLL__ || {};
   const CFG = Object.assign({
-    intervalMs:   180_000,   // 每 3 分钟 tick 一次
-    activityMs:   180_000,   // 3 分钟内有活动才算「活跃」
+    intervalMs:   POLL.heartbeat || 180_000,          // 每 3 分钟 tick 一次
+    activityMs:   POLL.heartbeatActivity || 180_000,  // 3 分钟内还有活动才算
     minMovePx:    5,
     initialDelay: 5_000,
   }, window.__HB_CONFIG__ || {});

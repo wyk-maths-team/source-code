@@ -16,7 +16,7 @@
   'use strict';
 
 const CFG = Object.assign({
-  intervalMs:   180_000,   // 每 3 分钟 tick 一次
+  intervalMs:   (window.__POLL__ || {}).pkInvite || 180_000,   // 每 3 分钟 tick 一次
   activityMs:   180_000,   // 3 分钟内有活动才算「活跃」
   minMovePx:    5,
   initialDelay: 5_000,
