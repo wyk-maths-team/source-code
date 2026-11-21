@@ -37,10 +37,14 @@ async function handler(req, res) {
     ).sort({ timestamp: -1 }).limit(10).toArray();
 
     const pids = [...new Set(rows.map(r => r.problemId))];
-    const users = [...new Set(rows.map(r => r.username))];
+    // 未登入的访客不给任何身份信息，users 集合干脆不查。
+    const anonymous = !viewer;
+    const names = anonymous ? [] : [...new Set(rows.map(r => r.username))];
     const [probs, us] = await Promise.all([
       db.collection('problems').find({ id: { $in: pids } }, { projection: { id: 1, name: 1, _id: 0 } }).toArray(),
-      db.collection('users').find({ username: { $in: users } }, { projection: { username: 1, displayName: 1, _id: 0 } }).toArray(),
+      names.length
+        ? db.collection('users').find({ username: { $in: names } }, { projection: { username: 1, displayName: 1, _id: 0 } }).toArray()
+        : Promise.resolve([]),
     ]);
     const nameMap = Object.fromEntries(probs.map(p => [p.id, p.name]));
     const dispMap = Object.fromEntries(us.map(u => [u.username, u.displayName || u.username]));
@@ -67,8 +71,10 @@ async function handler(req, res) {
       const raw = String(r.answer == null ? '' : r.answer);
       return {
         subid: r.subid,
-        username: r.username,
-        displayName: dispMap[r.username] || r.username,
+        // 首页是公开页：没登录就连提交者的 username / displayName 都不返回，
+        // 登录后才按正常规则给（对象级资料越权是另一套策略，见 users.js）。
+        username: anonymous ? null : r.username,
+        displayName: anonymous ? 'Anonymous' : (dispMap[r.username] || r.username),
         problemId: r.problemId,
         problemName: nameMap[r.problemId] || ('Problem #' + r.problemId),
         answer: canSee ? raw.slice(0, 80) : '',

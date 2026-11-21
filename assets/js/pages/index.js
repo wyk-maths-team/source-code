@@ -178,8 +178,12 @@ function renderRecentAc(items) {
 
   body.innerHTML = items.map(function (it) {
     var who = shortName(it.displayName);
+    // 未登入时服务端不返回 username（首页是公开页），这里就不做成用户主页链接。
+    var whoHtml = it.username
+      ? '<a class="ac-who" href="/users/' + encodeURIComponent(it.username) + '" title="' + esc(it.displayName) + '">' + esc(who) + '</a>'
+      : '<span class="ac-who ac-who-anon" title="Sign in to see who solved it">' + esc(who) + '</span>';
     return '<div class="ac-item">' +
-      '<a class="ac-who" href="/users/' + encodeURIComponent(it.username) + '" title="' + esc(it.displayName) + '">' + esc(who) + '</a>' +
+      whoHtml +
       '<a class="ac-problem" href="/problems/' + encodeURIComponent(it.problemId) + '" title="' + esc(it.problemName) + '">' + esc(it.problemName) + '</a>' +
       '<a class="ac-time" href="/submissions/' + encodeURIComponent(it.subid) + '/detail">' + esc(fmtRecentTime(it.timestamp)) + '</a>' +
     '</div>';
