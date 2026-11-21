@@ -19,6 +19,16 @@ import {
   findActiveContestForProblem,
   applyContestScore,
 } from '../lib/submission.js';
+import {
+  GIVE_UP_MESSAGE,
+  AUTH_FAIL_MESSAGE,
+  RETRY_DELAY_MS,
+  DEADLINE_MS,
+  MIN_ATTEMPT_MS,
+  remainingMs,
+  sleep,
+  markTaskFailed,
+} from '../lib/ai-fallback.js';
 
 const MAX_STEPS_LEN = 10000;
 const TASK_TTL_MS   = 30 * 60_000;
@@ -64,14 +74,17 @@ function parseReply(raw) {
   } catch { return null; }
 }
 
-async function tryOneModel({ modelKey, prompt, effort }) {
+async function tryOneModel({ modelKey, prompt, effort, budgetMs }) {
   const info = getModelInfo(modelKey);
   const t0 = Date.now();
+  // budgetMs 是这次批改剩下的时间。第二轮重试时它可能已经很薄，
+  // 不把单模型的超时压下来，claude 那 280 秒的默认值会直接吃穿整个函数。
+  const clampTo = (base) => Math.max(5_000, Math.min(base, Number(budgetMs) || base));
   let reply;
   if (info.provider === 'claude') {
-    reply = await askClaude(prompt, { model: modelKey, timeoutMs: 280_000, maxTokens: 8192 });
+    reply = await askClaude(prompt, { model: modelKey, timeoutMs: clampTo(280_000), maxTokens: 8192 });
   } else if (info.provider === 'deepseek') {
-    reply = await askDeepSeekAPI(prompt, { model: info.id, timeoutMs: 50_000, effort, maxTokens: MAX_TOKEN_CONSUMPTION });
+    reply = await askDeepSeekAPI(prompt, { model: info.id, timeoutMs: clampTo(50_000), effort, maxTokens: MAX_TOKEN_CONSUMPTION });
   } else throw new Error(`Unknown provider`);
 
   const elapsed = Date.now() - t0;
@@ -262,13 +275,36 @@ async function handleCreate(req, res, db, decoded) {
   // 普通题按难度分级：1-3 low，4-7 high，8+ max
   const effort = effortForDifficulty(problem && problem.difficulty);
 
-  for (let mi = 0; mi < chain.length; mi++) {
-    const modelKey = chain[mi];
-    try {
-      stage('model', `Grading with ${modelKey}…`, { model: modelKey, attempt: mi + 1, total: chain.length });
-      const result = await tryOneModel({ modelKey, prompt, effort });
-      if (isM0) result.score = snapM0Score(result.score);
-      const subid = genSubid();
+  // 两轮：模型链跑一遍，全部失败就把整条链再跑一遍。
+  // 不再交给本地 grader —— 它只会在几分钟后给出同样的结果，
+  // 而学生已经关掉页面了。
+  const ATTEMPTS = 2;
+  let authRejected = false;
+
+  for (let pass = 0; pass < ATTEMPTS; pass++) {
+    if (pass > 0) {
+      stage('retry', 'The grader did not answer — trying the whole chain once more…', { pass: pass + 1, total: ATTEMPTS });
+      await sleep(RETRY_DELAY_MS);
+    }
+
+    for (let mi = 0; mi < chain.length; mi++) {
+      const modelKey = chain[mi];
+
+      // 剩余时间不够开一次调用了：别再试，直接落到下面的放弃分支
+      const budget = remainingMs(startedAt);
+      if (budget < MIN_ATTEMPT_MS) {
+        errors.push(`${modelKey}#${pass + 1}: skipped (only ${Math.max(0, Math.round(budget / 1000))}s left)`);
+        continue;
+      }
+
+      try {
+        stage('model', `Grading with ${modelKey}…`, {
+          model: modelKey, attempt: mi + 1, total: chain.length, pass: pass + 1,
+        });
+        // 给写库/扣费留 8 秒，剩下的才是模型可用的时间
+        const result = await tryOneModel({ modelKey, prompt, effort, budgetMs: Math.max(MIN_ATTEMPT_MS, budget - 8_000) });
+        if (isM0) result.score = snapM0Score(result.score);
+        const subid = genSubid();
 
       // 成功：更新任务状态
       await db.collection('steps_grading_tasks').updateOne(
@@ -338,22 +374,40 @@ async function handleCreate(req, res, db, decoded) {
 
     } catch (err) {
       const msg = String(err.message || err).slice(0, 200);
-      errors.push(`${modelKey}: ${msg}`);
-      const isLast = mi === chain.length - 1;
-      stage('retry', isLast
-        ? `${modelKey} failed, giving up on the API`
-        : `${modelKey} did not answer, trying the next model…`,
-        { model: modelKey, error: msg, attempt: mi + 1, total: chain.length });
-      if (err.permanent) {
-        await db.collection('steps_grading_tasks').updateOne({ taskId }, { $set: { status: 'error', error: msg, completedAt: new Date() } });
-        return respond(200, { success: true, status: 'error', message: msg });
+      errors.push(`${modelKey}#${pass + 1}: ${msg}`);
+
+      const isLastModel = mi === chain.length - 1;
+      const isLastPass = pass === ATTEMPTS - 1;
+      // 本轮最后一个模型失败、且还有下一轮时，这条可以省掉 ——
+      // 下一轮开头那句 "trying the whole chain once more" 已经说明了
+      if (!(isLastModel && !isLastPass)) {
+        stage('retry',
+          isLastPass ? `${modelKey} did not answer`
+            : `${modelKey} did not answer, trying the next model…`,
+          { model: modelKey, error: msg, attempt: mi + 1, total: chain.length, pass: pass + 1 });
       }
+
+      // 401/402/403 这类：不是"忙"，是"这条路走不通"，重试没有意义
+      if (err.permanent) { authRejected = true; break; }
     }
+    }
+
+    if (authRejected) break;
   }
 
-  // 全部失败，让 bridge 接手
-  await db.collection('steps_grading_tasks').updateOne({ taskId }, { $set: { apiAttemptedAt: new Date(), apiErrors: errors }, $unset: { apiLockedAt: '' } });
-  return respond(202, { success: true, taskId, handledBy: 'bridge' });
+  // 两轮都失败：收尾并明确告知，不再交给本地 grader。
+  // 必须把 task 标成 error —— bridge 只扫 pending，留一个 pending
+  // 等于把已经放弃的任务重新排进队列。
+  const detail = await markTaskFailed(db, taskId, errors, { apiAttempts: ATTEMPTS });
+  console.warn(`[steps-grade] gave up on ${taskId} after ${ATTEMPTS} passes: ${detail}`);
+
+  return respond(200, {
+    success: false,
+    status: 'error',
+    code: 'AI_UNAVAILABLE',
+    message: authRejected ? AUTH_FAIL_MESSAGE : GIVE_UP_MESSAGE,
+    attempts: ATTEMPTS,
+  });
 }
 
 // handlePoll 保持完全不变（给 root 和 bridge 兜底用的）

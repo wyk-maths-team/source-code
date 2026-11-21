@@ -9,6 +9,13 @@ import { effortForDifficulty } from '../lib/thinking.js';
 import crypto from 'crypto';
 import { wrapHandler } from '../lib/errors.js';
 import { encodeStatus } from '../lib/submission-status.js';
+import {
+  GIVE_UP_MESSAGE,
+  AUTH_FAIL_MESSAGE,
+  RETRY_DELAY_MS,
+  sleep,
+  markTaskFailed,
+} from '../lib/ai-fallback.js';
 
 // ⭐ 必须配置这个，否则 Vercel 免费版 10 秒后必断连！
 export const config = { maxDuration: 300 };
@@ -125,8 +132,13 @@ async function handleCreate(req, res, db, decoded) {
     subid, imageUrl, status: 'pending', createdAt: now,
   });
 
-  // 3. 非 Root 直接同步处理
-  // if (decoded.role !== 'root') {
+  // 3. 同步批改：失败重试一次，再失败就放弃。
+  // 以前这里失败会留个 pending 任务让本地 grader 接手；现在不走了 ——
+  // 学生早就离开页面了，几分钟后算出来的分没人看。
+  let lastErr = null;
+  let authRejected = false;
+
+  for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       const prompt = buildImageGradePrompt({ 
         statement: problem.statement, 
@@ -188,15 +200,24 @@ async function handleCreate(req, res, db, decoded) {
       });
 
     } catch (err) {
-      console.error('[image-grade] Sync API failed:', err);
-      // ⭐ 如果 API 失败，直接告诉前端失败，不要返回 taskId 让它去 poll
-      await db.collection('steps_grading_tasks').updateOne({ taskId }, { $set: { status: 'error', error: err.message } });
-      return res.status(500).json({ success: false, message: `AI 批改失败: ${err.message}. 请重新提交或联系管理员。` });
+      lastErr = err;
+      console.error(`[image-grade] sync attempt ${attempt}/2 failed:`, err && err.message);
+      if (err && err.permanent) { authRejected = true; break; }   // 凭据被判死，重试没意义
+      if (attempt < 2) await sleep(RETRY_DELAY_MS);
     }
-  // }
+  }
 
-  // 4. Root 用户走 Bridge
-  return res.status(202).json({ success: true, taskId, handledBy: 'bridge' });
+  // 两次都失败：把任务标成 error（bridge 只扫 pending），然后明确告诉用户
+  const detail = await markTaskFailed(db, taskId, [String((lastErr && lastErr.message) || lastErr || 'unknown')], { apiAttempts: 2 });
+  console.warn(`[image-grade] gave up on ${taskId}: ${detail}`);
+
+  return res.status(200).json({
+    success: false,
+    status: 'error',
+    code: 'AI_UNAVAILABLE',
+    message: authRejected ? AUTH_FAIL_MESSAGE : GIVE_UP_MESSAGE,
+    attempts: 2,
+  });
 }
 
 // GET 保留给 root / bridge 兜底

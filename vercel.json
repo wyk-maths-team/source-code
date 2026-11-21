@@ -782,6 +782,10 @@
     {
       "path": "/api/cron?action=refreshProblemVersion",
       "schedule": "*/20 * * * *"
+    },
+    {
+      "path": "/api/cron?action=reapStaleGradingTasks",
+      "schedule": "15 * * * *"
     }
   ]
 }

@@ -499,10 +499,11 @@ function applyGradeResponse(res, checkBtn) {
     if (checkBtn) checkBtn.disabled = false;
     return;
   }
-  if (res.handledBy === 'bridge') {
-    setWorkbenchStatus('Handed to the local grader — check your submissions in a minute', 'busy');
-    return;
-  }
+  // 服务端不再把批改转交给本地 grader。走到这里说明返回体不是预期形状，
+  // 给个中性提示，别让人误以为已经判完。
+  setWorkbenchStatus((res && res.message) || 'Grading did not return a result — please try again', 'err');
+  S.cooldown = false;
+  if (checkBtn) checkBtn.disabled = false;
 }
 
 /** 最小的 SSE 解析：按 \n\n 分帧，只关心 stage / result / error */

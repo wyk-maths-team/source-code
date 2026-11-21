@@ -329,6 +329,34 @@ async function handler(req, res) {
       return res.status(200).json({ success: true, ...summary });
     }
 
+    // 收尸：AI 批改不再交给本地 grader，pending 就不再是"等待接手"，
+    // 而是"没人管了"。任何超过 TTL 还挂在 pending/processing 的任务都标成
+    // error —— 否则 steps_grading_tasks 会一直涨，且没有进程会消费它们。
+    if (action === 'reapStaleGradingTasks') {
+      const now = new Date();
+      const r = await db.collection('steps_grading_tasks').updateMany(
+        {
+          status: { $in: ['pending', 'processing'] },
+          $or: [
+            { expiresAt: { $lt: now } },
+            { expiresAt: { $exists: false }, createdAt: { $lt: new Date(now.getTime() - 30 * 60_000) } },
+          ],
+        },
+        {
+          $set: {
+            status: 'error',
+            error: 'Reaped: no grader picked this up before its TTL',
+            completedAt: now,
+            reapedAt: now,
+          },
+          $unset: { apiLockedAt: '' },
+        }
+      );
+
+      await auditLog(db, 'cron_reap_grading_tasks', { reaped: r.modifiedCount }, 'system', 'info').catch(() => {});
+      return res.status(200).json({ success: true, reaped: r.modifiedCount });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Cron error:', err);
