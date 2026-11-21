@@ -58,7 +58,6 @@
   // 新增页面时只改这里（或用 npm run new:page 自动追加），不要再手写 li。
   // 字段：href / page / icon / label / adminOnly / guestOk / match
   const EXTRA_NAV = [
-    { href: '/messages', page: 'messages', icon: 'fa-envelope', label: 'Messages' },
     { href: '/feedback', page: 'reports', icon: 'fa-flag', label: 'Reports' },
   ];
 
@@ -87,6 +86,9 @@
           <li><hr style="margin:8px 0; border-color:rgba(255,255,255,0.2);"></li>
         ` : ''}
         <li><a href="/settings" class="sidebar-link require-login" data-page="template"><i class="fa-solid fa-gear fa-fw"></i> Settings</a></li>
+        <!-- Messages 放在 Settings 下面：原来埋在底部的 EXTRA_NAV 里没人点，
+             393 条系统通知积到没人看。红点由 heartbeat 按未读数点亮。 -->
+        <li><a href="/messages" class="sidebar-link require-login" data-page="messages"><i class="fa-solid fa-envelope fa-fw"></i> Messages<span class="nav-dot" id="navMsgDot" hidden></span></a></li>
         <li><a href="/tokens" class="sidebar-link require-login" data-page="tokens"><i class="fa-solid fa-coins fa-fw"></i></i> Tokens</a></li>
         <li><a href="/credits" class="sidebar-link" data-page="credits"><i class="fa-solid fa-heart fa-fw"></i> Credits</a></li>
         <li><a href="/guide" class="sidebar-link" data-page="guide"><i class="fa-solid fa-book-open fa-fw"></i> Guides</a></li>

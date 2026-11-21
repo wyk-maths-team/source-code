@@ -269,28 +269,6 @@
   });
 })();
 
-// 把这个函数加到 app.js 的最后
-function showSystemMessageModal(count) {
-  if (document.getElementById('sys-msg-global-modal')) return;
-  
-  const modal = document.createElement('div');
-  modal.id = 'sys-msg-global-modal';
-  // 暗黑风格，贴合你网页的设计
-  modal.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:99999;background:var(--card-bg);border:2px solid #d93025;padding:20px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.3);max-width:340px;color:var(--text-primary);';
-  
-  modal.innerHTML = `
-    <h3 style="margin:0 0 10px;font-size:16px;color:#d93025;display:flex;align-items:center;gap:8px;">
-      <i class="fas fa-bell"></i> System Alert
-    </h3>
-    <p style="font-size:14px;line-height:1.5;margin-bottom:16px;">
-      You have <b>${count}</b> unread message(s). Please check your inbox.
-    </p>
-    <button onclick="location.href='/messages'" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold;font-family:inherit;">
-      Go to Messages
-    </button>
-    <button onclick="this.parentElement.remove()" style="width:100%;padding:10px;background:transparent;color:var(--text-secondary);border:none;border-radius:6px;cursor:pointer;margin-top:8px;font-family:inherit;">
-      Dismiss
-    </button>
-  `;
-  document.body.appendChild(modal);
-}
+// 系统消息不再用浮窗提示：它每次心跳都会重新弹出来，关掉也只安静到下 3 分钟，
+// 结果就是没人再看。改由 heartbeat.js 点亮侧栏 Messages 的红点。
+// pk 的通知弹窗在 pk-notify.js 里，与这里无关，保持原样。

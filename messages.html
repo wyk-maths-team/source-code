@@ -3,7 +3,7 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='cf111127';</script>
+<script>window.__BUILD_V='0ea01621';</script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -14,25 +14,25 @@
 <title>Messages - WYK Maths Team</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<link rel="stylesheet" href="/assets/css/styles.css?v=cf111127" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=0ea01621" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 
-<script src="/assets/js/core/ui.js?v=cf111127"></script>
-<script src="/assets/js/core/net.js?v=cf111127"></script>
-<script src="/assets/js/core/ban-guard.js?v=cf111127"></script>
-<script src="/assets/js/core/latex-doc.js?v=cf111127"></script>
-<script src="/assets/js/core/status.js?v=cf111127"></script>
-  <link rel="stylesheet" href="/assets/css/script-panel.css?v=cf111127">
-  <script src="/assets/js/core/script-panel.js?v=cf111127"></script>
-<script src="/assets/js/core/api.js?v=cf111127"></script>
-  <script src="/assets/js/core/padstore.js?v=cf111127"></script>
-  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=cf111127">
-  <script src="/assets/js/core/radial-menu.js?v=cf111127"></script>
-  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=cf111127">
-  <script src="/assets/js/core/ban-screen.js?v=cf111127"></script>
-  <link rel="stylesheet" href="/assets/css/ban-index.css?v=cf111127">
-  <script src="/assets/js/core/ban-index.js?v=cf111127"></script>
-<script src="/assets/js/core/page.js?v=cf111127"></script>
+<script src="/assets/js/core/ui.js?v=0ea01621"></script>
+<script src="/assets/js/core/net.js?v=0ea01621"></script>
+<script src="/assets/js/core/ban-guard.js?v=0ea01621"></script>
+<script src="/assets/js/core/latex-doc.js?v=0ea01621"></script>
+<script src="/assets/js/core/status.js?v=0ea01621"></script>
+  <link rel="stylesheet" href="/assets/css/script-panel.css?v=0ea01621">
+  <script src="/assets/js/core/script-panel.js?v=0ea01621"></script>
+<script src="/assets/js/core/api.js?v=0ea01621"></script>
+  <script src="/assets/js/core/padstore.js?v=0ea01621"></script>
+  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=0ea01621">
+  <script src="/assets/js/core/radial-menu.js?v=0ea01621"></script>
+  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=0ea01621">
+  <script src="/assets/js/core/ban-screen.js?v=0ea01621"></script>
+  <link rel="stylesheet" href="/assets/css/ban-index.css?v=0ea01621">
+  <script src="/assets/js/core/ban-index.js?v=0ea01621"></script>
+<script src="/assets/js/core/page.js?v=0ea01621"></script>
 
 <style>
   /* 这个页面要刚好占满可视区：抵消 .main-content 的 28/32px padding，
@@ -245,13 +245,13 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=cf111127"></script>
-  <script src="/assets/js/app.js?v=cf111127"></script>
-  <script src="/assets/js/topbar.js?v=cf111127"></script>
-  <script src="/assets/js/sidebar.js?v=cf111127"></script>
-  <script src="/assets/js/core/polling.js?v=cf111127"></script>
-  <script src="/assets/js/heartbeat.js?v=cf111127"></script>
-  <script src="/assets/js/pk-invite.js?v=cf111127"></script>
+  <script src="/assets/js/auth.js?v=0ea01621"></script>
+  <script src="/assets/js/app.js?v=0ea01621"></script>
+  <script src="/assets/js/topbar.js?v=0ea01621"></script>
+  <script src="/assets/js/sidebar.js?v=0ea01621"></script>
+  <script src="/assets/js/core/polling.js?v=0ea01621"></script>
+  <script src="/assets/js/heartbeat.js?v=0ea01621"></script>
+  <script src="/assets/js/pk-invite.js?v=0ea01621"></script>
 
   <script>
     Page.boot({ title: 'Messages', requireAuth: true, skeleton: true });
@@ -290,6 +290,9 @@
         try {
           const res = await API.get('/api/messages?action=threads');
           const threads = (res && res.threads) || [];
+          // 人已经到收件箱了，侧栏红点先灭掉 —— 之后每点开一个会话就真的已读。
+          // 还有没点开的，下一次心跳会把红点重新点亮，那是对的。
+          if (window.__clearMessageDot) window.__clearMessageDot();
           if (!threads.length) {
             threadItems.innerHTML = '<div class="chat-empty" style="padding:26px 12px;font-size:.82rem;">No conversations yet.<br>Search a name above to start one.</div>';
             return;
@@ -537,6 +540,6 @@
       Page.hideSkeleton();
     });
   </script>
-<script src="/assets/js/pk-notify.js?v=cf111127"></script>
+<script src="/assets/js/pk-notify.js?v=0ea01621"></script>
 </body>
 </html>

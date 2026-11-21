@@ -303,6 +303,37 @@ ul {
     border-left: 3px solid transparent
 }
 
+/* 未读数角标。
+   取代了原来右下角那个「System Alert」浮窗 —— 它每 3 分钟弹一次、
+   关掉还会再来，学生直接无视，210 条通知就这么积着。
+   红点不打断任何人，想点的时候点。 */
+.sidebar-link .nav-dot {
+    margin-left: auto;
+    flex: none;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: #d93025;
+    color: #fff;
+    font-size: .66rem;
+    font-weight: 800;
+    line-height: 18px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    box-shadow: 0 0 0 2px var(--sidebar-bg);
+    animation: navDotPulse 2.4s ease-in-out infinite
+}
+
+@keyframes navDotPulse {
+    0%, 100% { box-shadow: 0 0 0 2px var(--sidebar-bg) }
+    50%      { box-shadow: 0 0 0 4px rgba(217, 48, 37, .28) }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar-link .nav-dot { animation: none }
+}
+
 .sidebar-link:hover {
     background: var(--sidebar-hover-bg);
     color: #ddd;
