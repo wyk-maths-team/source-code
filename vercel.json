@@ -421,6 +421,14 @@
       "destination": "/admin/webreports.html"
     },
     {
+      "source": "/admin/solutions",
+      "destination": "/admin/solutions.html"
+    },
+    {
+      "source": "/admin/sysmessages",
+      "destination": "/admin/sysmessages.html"
+    },
+    {
       "source": "/reports",
       "destination": "/reports.html"
     },

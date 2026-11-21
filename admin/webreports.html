@@ -1,20 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>window.__BUILD_V='52c97d60';</script>
+<script>window.__BUILD_V='291f03ae';</script>
   <meta charset="UTF-8">
   <title>Web Reports · Admin</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/assets/css/styles.css?v=52c97d60" />
+  <link rel="stylesheet" href="/assets/css/styles.css?v=291f03ae" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
-  <script src="/assets/js/core/ui.js?v=52c97d60"></script>
-  <script src="/assets/js/core/net.js?v=52c97d60"></script>
-  <script src="/assets/js/core/ban-guard.js?v=52c97d60"></script>
-  <script src="/assets/js/core/latex-doc.js?v=52c97d60"></script>
-  <script src="/assets/js/core/status.js?v=52c97d60"></script>
-  <script src="/assets/js/core/api.js?v=52c97d60"></script>
-  <script src="/assets/js/core/padstore.js?v=52c97d60"></script>
-  <script src="/assets/js/core/page.js?v=52c97d60"></script>
+  <script src="/assets/js/core/ui.js?v=291f03ae"></script>
+  <script src="/assets/js/core/net.js?v=291f03ae"></script>
+  <script src="/assets/js/core/ban-guard.js?v=291f03ae"></script>
+  <script src="/assets/js/core/latex-doc.js?v=291f03ae"></script>
+  <script src="/assets/js/core/status.js?v=291f03ae"></script>
+  <script src="/assets/js/core/api.js?v=291f03ae"></script>
+  <script src="/assets/js/core/padstore.js?v=291f03ae"></script>
+  <script src="/assets/js/core/page.js?v=291f03ae"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     .wr-wrap { max-width: 900px; margin: 0 auto; }
@@ -52,6 +52,9 @@
     .wr-btn:hover { border-color: var(--accent); color: var(--accent); }
     .wr-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
     .wr-empty { text-align: center; color: var(--text-secondary); padding: 40px 0; }
+    .wr-count { font-size: .76rem; color: var(--text-secondary); white-space: nowrap; }
+    .wr-bar .wr-filter[type="search"] { width: 200px; margin-left: 0; padding: 6px 10px; }
+    .wr-bar .wr-filter[type="search"]::-webkit-search-cancel-button { cursor: pointer; }
     [data-theme="dark"] .wr-badge { background: #4d3e1b; color: #dfc88f; }
     [data-theme="dark"] .wr-badge.handled { background: #1b4d2e; color: #8fdf8f; }
     [data-theme="scifi"] .wr-badge { background: #2e2410; color: #ffd166; }
@@ -65,22 +68,24 @@
     <div class="wr-wrap">
       <div class="wr-bar">
         <h1><i class="fas fa-flag"></i> Web Reports</h1>
+        <input type="search" class="wr-filter" id="wrUser" placeholder="Filter by username…" autocomplete="off">
         <select class="wr-filter" id="wrStatus">
           <option value="all">All</option>
           <option value="open" selected>Open only</option>
         </select>
         <button type="button" class="wr-reload" id="wrReload"><i class="fas fa-sync-alt"></i> Reload</button>
+        <span class="wr-count" id="wrCount"></span>
       </div>
       <div id="wrList"><div class="wr-empty">Loading…</div></div>
     </div>
   </main>
-    <script src="/assets/js/auth.js?v=52c97d60"></script>
-  <script src="/assets/js/app.js?v=52c97d60"></script>
-  <script src="/assets/js/topbar.js?v=52c97d60"></script>
-  <script src="/assets/js/sidebar.js?v=52c97d60"></script>
-  <script src="/assets/js/heartbeat.js?v=52c97d60"></script>
-  <script src="/assets/js/pk-invite.js?v=52c97d60"></script>
-<script src="/assets/js/pk-notify.js?v=52c97d60"></script>
+    <script src="/assets/js/auth.js?v=291f03ae"></script>
+  <script src="/assets/js/app.js?v=291f03ae"></script>
+  <script src="/assets/js/topbar.js?v=291f03ae"></script>
+  <script src="/assets/js/sidebar.js?v=291f03ae"></script>
+  <script src="/assets/js/heartbeat.js?v=291f03ae"></script>
+  <script src="/assets/js/pk-invite.js?v=291f03ae"></script>
+<script src="/assets/js/pk-notify.js?v=291f03ae"></script>
   <script>
     Page.boot({ title: 'Web Reports', requireAuth: true });
 
@@ -92,6 +97,9 @@
 
       var listEl = document.getElementById('wrList');
       var statusEl = document.getElementById('wrStatus');
+      var userEl = document.getElementById('wrUser');
+      var countEl = document.getElementById('wrCount');
+      var allItems = [];
 
       var esc = function (s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -103,16 +111,46 @@
         catch (e) { return ''; }
       }
 
+      // 用户名过滤放在客户端：报告总量很小，没必要为每次输入打一次接口，
+      // 而且这样输入时不会闪。
+      function matchesUser(r) {
+        var q = String(userEl.value || '').trim().toLowerCase();
+        if (!q) return true;
+        return String(r.username || '').toLowerCase().indexOf(q) !== -1;
+      }
+
+      function updateCount(shown, total) {
+        if (!countEl) return;
+        countEl.textContent = shown === total
+          ? total + (total === 1 ? ' report' : ' reports')
+          : shown + ' of ' + total;
+      }
+
+      function render() {
+        var items = allItems.filter(matchesUser);
+        updateCount(items.length, allItems.length);
+        if (!items.length) {
+          listEl.innerHTML = allItems.length
+            ? '<div class="wr-empty">No reports from that username.</div>'
+            : '<div class="wr-empty">No reports.</div>';
+          return;
+        }
+        bindList(items);
+      }
+
       async function load() {
         listEl.innerHTML = '<div class="wr-empty">Loading…</div>';
         try {
           var qs = statusEl.value === 'open' ? '&status=open' : '';
           var res = await apiCall('/api/reports?action=list' + qs);
-          var items = (res && res.items) || [];
-          if (!items.length) {
-            listEl.innerHTML = '<div class="wr-empty">No reports.</div>';
-            return;
-          }
+          allItems = (res && res.items) || [];
+          render();
+        } catch (e) {
+          listEl.innerHTML = '<div class="wr-empty" style="color:var(--danger);">Could not load reports.</div>';
+        }
+      }
+
+      function bindList(items) {
           listEl.innerHTML = items.map(function (r) {
             var imgs = (r.images || []).map(function (u) {
               return '<a href="' + esc(u) + '" target="_blank" rel="noopener"><img src="' + esc(u) + '" alt="screenshot"></a>';
@@ -165,13 +203,12 @@
               } catch (e) {}
             });
           });
-        } catch (e) {
-          listEl.innerHTML = '<div class="wr-empty" style="color:var(--danger);">Could not load reports.</div>';
-        }
       }
 
       document.getElementById('wrReload').addEventListener('click', load);
       statusEl.addEventListener('change', load);
+      // 过滤纯客户端，输入即筛，不重新请求
+      userEl.addEventListener('input', render);
       load();
     });
   </script>

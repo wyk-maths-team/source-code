@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>window.__BUILD_V='291f03ae';</script>
+  <meta charset="UTF-8">
+  <title>System Messages · Admin</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/assets/css/styles.css?v=291f03ae" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+  <script src="/assets/js/core/ui.js?v=291f03ae"></script>
+  <script src="/assets/js/core/net.js?v=291f03ae"></script>
+  <script src="/assets/js/core/ban-guard.js?v=291f03ae"></script>
+  <script src="/assets/js/core/latex-doc.js?v=291f03ae"></script>
+  <script src="/assets/js/core/status.js?v=291f03ae"></script>
+  <script src="/assets/js/core/api.js?v=291f03ae"></script>
+  <script src="/assets/js/core/padstore.js?v=291f03ae"></script>
+  <script src="/assets/js/core/page.js?v=291f03ae"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    #mainContent > div { padding: 24px; box-sizing: border-box; }
+    .sm-wrap { max-width: 1060px; margin: 0 auto; }
+    .sm-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .sm-bar h1 { margin: 0; font-size: 1.2rem; color: var(--text-primary); }
+    .sm-input {
+      padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-color);
+      background: var(--card-bg); color: var(--text-primary); font: inherit; font-size: .84rem;
+    }
+    .sm-input.w-user { width: 170px; }
+    .sm-input.w-text { width: 240px; }
+    .sm-btn {
+      display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+      border-radius: 8px; border: 1px solid var(--border-color);
+      background: var(--card-bg); color: var(--text-primary); cursor: pointer; font: inherit; font-size: .84rem;
+    }
+    .sm-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .sm-count { margin-left: auto; font-size: .78rem; color: var(--text-secondary); }
+    .sm-card {
+      background: var(--card-bg); border: 1px solid var(--border-color);
+      border-radius: 10px; padding: 12px 14px; margin-bottom: 10px;
+    }
+    .sm-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+    .sm-to { font-weight: 700; color: var(--text-primary); text-decoration: none; }
+    .sm-to:hover { text-decoration: underline; }
+    .sm-tag {
+      font-size: .66rem; font-weight: 700; padding: 1px 7px; border-radius: 999px;
+      background: #e8f0fe; color: #1a56b0;
+    }
+    .sm-tag.broadcast { background: #fff3cd; color: #856404; }
+    .sm-tag.unread { background: #fde8e8; color: #b03030; }
+    .sm-by { font-size: .72rem; color: var(--text-secondary); }
+    .sm-time { margin-left: auto; font-size: .72rem; color: var(--text-secondary); }
+    .sm-body { white-space: pre-wrap; font-size: .86rem; line-height: 1.55; color: var(--text-primary); }
+    .sm-empty { text-align: center; color: var(--text-secondary); padding: 40px 0; }
+    .sm-more { display: flex; justify-content: center; padding: 12px 0; }
+    [data-theme="dark"] .sm-tag { background: #1b2b47; color: #8fb4f0; }
+    [data-theme="dark"] .sm-tag.broadcast { background: #4d3e1b; color: #dfc88f; }
+  </style>
+</head>
+<body class="index-body">
+  <header class="topbar" id="topbarContainer"></header>
+  <aside class="sidebar" id="sidebarContainer"></aside>
+  <main class="main-content" id="mainContent">
+    <div class="sm-wrap">
+      <div class="sm-bar">
+        <h1><i class="fas fa-bullhorn"></i> System Messages</h1>
+        <input class="sm-input w-user" id="smUser" placeholder="Recipient…" autocomplete="off">
+        <input class="sm-input w-text" id="smText" placeholder="Search content…" autocomplete="off">
+        <button class="sm-btn" id="smReload"><i class="fas fa-sync-alt"></i> Reload</button>
+        <span class="sm-count" id="smCount"></span>
+      </div>
+      <div id="smList"><div class="sm-empty">Loading…</div></div>
+    </div>
+  </main>
+  <script src="/assets/js/auth.js?v=291f03ae"></script>
+  <script src="/assets/js/app.js?v=291f03ae"></script>
+  <script src="/assets/js/topbar.js?v=291f03ae"></script>
+  <script src="/assets/js/sidebar.js?v=291f03ae"></script>
+  <script src="/assets/js/heartbeat.js?v=291f03ae"></script>
+  <script src="/assets/js/pk-invite.js?v=291f03ae"></script>
+  <script src="/assets/js/pk-notify.js?v=291f03ae"></script>
+  <script>
+    Page.boot({ title: 'System Messages', requireAuth: true });
+
+    Page.ready(function (user) {
+      if (!user) { window.location.href = '/index.html'; return; }
+
+      var listEl = document.getElementById('smList');
+      var userEl = document.getElementById('smUser');
+      var textEl = document.getElementById('smText');
+      var countEl = document.getElementById('smCount');
+
+      var esc = function (s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+          return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+        });
+      };
+      function fmt(ts) {
+        try { return new Date(ts).toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong' }); }
+        catch (e) { return ''; }
+      }
+
+      var PAGE = 200;
+      var skip = 0;
+      var loading = false;
+      var total = 0;
+
+      function query() {
+        var p = ['action=listSystemMessages', 'limit=' + PAGE, 'skip=' + skip];
+        if (userEl.value.trim()) p.push('username=' + encodeURIComponent(userEl.value.trim()));
+        if (textEl.value.trim()) p.push('q=' + encodeURIComponent(textEl.value.trim()));
+        return p.join('&');
+      }
+
+      function cardHtml(m) {
+        var tags = '';
+        if (m.broadcast) tags += '<span class="sm-tag broadcast">Broadcast</span>';
+        if (m.template) tags += '<span class="sm-tag">' + esc(m.template) + '</span>';
+        if (!m.read) tags += '<span class="sm-tag unread">Unread</span>';
+        return '<div class="sm-card">' +
+          '<div class="sm-head">' +
+            '<a class="sm-to" href="/users/' + encodeURIComponent(m.username) + '">' + esc(m.username) + '</a>' +
+            tags +
+            (m.sentBy ? '<span class="sm-by">sent by ' + esc(m.sentBy) + '</span>' : '') +
+            '<span class="sm-time">' + esc(fmt(m.createdAt)) + '</span>' +
+          '</div>' +
+          '<div class="sm-body">' + esc(m.content) + '</div>' +
+        '</div>';
+      }
+
+      async function load(reset) {
+        if (loading) return;
+        if (reset) { skip = 0; listEl.innerHTML = '<div class="sm-empty">Loading…</div>'; }
+        loading = true;
+        try {
+          var res = await apiCall('/api/admin?' + query());
+          var items = (res && res.messages) || [];
+          total = (res && res.total) || 0;
+          countEl.textContent = total + (total === 1 ? ' message' : ' messages');
+
+          if (reset) {
+            if (!items.length) { listEl.innerHTML = '<div class="sm-empty">No system messages match.</div>'; return; }
+            listEl.innerHTML = '';
+            listEl.appendChild(document.createElement('div'));
+            listEl.id = 'smList';
+            listEl.innerHTML = '<div id="smBody"></div><div class="sm-more" id="smMore"></div>';
+          }
+          var body = document.getElementById('smBody');
+          if (body) body.insertAdjacentHTML('beforeend', items.map(cardHtml).join(''));
+
+          skip += items.length;
+          var more = document.getElementById('smMore');
+          if (more) {
+            if (skip < total) {
+              more.innerHTML = '<button class="sm-btn" id="smMoreBtn">Load more</button>';
+              document.getElementById('smMoreBtn').addEventListener('click', function () {
+                more.innerHTML = '';
+                load(false);
+              });
+            } else {
+              more.innerHTML = '';
+            }
+          }
+        } catch (e) {
+          if (reset) listEl.innerHTML = '<div class="sm-empty" style="color:var(--danger);">' + esc(e.message) + '</div>';
+          else if (window.DSHUI && DSHUI.toast) DSHUI.toast(e.message, 'err');
+        } finally {
+          loading = false;
+        }
+      }
+
+      var timer = null;
+      function debounced() {
+        clearTimeout(timer);
+        timer = setTimeout(function () { load(true); }, 300);
+      }
+
+      userEl.addEventListener('input', debounced);
+      textEl.addEventListener('input', debounced);
+      document.getElementById('smReload').addEventListener('click', function () { load(true); });
+
+      load(true);
+    });
+  </script>
+</body>
+</html>

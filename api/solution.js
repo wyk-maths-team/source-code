@@ -15,11 +15,14 @@ import { sanitizeHTML } from '../lib/sanitize.js';
 import { deductTokens } from '../lib/wallet.js';
 import { getTokenBalance } from '../lib/token.js';
 import { ObjectId } from 'mongodb';
+import { auditLog } from '../lib/audit.js';
 
 const POST_COST = 10000;
 const LIKE_REWARD = 1000;
 const MAX_CONTENT = 20000;
 const PAGE_SIZE = 50;
+/** 管理页一次最多取多少条，避免把整个集合读进内存。 */
+const ADMIN_PAGE = 200;
 
 function isAdmin(user) {
   return !!user && (user.role === 'admin' || user.role === 'root');
@@ -107,6 +110,48 @@ async function handler(req, res) {
   const username = user.username;
 
   try {
+    // ── 管理页：全站题解列表（只有管理员）──
+    if (req.method === 'GET' && String(req.query.action || '') === 'adminList') {
+      if (!isAdmin(user)) return res.status(403).json({ success: false, message: 'Admin only' });
+
+      const userFilter = String(req.query.username || '').trim();
+      const problemFilter = String(req.query.problemId || '').trim();
+      const hiddenFilter = String(req.query.hidden || 'all');
+
+      const esc = (v) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const filter = {};
+      if (userFilter) filter.username = { $regex: '^' + esc(userFilter), $options: 'i' };
+      if (problemFilter) filter.problemId = { $regex: '^' + esc(problemFilter), $options: 'i' };
+      if (hiddenFilter === 'visible') filter.hidden = { $ne: true };
+      else if (hiddenFilter === 'hidden') filter.hidden = true;
+
+      const limit = Math.min(ADMIN_PAGE, Math.max(1, Number(req.query.limit) || ADMIN_PAGE));
+      const skip = Math.max(0, Number(req.query.skip) || 0);
+
+      const [rows, total] = await Promise.all([
+        db.collection('solutions').find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).toArray(),
+        db.collection('solutions').countDocuments(filter),
+      ]);
+
+      return res.status(200).json({
+        success: true,
+        total,
+        skip,
+        limit,
+        solutions: rows.map((r) => ({
+          id: String(r._id),
+          problemId: r.problemId,
+          username: r.username,
+          displayName: r.displayName || r.username,
+          likes: Number(r.likes) || 0,
+          hidden: r.hidden === true,
+          createdAt: r.createdAt,
+          excerpt: String(r.content || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160),
+          length: String(r.content || '').length,
+        })),
+      });
+    }
+
     // ── 列表 ──
     if (req.method === 'GET') {
       const problemId = String(req.query.problemId || '').trim();
@@ -140,6 +185,43 @@ async function handler(req, res) {
     }
 
     const body = req.body || {};
+
+    // ── 删除（管理员）──
+    // 物理删除，但先把被删的那条完整记进 audit_logs：
+    // 题解是学生花 token 写的，删错了要能从审计里还原出来。
+    if (body.action === 'delete') {
+      if (!isAdmin(user)) return res.status(403).json({ success: false, message: 'Admin only' });
+
+      let oid;
+      try { oid = new ObjectId(String(body.solutionId || '')); }
+      catch { return res.status(400).json({ success: false, message: 'Bad solution id' }); }
+
+      const sol = await db.collection('solutions').findOne({ _id: oid });
+      if (!sol) return res.status(404).json({ success: false, message: 'Solution not found' });
+
+      // 点赞记录一起清掉，否则结算任务会去找一个不存在的题解
+      const likeResult = await db.collection('solutionLikes').deleteMany({ solutionId: String(oid) });
+      await db.collection('solutions').deleteOne({ _id: oid });
+
+      await auditLog(db, 'solution_delete', {
+        solutionId: String(oid),
+        problemId: sol.problemId,
+        author: sol.username,
+        likes: Number(sol.likes) || 0,
+        likesRemoved: likeResult.deletedCount || 0,
+        createdAt: sol.createdAt,
+        // 存全文，删错了可以照着重建
+        content: String(sol.content || '').slice(0, 20000),
+        reason: String(body.reason || '').slice(0, 500),
+      }, username, 'warn');
+
+      return res.status(200).json({
+        success: true,
+        deleted: true,
+        likesRemoved: likeResult.deletedCount || 0,
+        message: 'Solution deleted and logged',
+      });
+    }
 
     // ── 隐藏 / 恢复（管理员）──
     if (body.action === 'hide') {

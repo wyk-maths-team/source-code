@@ -298,6 +298,70 @@ async function handleMarkerDetail(req, res, db) {
     },
   });
 }
+
+// ── 所有已发出的系统消息（root / admin 可看）──
+// 消息存在 messages 集合，from 为 system。管理页关心「谁发了什么给谁」，
+// 所以按收件人、正文关键词过滤，并按时间就近匹配一条审计记录来标出发送者。
+async function handleListSystemMessages(req, res, db, decoded) {
+  if (!decoded || (decoded.role !== 'root' && decoded.role !== 'admin')) {
+    return fail(res, 403, 'Admin only');
+  }
+
+  const toUser = String(req.query.username || '').trim();
+  const q = String(req.query.q || '').trim();
+  const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 200));
+  const skip = Math.max(0, Number(req.query.skip) || 0);
+
+  const filter = { from: 'system' };
+  const esc = (v) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (toUser) filter.username = { $regex: '^' + esc(toUser), $options: 'i' };
+  if (q) filter.content = { $regex: esc(q), $options: 'i' };
+
+  const [rows, total] = await Promise.all([
+    db.collection('messages').find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).toArray(),
+    db.collection('messages').countDocuments(filter),
+  ]);
+
+  // 消息本身不记发送者（历史数据如此），按时间就近匹配一次审计记录。
+  const sends = await db.collection('audit_logs')
+    .find({ action: { $in: ['send_system_message', 'broadcast_system_message'] } })
+    .sort({ timestamp: -1 })
+    .limit(500)
+    .toArray();
+
+  function senderFor(createdAt) {
+    if (!createdAt) return null;
+    const t = new Date(createdAt).getTime();
+    let best = null;
+    let bestDiff = Infinity;
+    for (const s of sends) {
+      const d = Math.abs(new Date(s.timestamp).getTime() - t);
+      if (d < bestDiff) { bestDiff = d; best = s; }
+    }
+    return best && bestDiff <= 5 * 60 * 1000 ? best : null;
+  }
+
+  return ok(res, {
+    success: true,
+    total,
+    skip,
+    limit,
+    messages: rows.map((m) => {
+      const s = senderFor(m.createdAt);
+      return {
+        id: String(m._id),
+        username: m.username,
+        content: String(m.content || ''),
+        read: m.read === true,
+        createdAt: m.createdAt,
+        sentBy: s ? s.operator : null,
+        template: s && s.details ? (s.details.template || null) : null,
+        broadcast: !!(s && s.action === 'broadcast_system_message'),
+      };
+    }),
+  });
+}
+
 // ── 发送系统消息 ──
 async function handleSendMessage(req, res, db, decoded) {
   if (req.method !== 'POST') return fail(res, 405, 'Method not allowed');
@@ -889,6 +953,7 @@ async function handler(req, res) {
       case 'runDifficultyAdjust': return await handleRunDifficultyAdjust(req, res, db, decoded);
       case 'cmd':             return await handleCmd(req, res, db, decoded);
       case 'sendMessage':     return await handleSendMessage(req, res, db, decoded);
+      case 'listSystemMessages': return await handleListSystemMessages(req, res, db, decoded);
       case 'flagUser':        return await handleFlagUser(req, res, db, decoded);
       default:
         return fail(res, 400, 'Invalid action');

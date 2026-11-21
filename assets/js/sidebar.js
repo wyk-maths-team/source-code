@@ -22,6 +22,21 @@
         <i class="fa-solid fa-shield-halved fa-fw"></i> Admin Dashboard
       </a>
     </li>
+    <li>
+      <a href="/admin/webreports" class="sidebar-link require-login sidebar-link-admin" data-page="admin-webreports">
+        <i class="fa-solid fa-flag fa-fw"></i> Web Reports
+      </a>
+    </li>
+    <li>
+      <a href="/admin/solutions" class="sidebar-link require-login sidebar-link-admin" data-page="admin-solutions">
+        <i class="fa-solid fa-lightbulb fa-fw"></i> Solutions
+      </a>
+    </li>
+    <li>
+      <a href="/admin/sysmessages" class="sidebar-link require-login sidebar-link-admin" data-page="admin-sysmessages">
+        <i class="fa-solid fa-bullhorn fa-fw"></i> System Messages
+      </a>
+    </li>
   `;
 
   // ═══════════════ 扩展导航 ═══════════════

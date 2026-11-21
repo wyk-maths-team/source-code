@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>window.__BUILD_V='291f03ae';</script>
+  <meta charset="UTF-8">
+  <title>Solutions · Admin</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/assets/css/styles.css?v=291f03ae" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+  <script src="/assets/js/core/ui.js?v=291f03ae"></script>
+  <script src="/assets/js/core/net.js?v=291f03ae"></script>
+  <script src="/assets/js/core/ban-guard.js?v=291f03ae"></script>
+  <script src="/assets/js/core/latex-doc.js?v=291f03ae"></script>
+  <script src="/assets/js/core/status.js?v=291f03ae"></script>
+  <script src="/assets/js/core/api.js?v=291f03ae"></script>
+  <script src="/assets/js/core/padstore.js?v=291f03ae"></script>
+  <script src="/assets/js/core/page.js?v=291f03ae"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    #mainContent > div { padding: 24px; box-sizing: border-box; }
+    .sl-wrap { max-width: 1080px; margin: 0 auto; }
+    .sl-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .sl-bar h1 { margin: 0; font-size: 1.2rem; color: var(--text-primary); }
+    .sl-input, .sl-select {
+      padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-color);
+      background: var(--card-bg); color: var(--text-primary); font: inherit; font-size: .84rem;
+    }
+    .sl-input { width: 180px; }
+    .sl-btn {
+      display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+      border-radius: 8px; border: 1px solid var(--border-color);
+      background: var(--card-bg); color: var(--text-primary); cursor: pointer; font: inherit; font-size: .84rem;
+    }
+    .sl-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .sl-count { margin-left: auto; font-size: .78rem; color: var(--text-secondary); }
+    .sl-table { width: 100%; border-collapse: collapse; background: var(--card-bg); border-radius: 10px; overflow: hidden; }
+    .sl-table th, .sl-table td { padding: 9px 12px; text-align: left; font-size: .84rem; border-bottom: 1px solid var(--border-color); }
+    .sl-table th { font-weight: 700; color: var(--text-secondary); font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; }
+    .sl-table tr:last-child td { border-bottom: none; }
+    .sl-table tr.hidden-row { opacity: .55; }
+    .sl-id { font-family: ui-monospace, monospace; font-size: .8rem; color: var(--text-secondary); }
+    .sl-user { font-weight: 600; color: var(--text-primary); text-decoration: none; }
+    .sl-user:hover { text-decoration: underline; }
+    .sl-excerpt { color: var(--text-secondary); font-size: .8rem; max-width: 380px; }
+    .sl-badge { font-size: .68rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: #fff3cd; color: #856404; }
+    .sl-badge.hidden { background: #f8d7da; color: #721c24; }
+    .sl-del { color: #e74c3c; border-color: #e74c3c; }
+    .sl-del:hover { background: #e74c3c; color: #fff; }
+    .sl-empty { text-align: center; color: var(--text-secondary); padding: 40px 0; }
+    .sl-more { display: flex; justify-content: center; padding: 14px 0; }
+    [data-theme="dark"] .sl-badge { background: #4d3e1b; color: #dfc88f; }
+    [data-theme="dark"] .sl-badge.hidden { background: #4d1b1b; color: #e8a0a0; }
+  </style>
+</head>
+<body class="index-body">
+  <header class="topbar" id="topbarContainer"></header>
+  <aside class="sidebar" id="sidebarContainer"></aside>
+  <main class="main-content" id="mainContent">
+    <div class="sl-wrap">
+      <div class="sl-bar">
+        <h1><i class="fas fa-lightbulb"></i> Solutions</h1>
+        <input class="sl-input" id="slUser" placeholder="Username…" autocomplete="off">
+        <input class="sl-input" id="slProblem" placeholder="Problem id…" autocomplete="off">
+        <select class="sl-select" id="slHidden">
+          <option value="all">All</option>
+          <option value="visible">Visible only</option>
+          <option value="hidden">Hidden only</option>
+        </select>
+        <button class="sl-btn" id="slReload"><i class="fas fa-sync-alt"></i> Reload</button>
+        <span class="sl-count" id="slCount"></span>
+      </div>
+      <div id="slList"><div class="sl-empty">Loading…</div></div>
+    </div>
+  </main>
+  <script src="/assets/js/auth.js?v=291f03ae"></script>
+  <script src="/assets/js/app.js?v=291f03ae"></script>
+  <script src="/assets/js/topbar.js?v=291f03ae"></script>
+  <script src="/assets/js/sidebar.js?v=291f03ae"></script>
+  <script src="/assets/js/heartbeat.js?v=291f03ae"></script>
+  <script src="/assets/js/pk-invite.js?v=291f03ae"></script>
+  <script src="/assets/js/pk-notify.js?v=291f03ae"></script>
+  <script>
+    Page.boot({ title: 'Solutions', requireAuth: true });
+
+    Page.ready(function (user) {
+      if (!user || (user.role !== 'admin' && user.role !== 'root')) {
+        window.location.href = '/index.html';
+        return;
+      }
+
+      var listEl = document.getElementById('slList');
+      var userEl = document.getElementById('slUser');
+      var problemEl = document.getElementById('slProblem');
+      var hiddenEl = document.getElementById('slHidden');
+      var countEl = document.getElementById('slCount');
+
+      var esc = function (s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+          return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+        });
+      };
+
+      function fmt(ts) {
+        try { return new Date(ts).toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong' }); }
+        catch (e) { return ''; }
+      }
+
+      var PAGE = 200;
+      var skip = 0;
+      var loading = false;
+      var total = 0;
+
+      function query() {
+        var p = ['action=adminList', 'limit=' + PAGE, 'skip=' + skip];
+        if (userEl.value.trim()) p.push('username=' + encodeURIComponent(userEl.value.trim()));
+        if (problemEl.value.trim()) p.push('problemId=' + encodeURIComponent(problemEl.value.trim()));
+        if (hiddenEl.value !== 'all') p.push('hidden=' + hiddenEl.value);
+        return p.join('&');
+      }
+
+      function rowHtml(s) {
+        var hiddenCls = s.hidden ? ' class="hidden-row"' : '';
+        return '<tr' + hiddenCls + ' data-id="' + esc(s.id) + '">' +
+          '<td><span class="sl-id">' + esc(s.problemId) + '</span></td>' +
+          '<td><a class="sl-user" href="/users/' + encodeURIComponent(s.username) + '">' + esc(s.username) + '</a></td>' +
+          '<td>' + s.likes + '</td>' +
+          '<td>' + (s.hidden ? '<span class="sl-badge hidden">Hidden</span>' : '<span class="sl-badge">Visible</span>') + '</td>' +
+          '<td>' + esc(fmt(s.createdAt)) + '</td>' +
+          '<td class="sl-excerpt">' + esc(s.excerpt || '') + '</td>' +
+          '<td><button class="sl-btn sl-del" data-del="' + esc(s.id) + '" data-problem="' + esc(s.problemId) + '" data-user="' + esc(s.username) + '">' +
+            '<i class="fas fa-trash"></i></button></td>' +
+        '</tr>';
+      }
+
+      function bindRows() {
+        listEl.querySelectorAll('[data-del]').forEach(function (btn) {
+          btn.addEventListener('click', async function () {
+            var id = btn.dataset.del;
+
+            // 两段式确认：不依赖 confirm/prompt —— 它们在无头浏览器、
+            // 部分移动端、以及嵌入 iframe 时都可能被屏蔽，一旦返回 null 整段就卡住。
+            // 第一次点变红，第二次点才真的删；点别处或再等就复位。
+            if (btn.dataset.armed !== '1') {
+              btn.dataset.armed = '1';
+              btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Confirm';
+              btn.style.background = '#e74c3c';
+              btn.style.color = '#fff';
+              clearTimeout(btn._disarm);
+              btn._disarm = setTimeout(function () {
+                btn.dataset.armed = '0';
+                btn.innerHTML = '<i class="fas fa-trash"></i>';
+                btn.style.background = '';
+                btn.style.color = '';
+              }, 4000);
+              return;
+            }
+            clearTimeout(btn._disarm);
+            btn.disabled = true;
+            try {
+              var res = await apiCall('/api/solution', 'POST', { action: 'delete', solutionId: id, reason: reason });
+              if (!res || !res.success) throw new Error((res && res.message) || 'Delete failed');
+              if (window.DSHUI && DSHUI.toast) DSHUI.toast('Deleted and logged', 'ok');
+              // 整表重拉，比手动摘 DOM 稳：分页、计数、空态一次对齐
+              load(true);
+            } catch (e) {
+              btn.disabled = false;
+              if (window.DSHUI && DSHUI.toast) DSHUI.toast(e.message, 'err');
+            }
+          });
+        });
+      }
+
+      async function load(reset) {
+        if (loading) return;
+        if (reset) { skip = 0; }
+        loading = true;
+        if (reset) listEl.innerHTML = '<div class="sl-empty">Loading…</div>';
+        try {
+          var res = await apiCall('/api/solution?' + query());
+          if (!res || !res.success) throw new Error((res && res.message) || 'Could not load');
+          total = res.total;
+          countEl.textContent = total + (total === 1 ? ' solution' : ' solutions');
+
+          if (reset) {
+            if (!res.solutions.length) {
+              listEl.innerHTML = '<div class="sl-empty">No solutions match.</div>';
+              return;
+            }
+            listEl.innerHTML =
+              '<table class="sl-table"><thead><tr>' +
+              '<th>Problem</th><th>Author</th><th>Likes</th><th>State</th><th>Posted</th><th>Excerpt</th><th></th>' +
+              '</tr></thead><tbody id="slBody"></tbody></table>' +
+              '<div class="sl-more" id="slMore"></div>';
+          }
+          var body = document.getElementById('slBody');
+          if (body) body.insertAdjacentHTML('beforeend', res.solutions.map(rowHtml).join(''));
+          bindRows();
+
+          skip += res.solutions.length;
+          var more = document.getElementById('slMore');
+          if (more) {
+            if (skip < total) {
+              more.innerHTML = '<button class="sl-btn" id="slMoreBtn">Load more</button>';
+              document.getElementById('slMoreBtn').addEventListener('click', function () {
+                more.innerHTML = '';
+                load(false);
+              });
+            } else {
+              more.innerHTML = '';
+            }
+          }
+        } catch (e) {
+          if (reset) listEl.innerHTML = '<div class="sl-empty" style="color:var(--danger);">' + esc(e.message) + '</div>';
+          else if (window.DSHUI && DSHUI.toast) DSHUI.toast(e.message, 'err');
+        } finally {
+          loading = false;
+        }
+      }
+
+      var timer = null;
+      function debounced() {
+        clearTimeout(timer);
+        timer = setTimeout(function () { load(true); }, 300);
+      }
+
+      userEl.addEventListener('input', debounced);
+      problemEl.addEventListener('input', debounced);
+      hiddenEl.addEventListener('change', function () { load(true); });
+      document.getElementById('slReload').addEventListener('click', function () { load(true); });
+
+      load(true);
+    });
+  </script>
+</body>
+</html>
