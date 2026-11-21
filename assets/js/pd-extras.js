@@ -322,13 +322,33 @@ function getSubmissionPayload() {
 let waitInterval = null;
 
 // ── 流式批改进度 ──────────────────────────────────────────
-// 每个阶段给一个大致百分比。这些不是精确进度（模型那一段的耗时由服务商决定），
-// 但足以让人看出「在推进」而不是「卡住了」。
-const STAGE_PCT = {
-  authorize: 6, problem: 15, quota: 22, tokens: 28,
-  prepare: 36, model: 48, retry: 54, save: 86,
+//
+// 进度条不能按阶段「跳」——一眼就看得出是假的，而且 model 那一段占了大半
+// 时间，中间会有几十秒完全不动，看着就像卡死。
+//
+// 改成时间驱动：以「这道难度通常要多久」为基准，进度随真实时间平滑推进，
+// 阶段事件只负责抬高下限（只进不退）。基准来自 grading_history 的实测 p50，
+// 服务端在 prepare 之后补一个 eta 事件送过来；还没收到时用 20 秒兜底。
+//
+// 曲线用 1 - e^(-1.7t)：t=1（到预期时间）约 75%，t=2 约 89%，t=3 约 91%。
+// 指数是单调的，所以永远在涨、永远不到顶 —— 既不会「卡住」，也不会提前到 100%。
+
+// 阶段下限：只抬不降。
+// 这些数值刻意压得低 —— 下限越高，曲线要追上它花的时间越长，
+// 而追不上的那段时间进度条是静止的。真正决定进度的是时间曲线，
+// 阶段只负责「不要看起来倒退」。
+const STAGE_FLOOR = {
+  authorize: 3, problem: 6, quota: 9, tokens: 12,
+  prepare: 16, model: 18, retry: 20, save: 88,
 };
+const DEFAULT_ETA_MS = 20000;
+// 下限本身也走指数平滑：阶段切换时它花约 0.25 秒爬到位，
+// 而不是瞬间跳一截。跳变正是「僵直」最明显的来源。
+const FLOOR_TAU_MS = 250;
+
 let waitStartedAt = 0, waitStage = '', waitPct = 0;
+let waitFloor = 0, waitFloorNow = 0, waitExpectedMs = DEFAULT_ETA_MS;
+let waitRaf = null, waitTimer = null, waitActive = false, waitLastFrame = 0;
 
 // model 那一段占了整次批改的大半时间，服务端只会在换模型时才发事件，
 // 中间几十秒没有任何新信号。这里按固定节奏轮换几条如实的提示，
@@ -341,46 +361,101 @@ const MODEL_TIPS = [
   'Letting the model think it through…',
   'Still grading — long answers take longer…',
 ];
-let tipTimer = null, tipIndex = 0, tipModel = '';
+let tipTimer = null, tipIndex = 0;
 
 function stopModelTips() {
   if (tipTimer) { clearInterval(tipTimer); tipTimer = null; }
   tipIndex = 0;
 }
 
-function startModelTips(firstLabel, model) {
+function startModelTips() {
   stopModelTips();
-  tipModel = model || '';
   tipTimer = setInterval(function () {
     if (tipIndex < MODEL_TIPS.length - 1) tipIndex++;
     waitStage = MODEL_TIPS[tipIndex];
-    paintWaiting();
+    paintStage();
   }, 7000);
 }
 
-function paintWaiting() {
+/** 只建一次结构，之后只改内容 —— 避免每帧重建 DOM 把动画打断 */
+function buildWaiting() {
   const el = document.getElementById('wbStatus');
   if (!el) return;
-  const secs = Math.max(0, Math.round((Date.now() - waitStartedAt) / 1000));
   el.className = 'wb-status busy wb-stream';
   el.innerHTML =
     '<span class="wb-spin" aria-hidden="true"></span>' +
-    '<span class="wb-stage">' + esc(waitStage) + '</span>' +
-    '<span class="wb-secs">' + secs + 's</span>' +
-    '<span class="wb-bar" aria-hidden="true"><i style="width:' + waitPct + '%"></i></span>';
+    '<span class="wb-stage"></span>' +
+    '<span class="wb-secs">0s</span>' +
+    '<span class="wb-bar" aria-hidden="true"><i style="width:0%"></i></span>';
+  paintStage();
+}
+
+function paintStage() {
+  const el = document.querySelector('#wbStatus .wb-stage');
+  if (el && el.textContent !== waitStage) {
+    el.textContent = waitStage;
+    // 换文字时重放一次浮入动画
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = '';
+  }
+}
+
+function paintSeconds() {
+  const el = document.querySelector('#wbStatus .wb-secs');
+  if (el) el.textContent = Math.round((Date.now() - waitStartedAt) / 1000) + 's';
+}
+
+/** 每帧算一次目标进度。指数曲线保证单调、不封顶。 */
+function tickProgress() {
+  if (!waitActive) return;
+
+  const now = Date.now();
+  const dt = waitLastFrame ? Math.min(200, now - waitLastFrame) : 16;
+  waitLastFrame = now;
+
+  const elapsed = now - waitStartedAt;
+  const ratio = elapsed / Math.max(2000, waitExpectedMs);
+
+  // 下限平滑逼近目标值，避免阶段切换时的跳变
+  waitFloorNow += (waitFloor - waitFloorNow) * (1 - Math.exp(-dt / FLOOR_TAU_MS));
+
+  // 主曲线：快速逼近，但数学上永远达不到 92%
+  const base = 92 * (1 - Math.exp(-1.7 * ratio));
+
+  // 超过预期两倍还在跑，说明这题比统计里的大多数都慢。指数曲线此时已经饱和，
+  // 硬截在 92% 就会完全停住 —— 那正是「僵直」本身。加一段对数爬升：
+  // 涨得极慢，但一直在涨，看一眼就知道还没死。
+  const creep = ratio > 2 ? Math.log10(1 + (ratio - 2)) * 3 : 0;
+
+  const pct = Math.min(99, Math.max(waitFloorNow, base + creep));
+
+  if (pct - waitPct >= 0.1) {
+    waitPct = pct;
+    const bar = document.querySelector('#wbStatus .wb-bar i');
+    if (bar) bar.style.width = pct.toFixed(1) + '%';
+  }
+
+  waitRaf = requestAnimationFrame(tickProgress);
 }
 
 function startStreamWaiting(label) {
   waitStartedAt = Date.now();
   waitStage = label || 'Submitting…';
-  waitPct = 4;
-  paintWaiting();
-  if (waitInterval) clearInterval(waitInterval);
-  // 秒表单独更新：整块重绘会让阶段文字每秒重放一次动画，看着很抖
-  waitInterval = setInterval(function () {
-    const el = document.querySelector('#wbStatus .wb-secs');
-    if (el) el.textContent = Math.round((Date.now() - waitStartedAt) / 1000) + 's';
-  }, 500);
+  waitPct = 0;
+  waitFloor = STAGE_FLOOR.authorize;
+  waitFloorNow = 0;              // 从 0 平滑爬上去，第一帧就有动作
+  waitExpectedMs = DEFAULT_ETA_MS;
+  waitActive = true;
+  waitLastFrame = 0;
+
+  buildWaiting();
+
+  if (waitTimer) clearInterval(waitTimer);
+  waitTimer = setInterval(paintSeconds, 500);
+
+  if (waitRaf) cancelAnimationFrame(waitRaf);
+  waitRaf = requestAnimationFrame(tickProgress);
 }
 
 function updateStreamStage(payload) {
@@ -389,22 +464,34 @@ function updateStreamStage(payload) {
 
   if (id === 'model') {
     // 换模型 / 首次进入模型阶段：文字从服务端那句开始，之后由 tips 接管轮换
-    startModelTips(label, payload.model);
+    startModelTips();
     waitStage = label;
   } else {
     stopModelTips();
-    if (label === waitStage) return;
     waitStage = label;
   }
 
-  const pct = payload && STAGE_PCT[id];
-  if (typeof pct === 'number' && pct > waitPct) waitPct = pct;
-  paintWaiting();
+  const floor = payload && STAGE_FLOOR[id];
+  if (typeof floor === 'number' && floor > waitFloor) waitFloor = floor;
+
+  paintStage();
+}
+
+/** 服务端按难度给的实测耗时：换掉 20 秒兜底，曲线立刻贴合真实节奏 */
+function applyEta(payload) {
+  const p50 = Number(payload && payload.p50Ms);
+  if (isFinite(p50) && p50 > 1000) {
+    // 用 p50 而不是 p90：进度条宁可在少数慢题上「慢慢逼近上限」，
+    // 也不要在一半的题上早早走完然后干等。
+    waitExpectedMs = p50;
+  }
 }
 
 function stopStreamWaiting() {
+  waitActive = false;
   stopModelTips();
-  if (waitInterval) { clearInterval(waitInterval); waitInterval = null; }
+  if (waitTimer) { clearInterval(waitTimer); waitTimer = null; }
+  if (waitRaf) { cancelAnimationFrame(waitRaf); waitRaf = null; }
 }
 
 // 旧接口保留：image-grade 那条同步路径还在用
@@ -452,6 +539,7 @@ async function handleStepsSubmit(stepsText, checkBtn) {
 
     await readGradeStream(res, {
       onStage: (s) => updateStreamStage(s),
+      onEta: (e) => applyEta(e),
       onResult: (d) => { settled = true; applyGradeResponse(d, checkBtn); },
       onError: (d) => {
         settled = true;
@@ -506,7 +594,7 @@ function applyGradeResponse(res, checkBtn) {
   if (checkBtn) checkBtn.disabled = false;
 }
 
-/** 最小的 SSE 解析：按 \n\n 分帧，只关心 stage / result / error */
+/** 最小的 SSE 解析：按 \n\n 分帧，只关心 stage / eta / result / error */
 async function readGradeStream(res, handlers) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
@@ -519,6 +607,7 @@ async function readGradeStream(res, handlers) {
       try { payload = raw ? JSON.parse(raw) : null; } catch (e) { payload = null; }
       if (payload) {
         if (evt === 'stage' && handlers.onStage) handlers.onStage(payload);
+        else if (evt === 'eta' && handlers.onEta) handlers.onEta(payload);
         else if (evt === 'result' && handlers.onResult) handlers.onResult(payload);
         else if (evt === 'error' && handlers.onError) handlers.onError(payload);
         // ping / hello 忽略

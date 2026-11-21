@@ -167,7 +167,9 @@
 }
 .wb-bar i{
   display:block;height:100%;width:0;background:currentColor;border-radius:2px;
-  transition:width .55s cubic-bezier(.3,.8,.3,1)
+  /* 进度由 requestAnimationFrame 逐帧驱动，这里只需要极短的平滑；
+     .55s 那种会让每一帧的新值互相追赶，看起来反而滞后。 */
+  transition:width .12s linear
 }
 @media (prefers-reduced-motion: reduce){
   .wb-spin{animation-duration:1.6s}

@@ -29,12 +29,38 @@ import {
   sleep,
   markTaskFailed,
 } from '../lib/ai-fallback.js';
+import { durationByDifficulty } from '../lib/grading-history.js';
 
 const MAX_STEPS_LEN = 10000;
 const TASK_TTL_MS   = 30 * 60_000;
 const MAX_TOKEN_CONSUMPTION=120000;
 function genTaskId() { return 'SGT' + crypto.randomBytes(8).toString('hex'); }
 function genSubid() { return 'SGS' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex'); }
+
+// ══════════ 预期耗时 ══════════
+// 前端用它把进度条按真实节奏推进。这是全站共享的统计值，与具体某次批改无关，
+// 所以进程内缓存 10 分钟 —— 每次批改都去聚合一遍 grading_history 没有意义。
+let _etaCache = { at: 0, rows: null };
+const ETA_TTL_MS = 10 * 60_000;
+// 样本少于这个数就不给结论：两三条的 p50 不叫 p50。
+const ETA_MIN_SAMPLES = 5;
+
+async function getEta(db, difficulty) {
+  const now = Date.now();
+  if (!_etaCache.rows || now - _etaCache.at > ETA_TTL_MS) {
+    try {
+      _etaCache = { at: now, rows: await durationByDifficulty(db, { days: 30 }) };
+    } catch {
+      return null;                      // 统计失败不该影响批改本身
+    }
+  }
+
+  const d = Math.round(Number(difficulty) || 0);
+  const hit = (_etaCache.rows || []).find(r => r.difficulty === d);
+  if (!hit || hit.n < ETA_MIN_SAMPLES) return null;
+
+  return { difficulty: d, p50Ms: hit.p50Ms, p90Ms: hit.p90Ms, n: hit.n };
+}
 
 function cleanStatementForAI(raw) {
   let s = String(raw || '');
@@ -252,6 +278,11 @@ async function handleCreate(req, res, db, decoded) {
 
   // 写入任务记录
   stage('prepare', 'Building the grading prompt…');
+  // 不 await：ETA 是为了让进度条好看，不值得在主路径上多等一次聚合。
+  // 查不到就保持前端的 20 秒兜底，界面照样能走。
+  getEta(db, problem.difficulty)
+    .then(eta => { if (eta) emit('eta', eta); })
+    .catch(() => {});
   await db.collection('steps_grading_tasks').insertOne({
     taskId, username: decoded.username, problemId: String(problemId), steps: steps.trim(),
     status: 'pending', handledBy: null, difficulty: Number(problem.difficulty) || 0,
