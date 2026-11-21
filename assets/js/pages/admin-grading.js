@@ -1,10 +1,11 @@
 // assets/js/pages/admin-grading.js
 //
-// AI 批改队列的只读面板。
-// 数据源是 steps_grading_tasks —— 每一次批改（无论成功、失败、被收尸）都在这里留痕。
+// AI 批改的只读面板。两个数据源：
 //
-// 用法上没什么花活：进页面拉一次统计 + 一页列表，改筛选重新拉，
-// 「Load more」用 createdAt 游标往下翻。
+//   History   grading_history —— 永久记录，只含元数据（耗时/模型/分数/难度）。
+//             条目最多，也是将来算「预期批改时间」的依据。
+//   Live queue steps_grading_tasks —— 实时队列，带失败原因和重试次数，
+//             会被 cron 收尸，所以只反映最近的情况。
 
 (function () {
   'use strict';
@@ -19,13 +20,15 @@
   var emptyEl = document.getElementById('grEmpty');
   var moreBtn = document.getElementById('grMore');
   var statsEl = document.getElementById('grStats');
+  var diffEl = document.getElementById('grDiff');
   var refreshBtn = document.getElementById('grRefresh');
   var statusSel = document.getElementById('grStatus');
   var rangeSel = document.getElementById('grRange');
   var userInput = document.getElementById('grUser');
   var problemInput = document.getElementById('grProblem');
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.gr-tab'));
 
-  var state = { nextBefore: null, loading: false };
+  var state = { nextBefore: null, loading: false, source: 'history' };
 
   // ── 小工具 ──
   function fmtAgo(iso) {
@@ -57,65 +60,83 @@
     return '<span class="gr-badge ' + esc(s) + '">' + esc(s) + '</span>';
   }
 
-  // ── 统计卡 ──
+  function card(k, v, cls, sub) {
+    return '<div class="gr-stat ' + (cls || '') + '">' +
+      '<div class="k">' + esc(k) + '</div>' +
+      '<div class="v">' + esc(String(v)) + '</div>' +
+      '<div class="s">' + esc(sub || '') + '</div>' +
+      '</div>';
+  }
+
+  // ── 统计 ──
   function renderStats(d) {
-    var l24 = d.last24h || {};
-    var by = l24.byStatus || {};
-    var done = by.done || 0;
-    var err = by.error || 0;
-    var judgeable = done + err;
-    var successRate = judgeable ? Math.round((done / judgeable) * 100) : null;
+    var h = d.history || {};
+    var q = d.queue || {};
+    var l24 = q.last24h || {};
 
-    var cards = [
-      { k: 'Last 24h', v: l24.total || 0, cls: '', s: 'grading runs' },
-      { k: 'Succeeded', v: done, cls: 'ok', s: successRate == null ? '—' : successRate + '% of judged' },
-      { k: 'Failed', v: err, cls: err > 0 ? 'err' : '', s: err > 0 ? 'needs a look' : 'none' },
-      { k: 'Avg time (done)', v: fmtMs(l24.avgMsDone), cls: '', s: 'last 24h' },
-      { k: 'Still open', v: (by.pending || 0) + (by.processing || 0), cls: '', s: 'pending + processing' }
-    ];
+    statsEl.innerHTML = [
+      card('Recorded', h.total || 0, '', 'permanent history'),
+      card('Last 7d', h.last7d || 0, '', 'new entries'),
+      card('Last 24h', l24.total || 0, '', 'queue activity'),
+      card('Succeeded', l24.done || 0, 'ok', l24.successRate == null ? '—' : l24.successRate + '% of judged'),
+      card('Failed', l24.error || 0, (l24.error || 0) > 0 ? 'err' : '', (l24.error || 0) > 0 ? 'needs a look' : 'none'),
+      card('Avg time', fmtMs(l24.avgMsDone), '', 'last 24h, done'),
+    ].join('');
 
-    statsEl.innerHTML = cards.map(function (c) {
-      return '<div class="gr-stat ' + c.cls + '">' +
-        '<div class="k">' + esc(c.k) + '</div>' +
-        '<div class="v">' + esc(String(c.v)) + '</div>' +
-        '<div class="s">' + esc(c.s) + '</div>' +
-        '</div>';
-    }).join('');
+    // 按难度 —— 这就是「预期时间」的数据基础
+    var rows = h.byDifficulty || [];
+    if (rows.length) {
+      diffEl.style.display = '';
+      diffEl.innerHTML = rows.map(function (r) {
+        var range = (r.p50Ms && r.p90Ms) ? ('p50 ' + fmtMs(r.p50Ms) + ' · p90 ' + fmtMs(r.p90Ms)) : '';
+        return card('Difficulty ' + r.difficulty, fmtMs(r.avgMs), '', (r.n + ' runs') + (range ? ' · ' + range : ''));
+      }).join('');
+    } else {
+      diffEl.style.display = 'none';
+    }
+  }
+
+  async function loadStats() {
+    try {
+      var res = await apiCall('/api/admin-grading?action=stats');
+      if (res && res.success) renderStats(res);
+    } catch (e) {
+      statsEl.innerHTML = '';
+      diffEl.style.display = 'none';
+    }
   }
 
   // ── 行 ──
   function row(item) {
-    var err = item.error ? String(item.error) : '';
-    var errCell = err
-      ? '<div class="gr-err" title="' + esc(err) + '">' + esc(err) + '</div>'
-      : '<span class="gr-dim">—</span>';
-
     var when = '<span title="' + esc(fmtAbs(item.createdAt)) + '">' + esc(fmtAgo(item.createdAt)) + '</span>';
-    if (item.reapedAt) when += ' <span class="gr-dim" title="reaped by cron">·reaped</span>';
+    if (item.reaped) when += ' <span class="gr-dim" title="reaped by cron">·reaped</span>';
 
-    // 成功的批次没写 apiAttempts（只有失败路径写），但它至少尝试过一次
-    var attempts = item.apiAttempts != null
-      ? esc(String(item.apiAttempts))
-      : (item.status === 'done' ? '<span class="gr-dim">1</span>' : '<span class="gr-dim">—</span>');
+    var note = '<span class="gr-dim">—</span>';
+    if (item.source === 'queue' && item.error) {
+      note = '<div class="gr-err" title="' + esc(item.error) + '">' + esc(item.error) + '</div>';
+    } else if (item.source === 'history' && item.score != null) {
+      note = '<span class="gr-mono">' + esc(item.score) + '</span>';
+    }
 
     return '<tr>' +
       '<td data-label="When" class="gr-nowrap">' + when + '</td>' +
       '<td data-label="User">' + esc(item.username || '—') + '</td>' +
       '<td data-label="Problem" class="gr-mono">' + esc(item.problemId || '—') + '</td>' +
+      '<td data-label="Diff" class="gr-mono">' + esc(item.difficulty == null ? '—' : item.difficulty) + '</td>' +
       '<td data-label="Status">' + badge(item.status) + '</td>' +
-      '<td data-label="Try" class="gr-mono">' + attempts + '</td>' +
-      '<td data-label="Model" class="gr-mono">' + esc(item.usedModel || item.handledBy || '—') + '</td>' +
+      '<td data-label="Model" class="gr-mono">' + esc(item.model || '—') + '</td>' +
       '<td data-label="Elapsed" class="gr-mono gr-nowrap">' + esc(fmtMs(item.elapsedMs)) + '</td>' +
-      '<td data-label="Error">' + errCell + '</td>' +
+      '<td data-label="Note">' + note + '</td>' +
       '</tr>';
   }
 
-  // ── 拉数据 ──
+  // ── 拉列表 ──
   function queryParams() {
     var p = new URLSearchParams();
     p.set('action', 'list');
+    p.set('source', state.source);
     p.set('limit', '50');
-    if (statusSel.value) p.set('status', statusSel.value);
+    if (statusSel.value && state.source === 'queue') p.set('status', statusSel.value);
     if (userInput.value.trim()) p.set('username', userInput.value.trim());
     if (problemInput.value.trim()) p.set('problemId', problemInput.value.trim());
     if (rangeSel.value) p.set('since', new Date(Date.now() - Number(rangeSel.value) * 3600_000).toISOString());
@@ -140,6 +161,9 @@
       state.nextBefore = res.nextBefore || null;
       var hasRows = body.children.length > 0;
       emptyEl.style.display = hasRows ? 'none' : '';
+      if (!hasRows) emptyEl.textContent = state.source === 'history'
+        ? 'No grading history yet.'
+        : 'Nothing in the queue.';
       moreBtn.style.display = state.nextBefore ? '' : 'none';
     } catch (e) {
       if (!append) body.innerHTML = '';
@@ -148,15 +172,6 @@
     } finally {
       state.loading = false;
       moreBtn.disabled = false;
-    }
-  }
-
-  async function loadStats() {
-    try {
-      var res = await apiCall('/api/admin-grading?action=stats');
-      if (res && res.success) renderStats(res);
-    } catch (e) {
-      statsEl.innerHTML = '';
     }
   }
 
@@ -173,6 +188,19 @@
   // ── 事件 ──
   refreshBtn.addEventListener('click', reloadAll);
   moreBtn.addEventListener('click', function () { loadList(true); });
+
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      if (state.source === tab.dataset.source) return;
+      state.source = tab.dataset.source;
+      tabs.forEach(function (t) { t.classList.toggle('active', t === tab); });
+      // 状态筛选只对队列有意义
+      statusSel.disabled = state.source !== 'queue';
+      state.nextBefore = null;
+      loadList(false);
+    });
+  });
+  statusSel.disabled = true;   // 默认在 history
 
   var debounceTimer = null;
   function debounced() {

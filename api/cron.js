@@ -329,6 +329,19 @@ async function handler(req, res) {
       return res.status(200).json({ success: true, ...summary });
     }
 
+    // 批改历史的增量同步：把 submissions 里新出现的 AI 批改耗时搬进
+    // grading_history。幂等（按 subid upsert），所以扫最近两天就够，
+    // 漏掉的那几天也会被下一次补回来。
+    if (action === 'syncGradingHistory') {
+      const { syncFromSubmissions } = await import('../lib/grading-history.js');
+      const r = await syncFromSubmissions(db, {
+        since: new Date(Date.now() - 2 * 86400_000),
+        limit: 2000,
+      });
+      await auditLog(db, 'cron_sync_grading_history', r, 'system', 'info').catch(() => {});
+      return res.status(200).json({ success: true, ...r });
+    }
+
     // 收尸：AI 批改不再交给本地 grader，pending 就不再是"等待接手"，
     // 而是"没人管了"。任何超过 TTL 还挂在 pending/processing 的任务都标成
     // error —— 否则 steps_grading_tasks 会一直涨，且没有进程会消费它们。

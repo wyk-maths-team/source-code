@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>window.__BUILD_V='bc9d6a24';</script>
-<script src="/assets/js/arch-render.js?v=bc9d6a24"></script>
+<script>window.__BUILD_V='2a175c1c';</script>
+<script src="/assets/js/arch-render.js?v=2a175c1c"></script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -19,25 +19,25 @@
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=bc9d6a24" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=2a175c1c" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 
-<script src="/assets/js/core/ui.js?v=bc9d6a24"></script>
-<script src="/assets/js/core/net.js?v=bc9d6a24"></script>
-<script src="/assets/js/core/ban-guard.js?v=bc9d6a24"></script>
-<script src="/assets/js/core/latex-doc.js?v=bc9d6a24"></script>
-<script src="/assets/js/core/status.js?v=bc9d6a24"></script>
-  <link rel="stylesheet" href="/assets/css/script-panel.css?v=bc9d6a24">
-  <script src="/assets/js/core/script-panel.js?v=bc9d6a24"></script>
-<script src="/assets/js/core/api.js?v=bc9d6a24"></script>
-  <script src="/assets/js/core/padstore.js?v=bc9d6a24"></script>
-  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=bc9d6a24">
-  <script src="/assets/js/core/radial-menu.js?v=bc9d6a24"></script>
-  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=bc9d6a24">
-  <script src="/assets/js/core/ban-screen.js?v=bc9d6a24"></script>
-  <link rel="stylesheet" href="/assets/css/ban-index.css?v=bc9d6a24">
-  <script src="/assets/js/core/ban-index.js?v=bc9d6a24"></script>
-<script src="/assets/js/core/page.js?v=bc9d6a24"></script>
+<script src="/assets/js/core/ui.js?v=2a175c1c"></script>
+<script src="/assets/js/core/net.js?v=2a175c1c"></script>
+<script src="/assets/js/core/ban-guard.js?v=2a175c1c"></script>
+<script src="/assets/js/core/latex-doc.js?v=2a175c1c"></script>
+<script src="/assets/js/core/status.js?v=2a175c1c"></script>
+  <link rel="stylesheet" href="/assets/css/script-panel.css?v=2a175c1c">
+  <script src="/assets/js/core/script-panel.js?v=2a175c1c"></script>
+<script src="/assets/js/core/api.js?v=2a175c1c"></script>
+  <script src="/assets/js/core/padstore.js?v=2a175c1c"></script>
+  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=2a175c1c">
+  <script src="/assets/js/core/radial-menu.js?v=2a175c1c"></script>
+  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=2a175c1c">
+  <script src="/assets/js/core/ban-screen.js?v=2a175c1c"></script>
+  <link rel="stylesheet" href="/assets/css/ban-index.css?v=2a175c1c">
+  <script src="/assets/js/core/ban-index.js?v=2a175c1c"></script>
+<script src="/assets/js/core/page.js?v=2a175c1c"></script>
 
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#1a1a2e">
@@ -66,6 +66,21 @@
   .gr-btn:hover { border-color: var(--accent); color: var(--accent); }
   .gr-btn.spinning i { animation: grSpin .8s linear infinite; }
   @keyframes grSpin { to { transform: rotate(360deg); } }
+
+  /* ── 数据源切换 ── */
+  .gr-tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .gr-tab {
+    padding: 7px 15px; border: 1px solid var(--border-color); border-radius: 8px;
+    background: var(--card-bg); color: var(--text-secondary); cursor: pointer;
+    font-family: inherit; font-size: .82rem; font-weight: 600; transition: all .15s;
+  }
+  .gr-tab:hover { border-color: var(--accent); color: var(--accent); }
+  .gr-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(74,144,217,.10); }
+  :root[data-theme="scifi"] .gr-tab.active { background: rgba(0,229,255,.10); }
+
+  /* ── 按难度 ── */
+  .gr-diff .gr-stat .k { text-transform: none; letter-spacing: 0; }
+  .gr-diff .gr-stat .v { font-size: 1.15rem; }
 
   /* ── 统计卡 ── */
   .gr-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 16px; }
@@ -166,7 +181,14 @@
           <button id="grRefresh" class="gr-btn"><i class="fas fa-rotate"></i> Refresh</button>
         </div>
 
+        <div class="gr-tabs">
+          <button class="gr-tab active" data-source="history">History</button>
+          <button class="gr-tab" data-source="queue">Live queue</button>
+        </div>
+
         <section class="gr-stats" id="grStats"></section>
+
+        <section class="gr-stats gr-diff" id="grDiff" style="display:none"></section>
 
         <section class="gr-filters">
           <select id="grStatus">
@@ -192,11 +214,11 @@
                 <th>When</th>
                 <th>User</th>
                 <th>Problem</th>
+                <th>Diff</th>
                 <th>Status</th>
-                <th>Try</th>
                 <th>Model</th>
                 <th>Elapsed</th>
-                <th>Error</th>
+                <th>Note</th>
               </tr>
             </thead>
             <tbody id="grBody"></tbody>
@@ -211,14 +233,14 @@
     </main>
   </div>
 
-  <script src="/assets/js/auth.js?v=bc9d6a24"></script>
-  <script src="/assets/js/app.js?v=bc9d6a24"></script>
-  <script src="/assets/js/topbar.js?v=bc9d6a24"></script>
-  <script src="/assets/js/sidebar.js?v=bc9d6a24"></script>
-  <script src="/assets/js/core/polling.js?v=bc9d6a24"></script>
-  <script src="/assets/js/heartbeat.js?v=bc9d6a24"></script>
-  <script src="/assets/js/pk-invite.js?v=bc9d6a24"></script>
+  <script src="/assets/js/auth.js?v=2a175c1c"></script>
+  <script src="/assets/js/app.js?v=2a175c1c"></script>
+  <script src="/assets/js/topbar.js?v=2a175c1c"></script>
+  <script src="/assets/js/sidebar.js?v=2a175c1c"></script>
+  <script src="/assets/js/core/polling.js?v=2a175c1c"></script>
+  <script src="/assets/js/heartbeat.js?v=2a175c1c"></script>
+  <script src="/assets/js/pk-invite.js?v=2a175c1c"></script>
 
-  <script src="/assets/js/pages/admin-grading.js?v=bc9d6a24"></script>
+  <script src="/assets/js/pages/admin-grading.js?v=2a175c1c"></script>
 </body>
 </html>
