@@ -2,24 +2,6 @@
   "functions": {
     "api/**/*.js": {
       "memory": 512
-    },
-    "api/paper.js": {
-      "memory": 1024
-    },
-    "api/steps-grade.js": {
-      "memory": 1024
-    },
-    "api/image-grade.js": {
-      "memory": 1024
-    },
-    "api/submissions.js": {
-      "memory": 1024
-    },
-    "api/submit.js": {
-      "memory": 1024
-    },
-    "api/cron.js": {
-      "memory": 1024
     }
   },
   "headers": [
