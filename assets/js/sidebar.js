@@ -47,6 +47,11 @@
         <i class="fa-solid fa-file-circle-exclamation fa-fw"></i> Submission Reports
       </a>
     </li>
+    <li>
+      <a href="/admin/grading" class="sidebar-link require-login sidebar-link-admin" data-page="admin-grading">
+        <i class="fa-solid fa-list-check fa-fw"></i> Grading Queue
+      </a>
+    </li>
   `;
 
   // ═══════════════ 扩展导航 ═══════════════

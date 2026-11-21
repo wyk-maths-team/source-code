@@ -314,8 +314,8 @@
   ],
   "rewrites": [
     {
-      "source": "/i",
-      "destination": "/internal.html"
+      "source": "/admin/grading",
+      "destination": "/admin/grading.html"
     },
     {
       "source": "/mobile/:path*",
@@ -352,10 +352,6 @@
     {
       "source": "/admin",
       "destination": "/admin.html"
-    },
-    {
-      "source": "/admin/create",
-      "destination": "/admin/createlist.html"
     },
     {
       "source": "/admin/create/problem",
@@ -412,10 +408,6 @@
     {
       "source": "/admin/cmd",
       "destination": "/admin/cmd.html"
-    },
-    {
-      "source": "/admin/oplog",
-      "destination": "/admin/oplog.html"
     },
     {
       "source": "/admin/health",
@@ -478,10 +470,6 @@
       "destination": "/admin/edituser.html"
     },
     {
-      "source": "/admin/updates/:id",
-      "destination": "/editupdate.html"
-    },
-    {
       "source": "/admin/marker/:subid",
       "destination": "/admin/marksubmissions.html"
     },
@@ -510,20 +498,8 @@
       "destination": "/credits.html"
     },
     {
-      "source": "/chat",
-      "destination": "/chat.html"
-    },
-    {
-      "source": "/changelog",
-      "destination": "/changelog.html"
-    },
-    {
       "source": "/guide",
       "destination": "/guide.html"
-    },
-    {
-      "source": "/log",
-      "destination": "/log.html"
     },
     {
       "source": "/login",
@@ -560,14 +536,6 @@
     {
       "source": "/submissions",
       "destination": "/submissions.html"
-    },
-    {
-      "source": "/tcontest/:id",
-      "destination": "/special-contest.html"
-    },
-    {
-      "source": "/teams/:id",
-      "destination": "/team.html"
     },
     {
       "source": "/terms",
@@ -626,20 +594,8 @@
       "destination": "/404.html"
     },
     {
-      "source": "/circuit",
-      "destination": "/z.html"
-    },
-    {
       "source": "/os",
       "destination": "/mobile/index.html"
-    },
-    {
-      "source": "/ac",
-      "destination": "/zz.html"
-    },
-    {
-      "source": "/fac",
-      "destination": "/zzz.html"
     },
     {
       "source": "/pk/waiting",
@@ -684,22 +640,6 @@
     {
       "source": "/admin/pkproblems/:id",
       "destination": "/admin/editpkproblem.html"
-    },
-    {
-      "source": "/root-login",
-      "destination": "/root-login.html"
-    },
-    {
-      "source": "/root-webauthn-login",
-      "destination": "/root-webauthn-login.html"
-    },
-    {
-      "source": "/root-webauthn-setup",
-      "destination": "/root-webauthn-setup.html"
-    },
-    {
-      "source": "/ex",
-      "destination": "/ex.html"
     },
     {
       "source": "/course",

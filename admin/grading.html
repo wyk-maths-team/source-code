@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>window.__BUILD_V='bc9d6a24';</script>
+<script src="/assets/js/arch-render.js?v=bc9d6a24"></script>
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+<meta name="requires-auth" content="true" />
+<title>Grading Queue - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+
+<link rel="stylesheet" href="/assets/css/styles.css?v=bc9d6a24" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+
+<script src="/assets/js/core/ui.js?v=bc9d6a24"></script>
+<script src="/assets/js/core/net.js?v=bc9d6a24"></script>
+<script src="/assets/js/core/ban-guard.js?v=bc9d6a24"></script>
+<script src="/assets/js/core/latex-doc.js?v=bc9d6a24"></script>
+<script src="/assets/js/core/status.js?v=bc9d6a24"></script>
+  <link rel="stylesheet" href="/assets/css/script-panel.css?v=bc9d6a24">
+  <script src="/assets/js/core/script-panel.js?v=bc9d6a24"></script>
+<script src="/assets/js/core/api.js?v=bc9d6a24"></script>
+  <script src="/assets/js/core/padstore.js?v=bc9d6a24"></script>
+  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=bc9d6a24">
+  <script src="/assets/js/core/radial-menu.js?v=bc9d6a24"></script>
+  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=bc9d6a24">
+  <script src="/assets/js/core/ban-screen.js?v=bc9d6a24"></script>
+  <link rel="stylesheet" href="/assets/css/ban-index.css?v=bc9d6a24">
+  <script src="/assets/js/core/ban-index.js?v=bc9d6a24"></script>
+<script src="/assets/js/core/page.js?v=bc9d6a24"></script>
+
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1a1a2e">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WYK Maths">
+<meta name="mobile-web-app-capable" content="yes">
+
+<style>
+  .gr-page { max-width: 1180px; margin: 0 auto; padding: 22px 20px 60px; }
+
+  .gr-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+  .gr-head h1 {
+    font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 9px;
+    color: var(--text-primary); margin: 0;
+  }
+  .gr-head h1 i { color: var(--accent); font-size: 1rem; }
+  .gr-head .spacer { flex: 1; }
+  .gr-btn {
+    padding: 8px 15px; border: 1px solid var(--border-color); border-radius: 8px;
+    background: var(--card-bg); color: var(--text-primary); cursor: pointer;
+    font-family: inherit; font-size: .84rem; font-weight: 600; display: inline-flex;
+    align-items: center; gap: 7px; transition: border-color .15s, color .15s;
+  }
+  .gr-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .gr-btn.spinning i { animation: grSpin .8s linear infinite; }
+  @keyframes grSpin { to { transform: rotate(360deg); } }
+
+  /* ── 统计卡 ── */
+  .gr-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .gr-stat {
+    background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .gr-stat .k { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-secondary); }
+  .gr-stat .v { font-size: 1.35rem; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; line-height: 1.25; }
+  .gr-stat .s { font-size: .72rem; color: var(--text-secondary); }
+  .gr-stat.ok .v { color: #2e7d32; }
+  .gr-stat.err .v { color: var(--danger); }
+  .gr-stat.warn .v { color: #b45309; }
+  :root[data-theme="dark"] .gr-stat.ok .v { color: #8fdf8f; }
+  :root[data-theme="dark"] .gr-stat.warn .v { color: #ffb86c; }
+  :root[data-theme="scifi"] .gr-stat.ok .v { color: #78ffb0; }
+  :root[data-theme="scifi"] .gr-stat.warn .v { color: #ffd166; }
+
+  /* ── 筛选 ── */
+  .gr-filters { display: flex; gap: 9px; flex-wrap: wrap; margin-bottom: 12px; }
+  .gr-filters select, .gr-filters input {
+    padding: 8px 11px; border: 1px solid var(--border-color); border-radius: 8px;
+    background: var(--card-bg); color: var(--text-primary); font-family: inherit; font-size: .84rem;
+  }
+  .gr-filters input { min-width: 150px; }
+  .gr-filters select:focus, .gr-filters input:focus { outline: none; border-color: var(--accent); }
+
+  /* ── 表格 ── */
+  .gr-table-wrap {
+    background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px;
+    overflow: hidden;
+  }
+  .gr-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+  .gr-table th {
+    text-align: left; padding: 10px 12px; font-size: .7rem; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--text-secondary); border-bottom: 1px solid var(--border-color);
+    background: var(--content-bg); font-weight: 700; white-space: nowrap;
+  }
+  .gr-table td {
+    padding: 9px 12px; border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary); vertical-align: top;
+  }
+  .gr-table tr:last-child td { border-bottom: none; }
+  .gr-table tbody tr:hover td { background: var(--content-bg); }
+  .gr-mono { font-family: Consolas, Monaco, monospace; font-size: .76rem; }
+  .gr-dim { color: var(--text-secondary); }
+  .gr-nowrap { white-space: nowrap; }
+
+  .gr-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 7px;
+    font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em;
+  }
+  .gr-badge.done    { background: rgba(46,160,67,.16); color: #2e7d32; }
+  .gr-badge.error   { background: rgba(231,76,60,.16); color: var(--danger); }
+  .gr-badge.pending { background: rgba(230,140,30,.16); color: #b45309; }
+  .gr-badge.processing { background: rgba(31,111,235,.16); color: #1565c0; }
+  :root[data-theme="dark"] .gr-badge.done  { background: #1b4d2e; color: #8fdf8f; }
+  :root[data-theme="dark"] .gr-badge.error { background: #4d1f1f; color: #ff8f8f; }
+  :root[data-theme="dark"] .gr-badge.pending { background: #4d2e0d; color: #ffb86c; }
+  :root[data-theme="dark"] .gr-badge.processing { background: #14395e; color: #8ec3ff; }
+  :root[data-theme="scifi"] .gr-badge.done  { background: rgba(120,255,176,.10); color: #78ffb0; border: 1px solid rgba(120,255,176,.32); }
+  :root[data-theme="scifi"] .gr-badge.error { background: rgba(255,61,113,.10); color: #ff8fab; border: 1px solid rgba(255,61,113,.32); }
+  :root[data-theme="scifi"] .gr-badge.pending { background: rgba(255,209,102,.10); color: #ffd166; border: 1px solid rgba(255,209,102,.32); }
+  :root[data-theme="scifi"] .gr-badge.processing { background: rgba(0,229,255,.10); color: #8ff0ff; border: 1px solid rgba(0,229,255,.32); }
+
+  .gr-err {
+    max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: var(--danger); cursor: help;
+  }
+  .gr-empty { padding: 34px 20px; text-align: center; color: var(--text-secondary); font-size: .86rem; }
+  .gr-more { text-align: center; margin-top: 14px; }
+
+  @media (max-width: 720px) {
+    .gr-table thead { display: none; }
+    .gr-table, .gr-table tbody, .gr-table tr, .gr-table td { display: block; width: 100%; }
+    .gr-table tr { border-bottom: 1px solid var(--border-color); padding: 8px 4px; }
+    .gr-table td { border: none; padding: 3px 12px; }
+    .gr-table td:before {
+      content: attr(data-label); display: inline-block; min-width: 82px;
+      font-size: .68rem; text-transform: uppercase; letter-spacing: .04em;
+      color: var(--text-secondary); font-weight: 700;
+    }
+    .gr-err { max-width: none; white-space: normal; }
+  }
+</style>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+
+    <main class="main-content" id="mainContent">
+      <div class="gr-page">
+        <div class="gr-head">
+          <h1><i class="fas fa-list-check"></i> Grading Queue</h1>
+          <span class="gr-dim" style="font-size:.78rem">read-only</span>
+          <span class="spacer"></span>
+          <button id="grRefresh" class="gr-btn"><i class="fas fa-rotate"></i> Refresh</button>
+        </div>
+
+        <section class="gr-stats" id="grStats"></section>
+
+        <section class="gr-filters">
+          <select id="grStatus">
+            <option value="">All statuses</option>
+            <option value="done">done</option>
+            <option value="error">error</option>
+            <option value="pending">pending</option>
+            <option value="processing">processing</option>
+          </select>
+          <select id="grRange">
+            <option value="">All time</option>
+            <option value="24">Last 24h</option>
+            <option value="168">Last 7 days</option>
+          </select>
+          <input id="grUser" type="text" placeholder="username" autocomplete="off" />
+          <input id="grProblem" type="text" placeholder="problem id" autocomplete="off" />
+        </section>
+
+        <section class="gr-table-wrap">
+          <table class="gr-table">
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>User</th>
+                <th>Problem</th>
+                <th>Status</th>
+                <th>Try</th>
+                <th>Model</th>
+                <th>Elapsed</th>
+                <th>Error</th>
+              </tr>
+            </thead>
+            <tbody id="grBody"></tbody>
+          </table>
+          <div class="gr-empty" id="grEmpty" style="display:none">Nothing to show.</div>
+        </section>
+
+        <div class="gr-more">
+          <button id="grMore" class="gr-btn" style="display:none">Load more</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/assets/js/auth.js?v=bc9d6a24"></script>
+  <script src="/assets/js/app.js?v=bc9d6a24"></script>
+  <script src="/assets/js/topbar.js?v=bc9d6a24"></script>
+  <script src="/assets/js/sidebar.js?v=bc9d6a24"></script>
+  <script src="/assets/js/core/polling.js?v=bc9d6a24"></script>
+  <script src="/assets/js/heartbeat.js?v=bc9d6a24"></script>
+  <script src="/assets/js/pk-invite.js?v=bc9d6a24"></script>
+
+  <script src="/assets/js/pages/admin-grading.js?v=bc9d6a24"></script>
+</body>
+</html>
