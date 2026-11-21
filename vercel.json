@@ -389,6 +389,10 @@
       "destination": "/admin/submissions.html"
     },
     {
+      "source": "/problem-reports",
+      "destination": "/admin/reports.html"
+    },
+    {
       "source": "/admin/reports",
       "destination": "/admin/reports.html"
     },
@@ -417,6 +421,14 @@
       "destination": "/admin/send-message.html"
     },
     {
+      "source": "/reports",
+      "destination": "/admin/webreports.html"
+    },
+    {
+      "source": "/feedback",
+      "destination": "/reports.html"
+    },
+    {
       "source": "/admin/webreports",
       "destination": "/admin/webreports.html"
     },
@@ -429,12 +441,12 @@
       "destination": "/admin/sysmessages.html"
     },
     {
-      "source": "/admin/submission-reports",
+      "source": "/submission-reports",
       "destination": "/admin/submission-reports.html"
     },
     {
-      "source": "/reports",
-      "destination": "/reports.html"
+      "source": "/admin/submission-reports",
+      "destination": "/admin/submission-reports.html"
     },
     {
       "source": "/admin/tokens",

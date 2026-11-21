@@ -23,7 +23,7 @@
       </a>
     </li>
     <li>
-      <a href="/admin/webreports" class="sidebar-link require-login sidebar-link-admin" data-page="admin-webreports">
+      <a href="/reports" class="sidebar-link require-login sidebar-link-admin" data-page="admin-webreports">
         <i class="fa-solid fa-flag fa-fw"></i> Web Reports
       </a>
     </li>
@@ -38,12 +38,12 @@
       </a>
     </li>
     <li>
-      <a href="/admin/reports" class="sidebar-link require-login sidebar-link-admin" data-page="admin-reports">
+      <a href="/problem-reports" class="sidebar-link require-login sidebar-link-admin" data-page="admin-reports">
         <i class="fa-solid fa-triangle-exclamation fa-fw"></i> Problem Reports
       </a>
     </li>
     <li>
-      <a href="/admin/submission-reports" class="sidebar-link require-login sidebar-link-admin" data-page="admin-submission-reports">
+      <a href="/submission-reports" class="sidebar-link require-login sidebar-link-admin" data-page="admin-submission-reports">
         <i class="fa-solid fa-file-circle-exclamation fa-fw"></i> Submission Reports
       </a>
     </li>
@@ -54,7 +54,7 @@
   // 字段：href / page / icon / label / adminOnly / guestOk / match
   const EXTRA_NAV = [
     { href: '/messages', page: 'messages', icon: 'fa-envelope', label: 'Messages' },
-    { href: '/reports', page: 'reports', icon: 'fa-flag', label: 'Reports' },
+    { href: '/feedback', page: 'reports', icon: 'fa-flag', label: 'Reports' },
   ];
 
   function renderExtraNav() {
