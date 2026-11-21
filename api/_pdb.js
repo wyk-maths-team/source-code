@@ -1,21 +1,14 @@
-// api/_db.js
-import { MongoClient } from 'mongodb';
+// api/_pdb.js —— port 系列用的 chris 库
+//
+// 以前这里自己 new 一个 maxPoolSize: 10 的 client，和 wyk_math 那个并行存在，
+// 同一个 URI 握手两遍、配额算两份。现在复用 lib/mongo.js 的单例 client，
+// 只是换库名 —— client.db('chris') 不会新建连接。
+import { getDb } from '../lib/mongo.js';
 
-let client = null;
-let db = null;
+const DB_NAME = process.env.PORT_DB_NAME || 'chris';
 
 export async function connectToDatabase() {
-  if (db) return db;
-  const uri = process.env.MONGODB_URI;
-  const dbName = 'chris';
-  if (!uri) throw new Error('MONGODB_URI not defined');
-  client = new MongoClient(uri, {
-    maxPoolSize: 10,
-    minPoolSize: 1,              // ⭐ 保持至少 1 个热连接
-    serverSelectionTimeoutMS: 20000,
-    socketTimeoutMS: 30000,
-  });
-  await client.connect();
-  db = client.db(dbName);
-  return db;
+  return getDb(DB_NAME);
 }
+
+export { closeClient } from '../lib/mongo.js';

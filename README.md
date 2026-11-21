@@ -74,6 +74,48 @@ The client is a multi-page application of 63 HTML documents and approximately 40
 
 There is no build step. Files are deployed as authored.
 
+### Database connections
+
+Every endpoint goes through `lib/mongo.js`, which owns the single `MongoClient` for the
+process. Nothing else may construct one — a second client means a second pool, handshaking
+the same URI twice and spending the Atlas connection budget twice.
+
+Three mechanisms keep the pool inside its budget under concurrent load:
+
+- **One client, ever.** Concurrent first requests share one in-flight connect promise. Without
+  that deduplication, N simultaneous cold-start requests each built their own pool.
+- **A small pool.** `maxPoolSize` 5, `maxConnecting` 2, `maxIdleTimeMS` 30s, and
+  `waitQueueTimeoutMS` 8s — so a worst-case instance holds 7 connections, not 70. At 500
+  connections on a shared Atlas tier that leaves room for ~71 live instances.
+- **Per-instance back-pressure.** `wrapHandler` takes a slot before entering the handler, so
+  at most `MONGODB_MAX_INFLIGHT` (16) requests reach the driver at once. Fast handlers turn
+  over in milliseconds; slow ones would otherwise fill the driver's wait queue and fail late.
+  Endpoints that call an AI model for tens of seconds opt out with `{ gate: false }`.
+
+Cold start fails fast: the first request pays the handshake, anything arriving after
+`MONGODB_CONNECT_GRACE_MS` gets `503` + `Retry-After` instead of queueing behind it.
+
+`GET /api/db-health` reports the live numbers; `clientsCreated` must stay at 1.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `MONGODB_MAX_POOL` | 5 | Connections per instance |
+| `MONGODB_MAX_CONNECTING` | 2 | Simultaneous handshakes |
+| `MONGODB_MAX_IDLE_MS` | 30000 | Idle connection returned to Atlas |
+| `MONGODB_WAIT_QUEUE_MS` | 8000 | How long a query may wait for a free connection |
+| `MONGODB_MAX_INFLIGHT` | 16 | Requests allowed into the driver at once |
+| `MONGODB_CONNECT_GRACE_MS` | 4000 | Cold-start wait before `503` |
+| `MONGODB_GATE_TIMEOUT_MS` | 10000 | How long a request may queue for a slot |
+
+Worth knowing: the numbers above are deliberately conservative because a serverless
+function is a small, short-lived process, not an application server. Raising `maxPoolSize`
+does not make the site faster — it makes each instance a bigger consumer of a quota shared
+with every other instance, including the ones that have not booted yet.
+
+`npm run test:db` exercises all of this end to end: it starts the dev server, fires 50
+simultaneous cold-start requests, then 400 requests at 100 concurrency, then 200 more as a
+burst, and asserts `clientsCreated === 1`, zero 5xx, and that the gate never exceeds its cap.
+
 ---
 
 ## Repository Layout

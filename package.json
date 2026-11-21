@@ -27,6 +27,9 @@
     "check:versions": "node tools/version-assets.mjs --check",
     "test:errors": "node tools/test-errors.mjs",
     "test:quests": "node dev/test-quests.mjs",
+    "test:db": "node dev/test-db-concurrency.mjs",
+    "indexes:check": "node --env-file=.env tools/ensure-indexes.mjs",
+    "indexes:apply": "node --env-file=.env tools/ensure-indexes.mjs --apply",
     "test:e2e:hub": "node dev/test-token-hub-e2e.mjs",
     "serve": "node tools/serve.mjs"
   },

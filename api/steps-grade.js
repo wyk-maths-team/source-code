@@ -381,4 +381,6 @@ async function addAiUsagePoll(db, username, amount) {
   return addAiUsage(db, username, amount);
 }
 
-export default wrapHandler(handler);
+// AI 批改可能跑几十秒：不参与并发闸门，否则会占着槽位饿死普通请求。
+// 连接池上限（lib/mongo.js）仍然管着它的连接数，这里只是不排队。
+export default wrapHandler(handler, { gate: false });

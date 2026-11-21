@@ -773,4 +773,5 @@ async function handler(req, res) {
   return res.status(400).json({ success: false, message: 'Unknown action' });
 }
 
-export default wrapHandler(handler);
+// 整页 DSE 批改会串行调 AI（每问一次），几十秒起步：不参与并发闸门。
+export default wrapHandler(handler, { gate: false });

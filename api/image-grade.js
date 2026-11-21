@@ -206,4 +206,5 @@ async function handlePoll(req, res, db, decoded) {
   return res.status(404).json({ success: false, message: 'Not supported for normal users' });
 }
 
-export default wrapHandler(handler);
+// 图片批改要等视觉模型返回，单张可能十几秒：不参与并发闸门。
+export default wrapHandler(handler, { gate: false });

@@ -910,4 +910,8 @@ async function handler(req, res) {
 }
 
 // 统一错误兜底：未捕获异常 -> { success:false, code, message, detail, requestId }
-export default wrapHandler(handler);
+// rejudge 会同步调 AI（可能几十秒），不该占着并发闸门的槽位；
+// 其余 action 都是普通查询，正常排队。
+export default wrapHandler(handler, {
+  gate: (req) => req.query.action !== 'rejudge',
+});
