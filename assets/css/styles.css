@@ -451,7 +451,9 @@ ul {
 }
 
 .update-card {
-    background: #fafbfc;
+    /* Was a hardcoded #fafbfc: white cards on the scifi panel for any page
+       that loads this stylesheet without index.html's inline overrides. */
+    background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
     padding: 18px 20px;

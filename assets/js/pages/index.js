@@ -98,32 +98,86 @@
 
     let allUpdates = [];
 
-    function renderUpdates(updates, showAll = false) {
-      const total = updates.length;
-      const display = showAll ? updates : updates.slice(0, 4);
-      const hasMore = !showAll && total > 4;
+    const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const DAYS_COLLAPSED = 4;
 
-      let html = '';
-      display.forEach(u => {
-        const titleHtml = u.title ? `<h3>${escapeHtml(u.title)}</h3>` : '';
+    // 'YYYY-MM-DD HH:mm' -> { key, md, hhmm }. Falls back to date when an
+    // older record has no time field.
+    function dayInfo(u) {
+      const raw = String(u.time || '');
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+      if (m) return { key: m[0], md: m[2] + '-' + m[3], hhmm: raw.slice(11, 16) };
+
+      const d = u.date ? new Date(u.date) : null;
+      if (!d || isNaN(d.getTime())) return { key: 'unknown', md: '--', hhmm: '' };
+      const p = n => String(n).padStart(2, '0');
+      return {
+        key: d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()),
+        md: p(d.getMonth() + 1) + '-' + p(d.getDate()),
+        hhmm: p(d.getHours()) + ':' + p(d.getMinutes())
+      };
+    }
+
+    // Input is already newest-first and Map keeps insertion order, so the
+    // days come out in the same order the API gave them.
+    function groupByDay(updates) {
+      const days = new Map();
+      updates.forEach(u => {
+        const info = dayInfo(u);
+        if (!days.has(info.key)) {
+          const d = u.date ? new Date(u.date) : null;
+          const dow = d && !isNaN(d.getTime()) ? DOW[d.getDay()] : '';
+          days.set(info.key, { key: info.key, md: info.md, dow, items: [] });
+        }
+        days.get(info.key).items.push({ u, hhmm: info.hhmm });
+      });
+      return [...days.values()];
+    }
+
+    function renderDay(day, isLatest) {
+      const cards = day.items.map(({ u, hhmm }) => {
+        const versionHtml = u.title
+          ? `<span class="update-version">${escapeHtml(u.title)}</span>`
+          : '';
         const contentHtml = u.content ? DOMPurify.sanitize(u.content, domPurifyConfig) : '';
-        html += `
+        return `
           <div class="update-card">
             <div class="update-card-header">
               <span class="update-badge ${escapeHtml(u.badge)}">${escapeHtml(u.badgeText)}</span>
-              <span class="update-time">${escapeHtml(u.time)}</span>
+              ${versionHtml}
+              <span class="update-time">${escapeHtml(hhmm || u.time || '')}</span>
             </div>
-            ${titleHtml}
             <p>${contentHtml}</p>
           </div>
         `;
-      });
+      }).join('');
+
+      return `
+        <article class="day-group${isLatest ? ' is-latest' : ''}">
+          <div class="day-rail">
+            <span class="day-date">${escapeHtml(day.md)}</span>
+            <span class="day-dow">${escapeHtml(day.dow)}</span>
+          </div>
+          <span class="day-dot" aria-hidden="true"></span>
+          <div class="day-cards">${cards}</div>
+        </article>
+      `;
+    }
+
+    function renderUpdates(updates, showAll = false) {
+      const days = groupByDay(updates);
+      const shown = showAll ? days : days.slice(0, DAYS_COLLAPSED);
+      const hasMore = !showAll && days.length > DAYS_COLLAPSED;
+
+      let html = '<div class="day-timeline">';
+      shown.forEach((day, i) => { html += renderDay(day, i === 0); });
+      html += '</div>';
 
       if (hasMore) {
         html += `
           <div class="load-more-wrapper">
             <button class="load-more-btn" id="loadMoreBtn">
-              Load More (${total - 4})
+              Load More (${days.length - DAYS_COLLAPSED} more days)
             </button>
           </div>
         `;

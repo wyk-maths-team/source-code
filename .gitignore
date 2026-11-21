@@ -75,6 +75,8 @@ temp.html
 *temp.html
 wasted.html
 .backup/
+# serve.mjs caches proxied CDN assets here — regenerable, never committed
+.dev-cache/
 .acl-recovery/
 
 process/
