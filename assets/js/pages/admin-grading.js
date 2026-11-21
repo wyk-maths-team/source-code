@@ -21,6 +21,7 @@
   var moreBtn = document.getElementById('grMore');
   var statsEl = document.getElementById('grStats');
   var diffEl = document.getElementById('grDiff');
+  var diffNoteEl = document.getElementById('grDiffNote');
   var refreshBtn = document.getElementById('grRefresh');
   var statusSel = document.getElementById('grStatus');
   var rangeSel = document.getElementById('grRange');
@@ -83,16 +84,18 @@
       card('Avg time', fmtMs(l24.avgMsDone), '', 'last 24h, done'),
     ].join('');
 
-    // 按难度 —— 这就是「预期时间」的数据基础
+    // 按难度 —— 这就是「预期时间」的数据基础（服务端只统计 steps）
     var rows = h.byDifficulty || [];
     if (rows.length) {
       diffEl.style.display = '';
+      if (diffNoteEl) diffNoteEl.style.display = '';
       diffEl.innerHTML = rows.map(function (r) {
         var range = (r.p50Ms && r.p90Ms) ? ('p50 ' + fmtMs(r.p50Ms) + ' · p90 ' + fmtMs(r.p90Ms)) : '';
         return card('Difficulty ' + r.difficulty, fmtMs(r.avgMs), '', (r.n + ' runs') + (range ? ' · ' + range : ''));
       }).join('');
     } else {
       diffEl.style.display = 'none';
+      if (diffNoteEl) diffNoteEl.style.display = 'none';
     }
   }
 

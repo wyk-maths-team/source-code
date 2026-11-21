@@ -21,6 +21,8 @@ import {
 export const config = { maxDuration: 300 };
 
 const IMAGE_TOKEN_COST = 3000;
+// 视觉批改用的模型：批改历史里要按它分组，所以抽成常量而不是散落的字面量
+const IMAGE_MODEL_LABEL = 'deepseek-flash';
 function genTaskId() { return 'IGT' + crypto.randomBytes(8).toString('hex'); }
 
 // 只允许来自自己图床的图片；校验在 handleCreate 里做，这里再兜一层。
@@ -38,7 +40,7 @@ async function callDeepSeekVision(prompt, imageUrl, effort) {
     throw new Error('Invalid image source');
   }
   const body = {
-    model: 'deepseek-flash',
+    model: IMAGE_MODEL_LABEL,
     ...(effort ? { reasoning_effort: effort } : {}),
     messages: [
       {
@@ -145,7 +147,12 @@ async function handleCreate(req, res, db, decoded) {
         reference_answer: String(problem.ans ?? '') 
       });
       
+      // 只计模型这一段 —— 和 steps 那边记 result.elapsed 的口径保持一致，
+      // 否则「批改要多久」在两种题型之间没有可比性。
+      const modelStart = Date.now();
       const apiRes = await callDeepSeekVision(prompt, imageUrl, effortForDifficulty(problem.difficulty));
+      const judgingMs = Date.now() - modelStart;
+
       const parsed = parseJSONReply(apiRes.content);
 
       if (!parsed || typeof parsed.score !== 'number') throw new Error('AI parse error');
@@ -157,7 +164,14 @@ async function handleCreate(req, res, db, decoded) {
       // 更新数据库
       await db.collection('submissions').updateOne(
         { subid },
-        { $set: { status: encodeStatus({ score: finalScore }), comment, markedAt: new Date(), aiGraded: true, tokenUsage: actualCost } }
+        { $set: {
+            status: encodeStatus({ score: finalScore }), comment, markedAt: new Date(),
+            aiGraded: true, tokenUsage: actualCost,
+            // 图片批改也留耗时：它会进 grading_history，但不会参与
+            // 「预期时间」的计算（那套只吃 steps 的数据）。
+            judgingMs,
+            judgingModel: apiRes.model || IMAGE_MODEL_LABEL,
+        } }
       );
 
       // 判分走这里就结束了，所以计数和成就必须在这一步补上 ——
