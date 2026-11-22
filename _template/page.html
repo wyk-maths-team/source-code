@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script src="/assets/js/arch-render.js"></script>
-<meta charset="UTF-8" />
+<!-- moj-core-head:start -->
+  <script src="/assets/js/bundle-loader.js" data-part="head"></script>
+<!-- moj-core-head:end --><meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
   if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
@@ -24,23 +25,11 @@
 
 <!-- ═══ core：统一错误提示 / 请求封装 / 页面启动器 ═══ -->
 <!-- 顺序不能变：ui -> net -> api -> page -->
-<script src="/assets/js/core/ui.js"></script>
-<script src="/assets/js/core/net.js"></script>
-<script src="/assets/js/core/ban-guard.js"></script>
-<script src="/assets/js/core/latex-doc.js"></script>
-<script src="/assets/js/core/status.js"></script>
   <link rel="stylesheet" href="/assets/css/script-panel.css">
-  <script src="/assets/js/core/script-panel.js"></script>
-<script src="/assets/js/core/api.js"></script>
-  <script src="/assets/js/core/padstore.js"></script>
-  <link rel="stylesheet" href="/assets/css/radial-menu.css">
-  <script src="/assets/js/core/radial-menu.js"></script>
-  <link rel="stylesheet" href="/assets/css/ban-screen.css">
-  <script src="/assets/js/core/ban-screen.js"></script>
-  <link rel="stylesheet" href="/assets/css/ban-index.css">
-  <script src="/assets/js/core/ban-index.js"></script>
-<script src="/assets/js/core/page.js"></script>
-
+      <link rel="stylesheet" href="/assets/css/radial-menu.css">
+    <link rel="stylesheet" href="/assets/css/ban-screen.css">
+    <link rel="stylesheet" href="/assets/css/ban-index.css">
+  
 <!-- PWA（必须静态写入 head，不能靠 JS 注入） -->
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#1a1a2e">
