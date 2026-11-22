@@ -367,10 +367,16 @@
           <!-- 2.3 Change Password -->
           <div class="setting-group">
             <h3>Change Password</h3>
-            <div class="form-group"><label>Current Password</label><input type="password" id="oldPassword" class="form-control" autocomplete="current-password"></div>
-            <div class="form-group"><label>New Password</label><input type="password" id="newPassword" class="form-control" autocomplete="new-password"></div>
-            <div class="form-group"><label>Confirm New Password</label><input type="password" id="confirmPassword" class="form-control" autocomplete="new-password"></div>
-            <button class="btn btn-primary" id="changePasswordBtn">Change Password</button>
+            <!-- 包一层 <form>：Chromium 对不属于任何表单的 password 字段会报
+                 "Password field is not contained in a form"，并因此关掉密码管理器的
+                 保存/自动填充提示。submit 拦掉是因为提交走的是 changePasswordBtn
+                 的 click 处理，不刷新页面。 -->
+            <form id="changePasswordForm" autocomplete="on" novalidate>
+              <div class="form-group"><label>Current Password</label><input type="password" id="oldPassword" class="form-control" autocomplete="current-password"></div>
+              <div class="form-group"><label>New Password</label><input type="password" id="newPassword" class="form-control" autocomplete="new-password"></div>
+              <div class="form-group"><label>Confirm New Password</label><input type="password" id="confirmPassword" class="form-control" autocomplete="new-password"></div>
+              <button type="button" class="btn btn-primary" id="changePasswordBtn">Change Password</button>
+            </form>
             <span id="passwordMessage" class="message"></span>
           </div>
         </div>
@@ -453,17 +459,9 @@
   </main>
 </div>
 
-<script src="/assets/js/auth.js?v=7387ce3f"></script>
-<script src="/assets/js/app.js?v=7387ce3f"></script>
-<script src="/assets/js/topbar.js?v=7387ce3f"></script>
-<script src="/assets/js/sidebar.js?v=7387ce3f"></script>
-<script src="/assets/js/core/polling.js?v=7387ce3f"></script>
-<script src="/assets/js/heartbeat.js?v=7387ce3f"></script>
-<script src="/assets/js/pk-invite.js?v=7387ce3f"></script>
-
-<script src="/assets/js/pages/settings.js?v=7387ce3f"></script>
-<script src="/assets/js/pk-notify.js?v=7387ce3f"></script>
-</body>
-</html><!-- moj-core-body:start -->
+<!-- moj-core-body:start -->
   <script src="/assets/js/bundle-loader.js?v=7387ce3f" data-part="body"></script>
 <!-- moj-core-body:end -->
+<script src="/assets/js/pages/settings.js?v=7387ce3f"></script>
+</body>
+</html>

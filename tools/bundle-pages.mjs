@@ -75,13 +75,18 @@ for (const file of pages) {
 
   if (s.includes(START.head) || s.includes(START.body)) { already++; continue; }
 
-  const tags = [...s.matchAll(TAG_RE)];
   let out = s;
   let converted = 0;
 
   for (const part of ['head', 'body']) {
     const want = part === 'head' ? HEAD_FILES : BODY_FILES;
-    const mine = tags.filter(m => want.includes(m[1]));
+
+    // 每次都从**当前的 out** 重新匹配。head 段替换完字符串长度就变了，
+    // body 段若还拿着最初 s 的索引去 slice，占位符会落到 </html> 后面，
+    // 同时漏删标签 —— auth.js 留在页面上、和 bundle 里的 auth 重复声明
+    // currentUser，就是这么来的。
+    const cur = [...out.matchAll(TAG_RE)];
+    const mine = cur.filter(m => want.includes(m[1]));
     const order = mine.map(m => m[1]);
     if (order.length !== want.length) { continue; }             // 该段不全，跳过这一段
     if (order.join('|') !== want.join('|')) { continue; }        // 顺序不一致
