@@ -282,7 +282,7 @@ ul {
 }
 
 .sidebar-nav {
-    padding: 16px 0
+    padding: 8px 0
 }
 
 .sidebar-nav ul {
@@ -295,7 +295,7 @@ ul {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 13px 22px;
+    padding: 6px 11px;
     color: var(--sidebar-text);
     font-size: .93rem;
     font-weight: 500;
