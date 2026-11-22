@@ -18,8 +18,8 @@
 // 会打乱依赖顺序。
 
 (function () {
-  var BUNDLE_HEAD = 'bundle.head.fd8cec14f6.js';   // 由构建脚本改写
-  var BUNDLE_BODY = 'bundle.body.ef11fd07e3.js';   // 由构建脚本改写
+  var BUNDLE_HEAD = 'bundle.head.48dd963f3b.js';   // 由构建脚本改写
+  var BUNDLE_BODY = 'bundle.body.90d9475867.js';   // 由构建脚本改写
 
   var self = document.currentScript;
   var part = (self && self.getAttribute('data-part')) || 'body';
@@ -33,7 +33,7 @@
       files: [
         'arch-render.js',
         'core/ui.js', 'core/net.js', 'core/ban-guard.js', 'core/latex-doc.js',
-        'core/status.js', 'core/script-panel.js', 'core/api.js', 'core/padstore.js',
+        'core/status-badge.js', 'core/script-panel.js', 'core/api.js', 'core/padstore.js',
         'core/radial-menu.js', 'core/ban-screen.js', 'core/ban-index.js', 'core/page.js',
       ],
     },
@@ -41,7 +41,7 @@
       bundle: BUNDLE_BODY,
       files: [
         'auth.js', 'app.js', 'topbar.js', 'sidebar.js',
-        'core/polling.js', 'heartbeat.js', 'pk-invite.js', 'pk-notify.js',
+        'core/polling.js', 'heartbeat.js', 'pk-invite-widget.js', 'pk-notify.js',
       ],
     },
   };

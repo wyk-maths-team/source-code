@@ -666,7 +666,7 @@
   window.LatexDoc = { convert: convert, looksLikeDoc: function (s) { return /\\documentclass|\\begin\{document\}/.test(String(s || '')); } };
 })();
 ;
-/* core/status.js */
+/* core/status-badge.js */
 // assets/js/core/status.js —— 提交状态的客户端解析
 //
 // 和后端 lib/submission-status.js 一一对应，只做三件事：

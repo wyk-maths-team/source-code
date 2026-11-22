@@ -1784,7 +1784,7 @@ window.apiCall = apiCall;
   window.__heartbeat = { tick, markActivity, getLastActivity: () => lastActivityAt };
 })();
 ;
-/* pk-invite.js */
+/* pk-invite-widget.js */
 /*
  * ═══════════════════════════════════════════════════════════════════════
  * 【已停用 — 全文注释，请勿恢复】

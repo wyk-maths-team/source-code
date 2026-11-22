@@ -16,6 +16,7 @@
     const seriesMap = {};
     let activeUsersCache = [];
     let seriesDataCache = {};
+    let currentIsRelative = false;
 
     // ⭐ 鼠標位置 & 當前日期 & pin 狀態
     let mouseClientX = 0, mouseClientY = 0;
@@ -33,9 +34,19 @@
       return CHART_COLORS[Math.abs(hash) % CHART_COLORS.length];
     }
 
+    // 图例与 tooltip 上的名字。
+    //
+    // HKOI 的格式是 `username - 昵称`，比单纯昵称好认 —— 同一批人可能改昵称，
+    // 但 username 是稳定的。勾了 Show Real Name 就换成真名，方便老师对名单。
     function displayNameFor(user) {
-      if (user.realName && user.realName.trim()) return user.realName + '-' + user.username;
-      return user.username;
+      const showReal = document.getElementById('optRealName');
+      if (showReal && showReal.checked && user.realName && user.realName.trim()) {
+        const rn = user.realName.trim();
+        return rn !== user.username ? rn + ' - ' + user.username : rn;
+      }
+      const nick = user.displayName && user.displayName.trim();
+      // 昵称和账号一样时别显示成 "at-test - at-test"
+      return nick && nick !== user.username ? user.username + ' - ' + nick : user.username;
     }
 
     function getActiveUsers(data) {
@@ -68,6 +79,15 @@
               <h3>Chart Options</h3>
               <label class="opt-row">
                 <input type="checkbox" id="optLog"> Logarithmic Y Axis
+              </label>
+              <label class="opt-row">
+                <input type="checkbox" id="optRelative"> Relative Time Axis
+              </label>
+              <p style="font-size:0.72rem;color:var(--text-secondary);margin:-0.15rem 0 0.45rem 1.55rem;">
+                横轴改为「首次做对后第几天」，可并排比较不同起步时间的人
+              </p>
+              <label class="opt-row">
+                <input type="checkbox" id="optRealName"> Show Real Name
               </label>
               <p style="font-size:0.75rem;color:var(--text-secondary);margin:0.3rem 0 0.6rem 0;">
                 💡 點擊圖表可<b>鎖定</b>當前時刻的數據，點擊其他地方解除
@@ -117,7 +137,7 @@
           if (cb.checked) s.show(); else s.hide();
           // ⭐ 若已 pinned，重新渲染 tooltip 以反映勾選變化
           if (tooltipState.pinned && tooltipState.dateMs != null) {
-            showTooltipForDate(tooltipState.dateMs);
+            showTooltipForDate(tooltipState.dateMs, currentIsRelative);
           }
         });
       });
@@ -126,14 +146,14 @@
         legendEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
         Object.values(seriesMap).forEach(s => s.show());
         if (tooltipState.pinned && tooltipState.dateMs != null) {
-          showTooltipForDate(tooltipState.dateMs);
+          showTooltipForDate(tooltipState.dateMs, currentIsRelative);
         }
       });
       document.getElementById('selectNoneBtn').addEventListener('click', () => {
         legendEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
         Object.values(seriesMap).forEach(s => s.hide());
         if (tooltipState.pinned && tooltipState.dateMs != null) {
-          showTooltipForDate(tooltipState.dateMs);
+          showTooltipForDate(tooltipState.dateMs, currentIsRelative);
         }
       });
     }
@@ -167,7 +187,7 @@
       tooltipEl.style.display = 'none';
     }
 
-    function showTooltipForDate(dateMs) {
+    function showTooltipForDate(dateMs, isRelative) {
       const rows = [];
       for (const u of activeUsersCache) {
         const s = seriesMap[u.username];
@@ -177,25 +197,31 @@
         const sdata = seriesDataCache[u.username];
         if (!sdata || !sdata.length) continue;
 
+        // 相对模式下 dateMs 其实是「第几天」，比较用 day；绝对模式比较时间戳。
+        // 两者都是「找最近的采样点」，只是量纲不同。
         let bestIdx = 0, bestDiff = Infinity;
         for (let i = 0; i < sdata.length; i++) {
-          const diff = Math.abs(sdata[i].date - dateMs);
+          const v = isRelative ? sdata[i].day : sdata[i].date;
+          const diff = Math.abs(v - dateMs);
           if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
         }
         const val = sdata[bestIdx].value;
         if (val > 0) rows.push({ name: displayNameFor(u), value: val });
       }
 
+      const header = isRelative
+        ? 'Day ' + Math.round(dateMs)
+        : new Date(dateMs).toISOString().slice(0, 10);
+
       if (!rows.length) {
         if (!tooltipState.pinned) hideTooltip();
-        else tooltipEl.innerHTML = `<div class="tt-header">${new Date(dateMs).toISOString().slice(0,10)}</div><div class="tt-row" style="opacity:.6;">No solves</div>`;
+        else tooltipEl.innerHTML = `<div class="tt-header">${escapeHtml(header)}</div><div class="tt-row" style="opacity:.6;">No solves</div>`;
         return;
       }
 
       rows.sort((a, b) => b.value - a.value);
-      const dateStr = new Date(dateMs).toISOString().slice(0, 10);
       tooltipEl.innerHTML =
-        `<div class="tt-header">${escapeHtml(dateStr)}</div>` +
+        `<div class="tt-header">${escapeHtml(header)}</div>` +
         rows.map(r =>
           `<div class="tt-row">` +
             `<span class="tt-name">${escapeHtml(r.name)}</span>` +
@@ -211,7 +237,7 @@
       if (currentDateMs == null) return;
       tooltipState.pinned = true;
       tooltipState.dateMs = currentDateMs;
-      showTooltipForDate(currentDateMs);
+      showTooltipForDate(currentDateMs, currentIsRelative);
       tooltipEl.classList.add('pinned');
     }
 
@@ -222,7 +248,7 @@
       tooltipEl.style.display = 'none';
     }
 
-    function attachCursorTracking(cursor, xAxis) {
+    function attachCursorTracking(cursor, xAxis, isRelative) {
       cursor.events.on('cursormoved', () => {
         let x = null;
         try { x = cursor.getPrivate('positionX'); } catch (e) {}
@@ -249,7 +275,7 @@
 
         currentDateMs = dateMs;    // ⭐ 記錄當前日期
         if (tooltipState.pinned) return;
-        showTooltipForDate(dateMs);
+        showTooltipForDate(dateMs, isRelative);
       });
 
       cursor.events.on('cursorhidden', () => {
@@ -269,8 +295,15 @@
 
       seriesDataCache = {};
       activeUsers.forEach(u => {
+        // 相对模式下要找到这个人「首个非零值」的位置，作为第 0 天。
+        // 全为 0 的用户不会走到这里（getActiveUsers 已经过滤掉），但要防越界。
+        let firstIdx = 0;
+        for (let i = 0; i < u.daily.length; i++) {
+          if ((u.daily[i] || 0) > 0) { firstIdx = i; break; }
+        }
         seriesDataCache[u.username] = dates.map((d, i) => ({
           date: new Date(d + 'T00:00:00Z').getTime(),
+          day: i - firstIdx,
           value: u.daily[i]
         }));
       });
@@ -304,10 +337,29 @@
 
       chart.set('scrollbarX', am5.Scrollbar.new(root, { orientation: 'horizontal' }));
 
-      const xAxis = chart.xAxes.push(am5xy.DateAxis.new(root, {
-        baseInterval: { timeUnit: 'day', count: 1 },
-        renderer: am5xy.AxisRendererX.new(root, { minGridDistance: 60 })
-      }));
+      // 相对时间轴：X 轴换成「距首次做对的天数」，用 ValueAxis 而不是 DateAxis。
+      // 这样横轴回答的是「起步之后第几天」，而不是挂在日历上 —— 一个 9 月开始的人
+      // 和一个 6 月开始的人可以并排比较进度，而不是被日历拉开。
+      const isRelative = document.getElementById('optRelative').checked;
+      currentIsRelative = isRelative;
+
+      let xAxis;
+      if (isRelative) {
+        xAxis = chart.xAxes.push(am5xy.ValueAxis.new(root, {
+          renderer: am5xy.AxisRendererX.new(root, { minGridDistance: 60 }),
+          min: 0,
+          extraMax: 0.02,
+          numberFormat: '#'
+        }));
+        // amCharts 5 的轴没有 title 属性，label adapter 又被 value 覆盖，
+        // 所以量纲说明放在 HTML 那边（选项下方的小字），图上不加。
+        xAxis.get('renderer').labels.template.setAll({ fontSize: 10 });
+      } else {
+        xAxis = chart.xAxes.push(am5xy.DateAxis.new(root, {
+          baseInterval: { timeUnit: 'day', count: 1 },
+          renderer: am5xy.AxisRendererX.new(root, { minGridDistance: 60 })
+        }));
+      }
 
       const isLog = document.getElementById('optLog').checked;
       const yAxis = chart.yAxes.push(am5xy.ValueAxis.new(root, {
@@ -323,7 +375,7 @@
           name: displayNameFor(u),
           xAxis, yAxis,
           valueYField: 'value',
-          valueXField: 'date',
+          valueXField: isRelative ? 'day' : 'date',
           stroke: color, fill: color,
           tooltip: am5.Tooltip.new(root, { labelText: '' })
         }));
@@ -338,8 +390,8 @@
         series.appear(600);
       });
 
-      attachCursorTracking(cursor, xAxis);
-      setupRangeControls(xAxis, dates);
+      attachCursorTracking(cursor, xAxis, isRelative);
+      setupRangeControls(xAxis, dates, isRelative);
 
       // ⭐ 圖表區域點擊 → pin / unpin
       const chartMain = document.getElementById('chartMain');
@@ -360,7 +412,13 @@
       chart.appear(600, 80);
     }
 
-    function setupRangeControls(xAxis, dates) {
+    function setupRangeControls(xAxis, dates, isRelative) {
+      // 相对时间轴的横轴是「第几天」，没有日历可以选，日期范围控件直接禁掉
+      if (isRelative) {
+        const bar = document.querySelector('.range-row');
+        if (bar) { bar.style.opacity = '0.45'; bar.style.pointerEvents = 'none'; }
+        return;
+      }
       const startInput = document.getElementById('rangeStart');
       const endInput = document.getElementById('rangeEnd');
       const applyBtn = document.getElementById('applyRangeBtn');
@@ -408,6 +466,19 @@
       buildChart(data);
 
       document.getElementById('optLog').addEventListener('change', () => {
+        buildChart(chartDataCache);
+      });
+
+      // 相对时间轴：把每个用户的日期序列平移到「首次做对那天 = 第 0 天」，
+      // 这样看的是「每个人从起步到现在走了多远」，而不是绝对日历。
+      // 换轴类型（DateAxis ↔ ValueAxis）必须整图重建，不能只改配置。
+      document.getElementById('optRelative').addEventListener('change', () => {
+        buildChart(chartDataCache);
+      });
+
+      // 真名只影响文字，重建比逐个改 label 简单，而且图例和 tooltip 能一起换。
+      document.getElementById('optRealName').addEventListener('change', () => {
+        renderLegend(chartDataCache);
         buildChart(chartDataCache);
       });
     })();
