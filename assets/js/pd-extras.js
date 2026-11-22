@@ -326,25 +326,35 @@ let waitInterval = null;
 // 进度条不能按阶段「跳」——一眼就看得出是假的，而且 model 那一段占了大半
 // 时间，中间会有几十秒完全不动，看着就像卡死。
 //
-// 改成时间驱动：以「这道难度通常要多久」为基准，进度随真实时间平滑推进，
-// 阶段事件只负责抬高下限（只进不退）。基准来自 grading_history 的实测 p50，
-// 服务端在 prepare 之后补一个 eta 事件送过来；还没收到时用 20 秒兜底。
+// 改成时间驱动：以「这次大概要多久」为基准，进度随真实时间平滑推进。
+// 基准来自 grading_history 的实测 p50；拿不到就用 DEFAULT_ETA_MS 兜底。
 //
-// 曲线用 1 - e^(-1.7t)：t=1（到预期时间）约 75%，t=2 约 89%，t=3 约 91%。
-// 指数是单调的，所以永远在涨、永远不到顶 —— 既不会「卡住」，也不会提前到 100%。
+// 曲线用幂函数 (t/T)^0.8：
+//   t/T = 0.1 → 15.6%     t/T = 0.5 → 56.8%
+//   t/T = 0.25 → 32.7%    t/T = 1.0 → 99%   ← 到预期时间就封顶
+// 之后不再增长，停在 99% —— 再用指数曲线「永远逼近但到不了」的话，
+// 超时之后会一直缓慢爬升，反而像在骗人。到点就停更诚实。
+//
+// 100 秒的兜底：没有历史数据时，宁可估长不估短。估短了会在题目真正
+// 开始慢下来之前就顶到 99% 卡住，那是最难看的。
+
+const DEFAULT_ETA_MS = 100000;
 
 // 阶段下限：只抬不降。
-// 这些数值刻意压得低 —— 下限越高，曲线要追上它花的时间越长，
-// 而追不上的那段时间进度条是静止的。真正决定进度的是时间曲线，
-// 阶段只负责「不要看起来倒退」。
+// 压得极低（1–4%），因为下限每高一点，曲线追上它就要多花几秒，
+// 而追不上的那段时间进度条是静止的 —— 那就是「僵直」。
+// 实测：model 的 floor 设 8 时，前 4.3 秒一动不动；设 3 时约 1.5 秒。
+// save 例外：那一步之后马上出结果，直接抬到 95%。
 const STAGE_FLOOR = {
-  authorize: 3, problem: 6, quota: 9, tokens: 12,
-  prepare: 16, model: 18, retry: 20, save: 88,
+  authorize: 1, problem: 1, quota: 2, tokens: 2,
+  prepare: 3, model: 3, retry: 4, save: 95,
 };
-const DEFAULT_ETA_MS = 20000;
-// 下限本身也走指数平滑：阶段切换时它花约 0.25 秒爬到位，
-// 而不是瞬间跳一截。跳变正是「僵直」最明显的来源。
+// 下限本身也走指数平滑：阶段切换时它花约 0.25 秒爬到位，而不是瞬间跳一截。
 const FLOOR_TAU_MS = 250;
+// 曲线在 t = T 时给出的百分比；再往上就不动了
+const CURVE_CEIL = 99;
+// 幂指数：0.8 比 1 略前快后慢，接近人对「已经过去多少」的直觉
+const CURVE_EXP = 0.8;
 
 let waitStartedAt = 0, waitStage = '', waitPct = 0;
 let waitFloor = 0, waitFloorNow = 0, waitExpectedMs = DEFAULT_ETA_MS;
@@ -406,7 +416,7 @@ function paintSeconds() {
   if (el) el.textContent = Math.round((Date.now() - waitStartedAt) / 1000) + 's';
 }
 
-/** 每帧算一次目标进度。指数曲线保证单调、不封顶。 */
+/** 每帧算一次目标进度。幂函数曲线，到预期时间封顶 99%。 */
 function tickProgress() {
   if (!waitActive) return;
 
@@ -415,20 +425,15 @@ function tickProgress() {
   waitLastFrame = now;
 
   const elapsed = now - waitStartedAt;
-  const ratio = elapsed / Math.max(2000, waitExpectedMs);
+  const frac = Math.min(1, elapsed / Math.max(2000, waitExpectedMs));
 
   // 下限平滑逼近目标值，避免阶段切换时的跳变
   waitFloorNow += (waitFloor - waitFloorNow) * (1 - Math.exp(-dt / FLOOR_TAU_MS));
 
-  // 主曲线：快速逼近，但数学上永远达不到 92%
-  const base = 92 * (1 - Math.exp(-1.7 * ratio));
+  // 主曲线：t = T 时正好到 99%，之后不再增长
+  const curve = CURVE_CEIL * Math.pow(frac, CURVE_EXP);
 
-  // 超过预期两倍还在跑，说明这题比统计里的大多数都慢。指数曲线此时已经饱和，
-  // 硬截在 92% 就会完全停住 —— 那正是「僵直」本身。加一段对数爬升：
-  // 涨得极慢，但一直在涨，看一眼就知道还没死。
-  const creep = ratio > 2 ? Math.log10(1 + (ratio - 2)) * 3 : 0;
-
-  const pct = Math.min(99, Math.max(waitFloorNow, base + creep));
+  const pct = Math.min(CURVE_CEIL, Math.max(waitFloorNow, curve));
 
   if (pct - waitPct >= 0.1) {
     waitPct = pct;
