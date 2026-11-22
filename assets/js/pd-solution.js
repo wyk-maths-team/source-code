@@ -377,6 +377,7 @@
         '<div class="hints-list">' + data.hints.map((h, i) => renderHint(h, i)).join('') + '</div>';
 
       renderMath(sec);
+      hydrateFigures(sec);        // 已经解锁过的 hint，进来就把图取好
       sec.querySelectorAll('.hint-buy').forEach((btn) => {
         btn.addEventListener('click', () => buyHint(btn.dataset.id, btn));
       });
@@ -389,26 +390,67 @@
     const label = 'Hint ' + (i + 1);
     if (h.purchased) {
       return (
-        '<div class="hint-card unlocked">' +
+        '<div class="hint-card unlocked" data-hint="' + esc(h.id) + '">' +
           '<div class="hint-head"><span class="hint-label">' + label + '</span><span class="hint-state">Unlocked</span></div>' +
-          '<div class="hint-content">' + (h.content || '') + '</div>' +
+          (h.content ? '<div class="hint-content">' + h.content + '</div>' : '') +
+          (h.hasImage ? '<div class="hint-figure" data-hint="' + esc(h.id) + '"></div>' : '') +
         '</div>'
       );
     }
     // AC 过这道题 → 免费
     const free = h.freeForYou === true || h.price === 0;
+    const what = h.hasImage ? (h.content ? 'diagram and note' : 'diagram') : 'hint';
     return (
       '<div class="hint-card locked" data-id="' + esc(h.id) + '">' +
         '<div class="hint-head"><span class="hint-label">' + label + '</span>' +
           '<span class="hint-price"><i class="fas fa-coins"></i> ' + (free ? 'Free' : fmt(h.price)) + '</span></div>' +
-        '<div class="hint-locked"><i class="fas fa-lock"></i> ' +
-          (free ? 'Free for you — you have solved this problem.' : 'Unlock this hint to read it.') +
+        '<div class="hint-locked"><i class="fas fa-' + (h.hasImage ? 'image' : 'lock') + '"></i> ' +
+          (free ? 'Free for you — you have solved this problem.' : 'Unlock this ' + what + ' to see it.') +
         '</div>' +
         '<button class="hint-buy" data-id="' + esc(h.id) + '">' +
           (free ? 'Reveal · Free' : 'Unlock · ' + fmt(h.price) + ' tokens') +
         '</button>' +
       '</div>'
     );
+  }
+
+  // 提示图走 /api/hint-image：带自己的 token 取，拿到的是 blob，
+  // 在页面里用 objectURL 显示。URL 既不在 DOM 里留仓库地址，也不能分享给别人。
+  async function loadHintFigure(host, hintId) {
+    if (!host || host.dataset.loaded === '1') return;
+    host.dataset.loaded = '1';
+    host.innerHTML = '<span class="hint-figure-loading"><i class="fas fa-spinner fa-spin"></i> Loading figure…</span>';
+
+    const token = (window.getToken && window.getToken()) || localStorage.getItem('auth_token') || '';
+    const url = '/api/hint-image?problemId=' + encodeURIComponent(problemId)
+      + '&hintId=' + encodeURIComponent(hintId);
+
+    try {
+      const res = await fetch(url, { headers: token ? { Authorization: 'Bearer ' + token } : {} });
+      if (!res.ok) throw new Error(res.status === 403 ? 'Hint not unlocked' : 'Figure unavailable');
+
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const img = document.createElement('img');
+      img.className = 'hint-figure-img';
+      img.alt = 'Hint diagram';
+      img.loading = 'lazy';
+      img.src = objUrl;
+      // 图很小，但 objectURL 要显式回收，否则每翻一页都留一份内存
+      img.addEventListener('load', () => setTimeout(() => URL.revokeObjectURL(objUrl), 30_000), { once: true });
+      host.innerHTML = '';
+      host.appendChild(img);
+    } catch (e) {
+      host.dataset.loaded = '';
+      host.innerHTML = '<span class="hint-figure-error"><i class="fas fa-triangle-exclamation"></i> '
+        + esc(e.message || 'Could not load figure') + '</span>';
+    }
+  }
+
+  function hydrateFigures(root) {
+    (root || document).querySelectorAll('.hint-figure[data-hint]').forEach((el) => {
+      loadHintFigure(el, el.dataset.hint);
+    });
   }
 
   async function buyHint(hintId, btn) {
@@ -429,9 +471,22 @@
         if (locked) locked.remove();
         const body = document.createElement('div');
         body.className = 'hint-content';
-        body.innerHTML = res.content || '';
-        card.appendChild(body);
+        if (res.content) body.innerHTML = res.content;
+        if (res.content) card.appendChild(body);
         renderMath(body);
+
+        // 这条 hint 带图：解锁后立刻去取（取图的鉴权靠刚才写下的购买记录）
+        if (res.hasImage) {
+          let fig = card.querySelector('.hint-figure');
+          if (!fig) {
+            fig = document.createElement('div');
+            fig.className = 'hint-figure';
+            fig.dataset.hint = hintId;
+            card.appendChild(fig);
+          }
+          loadHintFigure(fig, hintId);
+        }
+
         btn.remove();
       }
       if (window.DSHUI) DSHUI.toast(res.already ? 'Already unlocked' : 'Hint unlocked', 'ok');

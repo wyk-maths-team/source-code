@@ -29,9 +29,17 @@ function normalizeHints(raw) {
   raw.forEach((h, i) => {
     if (!h || typeof h !== 'object') return;
     const content = String(h.content || '').trim();
-    if (!content) return;
+
+    // 提示可以是纯文字、纯图，或两者都有。
+    // image 只留文件名和替代文字 —— 仓库路径和真实文件名都不下发给客户端，
+    // 否则等于把「去哪儿取图」写在响应里。
+    const image = (h.image && typeof h.image === 'object' && h.image.file)
+      ? { file: String(h.image.file), alt: String(h.image.alt || 'Diagram').slice(0, 120) }
+      : null;
+
+    if (!content && !image) return;
     const price = Math.max(0, Math.round(Number(h.price) || 0));
-    out.push({ id: String(h.id || 'h' + (i + 1)), content, price, order: i });
+    out.push({ id: String(h.id || 'h' + (i + 1)), content, price, order: i, image });
   });
   return out;
 }
@@ -87,6 +95,9 @@ async function handler(req, res) {
           purchased: owned.has(h.id),
           // 没买过就不发内容
           content: owned.has(h.id) ? h.content : null,
+          // 图片同理：只告诉「这张 hint 带图」，不给文件名
+          hasImage: !!h.image,
+          imageAlt: h.image ? h.image.alt : null,
         })),
       });
     }
@@ -160,6 +171,8 @@ async function handler(req, res) {
     return res.status(200).json({
       success: true,
       content: hint.content,
+      hasImage: !!hint.image,
+      imageAlt: hint.image ? hint.image.alt : null,
       price: hint.price,
       message: hint.price > 0 ? 'Unlocked' : 'Free hint',
     });

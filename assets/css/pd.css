@@ -303,6 +303,29 @@ body.draw-mode-active{touch-action:none}
 .hint-head { display: flex; justify-content: space-between; font-size: .8rem; color: var(--text-secondary); margin-bottom: 8px; }
 .hint-state { color: #2ecc71; }
 .hint-content { font-size: .9rem; line-height: 1.6; color: var(--text-primary); }
+
+/* ── 提示图 ──────────────────────────────────────────────
+   图从 /api/hint-image 取，转成 objectURL 再塞进来 —— 所以这里只管排版。
+   背景用卡片底色而不是透明白，深色主题下 SVG 的黑色线条才留得住。 */
+.hint-figure { margin-top: 10px; }
+.hint-figure-img {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px;
+}
+:root[data-theme="dark"] .hint-figure-img { filter: invert(1) hue-rotate(180deg); }
+:root[data-theme="scifi"] .hint-figure-img { filter: invert(1) hue-rotate(180deg); }
+.hint-figure-loading,
+.hint-figure-error {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: .8rem; color: var(--text-secondary); padding: 6px 0;
+}
+.hint-figure-error { color: var(--danger); }
 .hint-locked { color: var(--text-secondary); font-size: .85rem; margin-bottom: 10px; }
 .hint-buy { background: #f1c40f; color: #1a1a2e; border: none; border-radius: 6px; padding: 6px 14px; font-weight: 700; cursor: pointer; }
 .hint-buy:disabled { opacity: .6; cursor: default; }
