@@ -75,8 +75,6 @@
       $('animationToggle').checked = localStorage.getItem('animations') !== 'false';
       $('ui3dToggle').checked = localStorage.getItem('ui3d') === 'true';
       $('genshinIconsToggle').checked = localStorage.getItem('genshinIcons') === 'true';
-      // 合并核心脚本：这个开关不是即时生效的，它决定下次刷新时加载 bundle 还是 21 个文件
-      if ($('bundleToggle')) $('bundleToggle').checked = localStorage.getItem('moj:perf:bundle') === '1';
       $('randomAnimToggle').checked = localStorage.getItem('randomAnimation') !== 'false';
       $('hideDifficultyToggle').checked = localStorage.getItem('hideDifficulty') === 'true';
       $('showTagsToggle').checked = localStorage.getItem('showTags') !== 'false';
@@ -115,27 +113,11 @@
       localStorage.setItem('hideDifficulty', $('hideDifficultyToggle').checked);
       localStorage.setItem('showTags', $('showTagsToggle').checked);
       localStorage.setItem('pkInviteEnabled', $('pkInviteToggle').checked);
-      if ($('bundleToggle')) {
-        const want = $('bundleToggle').checked ? '1' : '0';
-        const was = localStorage.getItem('moj:perf:bundle') || '0';
-        localStorage.setItem('moj:perf:bundle', want);
-        if (want !== was) window.__bundleChanged = true;
-      }
       localStorage.setItem('stmtAsImage', $('stmtImageToggle').checked ? '1' : '0');
       const qr = $('pdfQualityRange');
       if (qr) localStorage.setItem('pdfRenderScale', String(Number(qr.value) || 2.2));
       localStorage.setItem(NAV_THEME_KEY, currentNavTheme);
       applyNavTheme(currentNavTheme);
-
-      // 加载方式的改动要刷新才生效，必须明确告诉用户，否则他会以为没起作用
-      if (window.__bundleChanged) {
-        window.__bundleChanged = false;
-        const msg = localStorage.getItem('moj:perf:bundle') === '1'
-          ? 'Merged scripts enabled — refresh to apply'
-          : 'Merged scripts disabled — refresh to apply';
-        if (window.DSHUI && DSHUI.toast) DSHUI.toast(msg, 'ok');
-        else alert(msg);
-      }
 
       this.applyTheme();
       this.applyFontSize();
