@@ -326,6 +326,46 @@ body.draw-mode-active{touch-action:none}
   font-size: .8rem; color: var(--text-secondary); padding: 6px 0;
 }
 .hint-figure-error { color: var(--danger); }
+
+/* ── 连锁题前置提示 ──────────────────────────────────────
+   HKMO 决赛个人赛是「一大题四小问」，后一问的题干直接引用前一问的答案。
+   学生从链接直接跳到中段时，看到的是一道缺条件的题 —— 这条挡在题面上方。 */
+.chain-prereq {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 1rem;
+  padding: 12px 16px;
+  border: 1px solid rgba(230, 140, 30, .45);
+  border-left: 4px solid #e68c1e;
+  border-radius: 10px;
+  background: rgba(230, 140, 30, .07);
+}
+.chain-prereq-icon { color: #e68c1e; font-size: 1rem; flex: none; }
+.chain-prereq-body { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 2px; }
+.chain-prereq-body strong { font-size: .92rem; font-weight: 700; color: var(--text-primary); }
+.chain-prereq-body span { font-size: .78rem; color: var(--text-secondary); line-height: 1.45; }
+.chain-prereq-btn {
+  flex: none;
+  padding: 8px 16px;
+  border-radius: 7px;
+  background: #e68c1e;
+  color: #fff;
+  font-size: .82rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: filter .15s;
+}
+.chain-prereq-btn:hover { filter: brightness(1.08); }
+:root[data-theme="dark"] .chain-prereq { background: rgba(230, 140, 30, .12); }
+:root[data-theme="scifi"] .chain-prereq {
+  background: rgba(255, 209, 102, .08);
+  border-color: rgba(255, 209, 102, .4);
+  border-left-color: #ffd166;
+}
+:root[data-theme="scifi"] .chain-prereq-icon { color: #ffd166; }
+:root[data-theme="scifi"] .chain-prereq-btn { background: #ffd166; color: #14181f; }
 .hint-locked { color: var(--text-secondary); font-size: .85rem; margin-bottom: 10px; }
 .hint-buy { background: #f1c40f; color: #1a1a2e; border: none; border-radius: 6px; padding: 6px 14px; font-weight: 700; cursor: pointer; }
 .hint-buy:disabled { opacity: .6; cursor: default; }

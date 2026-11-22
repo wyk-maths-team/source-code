@@ -7,7 +7,7 @@ import path from 'node:path';
 import { MongoClient } from 'mongodb';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 
-const DIR = 'C:\\Users\\lichi\\Downloads\\dsh\\HKMHASC';
+const DIR = process.env.HKMHASC_DIR || 'downloaded_pdfs';
 const OUT = 'temp/ha-map.json';
 
 const c = new MongoClient(process.env.MONGODB_URI, { maxPoolSize: 1, serverSelectionTimeoutMS: 30_000 });

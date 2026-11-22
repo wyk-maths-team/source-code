@@ -14,7 +14,7 @@ import { createCanvas, loadImage } from '@napi-rs/canvas';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { uploadNumberedImage } from '../lib/github-upload.js';
 
-const DIR = 'C:\\Users\\lichi\\Downloads\\dsh\\HKMHASC';
+const DIR = process.env.HKMHASC_DIR || 'downloaded_pdfs';
 const OUT_DIR = 'temp/ha-figures';
 const SCALE = 3;
 const ALL = process.argv.includes('--all');

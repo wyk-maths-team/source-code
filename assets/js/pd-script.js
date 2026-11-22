@@ -667,10 +667,58 @@ function observeStatementWidth(stmt) {
 }
 
 /**
- * 渲染 statement 內容並套用 KaTeX
- * @param {string} statement  題目 HTML
- * @returns {Promise<boolean>} 是否成功渲染 KaTeX
+ * 连锁题的前置提示。
+ *
+ * HKMO 决赛个人赛是「一大题四小问」：I1.1 → I1.2 → I1.3 → I1.4，
+ * 后一问的题干里直接引用前一问的答案（I3.2 会写「若 B 是…」而 B 来自 I3.1）。
+ * 学生从搜索结果或分享链接直接跳到第 3 问时，看到的是一道缺了条件的题。
+ *
+ * 所以在题面上方挡一条：如果这不是本组第一问，而且上一问没做对，
+ * 就提示先完成它，并给一个直接过去的按钮。
+ *
+ * id 规则：MO + 两位年份 + FI + 两位序号，序号 4n+1 是本组第一问。
  */
+function renderChainPrerequisite() {
+  const existing = document.getElementById('chainPrereq');
+  if (existing) existing.remove();
+
+  const m = /^MO(\d{2})FI(\d{2})$/.exec(problemId);
+  if (!m) return;                                   // 不是决赛个人赛
+
+  const n = Number(m[2]);
+  if (n % 4 === 1) return;                          // 本组第一问，没有前置
+
+  const prevId = 'MO' + m[1] + 'FI' + String(n - 1).padStart(2, '0');
+
+  // 当前题已经做对了就不用挡 —— 说明他其实会做，只是从别处点进来的
+  const self = S.userStates[problemId] || getCachedState(problemId);
+  if (self === 'passed') return;
+
+  // 前一问做对了吗？服务端状态和本地缓存任一为 passed 即算
+  const prev = S.userStates[prevId] || getCachedState(prevId);
+  if (prev === 'passed') return;
+
+  const split = document.getElementById('splitContainer');
+  if (!split || !split.parentNode) return;
+
+  const part = ((n - 1) % 4) + 1;
+  const el = document.createElement('div');
+  el.id = 'chainPrereq';
+  el.className = 'chain-prereq';
+  el.innerHTML =
+    '<i class="fas fa-link chain-prereq-icon"></i>' +
+    '<div class="chain-prereq-body">' +
+      '<strong>Please complete the previous problem!</strong>' +
+      '<span>This is part ' + part + ' of a linked question — its statement uses the answer from the part before it.</span>' +
+    '</div>' +
+    '<a class="chain-prereq-btn" href="/problems/' + encodeURIComponent(prevId) + '">' +
+      'Go to ' + esc(prevId) +
+    '</a>';
+
+  split.parentNode.insertBefore(el, split);
+}
+
+
 async function renderStatement(statement) {
   const stmt = document.getElementById('statementContent');
   if (!stmt) return false;
@@ -686,6 +734,9 @@ async function renderStatement(statement) {
     : { clean: statement, scripts: [] };
 
   stmt.innerHTML = sanitizeStatement(split.clean);
+
+  // 连锁题的前置提示（放在题面上方）
+  try { renderChainPrerequisite(); } catch (e) { console.warn('[chain]', e && e.message); }
 
   // 题面里如果写了 PDF + 答题卡的容器（<div id="pdf-quiz-split" data-pdf="...">），
   // 这时候才刚出现在 DOM 里；启动阶段的 needMcq 检查已经错过了，

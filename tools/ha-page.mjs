@@ -6,7 +6,7 @@ import path from 'node:path';
 import { createCanvas } from '@napi-rs/canvas';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 
-const DIR = 'C:\\Users\\lichi\\Downloads\\dsh\\HKMHASC';
+const DIR = process.env.HKMHASC_DIR || 'downloaded_pdfs';
 const OUT = 'temp/ha-figures';
 const SCALE = 3;
 fs.mkdirSync(OUT, { recursive: true });
