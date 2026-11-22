@@ -146,79 +146,89 @@
     }
     .profile-solved {
       display: flex;
-      flex-wrap: wrap;
-      gap: 3px;
+      flex-direction: column;
+      gap: 10px;           /* 组间距：只在不同编号长度之间留白 */
       margin-bottom: 1rem;
     }
-    .profile-solved a {
+    /* 同一长度的 ID 挤在一起，靠边框本身分隔。
+       1px 间距会让相邻两条边框各画一次，看上去比组内其它线粗一倍；
+       用负外边距让它们在接缝处重叠成一条，才是均匀的网格线。 */
+    .solved-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0;
+    }
+    .solved-group a {
       display: inline-block;
       min-width: 5.5em;
       padding: 5px 8px;
+      margin: 0 -1px -1px 0;
       text-align: center;
       border: 1px solid var(--border-color);
-      border-radius: 3px;
+      border-radius: 0;
       background: var(--c-surface-sunken);
       color: var(--text-primary);
       font-size: 0.82rem;
       font-weight: 600;
       font-family: monospace;
       text-decoration: none;
-      transition: transform 0.12s ease, background 0.15s, border-color 0.15s;
+      transition: background 0.15s, border-color 0.15s;
     }
-    .profile-solved a:hover {
-      transform: translateY(-1px);
+    .solved-group a:hover {
+      position: relative;   /* 抬起时边框压过邻居，不被接缝吃掉 */
+      z-index: 1;
       border-color: var(--accent);
       background: #e8f2ff;
     }
-    .profile-solved a.state-passed {
+    .solved-group a.state-passed {
       background: #d4edda;
       color: #155724;
       border-color: #b1dfbb;
     }
-    .profile-solved a.state-passed:hover {
+    .solved-group a.state-passed:hover {
       background: #a5d6a7;
     }
-    .profile-solved a.state-failed {
+    .solved-group a.state-failed {
       background: #f8d7da;
       color: #721c24;
       border-color: #f1b0b7;
     }
-    .profile-solved a.state-failed:hover {
+    .solved-group a.state-failed:hover {
       background: #ef9a9a;
     }
 
     /* ========== Dark mode ========== */
-    [data-theme="dark"] .profile-solved a {
+    [data-theme="dark"] .solved-group a {
       background: #161b22;
       color: var(--text-primary);
       border-color: var(--border-color);
     }
-    [data-theme="dark"] .profile-solved a:hover {
+    [data-theme="dark"] .solved-group a:hover {
       background: #21262d;
       border-color: var(--accent);
     }
-    [data-theme="dark"] .profile-solved a.state-passed {
+    [data-theme="dark"] .solved-group a.state-passed {
       background: #1a3a2a;
       color: #8fce9f;
       border-color: #2a5a3a;
     }
     
     /* ========== Sci-Fi mode ========== */
-    [data-theme="scifi"] .profile-solved a {
+    [data-theme="scifi"] .solved-group a {
       background: #0b1420;
       color: #a8d8ea;
       border-color: #14313f;
     }
-    [data-theme="scifi"] .profile-solved a:hover {
+    [data-theme="scifi"] .solved-group a:hover {
       background: #0f2231;
       border-color: var(--accent);
     }
-    [data-theme="scifi"] .profile-solved a.state-passed {
+    [data-theme="scifi"] .solved-group a.state-passed {
       background: #0b2a24;
       color: #7ef2c8;
       border-color: #14524a;
     }
-    [data-theme="scifi"] .profile-solved a.state-failed {
+    [data-theme="scifi"] .solved-group a.state-failed {
       background: #2a1118;
       color: #ff9db8;
       border-color: #5a2430;

@@ -171,12 +171,30 @@
         if (!ids.length) {
           return '<span style="color:var(--text-secondary);font-style:italic;">No problems.</span>';
         }
-        return ids.map(id => {
+
+        // 按 ID 长度分组。同一套编号方案的长度是一样的：
+        //   HA0001 / IP0210        6 字
+        //   MO24HG01               8 字
+        // 所以按长度分就等于按编号体系分，HA 和 IP 会落进同一组 —— 它们本来就是
+        // 同一批热身题。短的在前面，长的在后面。
+        const groups = new Map();
+        for (const id of ids) {
+          const len = id.length;
+          if (!groups.has(len)) groups.set(len, []);
+          groups.get(len).push(id);
+        }
+
+        const cell = (id) => {
           const state = stateMap[id] || 'not_started';
           const cls = state === 'passed' ? 'state-passed'
                     : state === 'failed' ? 'state-failed' : '';
           return `<a href="/problems/${encodeURIComponent(id)}" class="${cls}" title="${escapeHtml(id)}">${escapeHtml(id)}</a>`;
-        }).join('');
+        };
+
+        return [...groups.entries()]
+          .sort((a, b) => a[0] - b[0])
+          .map(([len, list]) => `<div class="solved-group" data-len="${len}">${list.map(cell).join('')}</div>`)
+          .join('');
       }
 
       async function loadProfile() {
