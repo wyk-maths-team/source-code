@@ -329,18 +329,25 @@ body.draw-mode-active{touch-action:none}
 
 /* ── 连锁题前置提示 ──────────────────────────────────────
    HKMO 决赛个人赛是「一大题四小问」，后一问的题干直接引用前一问的答案。
-   学生从链接直接跳到中段时，看到的是一道缺条件的题 —— 这条挡在题面上方。 */
+   学生从链接直接跳到中段时，看到的是一道缺条件的题 —— 这条挡在题面上方。
+   它现在挂在 #statementContent 内部，所以要显式清掉题面继承下来的
+   行高、缩进和首行排版，否则标题会被当成正文折行。 */
 .chain-prereq {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
   margin: 0 0 1rem;
   padding: 12px 16px;
   border: 1px solid rgba(230, 140, 30, .45);
   border-left: 4px solid #e68c1e;
   border-radius: 10px;
   background: rgba(230, 140, 30, .07);
+  font-size: 1rem;
+  line-height: 1.5;
+  text-indent: 0;
 }
 .chain-prereq-icon { color: #e68c1e; font-size: 1rem; flex: none; }
 .chain-prereq-body { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 2px; }

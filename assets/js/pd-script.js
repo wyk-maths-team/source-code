@@ -707,14 +707,15 @@ function renderChainPrerequisite() {
   dbg.prev = prev;
   if (prev === 'passed') { dbg.reason = 'previous part already passed'; window.__chainDebug = dbg; return; }
 
-  // 挂载点：优先塞在 statementContent 前面（它是页面骨架的一部分，
-  // 比 splitContainer 更早出现、也更不容易被整块重绘冲掉）
+  // 挂载点：塞进 #statementContent 内部的最前面。
+  //
+  // 不能插在它的父元素旁边 —— #splitContainer 是 flex 横向布局（题面 + 画板），
+  // 外面的兄弟节点会被当成 flex item 挤到左边，变成「提示条在左、题面在右」。
+  // 而 statementContent 内部是正常的块级流，prepend 进去自然占满一行、位于题面之上。
+  // 同时它每次重绘都会被 innerHTML 清掉，所以放在 renderStatement 里调用正好跟得上。
   const stmtEl = document.getElementById('statementContent');
-  const host = stmtEl && stmtEl.parentElement
-    ? stmtEl
-    : document.getElementById('splitContainer');
-  if (!host || !host.parentElement) {
-    dbg.reason = 'no mount point (statementContent / splitContainer missing)';
+  if (!stmtEl) {
+    dbg.reason = 'no mount point (statementContent missing)';
     window.__chainDebug = dbg;
     return;
   }
@@ -733,7 +734,7 @@ function renderChainPrerequisite() {
       'Go to ' + esc(prevId) +
     '</a>';
 
-  host.parentElement.insertBefore(el, host);
+  stmtEl.prepend(el);
   dbg.shown = true;
   dbg.reason = 'shown';
   window.__chainDebug = dbg;
