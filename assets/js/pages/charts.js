@@ -249,33 +249,38 @@
     }
 
     function attachCursorTracking(cursor, xAxis, isRelative) {
+      // 原来用 xAxis.getPrivate('start'/'end') 自己线性插值，但这两个私有字段
+      // 并不是始终可用（DateAxis 上拿到 undefined），所以 tooltip 一直弹不出来。
+      // renderer.positionToValue() 是官方 API，两种轴都能正确换算，
+      // 而且已经考虑了缩小/平移后的范围，不用我们重算。
       cursor.events.on('cursormoved', () => {
         let x = null;
         try { x = cursor.getPrivate('positionX'); } catch (e) {}
         if (x == null) { if (!tooltipState.pinned) hideTooltip(); return; }
 
-        let startMs = null, endMs = null;
+        // 注意：positionToValue 是 Axis 的方法，不在 renderer 上。
+        // toAxisPosition 才是 renderer 的（像素 → 轴位置），两者别调反。
+        let value = null;
         try {
-          const s = xAxis.getPrivate('start');
-          const e = xAxis.getPrivate('end');
-          startMs = s instanceof Date ? s.getTime() : Number(s);
-          endMs = e instanceof Date ? e.getTime() : Number(e);
-        } catch (_) {}
+          const renderer = xAxis.get('renderer');
+          const pos = renderer && renderer.toAxisPosition ? renderer.toAxisPosition(x) : x;
+          value = xAxis.positionToValue(pos);
+        } catch (e) {}
 
-        if (!isFinite(startMs) || !isFinite(endMs)) {
+        if (value == null || (typeof value === 'number' && !isFinite(value))) {
+          if (!tooltipState.pinned) hideTooltip();
+          return;
+        }
+        // DateAxis 给 Date，ValueAxis 给数字
+        const scaled = value instanceof Date ? value.getTime() : value;
+        if (!isFinite(scaled)) {
           if (!tooltipState.pinned) hideTooltip();
           return;
         }
 
-        const dateMs = startMs + (endMs - startMs) * x;
-        if (!isFinite(dateMs)) {
-          if (!tooltipState.pinned) hideTooltip();
-          return;
-        }
-
-        currentDateMs = dateMs;    // ⭐ 記錄當前日期
+        currentDateMs = scaled;
         if (tooltipState.pinned) return;
-        showTooltipForDate(dateMs, isRelative);
+        showTooltipForDate(scaled, isRelative);
       });
 
       cursor.events.on('cursorhidden', () => {
@@ -330,10 +335,13 @@
 
       const cursor = chart.set('cursor', am5xy.XYCursor.new(root, { behavior: 'none' }));
       cursor.lineY.set('visible', false);
+      // 竖直游标线：HKOI 那张图用的是 #258cbb 实线，贯穿整个绘图区。
+      // 之前这里是灰色虚线，和曲线混在一起不好定位，改成实线更清楚。
       cursor.lineX.set('visible', true);
-      cursor.lineX.set('stroke', am5.color(0x888888));
-      cursor.lineX.set('strokeOpacity', 0.5);
-      cursor.lineX.set('strokeDasharray', [4, 4]);
+      cursor.lineX.set('stroke', am5.color(0x258cbb));
+      cursor.lineX.set('strokeOpacity', 1);
+      cursor.lineX.set('strokeWidth', 1);
+      cursor.lineX.set('strokeDasharray', []);
 
       chart.set('scrollbarX', am5.Scrollbar.new(root, { orientation: 'horizontal' }));
 
