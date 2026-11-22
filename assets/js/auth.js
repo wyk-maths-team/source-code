@@ -176,14 +176,19 @@ function logout() {
   }
   // root-session 已永久取消：root_persist cookie 不再存在，无需清理。
 
-  // ⭐ 2. 清 localStorage（全部）
+  // ⭐ 2. 只清认证相关的 key
+  //
+  // 原来这里是 localStorage.clear() —— 清空全部。问题是这个函数不只由「用户点了
+  // 登出」触发，任何一个 API 返回 401 且消息里带 unauthorized/expired 也会调它
+  // （见下面的 apiCall）。于是一次token校验失败就把主题、字号、各种开关、
+  // 还有 moj:perf:bundle 这个加载方式标记一起清了，用户重新登录后发现所有
+  // 偏好都没了，还以为是设置坏了。
+  //
+  // 代码里一共用到 17 个 localStorage key，其中只有 auth_token 是认证状态。
   try {
-    localStorage.clear();
+    localStorage.removeItem('auth_token');
   } catch (e) {
-    // 私密模式可能拋錯，退回逐項刪除
-    try {
-      Object.keys(localStorage).forEach(k => localStorage.removeItem(k));
-    } catch {}
+    // 私密模式可能抛错，此时本来也删不掉，忽略
   }
 
   // ⭐ 3. 清 sessionStorage（全部）
