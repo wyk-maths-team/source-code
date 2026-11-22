@@ -172,6 +172,17 @@
 
     function positionTooltip() {
       if (tooltipState.pinned) return;   // ⭐ pinned 不跟隨
+
+      // 鼠标已经落在浮层上就别再挪它了。
+      // 浮层在鼠标右侧 16px，跟着鼠标走；一旦它跟到鼠标底下，
+      // 继续按同一个偏移重算会把它再推出去，鼠标又落空 —— 两边互相追，
+      // 表现为浮层抖、永远滚不动。停在原地，让用户能滚。
+      const r = tooltipEl.getBoundingClientRect();
+      if (mouseClientX >= r.left && mouseClientX <= r.right &&
+          mouseClientY >= r.top  && mouseClientY <= r.bottom) {
+        return;
+      }
+
       const w = tooltipEl.offsetWidth;
       const h = tooltipEl.offsetHeight;
       let left = mouseClientX + 16;

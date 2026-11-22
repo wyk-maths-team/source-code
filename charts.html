@@ -3,10 +3,10 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='49939365';</script>
+<script>window.__BUILD_V='4e3dd218';</script>
 
 <!-- moj-core-head:start -->
-  <script src="/assets/js/bundle-loader.js?v=49939365" data-part="head"></script>
+  <script src="/assets/js/bundle-loader.js?v=4e3dd218" data-part="head"></script>
 <!-- moj-core-head:end --><!-- <script>
 (function(){
   try {
@@ -34,7 +34,7 @@
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=49939365" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=4e3dd218" />
 
 <!-- amCharts 5 -->
 <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
@@ -136,7 +136,10 @@
   /* ⭐ 全局 tooltip（fixed 定位，跟随鼠标）*/
   #cursorTooltip {
     position: fixed;
-    pointer-events: none;
+    /* 必须收事件，否则滚轮穿透到 canvas，max-height + overflow 形同虚设。
+       代价是鼠标滑到浮层上时 cursor 不再移动、列表停在原地 —— 正好是想
+       滚动查看的时候，不用再跟鼠标抢位置。 */
+    pointer-events: auto;
     display: none;
     background: rgba(25, 25, 30, 0.94);
     color: var(--c-surface-raised);
@@ -144,14 +147,24 @@
     border-radius: 6px;
     font-size: 0.82rem;
     font-family: inherit;
-    max-height: 380px;
+    max-height: 340px;
     overflow-y: auto;
+    overscroll-behavior: contain;
     min-width: 180px;
     max-width: 320px;
     z-index: 9999;
     box-shadow: 0 6px 18px rgba(0,0,0,0.35);
     border: 1px solid rgba(255,255,255,0.1);
   }
+  /* 深色浮层配深色滚动条，不然默认那条浅灰很抢眼 */
+  #cursorTooltip::-webkit-scrollbar { width: 8px; }
+  #cursorTooltip::-webkit-scrollbar-track { background: transparent; }
+  #cursorTooltip::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.22);
+    border-radius: 4px;
+  }
+  #cursorTooltip::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.35); }
+  #cursorTooltip { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.28) transparent; }
   #cursorTooltip .tt-header {
     font-weight: 700;
     margin-bottom: 6px;
@@ -282,10 +295,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="WYK Maths">
 <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="/assets/css/script-panel.css?v=49939365">
-      <link rel="stylesheet" href="/assets/css/radial-menu.css?v=49939365">
-    <link rel="stylesheet" href="/assets/css/ban-screen.css?v=49939365">
-    <link rel="stylesheet" href="/assets/css/ban-index.css?v=49939365">
+  <link rel="stylesheet" href="/assets/css/script-panel.css?v=4e3dd218">
+      <link rel="stylesheet" href="/assets/css/radial-menu.css?v=4e3dd218">
+    <link rel="stylesheet" href="/assets/css/ban-screen.css?v=4e3dd218">
+    <link rel="stylesheet" href="/assets/css/ban-index.css?v=4e3dd218">
   </head>
 <body class="index-body">
   <div id="appContainer">
@@ -299,9 +312,9 @@
   <div id="cursorTooltip"></div>
 
   <!-- moj-core-body:start -->
-  <script src="/assets/js/bundle-loader.js?v=49939365" data-part="body"></script>
+  <script src="/assets/js/bundle-loader.js?v=4e3dd218" data-part="body"></script>
 <!-- moj-core-body:end -->      
 
-  <script src="/assets/js/pages/charts.js?v=49939365"></script>
+  <script src="/assets/js/pages/charts.js?v=4e3dd218"></script>
 </body>
 </html>
