@@ -682,24 +682,42 @@ function renderChainPrerequisite() {
   const existing = document.getElementById('chainPrereq');
   if (existing) existing.remove();
 
-  const m = /^MO(\d{2})FI(\d{2})$/.exec(problemId);
-  if (!m) return;                                   // 不是决赛个人赛
+  const dbg = { problemId, ran: true, at: new Date().toISOString(), reason: null, shown: false };
+
+  const m = /^MO(\d{2})FI(\d{2})$/.exec(String(problemId || ''));
+  if (!m) { dbg.reason = 'not a Final Individual id'; window.__chainDebug = dbg; return; }
 
   const n = Number(m[2]);
-  if (n % 4 === 1) return;                          // 本组第一问，没有前置
+  if (n % 4 === 1) { dbg.reason = 'first part of its group'; window.__chainDebug = dbg; return; }
 
   const prevId = 'MO' + m[1] + 'FI' + String(n - 1).padStart(2, '0');
+  dbg.prevId = prevId;
 
   // 当前题已经做对了就不用挡 —— 说明他其实会做，只是从别处点进来的
   const self = S.userStates[problemId] || getCachedState(problemId);
-  if (self === 'passed') return;
+  dbg.self = self;
+  if (self === 'passed') { dbg.reason = 'this part already passed'; window.__chainDebug = dbg; return; }
 
   // 前一问做对了吗？服务端状态和本地缓存任一为 passed 即算
-  const prev = S.userStates[prevId] || getCachedState(prevId);
-  if (prev === 'passed') return;
+  const prevSrv = S.userStates[prevId];
+  const prevLocal = getCachedState(prevId);
+  const prev = prevSrv || prevLocal;
+  dbg.prevServer = prevSrv || null;
+  dbg.prevLocal = prevLocal || null;
+  dbg.prev = prev;
+  if (prev === 'passed') { dbg.reason = 'previous part already passed'; window.__chainDebug = dbg; return; }
 
-  const split = document.getElementById('splitContainer');
-  if (!split || !split.parentNode) return;
+  // 挂载点：优先塞在 statementContent 前面（它是页面骨架的一部分，
+  // 比 splitContainer 更早出现、也更不容易被整块重绘冲掉）
+  const stmtEl = document.getElementById('statementContent');
+  const host = stmtEl && stmtEl.parentElement
+    ? stmtEl
+    : document.getElementById('splitContainer');
+  if (!host || !host.parentElement) {
+    dbg.reason = 'no mount point (statementContent / splitContainer missing)';
+    window.__chainDebug = dbg;
+    return;
+  }
 
   const part = ((n - 1) % 4) + 1;
   const el = document.createElement('div');
@@ -715,7 +733,10 @@ function renderChainPrerequisite() {
       'Go to ' + esc(prevId) +
     '</a>';
 
-  split.parentNode.insertBefore(el, split);
+  host.parentElement.insertBefore(el, host);
+  dbg.shown = true;
+  dbg.reason = 'shown';
+  window.__chainDebug = dbg;
 }
 
 
