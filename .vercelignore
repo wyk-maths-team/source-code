@@ -16,3 +16,11 @@ minecraft/
 database/
 oi/
 data/
+# 2026-11-23: 本地题库与私有资料，绝不上传
+private/
+dsestudy/katex/fonts/*.ttf
+game/
+temp/
+.backup/
+downloaded_pdfs/
+crops/
