@@ -14,6 +14,7 @@ import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { waitUntil } from '@vercel/functions';
 import { wrapHandler } from '../lib/errors.js';
+import { isRetryableDBError } from '../lib/mongo.js';
 import { encodeStatus } from '../lib/submission-status.js';
 import { guestBlockedFromProblem } from '../lib/guestGuard.js';
 import {
@@ -28,7 +29,15 @@ import {
 } from '../lib/submission.js';
 
 // ═══════════════ Constants ═══════════════
+// 三个桶，都按用户名计：
+//   单题   RATE_MAX_PER_MIN     10 次/分钟（维持原有行为）
+//   批量   BATCH_MAX_PER_MIN     3 批/分钟（以前批量完全不受限）
+//   题量   PROBLEMS_MAX_PER_MIN 120 题/分钟（总闸，单题与批量合计）
+// 分成三个而不是一个，是因为 100 题的答题卡和 100 次单题点击成本完全不同：
+// 前者一次请求、后者一百次往返。总闸只负责挡住「批量刷题」这种放大用法。
 const RATE_MAX_PER_MIN = 10;
+const BATCH_MAX_PER_MIN = 3;
+const PROBLEMS_MAX_PER_MIN = 120;
 const RATE_WINDOW_MS = 60_000;
 const CLIENT_TS_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const ANSWER_MAX_LEN = 500;
@@ -51,22 +60,73 @@ function cleanupUserRateLimit(now) {
   }
 }
 
-function checkUserRateLimit(username) {
+/**
+ * 扣用户配额。
+ *
+ * units 是这次请求的题数：单题 1，批量等于本批题数（上限 BATCH_MAX）。
+ *
+ * 以前批量提交在 checkUserRateLimit 之前就 `return` 了 —— 一条 100 题的
+ * 批量请求判 100 次、写 100 行，却连一次计数都不花，等于一条完全免费的放大器。
+ *
+ * @param {string} username
+ * @param {number} units
+ * @param {{batch?: boolean}} [opts]
+ * @returns {{ok: true} | {ok: false, retryAfter: number, message: string}}
+ */
+function consumeUserQuota(username, units = 1, opts = {}) {
   const t = Date.now();
-  cleanupUserRateLimit(t);   // ⭐ 加這行
-  const rec = userRateLimit.get(username);
-  if (!rec) {
-    userRateLimit.set(username, { count: 1, firstTime: t });
-    return true;
+  cleanupUserRateLimit(t);
+
+  const cost = Math.max(1, Math.min(Math.floor(Number(units)) || 1, BATCH_MAX));
+
+  let rec = userRateLimit.get(username);
+  if (!rec || t - rec.firstTime > RATE_WINDOW_MS) {
+    rec = { singles: 0, batches: 0, problems: 0, firstTime: t };
+    userRateLimit.set(username, rec);
   }
-  if (t - rec.firstTime > RATE_WINDOW_MS) {
-    rec.count = 1;
-    rec.firstTime = t;
-    return true;
+  if (!Number.isFinite(rec.singles)) rec.singles = 0;
+  if (!Number.isFinite(rec.batches)) rec.batches = 0;
+  if (!Number.isFinite(rec.problems)) rec.problems = 0;
+
+  const retryAfter = Math.max(1, Math.ceil((rec.firstTime + RATE_WINDOW_MS - t) / 1000));
+
+  if (opts.batch && rec.batches >= BATCH_MAX_PER_MIN) {
+    return {
+      ok: false,
+      retryAfter,
+      message: `Too many batch submissions (${BATCH_MAX_PER_MIN}/min). Please wait ${retryAfter}s.`,
+    };
   }
-  if (rec.count >= RATE_MAX_PER_MIN) return false;
-  rec.count++;
-  return true;
+  if (!opts.batch && rec.singles >= RATE_MAX_PER_MIN) {
+    return {
+      ok: false,
+      retryAfter,
+      message: `Too many submissions (${RATE_MAX_PER_MIN}/min). Please wait ${retryAfter}s.`,
+    };
+  }
+  if (rec.problems + cost > PROBLEMS_MAX_PER_MIN) {
+    return {
+      ok: false,
+      retryAfter,
+      message: `Too many problems submitted (${PROBLEMS_MAX_PER_MIN}/min). Please wait ${retryAfter}s.`,
+    };
+  }
+
+  if (opts.batch) rec.batches += 1;
+  else rec.singles += 1;
+  rec.problems += cost;
+  return { ok: true };
+}
+
+/** 配额用尽时统一回 429 —— 带 Retry-After，客户端可以据此自动退避 */
+function rejectQuota(res, quota) {
+  res.setHeader('Retry-After', String(quota.retryAfter));
+  return res.status(429).json({
+    success: false,
+    code: 'RATE_LIMITED',
+    message: quota.message,
+    retryAfter: quota.retryAfter,
+  });
 }
 
 // ═══════════════ Achievements hook ═══════════════
@@ -151,7 +211,6 @@ async function handler(req, res) {
   const decoded = await verifyToken(req);
   if (!decoded) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
-  const db = await connectToDatabase();
   const now = new Date();
   const submitTime = resolveSubmitTime(req.body, now);
 
@@ -164,17 +223,17 @@ async function handler(req, res) {
   }
 
   // ── Batch mode (separate flow) ──
-  if (req.query.action === 'batch') {
-    return handleBatch(req, res, db, rawUsername, now);
+  // 入参校验与配额都在 handleBatch 里先做完，超限的批量请求连数据库都不会碰。
+  if (req.query?.action === 'batch') {
+    return handleBatch(req, res, rawUsername, now);
   }
 
   // ── Rate limit (single submissions) ──
-  if (!checkUserRateLimit(rawUsername)) {
-    return res.status(429).json({
-      success: false,
-      message: 'Too many submissions. Please wait a minute.',
-    });
-  }
+  // 同样放在连接之前：被限流的请求不该再花一次握手和一条连接。
+  const singleQuota = consumeUserQuota(rawUsername, 1);
+  if (!singleQuota.ok) return rejectQuota(res, singleQuota);
+
+  const db = await connectToDatabase();
 
   // ── Validate ──
   const v = validateSingleSubmission(req.body);
@@ -506,10 +565,14 @@ async function handleSingleSubmit(ctx) {
 
 // ═══════════════ Batch submission flow ═══════════════
 
-async function handleBatch(req, res, db, username, now) {
-  const { paperId, answers } = req.body || {};
+async function handleBatch(req, res, username, now) {
+  const body = (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) ? req.body : {};
+  const { paperId, answers } = body;
   if (!paperId || !answers || typeof answers !== 'object' || Array.isArray(answers)) {
     return res.status(400).json({ success: false, message: 'Missing paperId or answers' });
+  }
+  if (String(paperId).length > PID_MAX_LEN) {
+    return res.status(400).json({ success: false, message: 'Invalid paper id' });
   }
 
   const answerIds = Object.keys(answers).slice(0, BATCH_MAX);
@@ -517,7 +580,14 @@ async function handleBatch(req, res, db, username, now) {
     return res.status(400).json({ success: false, message: 'No answers' });
   }
 
+  // 批量走自己的桶（3 批/分钟），题数另外计入 120 题/分钟的总闸。
+  // 计费按 key 数而不是「成功判了几题」，所以塞一堆假 ID 一样要付钱。
+  const quota = consumeUserQuota(username, answerIds.length, { batch: true });
+  if (!quota.ok) return rejectQuota(res, quota);
+
   try {
+    const db = await connectToDatabase();
+
     const paper = await db.collection('problems').findOne(
       { id: String(paperId) },
       { projection: { id: 1, _id: 0 } }
@@ -543,6 +613,12 @@ async function handleBatch(req, res, db, username, now) {
     let submittedCount = 0;
 
     for (const pid of answerIds) {
+      // 题号是客户端给的 key，先卡长度再拿来查库/入库，否则它可以被写成任意长字符串
+      if (typeof pid !== 'string' || !pid || pid.length > PID_MAX_LEN) {
+        results.push({ problemId: String(pid).slice(0, 32), error: 'Invalid problem id', skipped: true });
+        continue;
+      }
+
       const prob = problemMap[pid];
       if (!prob) {
         results.push({ problemId: pid, error: 'Problem not found', skipped: true });
@@ -558,8 +634,23 @@ async function handleBatch(req, res, db, username, now) {
         results.push({ problemId: pid, error: 'Empty answer', skipped: true });
         continue;
       }
+      // 和单题同一条上限：单题在 validateSingleSubmission 里卡 500 字，
+      // 批量原来完全不卡，等于留了一条把任意大字符串写进 submissions 的路。
+      if (userAnswer.length > ANSWER_MAX_LEN) {
+        results.push({ problemId: pid, error: `Answer length exceeds ${ANSWER_MAX_LEN}`, skipped: true });
+        continue;
+      }
 
-      const jr = await judge({ problem: prob, answer: userAnswer });
+      // 单题判题抛错不该让整批 500：客户端会把已经判好的结果一起丢掉，
+      // 用户重试又会对那些题重复提交。这里降级成该题失败，其余照常。
+      let jr;
+      try {
+        jr = await judge({ problem: prob, answer: userAnswer });
+      } catch (err) {
+        console.error('[submit] batch judge failed:', pid, err);
+        results.push({ problemId: pid, error: 'Judge failed', systemError: true, skipped: true });
+        continue;
+      }
 
       const subid = generateSubid();
       inserts.push({
@@ -610,7 +701,18 @@ async function handleBatch(req, res, db, username, now) {
     });
   } catch (err) {
     console.error('Batch submit error:', err);
-    return res.status(500).json({ success: false, message: err.message });
+    // 冷启动 / 池繁忙 / 维护窗口：过两秒再来，不是 500
+    if (err && (err.code === 'DB_BUSY' || isRetryableDBError(err))) {
+      res.setHeader('Retry-After', '2');
+      return res.status(503).json({
+        success: false,
+        code: 'BUSY',
+        message: 'Database is unavailable, please retry in a moment',
+      });
+    }
+    // 不要把 err.message 直接回给客户端 —— 里面的路径、主机名、驱动报错
+    // 只有 admin/root 该看到（wrapHandler 的 sendCatch 就是这么做的）。
+    return res.status(500).json({ success: false, message: 'Batch submission failed' });
   }
 }
 
