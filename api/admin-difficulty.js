@@ -20,7 +20,9 @@ import { addAiUsage } from '../lib/aiQuota.js';
 import { addTokensUsed } from '../lib/token-meter.js';
 import { billingMultiplier } from '../lib/pricing.js';
 
-export const config = { maxDuration: 60 };
+// 5 分钟预算：Lab 允许 50 路并发，模型偶发慢响应时 60 秒会直接砍在
+// 半路上，前面的调用白烧。Vercel 的上限是 300s。
+export const config = { maxDuration: 300 };
 
 const MAX_STATEMENT = 8000;
 const MIN_DIFFICULTY = 0;
@@ -136,12 +138,13 @@ async function handler(req, res) {
     return res.status(405).json({ success: false, message: 'Method not allowed' });
   }
 
-  // 60 次/分钟：Lab 页会并发跑（默认 3 路），20 次的老额度会被一次 N=30
-  // 的评测直接打满，管理员正当使用反而被拦。
+  // 300 次/分钟。Lab 页允许把并发开到 50，一次满额评测就会打掉 50 次；
+  // 60 的老额度意味着连跑两轮就被 429 挡住。ds-flash 侧并发上限 2500，
+  // 所以这里不是瓶颈，真正的成本控制是余额与每日 AI 预算。
   if (!(await applyRateLimit(req, res, {
     name: 'auto-difficulty',
     key: 'u:' + decoded.username,
-    max: 60,
+    max: 300,
     windowMs: 60_000,
     banMs: 60_000,
   }))) return;
@@ -170,7 +173,8 @@ async function handler(req, res) {
 
   let out;
   try {
-    out = await askDeepSeekAPI(prompt, { effort: 'high', timeoutMs: 50_000 });
+    // 单次调用给到 280 秒，留 20 秒给写库与计费
+    out = await askDeepSeekAPI(prompt, { effort: 'high', timeoutMs: 280_000 });
   } catch (err) {
     console.error('[auto-difficulty] model failed:', err && err.message);
     return sendError(req, res, 'UPSTREAM', 'The estimator is busy right now, please retry', err);

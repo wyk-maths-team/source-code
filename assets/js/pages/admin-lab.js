@@ -35,7 +35,7 @@
     '  </header>',
     '  <div class="lab-controls">',
     '    <label>Sample <input type="number" id="diffN" value="10" min="1" max="50"></label>',
-    '    <label>Concurrency <input type="number" id="diffConcurrency" value="3" min="1" max="6"></label>',
+    '    <label>Concurrency <input type="number" id="diffConcurrency" value="3" min="1" max="50"></label>',
     '    <label><input type="checkbox" id="diffAnswerOnly"> only problems with a numeric answer</label>',
     '    <button type="button" class="btn btn-primary" id="diffRun"><i class="fas fa-play"></i> Run</button>',
     '    <button type="button" class="btn btn-secondary" id="diffStop" disabled>Stop</button>',
@@ -55,7 +55,7 @@
     '  </header>',
     '  <div class="lab-controls">',
     '    <label>Sample <input type="number" id="simN" value="20" min="1" max="100"></label>',
-    '    <label>Concurrency <input type="number" id="simConcurrency" value="4" min="1" max="8"></label>',
+    '    <label>Concurrency <input type="number" id="simConcurrency" value="4" min="1" max="50"></label>',
     '    <button type="button" class="btn btn-primary" id="simRun"><i class="fas fa-play"></i> Run</button>',
     '    <button type="button" class="btn btn-secondary" id="simStop" disabled>Stop</button>',
     '    <span class="lab-progress" id="simProgress"></span>',
@@ -106,7 +106,9 @@
   async function runDifficulty() {
     if (state.diffRunning) return;
     const n = Math.max(1, Math.min(50, Number($('diffN').value) || 10));
-    const concurrency = Math.max(1, Math.min(6, Number($('diffConcurrency').value) || 3));
+    // 上限 50：ds-flash 侧允许的并发是 2500，瓶颈不会在模型那边。
+    // 真正要守住的是后端限流（api/admin-difficulty 现在是 300 次/分钟）。
+    const concurrency = Math.max(1, Math.min(50, Number($('diffConcurrency').value) || 3));
     const answerOnly = $('diffAnswerOnly').checked;
 
     state.diffRunning = true;
@@ -247,7 +249,7 @@
   async function runSimilarity() {
     if (state.simRunning) return;
     const n = Math.max(1, Math.min(100, Number($('simN').value) || 20));
-    const concurrency = Math.max(1, Math.min(8, Number($('simConcurrency').value) || 4));
+    const concurrency = Math.max(1, Math.min(50, Number($('simConcurrency').value) || 4));
 
     state.simRunning = true;
     $('simRun').disabled = true;

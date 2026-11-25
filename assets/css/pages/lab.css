@@ -67,6 +67,33 @@
   font-family: inherit;
   font-size: .84rem;
 }
+/* 项目里的按钮样式一直是各 admin 页自己内联定义的（styles.css 没有 .btn），
+   这里补一份给 Lab 用，颜色全部走变量。 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: .82rem;
+  font-weight: 600;
+  line-height: 1.35;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+.btn i { font-size: .78rem; }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+.btn-secondary {
+  background: var(--card-bg);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+.btn-secondary:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+
 .lab-progress { font-size: .8rem; color: var(--text-secondary); margin-left: auto; }
 
 .lab-stats {
