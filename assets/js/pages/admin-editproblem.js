@@ -435,7 +435,15 @@
               <textarea id="editLogic" rows="4" style="width:100%; padding:0.5rem; border:1px solid var(--border-color); border-radius:4px; font-family:monospace;"></textarea>
               <small style="color:#666;">Example: <code>(ans, uans) => { let score = (uans === ans) ? 100 : 0; return { score, comment: uans === ans ? 'Correct' : 'Wrong' }; }</code></small>
             </div>
-            <div class="form-group"><label>Difficulty: <input type="number" id="editDifficulty" step="0.01" value="${problem.difficulty || 0}" /></label></div>
+            <div class="form-group">
+              <label>Difficulty: <input type="number" id="editDifficulty" step="0.01" value="${problem.difficulty || 0}" /></label>
+              <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap;">
+                <button type="button" id="autoDifficultyBtn" class="btn btn-secondary" style="padding:4px 10px;font-size:.78rem;">
+                  <i class="fas fa-wand-magic-sparkles"></i> Auto
+                </button>
+                <span id="autoDifficultyNote" style="font-size:.76rem;color:var(--text-secondary);"></span>
+              </div>
+            </div>
             <div class="form-group">
             <div class="form-group"><label>Tags (comma-separated): <input type="text" id="editTags" value="${(problem.tags || []).join(', ')}" /></label></div>
             <div class="form-group"><label><input type="checkbox" id="editPublic" ${problem.public !== false ? 'checked' : ''}> Public (visible to students)</label></div>
@@ -1082,4 +1090,44 @@
       }
       renderForm(data.problem, data.discussions);
     })();
+
+    // ── Auto：让模型给这道题重新定难度 ──
+    // 只回填输入框，不直接保存 —— 管理员看过理由再按保存，
+    // 免得模型一次误判把线上难度改掉。
+    document.addEventListener('click', async function (e) {
+      const btn = e.target && e.target.closest ? e.target.closest('#autoDifficultyBtn') : null;
+      if (!btn) return;
+      e.preventDefault();
+      if (btn.disabled) return;
+
+      const input = document.getElementById('editDifficulty');
+      const note = document.getElementById('autoDifficultyNote');
+      const oldHtml = btn.innerHTML;
+
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Estimating…';
+      if (note) { note.textContent = ''; note.style.color = 'var(--text-secondary)'; }
+
+      try {
+        const res = await apiCall('/api/admin-difficulty', 'POST', { problemId });
+        if (!res || !res.success) throw new Error((res && res.message) || 'Estimation failed');
+        if (input) input.value = Number(res.difficulty).toFixed(2);
+        if (note) {
+          note.style.color = 'var(--text-secondary)';
+          const band = res.band ? '[' + res.band + '] ' : '';
+          const dims = res.dimensions
+            ? '  (' + res.dimensions.steps + ' steps · ' + res.dimensions.insights + ' insights'
+              + (res.dimensions.cases ? ' · ' + res.dimensions.cases + ' cases' : '')
+              + (res.dimensions.proof ? ' · proof' : '') + ')'
+            : '';
+          note.textContent = band + (res.rationale || '') + dims
+            + (res.charged ? '  ·  −' + res.charged + ' tokens' : '');
+        }
+      } catch (err) {
+        if (note) { note.style.color = 'var(--danger)'; note.textContent = err.message || 'Estimation failed'; }
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = oldHtml;
+      }
+    });
   
