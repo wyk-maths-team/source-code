@@ -374,6 +374,10 @@
       "destination": "/admin/problems.html"
     },
     {
+      "source": "/admin/lab",
+      "destination": "/admin/lab.html"
+    },
+    {
       "source": "/admin/contests",
       "destination": "/admin/contest.html"
     },
