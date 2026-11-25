@@ -19,7 +19,7 @@
   const main = document.getElementById('mainContent');
   const state = { diffRunning: false, simRunning: false };
 
-  main.innerHTML = [
+  main.innerHTML = '<div class="lab-wrap">' + [
     '<div class="page-header">',
     '  <h1><i class="fas fa-flask"></i> Lab</h1>',
     '  <p class="lab-intro">Offline checks that compare the estimator against what is already stored. ',
@@ -46,6 +46,9 @@
     '  </div>',
     '  <div class="lab-stats" id="diffStats"></div>',
     '  <div class="lab-chart" id="diffChart"></div>',
+    '  <div id="diffDist"></div>',
+    '  <div id="diffTop"></div>',
+    '  <div class="lab-subhead">All rows <span class="lab-hint">capped at 300 for rendering; statistics use every row</span></div>',
     '  <div class="lab-table-wrap" id="diffTable"><div class="lab-empty">No run yet.</div></div>',
     '</section>',
 
@@ -98,7 +101,7 @@
     '    (does the top 10 contain the problem a human would pick).</p>',
     '  </div>',
     '</section>',
-  ].join('');
+  ].join('') + '</div>';
 
   // ── 工具 ──
   const $ = (id) => document.getElementById(id);
@@ -119,8 +122,8 @@
     return (dx && dy) ? num0 / Math.sqrt(dx * dy) : NaN;
   }
 
-  function statCell(label, value) {
-    return '<div class="lab-stat"><b>' + value + '</b><span>' + label + '</span></div>';
+  function statCell(label, value, hi) {
+    return '<div class="lab-stat' + (hi ? ' hi' : '') + '"><b>' + value + '</b><span>' + label + '</span></div>';
   }
 
   // ═════════ 模块 1：难度对拍 ═════════
@@ -229,19 +232,27 @@
 
     const retried = rows.filter((x) => x.retried).length;
 
+    // 分布压缩比：AI 的标准差 ÷ stored 的标准差。小于 1 说明模型把难度
+    // 往中间挤 —— 这比 bias 更难修，因为它抹掉的是差异本身。
+    const aiSd = sd(pairs.map((p) => p.ai));
+    const storedSd = sd(pairs.map((p) => p.existing));
+    const spread = storedSd > 0 ? aiSd / storedSd : NaN;
+
     $('diffStats').innerHTML = [
       statCell('scored', pairs.length + '/' + rows.length),
       statCell('MAE', fmt(mean(abs))),
       statCell('RMSE', fmt(Math.sqrt(mean(diffs.map((d) => d * d))))),
       statCell('bias', fmt(mean(diffs))),
+      statCell('spread', fmt(spread), true),
       statCell('SD of diff', fmt(sdv)),
-      statCell('variance', fmt(sdv * sdv, 3)),
       statCell('Pearson r', fmt(r, 3)),
       statCell('retried', retried),
       statCell('tokens spent', charged.toLocaleString()),
     ].join('');
 
     $('diffChart').innerHTML = scatter(pairs);
+    $('diffDist').innerHTML = distribution(pairs, spread);
+    $('diffTop').innerHTML = divergenceTable(rows);
 
     if (!rows.length) {
       $('diffTable').innerHTML = '<div class="lab-empty">No run yet.</div>';
@@ -273,6 +284,77 @@
     $('diffTable').innerHTML = '<table class="lab-table"><thead><tr>'
       + '<th>id</th><th>name</th><th>stored</th><th>AI</th><th>Δ</th><th>band</th><th>reason</th>'
       + '</tr></thead><tbody>' + body + '</tbody></table>' + more;
+  }
+
+  /** 分布对比：AI 与 stored 各画一条密度曲线，形状差异一眼可见 */
+  function distribution(pairs, spread) {
+    if (pairs.length < 5) return '';
+    const W = 660, H = 250;
+    const padL = 42, padB = 34, padT = 16, padR = 18;
+    const bins = 19;                       // 0-9.5，每 0.5 一箱
+    const ai = new Array(bins).fill(0);
+    const st = new Array(bins).fill(0);
+    pairs.forEach((p) => {
+      const a = Math.min(bins - 1, Math.max(0, Math.floor(p.ai / 0.5)));
+      const s = Math.min(bins - 1, Math.max(0, Math.floor(p.existing / 0.5)));
+      ai[a]++; st[s]++;
+    });
+    const maxY = Math.max(...ai, ...st, 1);
+    const x = (i) => padL + ((i + 0.5) / bins) * (W - padL - padR);
+    const y = (v) => H - padB - (v / maxY) * (H - padT - padB);
+
+    const poly = (arr, cls) => '<polyline class="' + cls + '" fill="none" stroke-width="2" points="'
+      + arr.map((v, i) => x(i).toFixed(1) + ',' + y(v).toFixed(1)).join(' ') + '"/>';
+
+    let ticks = '';
+    [0, 2, 4, 6, 8, 9.5].forEach((v) => {
+      ticks += '<text x="' + (padL + (v / 9.5) * (W - padL - padR)).toFixed(1)
+        + '" y="' + (H - padB + 16) + '" text-anchor="middle">' + v + '</text>';
+    });
+
+    return '<div class="lab-subhead">Distribution <span class="lab-hint">'
+      + 'spread = AI sd ÷ stored sd — below 1 means the model compresses toward the middle'
+      + (Number.isFinite(spread) ? ' (currently ' + spread.toFixed(2) + ')' : '') + '</span></div>'
+      + '<div class="lab-chart"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Difficulty distribution comparison">'
+      + '<line class="axis" x1="' + padL + '" y1="' + (H - padB) + '" x2="' + (W - padR) + '" y2="' + (H - padB) + '"/>'
+      + '<text x="' + (padL + 6) + '" y="' + (padT + 4) + '" class="diag-label" fill="var(--lab-accent)">AI</text>'
+      + '<text x="' + (padL + 30) + '" y="' + (padT + 4) + '" class="diag-label">stored</text>'
+      + poly(ai, 'line-ai')
+      + poly(st, 'line-stored')
+      + ticks
+      + '<text x="' + (padL + (W - padL - padR) / 2).toFixed(1) + '" y="' + (H - 4) + '" text-anchor="middle" class="axis-label">difficulty</text>'
+      + '</svg></div>';
+  }
+
+  /** 分歧最大的若干题：这批才是真正要人看一眼的 */
+  function divergenceTable(rows) {
+    const items = rows
+      .filter((r) => r.ai !== null && Number.isFinite(r.ai))
+      .map((r) => ({ ...r, abs: Math.abs(r.ai - r.existing) }))
+      .sort((a, b) => b.abs - a.abs)
+      .slice(0, 20);
+    if (!items.length) return '';
+
+    const body = items.map((r) => {
+      const d = r.ai - r.existing;
+      return '<tr>'
+        + '<td class="mono">' + r.abs.toFixed(2) + '</td>'
+        + '<td class="mono"><a href="/admin/problems/' + encodeURIComponent(r.id) + '" target="_blank" rel="noopener">'
+        + esc(r.id) + '</a></td>'
+        + '<td>' + esc(String(r.name || '').slice(0, 42)) + '</td>'
+        + '<td>' + fmt(r.existing) + '</td>'
+        + '<td>' + fmt(r.ai) + '</td>'
+        + '<td class="' + (d >= 0 ? 'lab-delta-pos' : 'lab-delta-neg') + '">' + (d >= 0 ? '+' : '') + fmt(d) + '</td>'
+        + '<td class="mono">' + esc(r.band || '') + '</td>'
+        + '<td title="' + esc(r.rationale || '') + '">' + esc(String(r.rationale || '').slice(0, 60)) + '</td>'
+        + '</tr>';
+    }).join('');
+
+    return '<div class="lab-subhead">Largest disagreements <span class="lab-hint">'
+      + 'top 20 by |AI − stored| — each one is either a stored value worth revisiting or an ambiguous statement</span></div>'
+      + '<div class="lab-table-wrap"><table class="lab-table"><thead><tr>'
+      + '<th>|Δ|</th><th>id</th><th>name</th><th>stored</th><th>AI</th><th>Δ</th><th>band</th><th>reason</th>'
+      + '</tr></thead><tbody>' + body + '</tbody></table></div>';
   }
 
   function scatter(pairs) {

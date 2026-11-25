@@ -1,232 +1,355 @@
-/* assets/css/pages/lab.css —— /admin/lab 评测台 */
+/* assets/css/pages/lab.css —— /admin/lab 评测台
+ *
+ * 版式按 Claude 的界面手法：衬线标题、低饱和暖色、极淡描边、大留白，
+ * 数字比标签醒目但要克制。三套内容主题各有一组对应的暖/冷色，
+ * 不硬编码单套配色。所有规则都限制在 .lab-wrap 内，不影响其它页面。
+ */
 
-.lab-intro {
-  font-size: .84rem;
-  color: var(--text-secondary);
-  line-height: 1.7;
-  max-width: 780px;
-  margin-bottom: 20px;
+.lab-wrap {
+  --lab-bg: #faf9f5;
+  --lab-surface: #ffffff;
+  --lab-ink: #1f1e1d;
+  --lab-muted: #6b6862;
+  --lab-faint: #9a958c;
+  --lab-line: #e9e5dc;
+  --lab-accent: #c15f3c;
+  --lab-accent-hover: #a94e2f;
+  --lab-accent-soft: #f6ede8;
+  --lab-good: #3f7d5a;
+  --lab-bad: #b4462f;
+  --lab-radius: 14px;
+
+  background: var(--lab-bg);
+  color: var(--lab-ink);
+  margin: -20px;
+  padding: 34px 40px 48px;
+  min-height: calc(100vh - var(--topbar-height));
+  font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
 }
 
-.lab-module {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: 20px 22px;
-  margin-bottom: 20px;
+:root[data-theme="dark"] .lab-wrap {
+  --lab-bg: #191816;
+  --lab-surface: #211f1d;
+  --lab-ink: #f0eee9;
+  --lab-muted: #a8a29a;
+  --lab-faint: #7a746c;
+  --lab-line: #322f2b;
+  --lab-accent: #d97757;
+  --lab-accent-hover: #e08a6c;
+  --lab-accent-soft: #2c2622;
+  --lab-good: #6fae8a;
+  --lab-bad: #e08a76;
 }
-.lab-module > header { margin-bottom: 4px; }
-.lab-module h2 {
-  font-size: 1.02rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 4px;
+
+:root[data-theme="scifi"] .lab-wrap {
+  --lab-bg: #071019;
+  --lab-surface: #0b1822;
+  --lab-ink: #d9eefb;
+  --lab-muted: #7f9cb0;
+  --lab-faint: #5d7888;
+  --lab-line: #15303f;
+  --lab-accent: #39c3d6;
+  --lab-accent-hover: #6ad9e8;
+  --lab-accent-soft: #0d2634;
+  --lab-good: #5ad6a0;
+  --lab-bad: #ff7b8f;
+}
+
+/* ── 页头 ── */
+.lab-wrap .page-header { margin: 0 0 30px; }
+.lab-wrap .page-header h1 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.85rem;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  color: var(--lab-ink);
+  margin: 0 0 10px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
-.lab-module h2 i { color: var(--accent); font-size: .92rem; }
-.lab-module .lab-desc {
-  font-size: .82rem;
-  color: var(--text-secondary);
+.lab-wrap .page-header h1 i { color: var(--lab-accent); font-size: 1.1rem; }
+
+.lab-intro {
+  font-size: .92rem;
   line-height: 1.65;
-  margin: 0 0 16px;
-  max-width: 760px;
+  color: var(--lab-muted);
+  max-width: 720px;
+  margin: 0 0 10px;
 }
 
+/* ── 模块 ── */
+.lab-module {
+  background: var(--lab-surface);
+  border: 1px solid var(--lab-line);
+  border-radius: var(--lab-radius);
+  padding: 26px 28px 24px;
+  margin-bottom: 22px;
+}
+.lab-module h2 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.16rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--lab-ink);
+  margin: 0 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.lab-module h2 i { color: var(--lab-accent); font-size: .9rem; }
+.lab-module .lab-desc {
+  font-size: .86rem;
+  line-height: 1.65;
+  color: var(--lab-muted);
+  margin: 0 0 20px;
+  max-width: 700px;
+}
+
+/* ── 控制条 ── */
 .lab-controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px;
   align-items: center;
-  padding: 12px 14px;
-  background: var(--content-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  margin-bottom: 16px;
-  font-size: .84rem;
+  padding: 14px 16px;
+  background: var(--lab-bg);
+  border: 1px solid var(--lab-line);
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-size: .86rem;
 }
-.lab-controls label { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); }
-.lab-controls input[type="number"] {
-  width: 72px;
-  padding: 5px 8px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  background: var(--card-bg);
-  color: var(--text-primary);
-  font-family: inherit;
-  font-size: .84rem;
+.lab-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--lab-muted);
 }
+.lab-controls input[type="number"],
 .lab-controls input[type="text"] {
-  width: 120px;
-  padding: 5px 8px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  background: var(--card-bg);
-  color: var(--text-primary);
-  font-family: inherit;
+  width: 74px;
+  padding: 6px 9px;
+  border: 1px solid var(--lab-line);
+  border-radius: 7px;
+  background: var(--lab-surface);
+  color: var(--lab-ink);
+  font-family: ui-monospace, Consolas, monospace;
   font-size: .84rem;
 }
-/* 项目里的按钮样式一直是各 admin 页自己内联定义的（styles.css 没有 .btn），
-   这里补一份给 Lab 用，颜色全部走变量。 */
+.lab-controls input[type="number"]:focus,
+.lab-controls input[type="text"]:focus {
+  outline: none;
+  border-color: var(--lab-accent);
+}
+.lab-progress {
+  font-size: .82rem;
+  color: var(--lab-faint);
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 按钮 ── */
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
+  gap: 7px;
+  padding: 8px 16px;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: 8px;
   cursor: pointer;
   font-family: inherit;
-  font-size: .82rem;
-  font-weight: 600;
+  font-size: .84rem;
+  font-weight: 500;
   line-height: 1.35;
   transition: background .15s ease, border-color .15s ease, color .15s ease;
 }
 .btn i { font-size: .78rem; }
-.btn:disabled { opacity: .45; cursor: default; }
-.btn-primary { background: var(--accent); color: #fff; }
-.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+.btn:disabled { opacity: .42; cursor: default; }
+.btn-primary { background: var(--lab-accent); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--lab-accent-hover); }
 .btn-secondary {
-  background: var(--card-bg);
-  color: var(--text-primary);
-  border-color: var(--border-color);
+  background: transparent;
+  color: var(--lab-ink);
+  border-color: var(--lab-line);
 }
-.btn-secondary:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.btn-secondary:hover:not(:disabled) { border-color: var(--lab-accent); color: var(--lab-accent); }
 
-.lab-progress { font-size: .8rem; color: var(--text-secondary); margin-left: auto; }
-
+/* ── 统计：不要卡片框，数字说话 ── */
 .lab-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
-  gap: 10px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  gap: 22px 20px;
+  margin: 4px 0 26px;
+  padding: 0;
 }
-.lab-stat {
-  background: var(--content-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  padding: 10px 12px;
-}
+.lab-stat { background: none; border: none; padding: 0; }
 .lab-stat b {
   display: block;
-  font-size: 1.16rem;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.42rem;
+  font-weight: 500;
+  line-height: 1.15;
+  color: var(--lab-ink);
   font-variant-numeric: tabular-nums;
 }
-.lab-stat span { font-size: .72rem; color: var(--text-secondary); }
-
-.lab-chart {
-  margin: 6px 0 20px;
-  padding: 12px 14px;
-  background: var(--content-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+.lab-stat span {
+  display: block;
+  margin-top: 5px;
+  font-size: .74rem;
+  letter-spacing: .01em;
+  color: var(--lab-faint);
 }
-.lab-chart svg { display: block; width: 100%; max-width: 680px; height: auto; }
-.lab-chart .grid { stroke: var(--border-color); stroke-width: 1; opacity: .55; }
-.lab-chart .axis { stroke: var(--text-secondary); stroke-width: 1; opacity: .6; }
-.lab-chart .diag { stroke: var(--accent); stroke-width: 1.2; stroke-dasharray: 5 5; opacity: .55; }
-.lab-chart .dot { fill: var(--accent); fill-opacity: .8; stroke: var(--card-bg); stroke-width: 1; }
-.lab-chart .dot.off { fill: var(--danger); }
-.lab-chart text { fill: var(--text-secondary); font-size: 10.5px; }
-.lab-chart .axis-label { font-size: 11.5px; font-weight: 600; }
-.lab-chart .diag-label { font-size: 10px; opacity: .8; }
-.lab-chart .legend text { font-size: 10.5px; }
+.lab-stat.hi b { color: var(--lab-accent); }
 
-.lab-table-wrap { max-height: 420px; overflow: auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm); }
-.lab-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+/* ── 图表 ── */
+.lab-chart { margin: 0 0 26px; }
+.lab-chart svg { display: block; width: 100%; max-width: 700px; height: auto; }
+.lab-chart .grid { stroke: var(--lab-line); stroke-width: 1; opacity: .7; }
+.lab-chart .axis { stroke: var(--lab-faint); stroke-width: 1; opacity: .55; }
+.lab-chart .diag { stroke: var(--lab-accent); stroke-width: 1.2; stroke-dasharray: 5 5; opacity: .5; }
+.lab-chart .dot { fill: var(--lab-accent); fill-opacity: .75; stroke: var(--lab-surface); stroke-width: 1; }
+/* 离群点用空心而不是换色 —— 暖色主题下两种红橙太接近，靠形状区分更稳 */
+.lab-chart .dot.off { fill: none; stroke: var(--lab-bad); stroke-width: 1.7; }
+.lab-chart text { fill: var(--lab-faint); font-size: 10.5px; }
+.lab-chart .axis-label { font-size: 11.5px; font-weight: 500; }
+.lab-chart .diag-label { font-size: 10px; opacity: .85; }
+.lab-chart .legend text { font-size: 10.5px; }
+.lab-chart .line-ai { stroke: var(--lab-accent); stroke-opacity: .9; }
+.lab-chart .line-stored { stroke: var(--lab-faint); stroke-opacity: .75; stroke-dasharray: 5 4; }
+
+/* ── 小节标题 ── */
+.lab-subhead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 26px 0 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--lab-line);
+  font-size: .88rem;
+  font-weight: 600;
+  color: var(--lab-ink);
+}
+.lab-subhead .lab-hint {
+  font-size: .78rem;
+  font-weight: 400;
+  color: var(--lab-faint);
+}
+
+/* ── 表格 ── */
+.lab-table-wrap {
+  max-height: 420px;
+  overflow: auto;
+  margin-top: 4px;
+}
+.lab-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
 .lab-table th {
   position: sticky;
   top: 0;
-  background: var(--content-bg);
+  background: var(--lab-surface);
   text-align: left;
-  font-weight: 600;
-  color: var(--text-secondary);
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border-color);
+  font-weight: 500;
+  font-size: .72rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--lab-faint);
+  padding: 9px 12px 9px 0;
+  border-bottom: 1px solid var(--lab-line);
   white-space: nowrap;
 }
 .lab-table td {
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--border-color);
-  color: var(--text-primary);
+  padding: 9px 12px 9px 0;
+  border-bottom: 1px solid var(--lab-line);
+  color: var(--lab-ink);
   font-variant-numeric: tabular-nums;
+  vertical-align: top;
 }
 .lab-table tr:last-child td { border-bottom: none; }
-.lab-table .mono { font-family: ui-monospace, Consolas, monospace; font-size: .76rem; }
-.lab-delta-pos { color: var(--danger); }
-.lab-delta-neg { color: #2e9e6b; }
-
-.lab-empty { font-size: .82rem; color: var(--text-secondary); padding: 16px 2px; }
-
-.lab-notes { font-size: .8rem; color: var(--text-secondary); line-height: 1.75; }
-.lab-notes code {
+.lab-table tbody tr:hover td { background: var(--lab-bg); }
+.lab-table .mono {
   font-family: ui-monospace, Consolas, monospace;
-  font-size: .76rem;
-  background: var(--content-bg);
-  padding: 1px 5px;
-  border-radius: 4px;
+  font-size: .78rem;
+  color: var(--lab-muted);
+}
+.lab-delta-pos { color: var(--lab-bad); }
+.lab-delta-neg { color: var(--lab-good); }
+
+.lab-empty {
+  font-size: .84rem;
+  color: var(--lab-faint);
+  padding: 14px 0;
 }
 
-/* ── 手风琴：prompt 编辑器 ── */
-.lab-accordion-head {
-  cursor: pointer;
-  user-select: none;
-}
-.lab-accordion-head h2 { margin-bottom: 2px; }
+/* ── 手风琴 ── */
+.lab-accordion-head { cursor: pointer; user-select: none; }
+.lab-accordion-head h2 { margin-bottom: 4px; }
 .lab-accordion-head .lab-chevron {
   margin-left: auto;
   font-size: .78rem;
-  color: var(--text-secondary);
+  color: var(--lab-faint);
   transition: transform .18s ease;
 }
 .lab-module.expanded .lab-chevron { transform: rotate(180deg); }
 .lab-badge {
   display: inline-block;
   margin-left: 8px;
-  padding: 1px 7px;
+  padding: 2px 9px;
   border-radius: 999px;
   font-size: .68rem;
-  font-weight: 600;
-  letter-spacing: .2px;
-  background: var(--content-bg);
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
+  font-weight: 500;
+  letter-spacing: .03em;
+  background: transparent;
+  border: 1px solid var(--lab-line);
+  color: var(--lab-faint);
   vertical-align: middle;
 }
-.lab-badge.db { border-color: var(--accent); color: var(--accent); }
+.lab-badge.db { border-color: var(--lab-accent); color: var(--lab-accent); }
 
-.lab-accordion-body { margin-top: 14px; }
+.lab-accordion-body { margin-top: 18px; }
 .lab-prompt-input {
   width: 100%;
   box-sizing: border-box;
-  min-height: 340px;
+  min-height: 360px;
   resize: vertical;
-  padding: 12px 14px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  background: var(--content-bg);
-  color: var(--text-primary);
+  padding: 16px 18px;
+  border: 1px solid var(--lab-line);
+  border-radius: 10px;
+  background: var(--lab-bg);
+  color: var(--lab-ink);
   font-family: ui-monospace, Consolas, 'Courier New', monospace;
   font-size: .78rem;
-  line-height: 1.6;
+  line-height: 1.65;
   white-space: pre;
   overflow-wrap: normal;
   overflow-x: auto;
 }
-.lab-prompt-input:focus { outline: none; border-color: var(--accent); }
+.lab-prompt-input:focus { outline: none; border-color: var(--lab-accent); }
 .lab-prompt-meta {
-  margin-top: 8px;
-  font-size: .76rem;
-  color: var(--text-secondary);
+  margin-top: 10px;
+  font-size: .78rem;
+  color: var(--lab-muted);
   line-height: 1.7;
 }
 .lab-prompt-meta code {
   font-family: ui-monospace, Consolas, monospace;
-  background: var(--content-bg);
-  padding: 1px 5px;
-  border-radius: 4px;
+  font-size: .76rem;
+  background: var(--lab-bg);
+  border: 1px solid var(--lab-line);
+  padding: 1px 6px;
+  border-radius: 5px;
 }
 
+/* ── 说明 ── */
+.lab-notes { font-size: .84rem; color: var(--lab-muted); line-height: 1.75; }
+.lab-notes code {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: .78rem;
+  background: var(--lab-bg);
+  border: 1px solid var(--lab-line);
+  padding: 1px 5px;
+  border-radius: 5px;
+}
+
+@media (max-width: 768px) {
+  .lab-wrap { margin: -20px; padding: 24px 18px 36px; }
+  .lab-module { padding: 20px 18px; }
+}
