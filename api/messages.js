@@ -7,8 +7,17 @@ import { wrapHandler } from '../lib/errors.js';
 import { consumeTokens, getTokenBalance } from '../lib/token.js';
 
 const ALLOWED_WORDS = ['Wake', 'Ok', 'Trivial'];
-const MESSAGE_COST = 1000;
+const MESSAGE_COST = 1000;              // 每天前 30 条的价格
+const FREE_PER_DAY = 30;                // 其实不免费，是「便宜额度」
+const MESSAGE_COST_OVERAGE = 10000;     // 超过 30 条之后每条的价格
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+
+/** 香港时间的今天 00:00 */
+function hktDayStart(now = new Date()) {
+  const hkt = new Date(now.getTime() + 8 * 3600_000);
+  hkt.setUTCHours(0, 0, 0, 0);
+  return new Date(hkt.getTime() - 8 * 3600_000);
+}
 
 async function handler(req, res) {
   if (!(await applyRateLimit(req, res))) return;
@@ -175,17 +184,29 @@ async function handler(req, res) {
       return res.status(400).json({ success: false, message: 'Unsupported message kind' });
     }
 
+    // 每天前 FREE_PER_DAY 条按 MESSAGE_COST 收，之后按 MESSAGE_COST_OVERAGE 收。
+    // 目的是压住刷屏 —— 让「多发一条」在成本上真的变贵，而不是靠人盯着。
+    const sentToday = await col.countDocuments({
+      from: me,
+      createdAt: { $gte: hktDayStart() },
+    });
+    const cost = sentToday < FREE_PER_DAY ? MESSAGE_COST : MESSAGE_COST_OVERAGE;
+
     const balance = await getTokenBalance(db, me);
     const available = (balance.daily || 0) + (balance.global || 0);
-    if (available < MESSAGE_COST) {
+    if (available < cost) {
       return res.status(400).json({
         success: false,
-        message: 'Not enough tokens: sending a message costs ' + MESSAGE_COST + ' tokens.',
-        need: MESSAGE_COST,
+        message: sentToday < FREE_PER_DAY
+          ? 'Not enough tokens: sending a message costs ' + cost + ' tokens.'
+          : 'Not enough tokens: you already sent ' + sentToday + ' messages today, so each one now costs ' + cost + ' tokens.',
+        need: cost,
         have: available,
+        sentToday,
+        overage: sentToday >= FREE_PER_DAY,
       });
     }
-    const after = await consumeTokens(db, me, MESSAGE_COST);
+    const after = await consumeTokens(db, me, cost);
 
     const inserted = {
       username: to,
@@ -197,7 +218,14 @@ async function handler(req, res) {
     };
     await col.insertOne(inserted);
 
-    return res.status(200).json({ success: true, cost: MESSAGE_COST, tokens: after, message: inserted });
+    return res.status(200).json({
+      success: true,
+      cost,
+      tokens: after,
+      sentToday: sentToday + 1,
+      freeLeft: Math.max(0, FREE_PER_DAY - (sentToday + 1)),
+      message: inserted,
+    });
   }
 
   return res.status(405).json({ success: false, message: 'Method not allowed' });
