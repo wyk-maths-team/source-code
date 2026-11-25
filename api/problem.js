@@ -650,6 +650,50 @@ async function handler(req, res) {
       : (guestHX ? { public: true, id: { $not: /^HX/i } } : { public: true });
     const excludeSelf = { ...baseFilter, id: { $ne: current.id } };
 
+    // ── 优先走技能向量（lib/skill-index.js）──
+    // 旧的 tag 交集算法把 bug / check / need-img 这类内部状态标签也算进相似度，
+    // 结果经常是「同格式的两道无关题」排在前面。向量版只吃技能维度。
+    // 索引不可用时返回 null，安静地回落到下面的旧逻辑。
+    try {
+      const { findSimilar } = await import('../lib/skill-index.js');
+      const hits = await findSimilar(db, current, {
+        limit: 15,
+        allowNonPublic: adminUser,
+        blockHX: guestHX,
+      });
+      if (hits && hits.length) {
+        const docs = await db.collection('problems')
+          .find({ id: { $in: hits.map((h) => h.id) } },
+            { projection: { id: 1, name: 1, tags: 1, difficulty: 1, _id: 0 } })
+          .toArray();
+        const byId = new Map(docs.map((d) => [d.id, d]));
+        const similar = hits.map((h) => {
+          const d = byId.get(h.id);
+          if (!d) return null;
+          return {
+            id: d.id,
+            name: d.name,
+            tags: d.tags,
+            difficulty: d.difficulty,
+            score: h.score,
+            cosine: h.cosine,
+            commonTags: (Array.isArray(d.tags) ? d.tags : []).filter((t) => curTags.includes(t)).length,
+          };
+        }).filter(Boolean);
+
+        if (similar.length) {
+          return res.status(200).json({
+            success: true,
+            current: { id: current.id, tags: curTags, difficulty: curDiff },
+            similar,
+            engine: 'skill-vector',
+          });
+        }
+      }
+    } catch (e) {
+      console.error('[problem] skill-vector similar failed:', e && e.message);
+    }
+
     const pipeline = [
       { $match: excludeSelf },
       {
