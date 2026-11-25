@@ -227,3 +227,16 @@
   .moj-tutor-fab { padding: 0; width: 44px; justify-content: center; border-radius: 50%; }
   .moj-tutor-panel { right: 12px; left: 12px; bottom: 72px; width: auto; height: auto; max-height: calc(100vh - 160px); }
 }
+
+/* 画像提示：一行小字，说明这次先补哪块 */
+.moj-tutor-profile-note {
+  margin: 0 0 10px;
+  padding: 8px 11px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  color: var(--text-primary);
+  font-size: 0.79rem;
+  line-height: 1.5;
+}
+

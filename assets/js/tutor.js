@@ -113,6 +113,11 @@
       'Ask about <strong>this problem</strong> — how to start, why a step fails, what a term means. '
       + 'It will not hand over the answer, and it will decline anything unrelated.'));
 
+    // 画像提示：告诉学生这次会先讲哪一块，而不是笼统地说「个性化」
+    var profileNote = el('div', 'moj-tutor-profile-note');
+    profileNote.style.display = 'none';
+    body.appendChild(profileNote);
+
     fab.addEventListener('click', function () {
       state.open = !state.open;
       panel.classList.toggle('open', state.open);
@@ -311,6 +316,20 @@
     } catch (e) { /* 历史拉不到不影响新提问 */ }
   }
 
+  /**
+   * 画像提示：告诉学生这次答疑会先补哪一块知识点。
+   * 没有画像（新用户）或没有缺口时保持隐藏 —— 不要为了显得智能而废话。
+   */
+  function paintHint(hint) {
+    var node = document.querySelector('.moj-tutor-profile-note');
+    if (!node || !hint || !hint.focus) return;
+    var name = hint.focus.name || hint.focus.id || '';
+    if (!name) return;
+    var why = hint.gap > 0 ? 'you have tried this before without getting it' : 'you have not met this yet';
+    node.textContent = 'Starting from ' + name + ' — ' + why + '.';
+    node.style.display = 'block';
+  }
+
   async function probe() {
     try {
       var res = await fetch('/api/tutor?action=info&problemId=' + encodeURIComponent(problemId), {
@@ -318,7 +337,10 @@
       });
       if (!res.ok) return;                       // 401 / 403：不显示，静默
       var data = await res.json();
-      if (data && data.allowed && !state.mounted) build();
+      if (data && data.allowed && !state.mounted) {
+        build();
+        paintHint(data.hint);
+      }
     } catch (e) {
       // tutor 是附加功能，任何失败都不能影响题目页本身
     }

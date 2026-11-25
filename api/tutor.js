@@ -20,6 +20,7 @@ import { askDeepSeekAPI } from '../lib/deepseek-api.js';
 import { effortForDifficulty } from '../lib/thinking.js';
 import { checkAiQuota, addAiUsage } from '../lib/aiQuota.js';
 import { consumeTokens, getTokenBalance } from '../lib/token.js';
+import { buildStudentProfile, classifyForProblem, profileBlock } from '../lib/student-profile.js';
 import { addTokensUsed } from '../lib/token-meter.js';
 import { billingMultiplier } from '../lib/pricing.js';
 
@@ -50,7 +51,7 @@ async function isInActiveContest(db, username, problemId) {
   }
 }
 
-function buildTutorPrompt({ problem, history, question }) {
+export function buildTutorPrompt({ problem, history, question, profile }) {
   const statement = String(problem.statement || '').slice(0, 6000);
   const answer = String(problem.ans ?? '').slice(0, 400);
   const turns = (Array.isArray(history) ? history : []).slice(-MAX_TURNS);
@@ -92,6 +93,10 @@ function buildTutorPrompt({ problem, history, question }) {
     '',
     '【REFERENCE ANSWER — internal, never quote, never paraphrase, never compute towards it】',
     answer || '(none)',
+    '',
+    // 学生画像放在对话之前、问题之后：模型先读题，再读「这个人会什么」，
+    // 最后才看到提问 —— 顺序与它组织回答的顺序一致。
+    ...(profile ? ['', profile] : []),
     '',
     '【CONVERSATION SO FAR】',
     convo || '(this is the first question)',
@@ -150,10 +155,36 @@ async function handler(req, res) {
     const problemId = String((req.query && req.query.problemId) || '').trim();
     if (!problemId) return sendError(req, res, 'BAD_REQUEST', 'Missing problemId');
     const blocked = await isInActiveContest(db, decoded.username, problemId);
+
+    // 顺带把「这道题对学生个人而言卡在哪」算出来，前端用来提示先讲什么。
+    // 失败就当没有，不影响按钮是否显示。
+    let hint = null;
+    if (!blocked) {
+      try {
+        const vector = await db.collection('problem_vectors').findOne(
+          { problemId }, { projection: { skills: 1, _id: 0 } }
+        );
+        const needed = (vector && Array.isArray(vector.skills)) ? vector.skills : [];
+        const profile = await buildStudentProfile(db, decoded.username, { extraSkills: needed });
+        if (!profile.empty) {
+          const split = classifyForProblem(profile, needed);
+          hint = {
+            known: split.known.length,
+            gap: split.gap.length,
+            fresh: split.fresh.length,
+            focus: split.gap[0] || split.fresh[0] || null,
+          };
+        }
+      } catch (e) {
+        console.error('[tutor] info profile failed:', e && e.message);
+      }
+    }
+
     return res.status(200).json({
       success: true,
       allowed: !blocked,
       reason: blocked ? 'contest' : null,
+      hint,
     });
   }
 
@@ -206,7 +237,29 @@ async function handler(req, res) {
     return res.status(429).json({ success: false, code: 'RATE_LIMITED', message: quota.message });
   }
 
-  const prompt = buildTutorPrompt({ problem, history: body.history, question });
+  // 学生知识画像：练过没做对 → 缺口；做对过 → 已掌握。查不到就退化成原 prompt，
+  // 不让画像查询失败拖垮一次正常的答疑。
+  let profileText = '';
+  let profileMeta = null;
+  try {
+    const vector = await db.collection('problem_vectors').findOne(
+      { problemId }, { projection: { skills: 1, _id: 0 } }
+    );
+    const needed = (vector && Array.isArray(vector.skills)) ? vector.skills : [];
+    const profile = await buildStudentProfile(db, decoded.username, { extraSkills: needed });
+    const split = classifyForProblem(profile, needed);
+    profileText = profileBlock(profile, split);
+    profileMeta = {
+      known: split.known.length,
+      gap: split.gap.length,
+      fresh: split.fresh.length,
+      solvedCount: profile.solvedCount,
+    };
+  } catch (e) {
+    console.error('[tutor] profile build failed:', e && e.message);
+  }
+
+  const prompt = buildTutorPrompt({ problem, history: body.history, question, profile: profileText });
   const effort = effortForDifficulty(problem.difficulty);
 
   try {
@@ -230,7 +283,7 @@ async function handler(req, res) {
 
     await saveThread(db, decoded.username, problemId, question, reply);
 
-    return res.status(200).json({ success: true, reply, charged, tokens });
+    return res.status(200).json({ success: true, reply, charged, tokens, profile: profileMeta });
   } catch (err) {
     console.error('[tutor] model failed:', err && err.message);
     return sendError(req, res, 'UPSTREAM', 'The tutor is busy right now, please try again', err);
