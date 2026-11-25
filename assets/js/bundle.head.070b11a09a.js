@@ -1539,13 +1539,14 @@
 })();
 ;
 /* core/page.js */
-// ── 导航配色：每个页面一进来就应用，默认绿色 ──
+// ── 导航配色：每个页面一进来就应用，默认蓝色 ──
+// 默认值必须和 styles.css 里 :root 的兜底色一致，否则首帧会闪一下再换色。
 (function applyNavThemeEarly() {
   try {
     var t = localStorage.getItem('navTheme');
-    document.documentElement.setAttribute('data-nav-theme', t === 'blue' ? 'blue' : 'green');
+    document.documentElement.setAttribute('data-nav-theme', t === 'green' ? 'green' : 'blue');
   } catch (e) {
-    document.documentElement.setAttribute('data-nav-theme', 'green');
+    document.documentElement.setAttribute('data-nav-theme', 'blue');
   }
 })();
 // assets/js/core/page.js

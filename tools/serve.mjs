@@ -74,6 +74,32 @@ function isFetchable(target) {
   } catch (e) { return false; }
 }
 
+// CSS 里的相对 url() 必须重写成代理地址。
+// 否则浏览器以 /__cdn/x 为基准解析 "../webfonts/fa-solid-900.woff2"，
+// 得到 /webfonts/...，本地必然 404 —— 图标全变空心方块，截图评审等于瞎的。
+function rewriteCssUrls(text, cssUrl) {
+  return text
+    .replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g, (m, q, ref) => {
+      if (/^(data:|https?:|\/\/|#)/i.test(ref)) return m;
+      try {
+        const abs = new URL(ref, cssUrl).href;
+        return 'url(' + CDN_PREFIX + '/x?u=' + encodeURIComponent(abs) + ')';
+      } catch (e) { return m; }
+    })
+    .replace(/@import\s+(['"])([^'"]+)\1/g, (m, q, ref) => {
+      if (/^(data:|https?:|\/\/)/i.test(ref)) return m;
+      try {
+        const abs = new URL(ref, cssUrl).href;
+        return '@import url(' + CDN_PREFIX + '/x?u=' + encodeURIComponent(abs) + ')';
+      } catch (e) { return m; }
+    });
+}
+
+function applyCssRewrite(buf, cssUrl, type) {
+  if (!/text\/css/i.test(type || '')) return buf;
+  return Buffer.from(rewriteCssUrls(buf.toString('utf8'), cssUrl), 'utf8');
+}
+
 // Express 5 的 path-to-regexp 不再接受裸 '\*'，用挂载前缀代替
 app.use(CDN_PREFIX, async (req, res) => {
   const target = req.query.u;
@@ -88,11 +114,11 @@ app.use(CDN_PREFIX, async (req, res) => {
   // 命中：直接吐本地文件，带强缓存头
   try {
     const meta = JSON.parse(await fsp.readFile(metaFile, 'utf8'));
-    const body = await fsp.readFile(bodyFile);
+    const raw = await fsp.readFile(bodyFile);
     res.setHeader('Content-Type', meta.type || 'application/octet-stream');
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     res.setHeader('X-CDN-Cache', 'HIT');
-    return res.end(body);
+    return res.end(applyCssRewrite(raw, meta.target || target, meta.type));
   } catch (e) { /* 没缓存，往下走 */ }
 
   try {
@@ -112,7 +138,7 @@ app.use(CDN_PREFIX, async (req, res) => {
     res.setHeader('Content-Type', type);
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     res.setHeader('X-CDN-Cache', 'MISS');
-    return res.end(buf);
+    return res.end(applyCssRewrite(buf, target, type));
   } catch (e) {
     console.error('[cdn] fetch failed:', target, e.message);
     return res.status(502).send('failed to fetch ' + target);

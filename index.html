@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>window.__BUILD_V='1bab1fc6';</script>
+<script>window.__BUILD_V='06e332e3';</script>
 <!-- moj-core-head:start -->
-  <script src="/assets/js/bundle-loader.js?v=1bab1fc6" data-part="head"></script>
+  <script src="/assets/js/bundle-loader.js?v=06e332e3" data-part="head"></script>
 <!-- moj-core-head:end --><meta charset="UTF-8">
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -14,7 +14,7 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-<link rel="stylesheet" href="/assets/css/styles.css?v=1bab1fc6" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=06e332e3" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.7/purify.min.js"></script>
 
@@ -117,22 +117,16 @@
   }
 
   /* ═══════════ Hero ═══════════ */
+  /* 底色来自 styles.css 末尾的 --hero-bg，随导航主题切换。
+     原来这里是三停靠渐变，浅色主题下末端会压出一块深色，已改成单色。 */
   .home-hero {
     position: relative;
     overflow: hidden;
     border-radius: 14px;
     padding: 1.8rem 2rem;
-    background: linear-gradient(135deg, #4a90d9 0%, #2e5fa0 60%, #1a1a2e 100%);
+    background: var(--hero-bg, #2e5fa0);
     color: #fff;
-    box-shadow: 0 6px 24px rgba(74,144,217,.15);
-  }
-  .home-hero::after {
-    content: '';
-    position: absolute;
-    top: -60px; right: -60px;
-    width: 240px; height: 240px;
-    background: radial-gradient(circle, rgba(255,255,255,.18) 0%, transparent 65%);
-    pointer-events: none;
+    box-shadow: 0 6px 24px var(--hero-shadow);
   }
   .hero-inner { position: relative; z-index: 1; }
 
@@ -161,7 +155,7 @@
     font-weight: 600;
     font-size: 0.88rem;
     background: var(--c-surface);
-    color: #2e5fa0;
+    color: var(--hero-btn-fg);
     transition: transform .15s, box-shadow .15s;
     box-shadow: 0 3px 10px rgba(0,0,0,.15);
     font-family: inherit;
@@ -773,10 +767,10 @@
     }
 
 </style>
-  <link rel="stylesheet" href="/assets/css/script-panel.css?v=1bab1fc6">
-      <link rel="stylesheet" href="/assets/css/radial-menu.css?v=1bab1fc6">
-    <link rel="stylesheet" href="/assets/css/ban-screen.css?v=1bab1fc6">
-    <link rel="stylesheet" href="/assets/css/ban-index.css?v=1bab1fc6">
+  <link rel="stylesheet" href="/assets/css/script-panel.css?v=06e332e3">
+      <link rel="stylesheet" href="/assets/css/radial-menu.css?v=06e332e3">
+    <link rel="stylesheet" href="/assets/css/ban-screen.css?v=06e332e3">
+    <link rel="stylesheet" href="/assets/css/ban-index.css?v=06e332e3">
   </head>
 <body class="index-body">
   <div id="appContainer">
@@ -877,10 +871,10 @@
   </div>
 
   <!-- moj-core-body:start -->
-  <script src="/assets/js/bundle-loader.js?v=1bab1fc6" data-part="body"></script>
+  <script src="/assets/js/bundle-loader.js?v=06e332e3" data-part="body"></script>
 <!-- moj-core-body:end -->            
-  <script src="/assets/js/pages/index.js?v=1bab1fc6"></script>
+  <script src="/assets/js/pages/index.js?v=06e332e3"></script>
 
-  <script src="/assets/js/tour.js?v=1bab1fc6"></script>
+  <script src="/assets/js/tour.js?v=06e332e3"></script>
 </body>
 </html>

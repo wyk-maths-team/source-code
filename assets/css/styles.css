@@ -1286,24 +1286,96 @@ body.ui-3d [aria-disabled="true"] {
 }
 
 /* ═══════════════ 导航配色（只影响 topbar / sidebar）═══════════════ */
+/* green — 深青（teal）。浅青绿那版太亮，和白色内容区放一起发飘；
+   这版同色相压深两档，白字对比约 4.9:1，接近 AA。
+   topbar / sidebar 差一档，是因为这里有上下两层导航。 */
 :root[data-nav-theme="green"] {
-    --topbar-bg: #12251b;
-    --sidebar-bg: #142e1f;
-    --sidebar-hover-bg: #1e4630;
-    --sidebar-active-bg: #0f5230;
+    --topbar-bg: #0f766e;
+    --topbar-text: #ffffff;
+    --sidebar-bg: #115e59;
+    --sidebar-text: #e6fbf8;
+    --sidebar-hover-bg: #0d6b63;
+    --sidebar-active-bg: #0b4f49;
     --sidebar-active-text: #ffffff;
 }
 :root[data-nav-theme="green"][data-theme="dark"] {
-    --topbar-bg: #0a1611;
-    --sidebar-bg: #0d1f16;
-    --sidebar-hover-bg: #152c20;
-    --sidebar-active-bg: #1a7f4b;
-    --sidebar-active-text: #eaf7ef;
+    /* 上一版压到 #0b3d39，与内容区 #0d1117 明度太近，整屏发黑、绿几乎看不出来。
+       这里抬到 #12645c，让导航在暗背景上是「深青」而不是「黑」。 */
+    --topbar-bg: #12645c;
+    --topbar-text: #e6fbf8;
+    --sidebar-bg: #10695f;
+    --sidebar-text: #d4f4f0;
+    --sidebar-hover-bg: #147a6f;
+    --sidebar-active-bg: #19a08f;
+    --sidebar-active-text: #02120f;
 }
 :root[data-nav-theme="green"][data-theme="scifi"] {
-    --topbar-bg: #04120d;
-    --sidebar-bg: #05170f;
-    --sidebar-hover-bg: #0a2418;
-    --sidebar-active-bg: #00e08a;
-    --sidebar-active-text: #001a10;
+    --topbar-bg: #04211f;
+    --topbar-text: #7ff0e2;
+    --sidebar-bg: #062a27;
+    --sidebar-text: #6dd1c4;
+    --sidebar-hover-bg: #0a3a36;
+    --sidebar-active-bg: #00d6c0;
+    --sidebar-active-text: #00120f;
+}
+
+/* blue — 取值就是原先从 :root 回落出来的那一组，所以补上之后视觉不变。
+   意义在于把 blue 变成真正的独立维度：之后改 :root 的兜底值不会再顺手改掉 blue。 */
+:root[data-nav-theme="blue"] {
+    --topbar-bg: #1a1a2e;
+    --topbar-text: #e0e0e0;
+    --sidebar-bg: #16213e;
+    --sidebar-text: #c5c5d2;
+    --sidebar-hover-bg: #1f3460;
+    --sidebar-active-bg: #0f3460;
+    --sidebar-active-text: #ffffff;
+}
+:root[data-nav-theme="blue"][data-theme="dark"] {
+    --topbar-bg: #0d1117;
+    --topbar-text: #c9d1d9;
+    --sidebar-bg: #161b22;
+    --sidebar-text: #8b949e;
+    --sidebar-hover-bg: #21262d;
+    --sidebar-active-bg: #1f6feb;
+    --sidebar-active-text: #ffffff;
+}
+:root[data-nav-theme="blue"][data-theme="scifi"] {
+    --topbar-bg: #05090f;
+    --topbar-text: #8ff0ff;
+    --sidebar-bg: #070c14;
+    --sidebar-text: #5f8fa3;
+    --sidebar-hover-bg: #0d1a26;
+    --sidebar-active-bg: #00c8e0;
+    --sidebar-active-text: #001014;
+}
+
+/* ═══════════════ 页面级 hero / banner 底色 ═══════════════
+   index / guide / contest / contestresults / ranklist 这些页面的横幅。
+   原本是 #4a90d9 → #2e5fa0 → #1a1a2e 的三停靠渐变，各自内联写死；
+   浅色主题下渐变末端会压出一块「深景」，所以直接改成单色 --hero-bg，
+   仍随导航主题切换。放在文件末尾，保证覆盖顺序可控。 */
+:root {
+    --hero-bg: #2e5fa0;
+    --hero-btn-fg: #2e5fa0;
+    --hero-shadow: rgba(74,144,217,.15);
+}
+/* 深色主题下 hero 按钮底是 --c-surface（深色），字必须反过来 */
+:root[data-theme="dark"] {
+    --hero-bg: #24486e;
+    --hero-btn-fg: #dbeafe;
+}
+:root[data-nav-theme="green"] {
+    --hero-bg: #0f766e;
+    --hero-btn-fg: #0b4f49;
+    --hero-shadow: rgba(15,118,110,.22);
+}
+:root[data-nav-theme="green"][data-theme="dark"] {
+    --hero-bg: #0d5f58;
+    --hero-btn-fg: #e6fbf8;
+    --hero-shadow: rgba(0,0,0,.45);
+}
+:root[data-theme="scifi"] {
+    --hero-bg: #0c4a56;
+    --hero-btn-fg: #9df0d2;
+    --hero-shadow: rgba(0,229,255,.16);
 }

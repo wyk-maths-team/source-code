@@ -35,17 +35,17 @@
 
   // ═══════════════ 导航配色（只影响 topbar / sidebar）═══════════════
   const NAV_THEME_KEY = 'navTheme';
-  let currentNavTheme = 'green';
+  let currentNavTheme = 'blue';
 
   function readNavTheme() {
     try {
       const t = localStorage.getItem(NAV_THEME_KEY);
-      return t === 'blue' ? 'blue' : 'green';   // 默认绿色
-    } catch (e) { return 'green'; }
+      return t === 'green' ? 'green' : 'blue';   // 默认蓝色
+    } catch (e) { return 'blue'; }
   }
 
   function applyNavTheme(t) {
-    currentNavTheme = t === 'blue' ? 'blue' : 'green';
+    currentNavTheme = t === 'green' ? 'green' : 'blue';
     document.documentElement.setAttribute('data-nav-theme', currentNavTheme);
   }
 

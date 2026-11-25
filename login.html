@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>window.__BUILD_V='1bab1fc6';</script>
+<script>window.__BUILD_V='06e332e3';</script>
 <!-- moj-core-head:start -->
-  <script src="/assets/js/bundle-loader.js?v=1bab1fc6" data-part="head"></script>
+  <script src="/assets/js/bundle-loader.js?v=06e332e3" data-part="head"></script>
 <!-- moj-core-head:end --><meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.amcharts.com">
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=1bab1fc6" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=06e332e3" />
   <style>
     /* ── 中性色变量（由 tools/extract-colors.mjs 生成）────────────── */
     :root {
@@ -60,7 +60,8 @@
       --border-color: var(--c-border);
       --text-primary: #212529;
       --text-secondary: #6c757d;
-      --accent: #337ab7;
+      /* --accent 不再在这里覆盖：原来写死 #337ab7（Bootstrap 蓝），
+         导致登录页按钮比全站慢半拍。统一跟随 styles.css 的 --accent。 */
       --danger: #dc3545;
       --input-bg: #fff;
     }
@@ -330,10 +331,10 @@
   <meta name="apple-mobile-web-app-title" content="WYK Maths">
   <meta name="mobile-web-app-capable" content="yes">
 
-  <link rel="stylesheet" href="/assets/css/script-panel.css?v=1bab1fc6">
-      <link rel="stylesheet" href="/assets/css/radial-menu.css?v=1bab1fc6">
-    <link rel="stylesheet" href="/assets/css/ban-screen.css?v=1bab1fc6">
-    <link rel="stylesheet" href="/assets/css/ban-index.css?v=1bab1fc6">
+  <link rel="stylesheet" href="/assets/css/script-panel.css?v=06e332e3">
+      <link rel="stylesheet" href="/assets/css/radial-menu.css?v=06e332e3">
+    <link rel="stylesheet" href="/assets/css/ban-screen.css?v=06e332e3">
+    <link rel="stylesheet" href="/assets/css/ban-index.css?v=06e332e3">
   </head>
 <body class="index-body">
   <div id="loginVeil"></div>
@@ -403,8 +404,8 @@
   </div>
 
   <!-- moj-core-body:start -->
-  <script src="/assets/js/bundle-loader.js?v=1bab1fc6" data-part="body"></script>
+  <script src="/assets/js/bundle-loader.js?v=06e332e3" data-part="body"></script>
 <!-- moj-core-body:end -->            
-  <script src="/assets/js/pages/login.js?v=1bab1fc6"></script>
+  <script src="/assets/js/pages/login.js?v=06e332e3"></script>
   </body>
 </html>

@@ -18,7 +18,7 @@
 // 会打乱依赖顺序。
 
 (function () {
-  var BUNDLE_HEAD = 'bundle.head.48dd963f3b.js';   // 由构建脚本改写
+  var BUNDLE_HEAD = 'bundle.head.070b11a09a.js';   // 由构建脚本改写
   var BUNDLE_BODY = 'bundle.body.90d9475867.js';   // 由构建脚本改写
 
   var self = document.currentScript;
