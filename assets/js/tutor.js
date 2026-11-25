@@ -153,6 +153,7 @@
       var typing = showTyping();
       var reply = '';
       var failed = false;
+      var nextTokens = null;
 
       try {
         var res = await fetch('/api/tutor', {
@@ -167,6 +168,7 @@
           reply = data.message || 'The tutor is unavailable right now.';
         } else {
           reply = data.reply || '';
+          nextTokens = data.tokens || null;
         }
       } catch (e) {
         failed = true;
@@ -174,6 +176,10 @@
       } finally {
         typing.remove();
         setBusy(false);
+        // 每问一次就扣一次费，顶栏余额要当场跟着变
+        if (nextTokens && typeof window.updateTopbarTokens === 'function') {
+          window.updateTopbarTokens(nextTokens.daily, nextTokens.global);
+        }
       }
 
       if (failed) {
@@ -184,9 +190,106 @@
       }
     }
 
+    initResize(panel);
+
     document.body.appendChild(fab);
     document.body.appendChild(panel);
     state.mounted = true;
+
+    // 打开面板时才拉历史：不打开就不该多打一次请求
+    fab.addEventListener('click', function () { loadHistory(); });
+  }
+
+  /** 拖拽调整大小，且不越过 topbar / sidebar */
+  function initResize(panel) {
+    var handle = document.createElement('div');
+    handle.className = 'moj-tutor-resizer';
+    handle.setAttribute('aria-hidden', 'true');
+    panel.appendChild(handle);
+
+    handle.addEventListener('mousedown', function (e) {
+      e.preventDefault();
+      var rect = panel.getBoundingClientRect();
+      var startX = e.clientX;
+      var startY = e.clientY;
+      var startW = rect.width;
+      var startH = rect.height;
+
+      function limits() {
+        var topbar = document.querySelector('.topbar');
+        var sidebar = document.querySelector('.sidebar');
+        var topbarH = topbar ? topbar.getBoundingClientRect().height : 60;
+        // 移动端侧栏是抽屉（position:static 或隐藏），宽度按 0 算
+        var sideW = 0;
+        if (sidebar) {
+          var sb = sidebar.getBoundingClientRect();
+          var sbStyle = getComputedStyle(sidebar);
+          if (sbStyle.position !== 'static' && sb.width > 0 && sb.right > 0) sideW = sb.right;
+        }
+        return {
+          maxW: Math.max(300, window.innerWidth - sideW - 24 - 16),
+          maxH: Math.max(320, window.innerHeight - topbarH - 84 - 16),
+        };
+      }
+
+      function onMove(ev) {
+        var lim = limits();
+        // 面板贴在右下角：向左拖 = 变宽，向上拖 = 变高
+        var w = Math.min(lim.maxW, Math.max(300, startW + (startX - ev.clientX)));
+        var h = Math.min(lim.maxH, Math.max(320, startH + (startY - ev.clientY)));
+        panel.style.width = w + 'px';
+        panel.style.height = h + 'px';
+      }
+
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.style.userSelect = '';
+      }
+
+      document.body.style.userSelect = 'none';
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+
+    // 视口变化时把面板收回边界内
+    window.addEventListener('resize', function () {
+      var rect = panel.getBoundingClientRect();
+      var topbar = document.querySelector('.topbar');
+      var topbarH = topbar ? topbar.getBoundingClientRect().height : 60;
+      var maxH = Math.max(320, window.innerHeight - topbarH - 100);
+      if (rect.height > maxH) panel.style.height = maxH + 'px';
+    });
+  }
+
+  /** 拉取这个（用户, 题目）的历史对话 */
+  async function loadHistory() {
+    if (state.historyLoaded) return;
+    state.historyLoaded = true;
+    try {
+      var res = await fetch('/api/tutor?action=history&problemId=' + encodeURIComponent(problemId), {
+        headers: { Authorization: 'Bearer ' + getToken() },
+      });
+      if (!res.ok) return;
+      var data = await res.json();
+      var msgs = Array.isArray(data.messages) ? data.messages : [];
+      if (!msgs.length) return;
+      var body = document.querySelector('.moj-tutor-body');
+      if (!body) return;
+      // 清掉「首次使用」的说明，直接显示历史
+      var intro = body.querySelector('.moj-tutor-intro');
+      if (intro) intro.remove();
+      msgs.forEach(function (m) {
+        var role = m.role === 'user' ? 'user' : 'tutor';
+        var node = document.createElement('div');
+        node.className = 'moj-tutor-msg ' + role;
+        node.textContent = String(m.content || '');
+        body.appendChild(node);
+        typeset(node);
+        state.messages.push({ role: role, content: String(m.content || '') });
+      });
+      body.scrollTop = body.scrollHeight;
+    } catch (e) { /* 历史拉不到不影响新提问 */ }
   }
 
   async function probe() {

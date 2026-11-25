@@ -55,6 +55,21 @@
 }
 .moj-tutor-panel.open { display: flex; }
 
+/* 右下角拖拽手柄：宽度向左扩，高度向上扩。
+   上限由 JS 按 topbar / sidebar 的实时尺寸算，不会盖住导航。 */
+.moj-tutor-resizer {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  border-bottom-right-radius: var(--radius-lg);
+  background: linear-gradient(135deg, transparent 52%, var(--border-color) 52%);
+  z-index: 2;
+}
+.moj-tutor-resizer:hover { background: linear-gradient(135deg, transparent 52%, var(--accent) 52%); }
+
 .moj-tutor-head {
   display: flex;
   align-items: center;
