@@ -117,13 +117,23 @@
 }
 .lab-stat span { font-size: .72rem; color: var(--text-secondary); }
 
-.lab-chart { margin: 4px 0 18px; }
-.lab-chart svg { display: block; max-width: 100%; height: auto; }
-.lab-chart .axis { stroke: var(--border-color); stroke-width: 1; }
-.lab-chart .diag { stroke: var(--text-secondary); stroke-width: 1; stroke-dasharray: 4 4; opacity: .55; }
-.lab-chart .dot { fill: var(--accent); fill-opacity: .75; }
+.lab-chart {
+  margin: 6px 0 20px;
+  padding: 12px 14px;
+  background: var(--content-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+.lab-chart svg { display: block; width: 100%; max-width: 680px; height: auto; }
+.lab-chart .grid { stroke: var(--border-color); stroke-width: 1; opacity: .55; }
+.lab-chart .axis { stroke: var(--text-secondary); stroke-width: 1; opacity: .6; }
+.lab-chart .diag { stroke: var(--accent); stroke-width: 1.2; stroke-dasharray: 5 5; opacity: .55; }
+.lab-chart .dot { fill: var(--accent); fill-opacity: .8; stroke: var(--card-bg); stroke-width: 1; }
 .lab-chart .dot.off { fill: var(--danger); }
-.lab-chart text { fill: var(--text-secondary); font-size: 10px; }
+.lab-chart text { fill: var(--text-secondary); font-size: 10.5px; }
+.lab-chart .axis-label { font-size: 11.5px; font-weight: 600; }
+.lab-chart .diag-label { font-size: 10px; opacity: .8; }
+.lab-chart .legend text { font-size: 10.5px; }
 
 .lab-table-wrap { max-height: 420px; overflow: auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm); }
 .lab-table { width: 100%; border-collapse: collapse; font-size: .8rem; }

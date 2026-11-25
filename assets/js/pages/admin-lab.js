@@ -225,23 +225,51 @@
 
   function scatter(pairs) {
     if (!pairs.length) return '';
-    const W = 320, H = 320, pad = 34, max = 9.5;
-    const x = (v) => pad + (v / max) * (W - pad * 2);
-    const y = (v) => H - pad - (v / max) * (H - pad * 2);
+    const W = 620, H = 400;
+    const padL = 46, padB = 42, padT = 18, padR = 20;
+    const max = 9.5;
+    const x = (v) => padL + (v / max) * (W - padL - padR);
+    const y = (v) => H - padB - (v / max) * (H - padT - padB);
+
+    // 网格：每 1 分一条，够密能读数、又不会盖住点
+    let grid = '';
+    for (let v = 0; v <= 9; v++) {
+      grid += '<line class="grid" x1="' + x(v).toFixed(1) + '" y1="' + padT + '" x2="' + x(v).toFixed(1) + '" y2="' + (H - padB) + '"/>';
+      grid += '<line class="grid" x1="' + padL + '" y1="' + y(v).toFixed(1) + '" x2="' + (W - padR) + '" y2="' + y(v).toFixed(1) + '"/>';
+    }
+
+    let ticks = '';
+    [0, 3, 6, 9].forEach((v) => {
+      ticks += '<text x="' + x(v).toFixed(1) + '" y="' + (H - padB + 16) + '" text-anchor="middle">' + v + '</text>';
+      ticks += '<text x="' + (padL - 10) + '" y="' + (y(v) + 4).toFixed(1) + '" text-anchor="end">' + v + '</text>';
+    });
+
     const dots = pairs.map((p) => {
-      const off = Math.abs(p.ai - p.existing) > 1.5;
-      return '<circle class="dot' + (off ? ' off' : '') + '" cx="' + x(p.existing).toFixed(1) + '" cy="'
-        + y(p.ai).toFixed(1) + '" r="4"><title>' + esc(p.id) + ' · stored ' + fmt(p.existing)
-        + ' · AI ' + fmt(p.ai) + '</title></circle>';
+      const delta = p.ai - p.existing;
+      const off = Math.abs(delta) > 1.5;
+      return '<circle class="dot' + (off ? ' off' : '') + '" cx="' + x(p.existing).toFixed(1)
+        + '" cy="' + y(p.ai).toFixed(1) + '" r="4.6"><title>' + esc(p.id) + ' · stored '
+        + fmt(p.existing) + ' · AI ' + fmt(p.ai) + ' · Δ' + (delta >= 0 ? '+' : '') + fmt(delta)
+        + '</title></circle>';
     }).join('');
 
-    return '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">'
-      + '<line class="axis" x1="' + pad + '" y1="' + (H - pad) + '" x2="' + (W - pad) + '" y2="' + (H - pad) + '"/>'
-      + '<line class="axis" x1="' + pad + '" y1="' + pad + '" x2="' + pad + '" y2="' + (H - pad) + '"/>'
-      + '<line class="diag" x1="' + x(0) + '" y1="' + y(0) + '" x2="' + x(max) + '" y2="' + y(max) + '"/>'
+    const legendX = W - padR - 168;
+    const legendY = padT + 8;
+
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="AI estimate versus stored difficulty">'
+      + grid
+      + '<line class="axis" x1="' + padL + '" y1="' + (H - padB) + '" x2="' + (W - padR) + '" y2="' + (H - padB) + '"/>'
+      + '<line class="axis" x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (H - padB) + '"/>'
+      + '<line class="diag" x1="' + x(0).toFixed(1) + '" y1="' + y(0).toFixed(1) + '" x2="' + x(max).toFixed(1) + '" y2="' + y(max).toFixed(1) + '"/>'
+      + '<text x="' + (x(max) - 6).toFixed(1) + '" y="' + (y(max) - 8).toFixed(1) + '" text-anchor="end" class="diag-label">perfect agreement</text>'
       + dots
-      + '<text x="' + (W / 2 - 26) + '" y="' + (H - 8) + '">stored difficulty</text>'
-      + '<text x="6" y="' + (H / 2) + '" transform="rotate(-90 6 ' + (H / 2) + ')">AI estimate</text>'
+      + ticks
+      + '<text x="' + (padL + (W - padL - padR) / 2).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle" class="axis-label">stored difficulty</text>'
+      + '<text x="14" y="' + (padT + (H - padT - padB) / 2).toFixed(1) + '" text-anchor="middle" transform="rotate(-90 14 ' + (padT + (H - padT - padB) / 2).toFixed(1) + ')" class="axis-label">AI estimate</text>'
+      + '<g class="legend" transform="translate(' + legendX + ',' + legendY + ')">'
+      + '<circle class="dot" cx="5" cy="4" r="4.6"/><text x="16" y="8">within 1.5</text>'
+      + '<circle class="dot off" cx="5" cy="22" r="4.6"/><text x="16" y="26">off by more than 1.5</text>'
+      + '</g>'
       + '</svg>';
   }
 
