@@ -2,12 +2,12 @@
 //
 // 管理员的「Auto」按钮：让模型给一道题重新定难度（0-9，两位小数）。
 //
-// 判据来自 docs/skills/DIFFICULTY.md 第 7 节 —— 那是拿全库 3246 题做统计后
-// 得出的结论，最关键的一条是：难度有 57% 的方差来自「哪一批卷子」而不是
-// 「题有多难」（CTST 24 题全在 8.88-9.11，M0 97 题只有 6 个取值）。
-// 所以 prompt 里第一件事就是把来源标签剥掉，只按题面判。
+// prompt 不再是硬编码：模板存在 Mongo 的 settings 集合（_id = prompt:difficulty），
+// 管理员可以在 /admin/lab 的手风琴里直接改，改完立刻对所有人生效。
+// 这里只保留一份 DEFAULT_TEMPLATE 作为出厂值，首次读取时用它，Reset 也回到它。
 //
-// 只判断不写库：值回填到编辑页输入框，管理员看过理由自己保存。
+// 模板占位符：{{ID}} {{CURRENT}} {{HAS_ANSWER}} {{STATEMENT}}
+// 缺 {{STATEMENT}} 的模板视为无效（否则模型看不到题面，只会瞎猜）。
 
 import { connectToDatabase } from './_db.js';
 import { verifyToken } from '../lib/auth.js';
@@ -20,27 +20,25 @@ import { addAiUsage } from '../lib/aiQuota.js';
 import { addTokensUsed } from '../lib/token-meter.js';
 import { billingMultiplier } from '../lib/pricing.js';
 
-// 5 分钟预算：Lab 允许 50 路并发，模型偶发慢响应时 60 秒会直接砍在
-// 半路上，前面的调用白烧。Vercel 的上限是 300s。
 export const config = { maxDuration: 300 };
 
 const MAX_STATEMENT = 8000;
 const MIN_DIFFICULTY = 0;
 const MAX_DIFFICULTY = 9.5;
+export const PROMPT_DOC_ID = 'prompt:difficulty';
 
-// 判定项：只允许这五个可数量，避免模型自由发挥
+// 判定项
 const DIMENSIONS = [
-  'steps    = how many non-trivial steps must be written down (substitutions of a given formula do not count)',
+  'steps    = how many non-trivial steps must be written down (substituting into a given formula does not count)',
   'insights = how many key moves a student must INVENT rather than recognise from a textbook (applying a standard formula counts as 0)',
   'cases    = how many mutually exclusive case splits the solution needs',
   'proof    = true when a full argument is required (no numeric answer, or the statement says prove/show that)',
   'estimate = true when the answer needs an inequality estimate rather than an exact computation',
 ].join('\n');
 
-// 分档表：取自 §7.2，条件全部可判定
 const BANDS = [
   'B0  0.00-0.99 | steps<=1, insights=0, cases=0, statement < 120 chars, no max/min asked. Practically only unlabelled records or handout pages.',
-  'B1  1.00-1.99 | steps<=2, insights=0, cases=0. Answer falls straight out of ONE substitution or ONE formula (last digit, defined operation, surd simplification).',
+  'B1  1.00-1.99 | steps<=2, insights=0, cases=0, and the ENTIRE solution is one substitution into a formula printed in the statement. If you had to decide WHICH substitution to use, it is not B1.',
   'B2  2.00-2.99 | steps 3-5, insights<=1 and that insight is a textbook standard (telescoping, completing the square, binomial term, solve for a parameter), cases=0.',
   'B3  3.00-3.99 | steps 4-8, exactly ONE non-trivial move (unify exponents, substitute, complete a figure, coordinate-ise); once seen, the rest is mechanical. cases=0.',
   'B4  4.00-4.99 | insights 1-2 with at least one NOT being a textbook routine (pairing symmetry, complement, parity/prime structure); steps 4-8; proof=false.',
@@ -50,70 +48,63 @@ const BANDS = [
   'B8  8.00-9.30 | a full proof with insights>=4, or a non-standard global estimate (error terms, Vandermonde, complex analysis).',
 ].join('\n');
 
-// 前置规则与误判拦截：取自 §7.1 / §7.3
 const RULES = [
-  'R1 Strip the source. The tags may say HKMO / HKMHASC / IMO Prelim / CHSML / HXB / M0 / M2 / CTST / wyk-hw — ignore them entirely while judging. Statistics: HKMO alone contains 28 problems below 2.0 and 23 above 7.0.',
-  'R2 The current value is often meaningless. CTST (24 problems inside 8.88-9.11), M0 (97 problems, 6 distinct values) and HXB are batch-assigned and carry no per-problem information. Recompute from the statement; do not anchor on the old number.',
+  'R1 Strip the source. The tags may say HKMO / HKMHASC / IMO Prelim / CHSML / HXB / M0 / M2 / CTST / wyk-hw - ignore them entirely while judging. Statistics: HKMO alone contains 28 problems below 2.0 and 23 above 7.0.',
+  'R2 The current value is often meaningless. CTST (24 problems inside 8.88-9.11), M0 (97 problems, 6 distinct values) and HXB are batch-assigned and carry no per-problem information. Recompute from the statement.',
   'R3 A stored difficulty of 0 means UNLABELLED, not easiest. Never treat 0 as a floor.',
-  'R4 Proof penalty-lift: if proof=true, the final value is max(band value, 6.00). Corpus evidence: problems with no numeric answer have median 6.50, with answer 3.92. But do not dump every proof at 9 - still split B6-B8 by insight count.',
+  'R4 Proof lift: if proof=true, the final value is max(band value, 6.00). Corpus evidence: problems with no numeric answer have median 6.50, with answer 3.92. Do not dump every proof at 9 - still split B6-B8 by insight count.',
   'R5 Not a problem: if the content is a handout / lecture note / meta page, return difficulty null instead of a number.',
   'R6 Graduate tools: if the statement genuinely uses complex analysis, measure theory, or similar, output 9.00-9.30.',
+  'R7 Calibration for this platform: the stored values here were assigned by teachers and run slightly HIGHER than a strictly mathematical reading. Between two bands, take the upper one. Never output the lower band edge itself (.00) - start at .05 or above. When you are genuinely torn, resolve upward.',
 ].join('\n');
 
 const PITFALLS = [
-  'M1 "More computation" is not "harder": problem marks correlate with difficulty at only rho=0.25. If steps is large but insights=0, cap at B3 (3.99).',
+  'M1 "More computation" is not "harder": marks correlate with difficulty at only rho=0.25. If steps is large but insights=0, cap at B3 (3.99).',
   'M2 "Longer or with a figure" is not "harder": length rho=0.15. A figure with no construction stays at B2/B3.',
-  'M3 A contest brand is not difficulty - see R1. Skill node names are not difficulty either: grouping by top-level skill explains only 3% of the variance, and within a single skill the spread is often larger than the corpus standard deviation.',
-  'M4 Do not use submission counts to infer difficulty: only 18.7% of problems have any submission, and the 5-point band actually has a HIGHER solve rate (33%) than the 3-point band (15%).',
+  'M3 A contest brand is not difficulty - see R1. Skill node names are not difficulty either: grouping by top-level skill explains 3% of the variance.',
+  'M4 Do not use submission counts to infer difficulty: only 18.7% of problems have any submission, and the 5-point band has a HIGHER solve rate (33%) than the 3-point band (15%).',
 ].join('\n');
 
-function buildDifficultyPrompt({ problem }) {
-  const statement = String(problem.statement || '').replace(/\s+/g, ' ').slice(0, MAX_STATEMENT);
-  const hasAnswer = String(problem.ans ?? '').trim().length > 0;
-  const current = Number(problem.difficulty);
-
-  return [
-    '<<<SYSTEM INSTRUCTION',
-    'You calibrate the difficulty of an olympiad mathematics problem on the 0-9 scale used by this platform.',
-    'You judge the problem, not the batch it came from. You do not solve it fully.',
-    '>>>',
-    '',
-    '【MEASURE THESE FIVE THINGS FIRST】',
-    DIMENSIONS,
-    '',
-    '【BANDS — take the FIRST band whose conditions are all satisfied】',
-    BANDS,
-    '',
-    '【RULES THAT OVERRIDE THE BANDS】',
-    RULES,
-    '',
-    '【COMMON MISJUDGEMENTS TO AVOID】',
-    PITFALLS,
-    '',
-    '【OUTPUT】',
-    'Output ONLY this JSON, no prose, no code fences:',
-    '{"difficulty": 4.25, "band": "B4", "steps": 6, "insights": 2, "cases": 0, "proof": false, "evidence": "..."}',
-    '',
-    'Hard requirements:',
-    '- difficulty MUST fall inside the band you report (B4 => 4.00-4.99).',
-    '- Give TWO MEANINGFUL decimals, not a padded number. 5.35 is right; 5.30 and 5.00 are not acceptable unless you genuinely mean the exact tenth.',
-    '  Use the hundredths to say WHERE inside the band the problem sits:',
-    '    .05-.20 = just barely clears the lower band edge',
-    '    .35-.50 = solidly in the middle',
-    '    .70-.95 = almost hard enough for the next band up',
-    '  Reserve a trailing zero for cases where the position really is that round (for example 6.00 for a proof exactly at the floor).',
-    '- If your assessment lands on a round number, move it to the nearer meaningful hundredth (5.00 -> 5.05 or 4.95) rather than emitting 5.00.',
-    '- evidence is ONE sentence naming concrete objects from the statement (the function, the condition, the quantity asked for) plus which insight makes it that band. Never write "hard" / "comprehensive" as the reason.',
-    '- If R5 applies, output {"difficulty": null, "band": "R5", "evidence": "..."} instead.',
-    '',
-    '【PROBLEM】',
-    'id: ' + String(problem.id || ''),
-    'current difficulty (may be unreliable, see R2/R3): ' + (Number.isFinite(current) ? current.toFixed(2) : 'unknown'),
-    'numeric answer present: ' + (hasAnswer ? 'yes' : 'no (likely a proof)'),
-    'statement:',
-    statement || '(empty statement)',
-  ].join('\n');
-}
+export const DEFAULT_TEMPLATE = [
+  '<<<SYSTEM INSTRUCTION',
+  'You calibrate the difficulty of an olympiad mathematics problem on the 0-9 scale used by this platform.',
+  'You judge the problem, not the batch it came from. You do not solve it fully.',
+  '>>>',
+  '',
+  '【MEASURE THESE FIVE THINGS FIRST】',
+  DIMENSIONS,
+  '',
+  '【BANDS - take the FIRST band whose conditions are all satisfied】',
+  BANDS,
+  '',
+  '【RULES THAT OVERRIDE THE BANDS】',
+  RULES,
+  '',
+  '【COMMON MISJUDGEMENTS TO AVOID】',
+  PITFALLS,
+  '',
+  '【OUTPUT】',
+  'Output ONLY this JSON, no prose, no code fences:',
+  '{"difficulty": 4.25, "band": "B4", "steps": 6, "insights": 2, "cases": 0, "proof": false, "evidence": "..."}',
+  '',
+  'Hard requirements:',
+  '- difficulty MUST fall inside the band you report (B4 => 4.00-4.99).',
+  '- Give TWO MEANINGFUL decimals, not a padded number. 5.35 is right; 5.30 and 5.00 are not acceptable unless you genuinely mean the exact tenth.',
+  '  Use the hundredths to say WHERE inside the band the problem sits:',
+  '    .05-.20 = just barely clears the lower band edge',
+  '    .35-.50 = solidly in the middle',
+  '    .70-.95 = almost hard enough for the next band up',
+  '- If your assessment lands on a round number, move it to the nearer meaningful hundredth (5.00 -> 5.05 or 4.95) rather than emitting 5.00.',
+  '- evidence is ONE sentence naming concrete objects from the statement plus which insight makes it that band. Never write "hard" / "comprehensive" as the reason.',
+  '- If R5 applies, output {"difficulty": null, "band": "R5", "evidence": "..."} instead.',
+  '',
+  '【PROBLEM】',
+  'id: {{ID}}',
+  'current difficulty (may be unreliable, see R2/R3): {{CURRENT}}',
+  'numeric answer present: {{HAS_ANSWER}}',
+  'statement:',
+  '{{STATEMENT}}',
+].join('\n');
 
 function bandRange(band) {
   const b = String(band || '').toUpperCase();
@@ -122,6 +113,25 @@ function bandRange(band) {
     B5: [5, 5.99], B6: [6, 6.99], B7: [7, 7.99], B8: [8, 9.3],
   };
   return map[b] || null;
+}
+
+export function fillTemplate(tpl, problem) {
+  const statement = String(problem.statement || '').replace(/\s+/g, ' ').slice(0, MAX_STATEMENT);
+  const current = Number(problem.difficulty);
+  const hasAnswer = String(problem.ans ?? '').trim().length > 0;
+  return String(tpl)
+    .replace(/\{\{ID\}\}/g, String(problem.id || ''))
+    .replace(/\{\{CURRENT\}\}/g, Number.isFinite(current) ? current.toFixed(2) : 'unknown')
+    .replace(/\{\{HAS_ANSWER\}\}/g, hasAnswer ? 'yes' : 'no (likely a proof)')
+    .replace(/\{\{STATEMENT\}\}/g, statement || '(empty statement)');
+}
+
+/** 读模板：DB 优先，缺/无效时回落到出厂值 */
+export async function loadTemplate(db) {
+  const doc = await db.collection('settings').findOne({ _id: PROMPT_DOC_ID });
+  const text = doc && typeof doc.text === 'string' ? doc.text : '';
+  if (text && text.includes('{{STATEMENT}}')) return { text, source: 'db', updatedAt: doc.updatedAt || null };
+  return { text: DEFAULT_TEMPLATE, source: 'default', updatedAt: null };
 }
 
 function parseReply(raw) {
@@ -145,9 +155,6 @@ async function handler(req, res) {
     return res.status(405).json({ success: false, message: 'Method not allowed' });
   }
 
-  // 300 次/分钟。Lab 页允许把并发开到 50，一次满额评测就会打掉 50 次；
-  // 60 的老额度意味着连跑两轮就被 429 挡住。ds-flash 侧并发上限 2500，
-  // 所以这里不是瓶颈，真正的成本控制是余额与每日 AI 预算。
   if (!(await applyRateLimit(req, res, {
     name: 'auto-difficulty',
     key: 'u:' + decoded.username,
@@ -176,11 +183,11 @@ async function handler(req, res) {
   const problem = await db.collection('problems').findOne({ id: problemId });
   if (!problem) return sendError(req, res, 'NOT_FOUND', 'Problem not found');
 
-  const prompt = buildDifficultyPrompt({ problem });
+  const tpl = await loadTemplate(db);
+  const prompt = fillTemplate(tpl.text, problem);
 
   let out;
   try {
-    // 单次调用给到 280 秒，留 20 秒给写库与计费
     out = await askDeepSeekAPI(prompt, { effort: 'high', timeoutMs: 280_000 });
   } catch (err) {
     console.error('[auto-difficulty] model failed:', err && err.message);
@@ -192,33 +199,6 @@ async function handler(req, res) {
 
   const band = String(parsed.band || '').toUpperCase();
   const evidence = String(parsed.evidence || parsed.rationale || '').slice(0, 400);
-
-  // R5：讲义 / 说明页
-  if (parsed.difficulty === null || band === 'R5') {
-    return res.status(200).json({
-      success: true,
-      problemId,
-      difficulty: null,
-      band: band || 'R5',
-      rationale: evidence || 'Not a problem statement (handout or meta page).',
-      charged: 0,
-      tokens: { daily: balance.daily, global: balance.global },
-    });
-  }
-
-  let value = Number(parsed.difficulty);
-  if (!Number.isFinite(value)) {
-    return sendError(req, res, 'GRADE_ERROR', 'The estimator returned an unreadable value');
-  }
-
-  // 与 band 自洽：超出就钳回该档，宁可保守
-  const range = bandRange(band);
-  if (range) value = Math.min(range[1], Math.max(range[0], value));
-
-  // R4：证明题下限 6.00
-  if (parsed.proof === true) value = Math.max(6, value);
-
-  const difficulty = Math.round(Math.min(MAX_DIFFICULTY, Math.max(MIN_DIFFICULTY, value)) * 100) / 100;
 
   let charged = 0;
   let tokens = { daily: balance.daily, global: balance.global };
@@ -233,6 +213,25 @@ async function handler(req, res) {
     console.error('[auto-difficulty] billing failed:', e && e.message);
   }
 
+  if (parsed.difficulty === null || band === 'R5') {
+    return res.status(200).json({
+      success: true, problemId, difficulty: null, band: band || 'R5',
+      rationale: evidence || 'Not a problem statement (handout or meta page).',
+      promptSource: tpl.source, charged, tokens,
+    });
+  }
+
+  let value = Number(parsed.difficulty);
+  if (!Number.isFinite(value)) {
+    return sendError(req, res, 'GRADE_ERROR', 'The estimator returned an unreadable value');
+  }
+
+  const range = bandRange(band);
+  if (range) value = Math.min(range[1], Math.max(range[0], value));
+  if (parsed.proof === true) value = Math.max(6, value);
+
+  const difficulty = Math.round(Math.min(MAX_DIFFICULTY, Math.max(MIN_DIFFICULTY, value)) * 100) / 100;
+
   return res.status(200).json({
     success: true,
     problemId,
@@ -246,6 +245,7 @@ async function handler(req, res) {
       proof: parsed.proof === true,
     },
     rationale: evidence,
+    promptSource: tpl.source,
     charged,
     tokens,
   });

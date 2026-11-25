@@ -13,6 +13,7 @@
 import { connectToDatabase } from './_db.js';
 import { verifyToken } from '../lib/auth.js';
 import { wrapHandler, sendError } from '../lib/errors.js';
+import { DEFAULT_TEMPLATE, PROMPT_DOC_ID } from './admin-difficulty.js';
 
 const MAX_SAMPLE = 100;
 
@@ -68,6 +69,45 @@ async function handler(req, res) {
         hasAnswer: String(d.ans ?? '').trim().length > 0,
       })),
     });
+  }
+
+  // ── 读当前定难度 prompt（DB 优先，回落出厂值）──
+  if (action === 'prompt' && req.method === 'GET') {
+    const doc = await db.collection('settings').findOne({ _id: PROMPT_DOC_ID });
+    const text = doc && typeof doc.text === 'string' ? doc.text : '';
+    return res.status(200).json({
+      success: true,
+      text: text || DEFAULT_TEMPLATE,
+      defaultText: DEFAULT_TEMPLATE,
+      source: text ? 'db' : 'default',
+      updatedAt: (doc && doc.updatedAt) || null,
+      updatedBy: (doc && doc.updatedBy) || null,
+      placeholders: ['{{ID}}', '{{CURRENT}}', '{{HAS_ANSWER}}', '{{STATEMENT}}'],
+    });
+  }
+
+  // ── 保存 prompt 模板 ──
+  if (action === 'savePrompt' && req.method === 'POST') {
+    const body = (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) ? req.body : {};
+    const text = String(body.text || '');
+    if (!text.trim()) return sendError(req, res, 'BAD_REQUEST', 'Template is empty');
+    if (text.length > 20000) return sendError(req, res, 'BAD_REQUEST', 'Template is too long (max 20000)');
+    // 没有 {{STATEMENT}} 的话模型看不到题面，只会瞎猜，直接拒绝
+    if (!text.includes('{{STATEMENT}}')) {
+      return sendError(req, res, 'BAD_REQUEST', 'Template must contain {{STATEMENT}}');
+    }
+    await db.collection('settings').updateOne(
+      { _id: PROMPT_DOC_ID },
+      { $set: { text, updatedAt: new Date(), updatedBy: decoded.username } },
+      { upsert: true }
+    );
+    return res.status(200).json({ success: true, saved: true, updatedBy: decoded.username });
+  }
+
+  // ── 恢复出厂 prompt ──
+  if (action === 'resetPrompt' && req.method === 'POST') {
+    await db.collection('settings').deleteOne({ _id: PROMPT_DOC_ID });
+    return res.status(200).json({ success: true, reset: true, text: DEFAULT_TEMPLATE });
   }
 
   // ── 存档一次评测结果（便于以后对比不同 prompt / 模型）──

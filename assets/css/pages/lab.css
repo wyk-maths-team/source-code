@@ -169,3 +169,64 @@
   padding: 1px 5px;
   border-radius: 4px;
 }
+
+/* ── 手风琴：prompt 编辑器 ── */
+.lab-accordion-head {
+  cursor: pointer;
+  user-select: none;
+}
+.lab-accordion-head h2 { margin-bottom: 2px; }
+.lab-accordion-head .lab-chevron {
+  margin-left: auto;
+  font-size: .78rem;
+  color: var(--text-secondary);
+  transition: transform .18s ease;
+}
+.lab-module.expanded .lab-chevron { transform: rotate(180deg); }
+.lab-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: .68rem;
+  font-weight: 600;
+  letter-spacing: .2px;
+  background: var(--content-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  vertical-align: middle;
+}
+.lab-badge.db { border-color: var(--accent); color: var(--accent); }
+
+.lab-accordion-body { margin-top: 14px; }
+.lab-prompt-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 340px;
+  resize: vertical;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--content-bg);
+  color: var(--text-primary);
+  font-family: ui-monospace, Consolas, 'Courier New', monospace;
+  font-size: .78rem;
+  line-height: 1.6;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+.lab-prompt-input:focus { outline: none; border-color: var(--accent); }
+.lab-prompt-meta {
+  margin-top: 8px;
+  font-size: .76rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+.lab-prompt-meta code {
+  font-family: ui-monospace, Consolas, monospace;
+  background: var(--content-bg);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+

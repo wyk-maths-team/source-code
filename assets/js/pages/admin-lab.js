@@ -64,6 +64,24 @@
     '  <div class="lab-table-wrap" id="simTable"><div class="lab-empty">No run yet.</div></div>',
     '</section>',
 
+    // ── 模块 3：prompt 编辑器（手风琴，默认收起）──
+    '<section class="lab-module" id="mod-prompt">',
+    '  <header class="lab-accordion-head" id="promptToggle">',
+    '    <h2><i class="fas fa-sliders"></i> Difficulty prompt <span class="lab-badge" id="promptSource">…</span>',
+    '      <i class="fas fa-chevron-down lab-chevron"></i></h2>',
+    '    <p class="lab-desc">The rubric the estimator actually sends. Saved to the database and picked up by the next run; Reset restores the built-in template.</p>',
+    '  </header>',
+    '  <div class="lab-accordion-body" id="promptBody" hidden>',
+    '    <textarea id="promptText" class="lab-prompt-input" spellcheck="false" placeholder="Loading…"></textarea>',
+    '    <div class="lab-controls" style="margin-top:10px;">',
+    '      <button type="button" class="btn btn-primary" id="promptSave"><i class="fas fa-floppy-disk"></i> Save</button>',
+    '      <button type="button" class="btn btn-secondary" id="promptReset">Reset to default</button>',
+    '      <span class="lab-progress" id="promptStatus"></span>',
+    '    </div>',
+    '    <p class="lab-prompt-meta">Placeholders: <code>{{ID}}</code> <code>{{CURRENT}}</code> <code>{{HAS_ANSWER}}</code> <code>{{STATEMENT}}</code>. The last one is required — without it the model never sees the problem.</p>',
+    '  </div>',
+    '</section>',
+
     // ── 扩展说明 ──
     '<section class="lab-module">',
     '  <header><h2><i class="fas fa-plus"></i> Adding a module</h2></header>',
@@ -389,6 +407,68 @@
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
+
+  // ═════════ 模块 3：prompt 编辑器 ═════════
+  let promptLoaded = false;
+
+  function paintPromptSource(d) {
+    const badge = $('promptSource');
+    const isDb = d && d.source === 'db';
+    badge.textContent = isDb ? 'custom' : 'default';
+    badge.classList.toggle('db', isDb);
+    $('promptStatus').textContent = isDb
+      ? 'edited by ' + (d.updatedBy || '?') + ' · ' + (d.updatedAt ? new Date(d.updatedAt).toLocaleString() : '')
+      : 'using the built-in template';
+  }
+
+  async function loadPrompt() {
+    try {
+      const d = await apiCall('/api/admin-lab?action=prompt');
+      if (!d || !d.success) throw new Error((d && d.message) || 'load failed');
+      promptLoaded = true;
+      $('promptText').value = d.text || '';
+      paintPromptSource(d);
+    } catch (e) {
+      $('promptStatus').textContent = 'Failed: ' + e.message;
+    }
+  }
+
+  $('promptToggle').addEventListener('click', async function () {
+    const mod = $('mod-prompt');
+    const body = $('promptBody');
+    const willOpen = body.hidden;
+    body.hidden = !willOpen;
+    mod.classList.toggle('expanded', willOpen);
+    if (willOpen && !promptLoaded) await loadPrompt();
+  });
+
+  $('promptSave').addEventListener('click', async function () {
+    const text = $('promptText').value;
+    $('promptStatus').textContent = 'Saving…';
+    try {
+      const d = await apiCall('/api/admin-lab', 'POST', { action: 'savePrompt', text });
+      if (!d || !d.success) throw new Error((d && d.message) || 'save failed');
+      $('promptSource').textContent = 'custom';
+      $('promptSource').classList.add('db');
+      $('promptStatus').textContent = 'Saved · the next run uses it';
+    } catch (e) {
+      $('promptStatus').textContent = 'Failed: ' + e.message;
+    }
+  });
+
+  $('promptReset').addEventListener('click', async function () {
+    $('promptStatus').textContent = 'Resetting…';
+    try {
+      const d = await apiCall('/api/admin-lab', 'POST', { action: 'resetPrompt' });
+      if (!d || !d.success) throw new Error((d && d.message) || 'reset failed');
+      $('promptText').value = d.text || '';
+      $('promptSource').textContent = 'default';
+      $('promptSource').classList.remove('db');
+      $('promptStatus').textContent = 'Reset to the built-in template';
+    } catch (e) {
+      $('promptStatus').textContent = 'Failed: ' + e.message;
+    }
+  });
 
   // ── 绑定 ──
   $('diffRun').addEventListener('click', runDifficulty);
