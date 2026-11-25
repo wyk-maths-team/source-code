@@ -21,12 +21,18 @@
 
   main.innerHTML = '<div class="lab-wrap">' + [
     '<div class="page-header">',
-    '  <h1><i class="fas fa-flask"></i> Lab</h1>',
-    '  <p class="lab-intro">Offline checks that compare the estimator against what is already stored. ',
-    '  Nothing here writes to the problem bank — results are for reading, and can be saved as a run for later comparison.</p>',
-    '  <p class="lab-intro" style="margin-top:-12px;">Note: the stored difficulty was produced by a ',
-    '  <strong>different model in one bulk pass</strong>, not by human markers. A large mismatch means two models ',
-    '  disagree, not that one of them is right.</p>',
+    '  <div class="lab-head-text">',
+    '    <h1><i class="fas fa-flask"></i> Lab</h1>',
+    '    <p class="lab-intro">Offline checks that compare the estimator against what is already stored. ',
+    '    Nothing here writes to the problem bank — results are for reading, and can be saved as a run for later comparison.</p>',
+    '    <p class="lab-intro" style="margin-top:-12px;">Note: the stored difficulty was produced by a ',
+    '    <strong>different model in one bulk pass</strong>, not by human markers. A large mismatch means two models ',
+    '    disagree, not that one of them is right.</p>',
+    '  </div>',
+    '  <div class="lab-ui-switch" id="labUiSwitch" role="group" aria-label="Interface style">',
+    '    <button type="button" data-skin="claude">Claude</button>',
+    '    <button type="button" data-skin="classic">Classic</button>',
+    '  </div>',
     '</div>',
 
     // ── 模块 1：难度对拍 ──
@@ -105,6 +111,29 @@
 
   // ── 工具 ──
   const $ = (id) => document.getElementById(id);
+
+  // ── 皮肤切换：Claude（衬线暖色）/ Classic（站点原样式），选择存本地 ──
+  const SKIN_KEY = 'moj:lab:skin';
+
+  function applySkin(skin) {
+    const wrap = document.querySelector('.lab-wrap');
+    if (!wrap) return;
+    wrap.classList.toggle('classic', skin === 'classic');
+    document.querySelectorAll('#labUiSwitch button').forEach(function (b) {
+      b.classList.toggle('on', b.dataset.skin === skin);
+    });
+    try { localStorage.setItem(SKIN_KEY, skin); } catch (e) {}
+  }
+
+  let initialSkin = 'claude';
+  try { initialSkin = localStorage.getItem(SKIN_KEY) === 'classic' ? 'classic' : 'claude'; } catch (e) {}
+  applySkin(initialSkin);
+
+  $('labUiSwitch').addEventListener('click', function (e) {
+    const btn = e.target.closest ? e.target.closest('button[data-skin]') : null;
+    if (btn) applySkin(btn.dataset.skin);
+  });
+
   const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
   const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v)) ? '—' : Number(v).toFixed(d);
 

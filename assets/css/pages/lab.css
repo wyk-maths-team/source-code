@@ -19,6 +19,14 @@
   --lab-bad: #b4462f;
   --lab-radius: 14px;
 
+  /* 两套皮肤靠这些开关区分：Claude 用衬线标题、无框数字；
+     Classic 用站点字体、带底色的统计卡。 */
+  --lab-head-font: Georgia, 'Times New Roman', serif;
+  --lab-stat-bg: none;
+  --lab-stat-border: none;
+  --lab-stat-pad: 0;
+  --lab-stat-size: 1.42rem;
+
   background: var(--lab-bg);
   color: var(--lab-ink);
   margin: -20px;
@@ -58,7 +66,7 @@
 /* ── 页头 ── */
 .lab-wrap .page-header { margin: 0 0 30px; }
 .lab-wrap .page-header h1 {
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--lab-head-font);
   font-size: 1.85rem;
   font-weight: 500;
   letter-spacing: -0.015em;
@@ -87,7 +95,7 @@
   margin-bottom: 22px;
 }
 .lab-module h2 {
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--lab-head-font);
   font-size: 1.16rem;
   font-weight: 500;
   letter-spacing: -0.01em;
@@ -182,11 +190,16 @@
   margin: 4px 0 26px;
   padding: 0;
 }
-.lab-stat { background: none; border: none; padding: 0; }
+.lab-stat {
+  background: var(--lab-stat-bg);
+  border: var(--lab-stat-border);
+  border-radius: 8px;
+  padding: var(--lab-stat-pad);
+}
 .lab-stat b {
   display: block;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 1.42rem;
+  font-family: var(--lab-head-font);
+  font-size: var(--lab-stat-size);
   font-weight: 500;
   line-height: 1.15;
   color: var(--lab-ink);
@@ -353,3 +366,62 @@
   .lab-wrap { margin: -20px; padding: 24px 18px 36px; }
   .lab-module { padding: 20px 18px; }
 }
+
+/* ── Classic：项目原本的设计语言（蓝强调、卡片式统计、站点字体） ──
+   只覆盖变量与两处规则，版式结构不变，所以两套皮肤可以随时互换。 */
+.lab-wrap.classic {
+  --lab-bg: var(--content-bg);
+  --lab-surface: var(--card-bg);
+  --lab-ink: var(--text-primary);
+  --lab-muted: var(--text-secondary);
+  --lab-faint: var(--text-secondary);
+  --lab-line: var(--border-color);
+  --lab-accent: var(--accent);
+  --lab-accent-hover: var(--accent-hover);
+  --lab-good: #2e9e6b;
+  --lab-bad: var(--danger);
+  --lab-radius: var(--radius-lg);
+  --lab-head-font: inherit;
+  --lab-stat-bg: var(--content-bg);
+  --lab-stat-border: 1px solid var(--border-color);
+  --lab-stat-pad: 11px 13px;
+  --lab-stat-size: 1.22rem;
+}
+.lab-wrap.classic .lab-table th,
+.lab-wrap.classic .lab-table td { padding: 7px 10px 7px 0; }
+.lab-wrap.classic .lab-table th { text-transform: none; letter-spacing: 0; font-size: .76rem; }
+.lab-wrap.classic .lab-chart .dot.off { fill: var(--lab-bad); fill-opacity: .8; stroke: var(--lab-surface); stroke-width: 1; }
+
+/* ── 皮肤切换 ── */
+.lab-wrap .page-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.lab-wrap .page-header > .lab-head-text { flex: 1 1 420px; min-width: 0; }
+.lab-ui-switch {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--lab-line);
+  border-radius: 999px;
+  background: var(--lab-bg);
+  flex: none;
+  margin-top: 4px;
+}
+.lab-ui-switch button {
+  border: none;
+  background: transparent;
+  color: var(--lab-faint);
+  font-family: inherit;
+  font-size: .76rem;
+  font-weight: 500;
+  padding: 5px 13px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.lab-ui-switch button:hover { color: var(--lab-ink); }
+.lab-ui-switch button.on { background: var(--lab-accent); color: #fff; }
+
