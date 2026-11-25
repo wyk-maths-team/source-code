@@ -148,6 +148,17 @@
   background: color-mix(in srgb, var(--text-primary) 10%, transparent);
 }
 
+/* 行间公式（[...] 与 $$...$$）常常比气泡宽 —— 让它横向滚动，
+   而不是被 max-width 直接裁掉右半截。 */
+.moj-tutor-msg .katex-display {
+  margin: 7px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
+}
+.moj-tutor-msg .katex-display > .katex { white-space: normal; }
+.moj-tutor-msg .katex { font-size: 1.02em; }
+
 .moj-tutor-intro {
   font-size: 0.8rem;
   color: var(--text-secondary);

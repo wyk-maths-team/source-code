@@ -38,19 +38,38 @@
     return html;
   }
 
-  function typeset(el) {
-    if (!el) return;
-    if (typeof window.renderMathInElement !== 'function') return;
+  // KaTeX 的 auto-render 是 defer 加载的，第一条回复往往比它先到 —— 之前
+  // 函数还不存在就直接 return，整段公式就原样留在气泡里。现在改成轮询重试。
+  // 另外补上 \[ \] 与修正 \( \) ：原来的字符串少了一个反斜杠，传进去的分隔符
+  // 实际是 "(" 和 ")"，KaTeX 永远匹配不到。
+  var KATEX_DELIMS = [
+    { left: '$$', right: '$$', display: true },
+    { left: '\\[', right: '\\]', display: true },
+    { left: '$', right: '$', display: false },
+    { left: '\\(', right: '\\)', display: false },
+  ];
+
+  function typesetOnce(el) {
+    if (typeof window.renderMathInElement !== 'function') return false;
     try {
       window.renderMathInElement(el, {
-        delimiters: [
-          { left: '$$', right: '$$', display: true },
-          { left: '$', right: '$', display: false },
-          { left: '\(', right: '\)', display: false },
-        ],
+        delimiters: KATEX_DELIMS,
         throwOnError: false,
+        ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
       });
-    } catch (e) { /* 公式渲染失败不该影响对话 */ }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function typeset(el) {
+    if (!el) return;
+    if (typesetOnce(el)) return;
+    var tries = 0;
+    var timer = setInterval(function () {
+      if (typesetOnce(el) || ++tries > 24) clearInterval(timer);
+    }, 150);
   }
 
   function el(tag, cls, html) {
