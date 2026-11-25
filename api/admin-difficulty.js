@@ -136,10 +136,12 @@ async function handler(req, res) {
     return res.status(405).json({ success: false, message: 'Method not allowed' });
   }
 
+  // 60 次/分钟：Lab 页会并发跑（默认 3 路），20 次的老额度会被一次 N=30
+  // 的评测直接打满，管理员正当使用反而被拦。
   if (!(await applyRateLimit(req, res, {
     name: 'auto-difficulty',
     key: 'u:' + decoded.username,
-    max: 20,
+    max: 60,
     windowMs: 60_000,
     banMs: 60_000,
   }))) return;

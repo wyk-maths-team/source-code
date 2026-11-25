@@ -35,6 +35,7 @@
     '  </header>',
     '  <div class="lab-controls">',
     '    <label>Sample <input type="number" id="diffN" value="10" min="1" max="50"></label>',
+    '    <label>Concurrency <input type="number" id="diffConcurrency" value="3" min="1" max="6"></label>',
     '    <label><input type="checkbox" id="diffAnswerOnly"> only problems with a numeric answer</label>',
     '    <button type="button" class="btn btn-primary" id="diffRun"><i class="fas fa-play"></i> Run</button>',
     '    <button type="button" class="btn btn-secondary" id="diffStop" disabled>Stop</button>',
@@ -54,6 +55,7 @@
     '  </header>',
     '  <div class="lab-controls">',
     '    <label>Sample <input type="number" id="simN" value="20" min="1" max="100"></label>',
+    '    <label>Concurrency <input type="number" id="simConcurrency" value="4" min="1" max="8"></label>',
     '    <button type="button" class="btn btn-primary" id="simRun"><i class="fas fa-play"></i> Run</button>',
     '    <button type="button" class="btn btn-secondary" id="simStop" disabled>Stop</button>',
     '    <span class="lab-progress" id="simProgress"></span>',
@@ -104,6 +106,7 @@
   async function runDifficulty() {
     if (state.diffRunning) return;
     const n = Math.max(1, Math.min(50, Number($('diffN').value) || 10));
+    const concurrency = Math.max(1, Math.min(6, Number($('diffConcurrency').value) || 3));
     const answerOnly = $('diffAnswerOnly').checked;
 
     state.diffRunning = true;
@@ -121,24 +124,49 @@
       const list = (sample && sample.problems) || [];
       if (!list.length) throw new Error('No problems matched');
 
-      for (let i = 0; i < list.length; i++) {
-        if (!state.diffRunning) break;
-        const p = list[i];
-        $('diffProgress').textContent = 'Scoring ' + (i + 1) + '/' + list.length + '…';
-        try {
-          const r = await apiCall('/api/admin-difficulty', 'POST', { problemId: p.id });
-          rows.push({
-            id: p.id, name: p.name, existing: p.difficulty,
-            ai: (r && r.difficulty === null) ? null : (r && r.difficulty),
-            band: r && r.band, rationale: r && r.rationale, charged: (r && r.charged) || 0,
-            error: (r && r.difficulty === null) ? 'not-a-problem (R5)' : null,
-          });
-        } catch (e) {
-          rows.push({ id: p.id, name: p.name, existing: p.difficulty, ai: null, error: e.message });
+      // 并发跑：N 道题串行要 N×8 秒，20 题就超过两分钟。
+      // 用固定数量的 worker 从共享游标里取题，结果按原索引写回，顺序不会乱。
+      const results = new Array(list.length);
+      let cursor = 0;
+      let done = 0;
+
+      const worker = async () => {
+        while (state.diffRunning) {
+          const i = cursor++;
+          if (i >= list.length) return;
+          const p = list[i];
+          try {
+            const r = await apiCall('/api/admin-difficulty', 'POST', { problemId: p.id });
+            results[i] = {
+              id: p.id, name: p.name, existing: p.difficulty,
+              ai: (r && r.difficulty === null) ? null : (r && r.difficulty),
+              band: r && r.band, rationale: r && r.rationale, charged: (r && r.charged) || 0,
+              error: (r && r.difficulty === null) ? 'not-a-problem (R5)' : null,
+            };
+          } catch (e) {
+            results[i] = { id: p.id, name: p.name, existing: p.difficulty, ai: null, error: e.message };
+          }
+          done++;
+          $('diffProgress').textContent = 'Scored ' + done + '/' + list.length
+            + ' · ' + Math.min(concurrency, list.length) + ' in flight';
+          // 节流：每两题重绘一次，N 大时不必每题重建表格与散点
+          if (done % 2 === 0 || done === list.length) {
+            rows.length = 0;
+            rows.push(...results.filter(Boolean));
+            renderDiff(rows, list.length);
+          }
         }
-        renderDiff(rows, list.length);
-      }
-      $('diffProgress').textContent = state.diffRunning ? 'Done · ' + rows.length + ' problems' : 'Stopped at ' + rows.length;
+      };
+
+      await Promise.all(
+        Array.from({ length: Math.min(concurrency, list.length) }, () => worker())
+      );
+
+      rows.length = 0;
+      rows.push(...results.filter(Boolean));
+      $('diffProgress').textContent = state.diffRunning
+        ? 'Done · ' + rows.length + ' problems'
+        : 'Stopped at ' + rows.length;
     } catch (e) {
       $('diffProgress').textContent = 'Failed: ' + e.message;
     } finally {
@@ -219,6 +247,7 @@
   async function runSimilarity() {
     if (state.simRunning) return;
     const n = Math.max(1, Math.min(100, Number($('simN').value) || 20));
+    const concurrency = Math.max(1, Math.min(8, Number($('simConcurrency').value) || 4));
 
     state.simRunning = true;
     $('simRun').disabled = true;
@@ -233,31 +262,53 @@
       const list = (sample && sample.problems) || [];
       if (!list.length) throw new Error('No problems matched');
 
-      for (let i = 0; i < list.length; i++) {
-        if (!state.simRunning) break;
-        const p = list[i];
-        $('simProgress').textContent = 'Checking ' + (i + 1) + '/' + list.length + '…';
-        try {
-          const d = await apiCall('/api/problem?action=similar&id=' + encodeURIComponent(p.id));
-          const sim = Array.isArray(d && d.similar) ? d.similar : [];
-          const top1 = sim[0] || null;
-          const top3 = sim.slice(0, 3);
-          const sharedTop1 = top1 && Array.isArray(top1.shared) && top1.shared.length ? top1.shared.length : 0;
-          const sharedTop3 = top3.reduce((s, x) => s + ((x.shared && x.shared.length) || 0), 0);
-          rows.push({
-            id: p.id, name: p.name, stored: p.difficulty,
-            engine: (d && d.engine) || '(legacy)',
-            top1: top1 ? top1.id : '—',
-            top1Shared: sharedTop1,
-            top3Shared: sharedTop3,
-            top3Share: top3.length ? top3.filter((x) => (x.shared || []).length).length + '/' + top3.length : '—',
-          });
-        } catch (e) {
-          rows.push({ id: p.id, name: p.name, stored: p.difficulty, error: e.message });
+      // 这一块不烧 token，但每次 similar 也要查库，同样并发跑
+      const results = new Array(list.length);
+      let cursor = 0;
+      let done = 0;
+
+      const worker = async () => {
+        while (state.simRunning) {
+          const i = cursor++;
+          if (i >= list.length) return;
+          const p = list[i];
+          try {
+            const d = await apiCall('/api/problem?action=similar&id=' + encodeURIComponent(p.id));
+            const sim = Array.isArray(d && d.similar) ? d.similar : [];
+            const top1 = sim[0] || null;
+            const top3 = sim.slice(0, 3);
+            results[i] = {
+              id: p.id, name: p.name, stored: p.difficulty,
+              engine: (d && d.engine) || '(legacy)',
+              top1: top1 ? top1.id : '—',
+              top1Shared: top1 && Array.isArray(top1.shared) ? top1.shared.length : 0,
+              top3Shared: top3.reduce((s, x) => s + ((x.shared && x.shared.length) || 0), 0),
+              top3Share: top3.length
+                ? top3.filter((x) => (x.shared || []).length).length + '/' + top3.length
+                : '—',
+            };
+          } catch (e) {
+            results[i] = { id: p.id, name: p.name, stored: p.difficulty, error: e.message };
+          }
+          done++;
+          $('simProgress').textContent = 'Checked ' + done + '/' + list.length;
+          if (done % 4 === 0 || done === list.length) {
+            rows.length = 0;
+            rows.push(...results.filter(Boolean));
+            renderSim(rows);
+          }
         }
-        renderSim(rows);
-      }
-      $('simProgress').textContent = state.simRunning ? 'Done · ' + rows.length + ' problems' : 'Stopped at ' + rows.length;
+      };
+
+      await Promise.all(
+        Array.from({ length: Math.min(concurrency, list.length) }, () => worker())
+      );
+
+      rows.length = 0;
+      rows.push(...results.filter(Boolean));
+      $('simProgress').textContent = state.simRunning
+        ? 'Done · ' + rows.length + ' problems'
+        : 'Stopped at ' + rows.length;
     } catch (e) {
       $('simProgress').textContent = 'Failed: ' + e.message;
     } finally {
