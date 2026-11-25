@@ -15,7 +15,9 @@ import { verifyToken } from '../lib/auth.js';
 import { wrapHandler, sendError } from '../lib/errors.js';
 import { DEFAULT_TEMPLATE, PROMPT_DOC_ID } from './admin-difficulty.js';
 
-const MAX_SAMPLE = 100;
+// 上限 1000：整个题库才 3246 道，再高就没有抽样意义了。
+// 注意 1000 题 × 一次模型调用 ≈ 3M tokens，跑之前先看余额。
+const MAX_SAMPLE = 1000;
 
 function adminOnly(req, res, decoded) {
   if (!decoded) { sendError(req, res, 'UNAUTHORIZED', 'Unauthorized'); return false; }

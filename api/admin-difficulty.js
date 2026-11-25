@@ -55,7 +55,7 @@ const RULES = [
   'R4 Proof lift: if proof=true, the final value is max(band value, 6.00). Corpus evidence: problems with no numeric answer have median 6.50, with answer 3.92. Do not dump every proof at 9 - still split B6-B8 by insight count.',
   'R5 Not a problem: if the content is a handout / lecture note / meta page, return difficulty null instead of a number.',
   'R6 Graduate tools: if the statement genuinely uses complex analysis, measure theory, or similar, output 9.00-9.30.',
-  'R7 Calibration for this platform: the stored values here were assigned by teachers and run slightly HIGHER than a strictly mathematical reading. Between two bands, take the upper one. Never output the lower band edge itself (.00) - start at .05 or above. When you are genuinely torn, resolve upward.',
+  'R7 Calibration for this platform: the stored values were produced by a DIFFERENT model in a single bulk pass, not by human markers. They carry that model habits rather than ground truth, so treat them as a weak prior, not as the answer key. Empirically they run slightly higher than a strict reading: between two bands take the upper one, never output the band edge itself (.00), and start at .05 or above. If you disagree strongly, say so in evidence rather than bending toward the stored value.',
 ].join('\n');
 
 const PITFALLS = [
@@ -155,10 +155,12 @@ async function handler(req, res) {
     return res.status(405).json({ success: false, message: 'Method not allowed' });
   }
 
+  // 1200 次/分钟：Lab 允许一次抽 1000 题，300 的额度会在跑到三分之一时
+  // 把人挡在 429 外面。ds-flash 侧并发 2500，真正的成本控制是余额与每日预算。
   if (!(await applyRateLimit(req, res, {
     name: 'auto-difficulty',
     key: 'u:' + decoded.username,
-    max: 300,
+    max: 1200,
     windowMs: 60_000,
     banMs: 60_000,
   }))) return;

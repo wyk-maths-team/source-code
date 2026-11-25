@@ -22,8 +22,11 @@
   main.innerHTML = [
     '<div class="page-header">',
     '  <h1><i class="fas fa-flask"></i> Lab</h1>',
-    '  <p class="lab-intro">Offline checks that compare the AI against what is already stored. ',
+    '  <p class="lab-intro">Offline checks that compare the estimator against what is already stored. ',
     '  Nothing here writes to the problem bank — results are for reading, and can be saved as a run for later comparison.</p>',
+    '  <p class="lab-intro" style="margin-top:-12px;">Note: the stored difficulty was produced by a ',
+    '  <strong>different model in one bulk pass</strong>, not by human markers. A large mismatch means two models ',
+    '  disagree, not that one of them is right.</p>',
     '</div>',
 
     // ── 模块 1：难度对拍 ──
@@ -34,7 +37,7 @@
     '    then compare against the stored difficulty. Costs tokens on your account, same as pressing Auto.</p>',
     '  </header>',
     '  <div class="lab-controls">',
-    '    <label>Sample <input type="number" id="diffN" value="10" min="1" max="50"></label>',
+    '    <label>Sample <input type="number" id="diffN" value="10" min="1" max="1000"></label>',
     '    <label>Concurrency <input type="number" id="diffConcurrency" value="3" min="1" max="50"></label>',
     '    <label><input type="checkbox" id="diffAnswerOnly"> only problems with a numeric answer</label>',
     '    <button type="button" class="btn btn-primary" id="diffRun"><i class="fas fa-play"></i> Run</button>',
@@ -123,7 +126,8 @@
   // ═════════ 模块 1：难度对拍 ═════════
   async function runDifficulty() {
     if (state.diffRunning) return;
-    const n = Math.max(1, Math.min(50, Number($('diffN').value) || 10));
+    // 上限 1000：一次 1000 题大约烧 3M tokens，跑之前先看余额
+    const n = Math.max(1, Math.min(1000, Number($('diffN').value) || 10));
     // 上限 50：ds-flash 侧允许的并发是 2500，瓶颈不会在模型那边。
     // 真正要守住的是后端限流（api/admin-difficulty 现在是 300 次/分钟）。
     const concurrency = Math.max(1, Math.min(50, Number($('diffConcurrency').value) || 3));
@@ -155,22 +159,40 @@
           const i = cursor++;
           if (i >= list.length) return;
           const p = list[i];
+          const callOnce = () => apiCall('/api/admin-difficulty', 'POST', { problemId: p.id });
+
+          let r = null;
+          let lastErr = null;
+          let retried = false;
           try {
-            const r = await apiCall('/api/admin-difficulty', 'POST', { problemId: p.id });
+            r = await callOnce();
+          } catch (err1) {
+            // 单题失败重试一次：并发 50 时偶发的 429 / 网关抖动不该算进统计
+            retried = true;
+            lastErr = err1;
+            await new Promise((ok) => setTimeout(ok, 600));
+            try { r = await callOnce(); } catch (err2) { lastErr = err2; }
+          }
+
+          if (!r) {
+            results[i] = {
+              id: p.id, name: p.name, existing: p.difficulty, ai: null,
+              error: lastErr ? lastErr.message : 'failed', retried,
+            };
+          } else {
             results[i] = {
               id: p.id, name: p.name, existing: p.difficulty,
-              ai: (r && r.difficulty === null) ? null : (r && r.difficulty),
-              band: r && r.band, rationale: r && r.rationale, charged: (r && r.charged) || 0,
-              error: (r && r.difficulty === null) ? 'not-a-problem (R5)' : null,
+              ai: (r.difficulty === null) ? null : r.difficulty,
+              band: r.band, rationale: r.rationale, charged: r.charged || 0,
+              error: (r.difficulty === null) ? 'not-a-problem (R5)' : null,
+              retried,
             };
-          } catch (e) {
-            results[i] = { id: p.id, name: p.name, existing: p.difficulty, ai: null, error: e.message };
           }
           done++;
           $('diffProgress').textContent = 'Scored ' + done + '/' + list.length
             + ' · ' + Math.min(concurrency, list.length) + ' in flight';
           // 节流：每两题重绘一次，N 大时不必每题重建表格与散点
-          if (done % 2 === 0 || done === list.length) {
+          if (done % 10 === 0 || done === list.length) {
             rows.length = 0;
             rows.push(...results.filter(Boolean));
             renderDiff(rows, list.length);
@@ -205,6 +227,8 @@
     const r = pearson(pairs.map((p) => p.existing), pairs.map((p) => p.ai));
     const charged = rows.reduce((s, r2) => s + (r2.charged || 0), 0);
 
+    const retried = rows.filter((x) => x.retried).length;
+
     $('diffStats').innerHTML = [
       statCell('scored', pairs.length + '/' + rows.length),
       statCell('MAE', fmt(mean(abs))),
@@ -213,6 +237,7 @@
       statCell('SD of diff', fmt(sdv)),
       statCell('variance', fmt(sdv * sdv, 3)),
       statCell('Pearson r', fmt(r, 3)),
+      statCell('retried', retried),
       statCell('tokens spent', charged.toLocaleString()),
     ].join('');
 
@@ -222,7 +247,11 @@
       $('diffTable').innerHTML = '<div class="lab-empty">No run yet.</div>';
       return;
     }
-    const body = rows.map((row) => {
+    // 1000 题时整表渲染会卡，只画前 300 行；统计始终用全量
+    const RENDER_ROWS = 300;
+    const shown = rows.slice(0, RENDER_ROWS);
+
+    const body = shown.map((row) => {
       const delta = (row.ai === null) ? null : row.ai - row.existing;
       const cls = delta === null ? '' : (delta >= 0 ? 'lab-delta-pos' : 'lab-delta-neg');
       return '<tr>'
@@ -231,14 +260,19 @@
         + '<td>' + fmt(row.existing) + '</td>'
         + '<td>' + (row.ai === null ? '<span style="color:var(--danger)">' + esc(row.error || 'failed') + '</span>' : fmt(row.ai)) + '</td>'
         + '<td class="' + cls + '">' + (delta === null ? '—' : (delta >= 0 ? '+' : '') + fmt(delta)) + '</td>'
-        + '<td class="mono">' + esc(row.band || '') + '</td>'
+        + '<td class="mono">' + esc(row.band || '') + (row.retried ? ' *' : '') + '</td>'
         + '<td title="' + esc(row.rationale || '') + '">' + esc(String(row.rationale || '').slice(0, 70)) + '</td>'
         + '</tr>';
     }).join('');
 
+    const more = rows.length > RENDER_ROWS
+      ? '<div class="lab-empty">Showing the first ' + RENDER_ROWS + ' of ' + rows.length
+        + ' rows — the statistics above use all of them.</div>'
+      : '';
+
     $('diffTable').innerHTML = '<table class="lab-table"><thead><tr>'
       + '<th>id</th><th>name</th><th>stored</th><th>AI</th><th>Δ</th><th>band</th><th>reason</th>'
-      + '</tr></thead><tbody>' + body + '</tbody></table>';
+      + '</tr></thead><tbody>' + body + '</tbody></table>' + more;
   }
 
   function scatter(pairs) {
