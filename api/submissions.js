@@ -482,6 +482,7 @@ async function handler(req, res) {
           statement: String(problem.statement || ''),
           reference_answer: String(problem.ans ?? ''),
           student_steps: steps,
+          difficulty: problem.difficulty,      // 与 steps-grade 共用同一套分档
         });
 
     const chain = getModelChain(problem.difficulty) || [];

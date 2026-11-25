@@ -7,7 +7,7 @@ import { askDeepSeekAPI } from '../lib/deepseek-api.js';
 import { askClaude } from '../lib/temp/claude-api.js';
 import { buildStepsPrompt, buildM0Prompt, snapM0Score } from '../lib/grade-prompt.js';
 import { getModelChain, getModelInfo, pickThinkingEffort, pickEffortForProblem } from '../lib/model-router.js';
-import { effortForDifficulty } from '../lib/thinking.js';
+import { effortForDifficulty, effortForLegacyDifficulty } from '../lib/thinking.js';
 import { consumeTokens } from '../lib/token.js';
 import crypto from 'crypto';
 import { wrapHandler } from '../lib/errors.js';
@@ -302,9 +302,17 @@ async function handleCreate(req, res, db, decoded) {
   const isM0 = Array.isArray(problem.tags) && problem.tags.includes('M0');
   const prompt = isM0
     ? buildM0Prompt({ statement, reference_answer: String(problem.ans ?? ''), student_steps: steps.trim() })
-    : buildStepsPrompt({ statement, reference_answer: String(problem.ans ?? ''), student_steps: steps.trim() });
-  // 普通题按难度分级：1-3 low，4-7 high，8+ max
-  const effort = effortForDifficulty(problem && problem.difficulty);
+    : buildStepsPrompt({
+        statement,
+        reference_answer: String(problem.ans ?? ''),
+        student_steps: steps.trim(),
+        difficulty: problem.difficulty,        // 评分尺度按难度分档
+      });
+  // 主站题按难度分级：1-2 low，3-6 high，7-9 max；
+  // M0 等特殊题库沿用旧阈值，不跟主站一起变。
+  const effort = isM0
+    ? effortForLegacyDifficulty(problem && problem.difficulty)
+    : effortForDifficulty(problem && problem.difficulty);
 
   // 两轮：模型链跑一遍，全部失败就把整条链再跑一遍。
   // 不再交给本地 grader —— 它只会在几分钟后给出同样的结果，
