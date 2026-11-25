@@ -906,28 +906,22 @@ function bindSubmitEvent() {
       const data = await apiCall(`/api/problem?action=similar&id=${encodeURIComponent(problemId)}`);
       if (!data.success) throw new Error(data.message || 'Failed to load');
 
-      const curTags = data.current?.tags || [];
-      hint.textContent = curTags.length
-        ? `Comparing against tags: ${curTags.join(', ')} · difficulty ${(data.current.difficulty || 0).toFixed(2)}`
-        : `No tags on this problem — showing closest difficulty`;
+      // 旧的提示语在说「按 tag 比对」，但引擎早换成技能向量了 —— 会误导。
+      hint.textContent = 'Matched by shared skills, then by how close the difficulty is.';
 
       if (!data.similar?.length) {
         list.innerHTML = '<div class="si-empty"><i class="fas fa-search" style="font-size:28px;opacity:.4;display:block;margin-bottom:10px;"></i>No similar problems found.</div>';
         return;
       }
 
-      const curTagSet = new Set(curTags.map(t => String(t).toLowerCase()));
       list.innerHTML = data.similar.map(p => {
-        const tags = Array.isArray(p.tags) ? p.tags : [];
-        const tagsHtml = tags.slice(0, 6).map(t => {
-          const common = curTagSet.has(String(t).toLowerCase());
-          return `<span class="si-tag${common ? ' common' : ''}">${esc(t)}</span>`;
-        }).join('');
-
         const diffVal = Number(p.difficulty) || 0;
         const diffText = diffVal === 0 ? '∞' : diffVal.toFixed(2);
-        const delta = Number(p.diffDelta) || 0;
-        const deltaText = delta < 0.01 ? 'exact' : `Δ${delta.toFixed(2)}`;
+        const shared = Array.isArray(p.shared) ? p.shared : [];
+        // 共享技能才是「为什么相似」的真实解释；没有共享就老实说难度相近
+        const sharedHtml = shared.length
+          ? shared.map(s => `<span class="si-tag common">${esc(s)}</span>`).join('')
+          : '<span class="si-tag">difficulty only</span>';
 
         return `
           <a href="/problems/${encodeURIComponent(p.id)}" class="si-item">
@@ -937,10 +931,8 @@ function bindSubmitEvent() {
             </div>
             <div class="si-meta">
               <span>Lv.${diffText}</span>
-              <span class="si-badge">${deltaText}</span>
-              ${p.commonTags ? `<span style="color:#2ecc71;font-weight:600;">+${p.commonTags} tag${p.commonTags > 1 ? 's' : ''}</span>` : ''}
               <span style="flex:1;"></span>
-              ${tagsHtml}
+              ${sharedHtml}
             </div>
           </a>`;
       }).join('');

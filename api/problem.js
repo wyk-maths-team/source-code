@@ -667,24 +667,36 @@ async function handler(req, res) {
             { projection: { id: 1, name: 1, tags: 1, difficulty: 1, _id: 0 } })
           .toArray();
         const byId = new Map(docs.map((d) => [d.id, d]));
+
+        // 共享技能换成中文名，让前端能写「凭什么相似」而不是只丢一串 id
+        const sharedIds = [...new Set(hits.flatMap((h) => h.shared || []))];
+        const skillDocs = sharedIds.length
+          ? await db.collection('skills')
+            .find({ id: { $in: sharedIds } }, { projection: { id: 1, name: 1, _id: 0 } })
+            .toArray()
+          : [];
+        const nameOf = new Map(skillDocs.map((s) => [
+          s.id,
+          (s.name && (s.name.zh || s.name.en)) || s.id,
+        ]));
+
+        // 只回前端真正用得上的字段：id / name / difficulty / shared。
+        // 分数、cosine、旧 tags、commonTags 一律不出去 —— 那些是内部指标，
+        // 摆在界面上只会让人误以为「相似度 0.86」有绝对意义。
         const similar = hits.map((h) => {
           const d = byId.get(h.id);
           if (!d) return null;
           return {
             id: d.id,
             name: d.name,
-            tags: d.tags,
             difficulty: d.difficulty,
-            score: h.score,
-            cosine: h.cosine,
-            commonTags: (Array.isArray(d.tags) ? d.tags : []).filter((t) => curTags.includes(t)).length,
+            shared: (h.shared || []).map((sid) => nameOf.get(sid) || sid),
           };
         }).filter(Boolean);
 
         if (similar.length) {
           return res.status(200).json({
             success: true,
-            current: { id: current.id, tags: curTags, difficulty: curDiff },
             similar,
             engine: 'skill-vector',
           });

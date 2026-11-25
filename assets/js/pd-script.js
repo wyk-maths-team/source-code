@@ -482,7 +482,7 @@
         <div id="similarModal" class="report-modal-overlay" style="display:none">
           <div class="report-modal" style="max-width:680px;">
             <h3><i class="fas fa-layer-group" style="color:var(--accent);"></i> Similar Problems</h3>
-            <p class="report-modal-hint" id="similarHint">Based on shared tags and difficulty</p>
+            <p class="report-modal-hint" id="similarHint">Matched by shared skills, then by how close the difficulty is.</p>
             <div id="similarList" style="max-height:60vh;overflow-y:auto;padding-right:4px;"></div>
             <div class="report-modal-actions">
               <button class="btn-secondary" id="similarCloseBtn">Close</button>

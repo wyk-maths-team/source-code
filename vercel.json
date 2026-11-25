@@ -518,6 +518,10 @@
       "destination": "/problems.html"
     },
     {
+      "source": "/skills-graph",
+      "destination": "/skills-graph.html"
+    },
+    {
       "source": "/resources",
       "destination": "/resources.html"
     },

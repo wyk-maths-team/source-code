@@ -1,0 +1,170 @@
+/* assets/css/skills-graph.css —— 技能星图
+ *
+ * 这个页面刻意固定在深色底：图结构在浅色背景上连线几乎看不见。
+ * 它是可视化专用页，不参与三主题切换；节点配色仍按大类映射。
+ */
+
+html, body.sg-body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #070b14;
+  color: #cbd5e1;
+  font-family: 'Segoe UI', 'Microsoft JhengHei', system-ui, sans-serif;
+}
+
+#sg-canvas { position: fixed; inset: 0; }
+#sg-canvas svg { display: block; width: 100%; height: 100%; cursor: grab; }
+#sg-canvas svg:active { cursor: grabbing; }
+
+.sg-node circle {
+  stroke: rgba(255, 255, 255, .22);
+  stroke-width: 1;
+  transition: filter .15s ease, stroke .15s ease;
+}
+.sg-node:hover circle { filter: brightness(1.35); stroke: #fff; }
+.sg-node.dimmed { opacity: .16; }
+.sg-node.active circle { stroke: #fff; stroke-width: 2; filter: brightness(1.5); }
+
+.sg-label {
+  fill: #94a3b8;
+  pointer-events: none;
+  font-size: 10px;
+  paint-order: stroke;
+  stroke: #070b14;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.sg-node.l1 .sg-label { fill: #e2e8f0; font-size: 13px; font-weight: 700; }
+.sg-node.l2 .sg-label { fill: #b6c2d2; font-size: 11px; font-weight: 600; }
+.sg-node.dimmed .sg-label { opacity: .1; }
+/* 缩到全局视角时二级标签会互相压住，只保留一级 */
+g.zoomed-out .sg-node.l2 .sg-label { display: none; }
+g.zoomed-out .sg-node.l1 .sg-label { font-size: 16px; }
+
+.sg-edge { stroke-linecap: round; }
+.sg-edge.parent { stroke: #26344b; stroke-width: 1.1; }
+.sg-edge.prereq { stroke: #38bdf8; stroke-width: 1.1; stroke-dasharray: 5 5; opacity: .38; }
+.sg-edge.related { stroke: #64748b; stroke-width: 1; stroke-dasharray: 2 6; opacity: .28; }
+.sg-edge.hl { opacity: .9; }
+
+/* ── 左上：标题 / 搜索 / 图例 ── */
+#sg-hud {
+  position: fixed;
+  top: 18px;
+  left: 18px;
+  width: 268px;
+  padding: 16px 16px 14px;
+  border-radius: 12px;
+  background: rgba(13, 20, 33, .86);
+  border: 1px solid #1c2637;
+  backdrop-filter: blur(8px);
+  z-index: 5;
+}
+#sg-hud h1 {
+  margin: 0 0 2px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #e7eef8;
+  letter-spacing: .2px;
+}
+#sg-hud .sg-sub { font-size: 11px; color: #7f8ea3; margin-bottom: 12px; }
+
+#sg-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: 1px solid #24314a;
+  background: #0b1220;
+  color: #dbe6f5;
+  font-size: 12.5px;
+  font-family: inherit;
+  outline: none;
+}
+#sg-search:focus { border-color: #38bdf8; }
+#sg-search::placeholder { color: #5b6b82; }
+
+.sg-legend { margin-top: 14px; display: grid; gap: 6px; }
+.sg-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: #9fb0c6;
+  cursor: pointer;
+  user-select: none;
+}
+.sg-legend-row:hover { color: #e2e8f0; }
+.sg-legend-row.off { opacity: .35; }
+.sg-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+
+.sg-stats {
+  margin-top: 13px;
+  padding-top: 11px;
+  border-top: 1px solid #1c2637;
+  font-size: 11px;
+  color: #6f8098;
+  line-height: 1.65;
+}
+.sg-stats b { color: #b9c8db; font-weight: 600; }
+
+/* ── 右下：详情卡 ── */
+#sg-detail {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  width: 320px;
+  max-height: 52vh;
+  overflow-y: auto;
+  padding: 15px 16px;
+  border-radius: 12px;
+  background: rgba(13, 20, 33, .92);
+  border: 1px solid #1c2637;
+  backdrop-filter: blur(8px);
+  z-index: 5;
+  display: none;
+}
+#sg-detail.open { display: block; }
+#sg-detail .sg-d-title { font-size: 14px; font-weight: 700; color: #e7eef8; margin-bottom: 2px; }
+#sg-detail .sg-d-path {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 10.5px;
+  color: #5f7089;
+  margin-bottom: 10px;
+  word-break: break-all;
+}
+#sg-detail .sg-d-desc { font-size: 12px; line-height: 1.65; color: #a9bbd0; margin-bottom: 12px; }
+#sg-detail .sg-d-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  padding: 4px 0;
+  border-top: 1px solid #161f2f;
+  color: #8fa1b8;
+}
+#sg-detail .sg-d-row b { color: #d3e0f0; font-weight: 600; text-align: right; }
+#sg-detail .sg-d-badge {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  background: #1b2a42;
+  color: #7fc7f5;
+}
+#sg-detail .sg-d-badge.suggested { background: #3a2a12; color: #f0b34a; }
+
+/* ── 底部提示 ── */
+#sg-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: #4f5f75;
+  z-index: 4;
+  pointer-events: none;
+  white-space: nowrap;
+}

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>window.__BUILD_V='ce84684b';</script>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta name="robots" content="noindex, nofollow" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Skill Graph - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/assets/css/skills-graph.css?v=ce84684b" />
+<script defer src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script defer src="/assets/js/skills-graph.js?v=ce84684b"></script>
+</head>
+<body class="sg-body">
+  <div id="sg-canvas"></div>
+
+  <aside id="sg-hud">
+    <h1>Skill Graph</h1>
+    <div class="sg-sub">How the skill taxonomy connects</div>
+    <input id="sg-search" type="search" placeholder="Search a skill…" autocomplete="off" />
+    <div class="sg-legend" id="sg-legend"></div>
+    <div class="sg-stats" id="sg-stats"></div>
+  </aside>
+
+  <div id="sg-detail"></div>
+  <div id="sg-hint">scroll to zoom · drag the background to pan · click a node for details</div>
+</body>
+</html>
