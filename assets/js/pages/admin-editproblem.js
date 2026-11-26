@@ -457,6 +457,17 @@
               </small>
             </div>
             <div class="form-group">
+              <label>
+                <input type="checkbox" id="editAllowScript" ${problem.allowScript === true ? 'checked' : ''}>
+                Let students run scripts in the statement
+              </label>
+              <small style="color:#666;display:block;margin-top:.3rem;">
+                Off by default. When on, &lt;script&gt; inside the statement executes in the student's page —
+                use it only for problems that genuinely need to change the submit flow.
+                Scripts have full access to the session, so read them before ticking this.
+              </small>
+            </div>
+            <div class="form-group">
               <label>Hints (shown under the statement; students pay tokens to unlock)</label>
               <div id="hintsEditor" style="display:flex;flex-direction:column;gap:8px;"></div>
               <button type="button" id="addHintBtn" class="btn btn-secondary" style="margin-top:8px;">+ Add hint</button>
@@ -831,6 +842,7 @@
         const isPublic = document.getElementById('editPublic').checked;
         const logic = document.getElementById('editLogic').value.trim();
         const FS = document.getElementById('editFS').checked;
+        const allowScript = document.getElementById('editAllowScript').checked;
         const hints = [...document.querySelectorAll('#hintsEditor .hint-row')]
           .map((row, i) => ({
             id: row.dataset.hid || ('h' + (i + 1)),
@@ -840,7 +852,7 @@
           .filter((h) => h.content);
         try {
           const result = await apiCall('/api/problem?action=adminProblems', 'PUT', {
-            id: problemId, name, statement, ans, difficulty, tags, public: isPublic, logic, FS, hints
+            id: problemId, name, statement, ans, difficulty, tags, public: isPublic, logic, FS, hints, allowScript
           });
           const msgEl = document.getElementById('message');
           msgEl.textContent = result.message;

@@ -69,9 +69,10 @@
    * @param {HTMLElement} host   渲染 statement 的容器
    * @param {Array} scripts      split() 返回的脚本数组
    */
-  function render(host, scripts) {
+  function render(host, scripts, opts) {
     if (!host || !scripts || !scripts.length) return;
 
+    var autoForStudents = !!(opts && opts.autoForStudents);
     var hasSrc = scripts.some(function (s) { return !!s.src; });
 
     var box = document.createElement('div');
@@ -82,7 +83,11 @@
     head.innerHTML =
       '<i class="fas fa-triangle-exclamation"></i>' +
       '<span class="sp-title">This problem contains ' + scripts.length + ' script' + (scripts.length > 1 ? 's' : '') + '</span>' +
-      '<span class="sp-note">Not executed. Read it first.</span>';
+      '<span class="sp-note">' +
+        (autoForStudents
+          ? 'Students run this automatically. You do not.'
+          : 'Not executed. Read it first.') +
+      '</span>';
 
     var runBtn = document.createElement('button');
     runBtn.type = 'button';
@@ -137,5 +142,15 @@
     } catch (e) { return false; }
   }
 
-  window.ScriptPanel = { split: split, render: render, isAdmin: isAdmin, highlight: highlight };
+  /**
+   * 直接执行一组脚本。
+   * 管理员面板的 Execute 按钮走这里；学生端只有当题目被显式标记
+   * allowScript 时才会调用 —— 两者执行的是同一份逻辑，行为一致。
+   */
+  function run(scripts) {
+    if (!Array.isArray(scripts) || !scripts.length) return;
+    scripts.forEach(runScript);
+  }
+
+  window.ScriptPanel = { split: split, render: render, run: run, isAdmin: isAdmin, highlight: highlight };
 })();

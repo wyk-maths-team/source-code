@@ -749,7 +749,7 @@ function renderChainPrerequisite() {
 }
 
 
-async function renderStatement(statement) {
+async function renderStatement(statement, allowScript) {
   const stmt = document.getElementById('statementContent');
   if (!stmt) return false;
 
@@ -774,7 +774,9 @@ async function renderStatement(statement) {
   try { mountPdfQuizIfPresent(); } catch (e) { console.warn('[mcq] mount failed:', e && e.message); }
 
   if (split.scripts.length && window.ScriptPanel && window.ScriptPanel.isAdmin()) {
-    window.ScriptPanel.render(stmt, split.scripts);
+    // 管理员：永远只显示、不自动执行 —— 即使是自己打开了 allowScript 的题。
+    // root 的 token 比学生的更值钱，别让「打开一道题」就等于运行它的脚本。
+    window.ScriptPanel.render(stmt, split.scripts, { autoForStudents: allowScript === true });
   }
 
   // 等 KaTeX 就緒
@@ -799,6 +801,18 @@ async function renderStatement(statement) {
     // KaTeX 刚塞完节点，量一次宽度做自适应；之后宽度变化由 observer 负责
     fitWideFormulas(stmt);
     observeStatementWidth(stmt);
+
+    // 题目被显式标记 allowScript 时，学生端也执行题面里的脚本。
+    // 放在 KaTeX 渲染之后：脚本常常要读已经排版好的题面，或者挂到
+    // 后面才出现的答题区上。失败不影响页面 —— 脚本是附加能力。
+    if (allowScript && split.scripts.length && window.ScriptPanel && window.ScriptPanel.run
+        && !window.ScriptPanel.isAdmin()) {
+      try {
+        window.ScriptPanel.run(split.scripts);
+      } catch (e) {
+        console.warn('[stmt-script]', e && e.message);
+      }
+    }
 
     // 渲染完再拍成图片，学生没法直接框选复制题面
     imageifyStatement(stmt).catch((e) => console.warn('[stmt-image]', e));
@@ -995,7 +1009,7 @@ async function renderRichText(target, text) {
           state: cachedState,
           favorited: false,
         });
-        renderStatement(cached.statement);
+        renderStatement(cached.statement, cached.allowScript === true);
 
         updateProblemDetailIcon();
         document.title = S.problemName + ' - WYK Maths Team';
@@ -1046,7 +1060,7 @@ async function renderRichText(target, text) {
           state: pageData.state,
           favorited: pageData.favorited,
         });
-        renderStatement(problem.statement);
+        renderStatement(problem.statement, problem.allowScript === true);
         updateProblemDetailIcon();
         document.title = S.problemName + ' - WYK Maths Team';
       } else {
@@ -1055,7 +1069,7 @@ async function renderRichText(target, text) {
 
         if (stmtChanged) {
           // statement 變了 → 重渲染那部分（可能是老師改了題目）
-          renderStatement(problem.statement);
+          renderStatement(problem.statement, problem.allowScript === true);
         }
         // 否則完全不動 DOM，用戶看到的內容無縫
 
