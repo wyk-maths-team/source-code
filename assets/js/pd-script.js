@@ -66,8 +66,16 @@
     var raw = String(html || '');
     if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
       return window.DOMPurify.sanitize(raw, {
-        FORBID_TAGS: ['iframe', 'object', 'embed', 'form', 'input', 'button'],
-        FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onbegin', 'onend'],
+        // `script` 必须留在禁用名单里。split() 会先把它们抽走交给管理员面板，
+        // 但那是「主路径」；任何一条没走 split 的渲染路径都得靠这里兜底，
+        // 而 DOMPurify 的默认白名单本来也不含 script —— 删掉这一项既没有
+        // 让脚本变得可执行，也没有让它们显示出来，只是少了一层保护。
+        //
+        // `style` 只影响库里 4 道题，但它能 @import 外部 CSS：把「谁打开了
+        // 这道题」连同 UA 一起送到任意地址，顺便改掉页面别的排版。
+        FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'style'],
+        // 正则一次盖住所有 on* 事件处理器，比逐一列举少漏
+        FORBID_ATTR: [/^on/i, 'srcdoc', 'formaction'],
         ALLOW_DATA_ATTR: true,
       });
     }
