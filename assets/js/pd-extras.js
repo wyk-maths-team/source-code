@@ -797,6 +797,14 @@ function bindSubmitEvent() {
 
       if (!result.success) { setWorkbenchStatus(result.message || 'Submission failed', 'err'); return; }
 
+      // 小群体的彩蛋：服务端在开了 nekos 的人提交成功时带回一张图，
+      // 挂在题面下方。用 DOM 构造而不是拼 HTML —— URL 来自外部 API。
+      try { if (result.neko) renderNekoCard(result.neko); } catch (e) { console.warn('[neko]', e && e.message); }
+
+      // 小群体的彩蛋：服务端在开了 nekos 的人提交成功时带回一张图。
+      // 挂在题面下方，不打断提交结果的显示。
+      try { if (result.neko) renderNekoCard(result.neko); } catch (e) { console.warn('[neko]', e && e.message); }
+
       if (result.message && result.message.includes('Image submitted')) {
         S.cooldown = true; checkBtn.disabled = true;
         let imageUrl = result.imageUrl;
@@ -1160,5 +1168,39 @@ window.__PD_EXTRAS__ = {
     if (window.PD.cooldown) window.PD.cooldown.refresh();
   },
 };
+/**
+ * 提交成功后的彩蛋卡片，挂在题面下方。
+ * URL 来自外部 API —— 全程用 DOM 构造，不拼 innerHTML。
+ */
+function renderNekoCard(neko) {
+  if (!neko || !neko.url) return;
+  var host = document.getElementById('statementContent');
+  if (!host) return;
+
+  var old = document.getElementById('nekoCard');
+  if (old && old.parentNode) old.parentNode.removeChild(old);
+
+  var card = document.createElement('div');
+  card.id = 'nekoCard';
+  card.className = 'neko-card';
+
+  var img = document.createElement('img');
+  img.src = String(neko.url);
+  img.alt = '';
+  img.loading = 'lazy';
+  img.referrerPolicy = 'no-referrer';
+  card.appendChild(img);
+
+  if (neko.artist) {
+    var tag = document.createElement('span');
+    tag.className = 'neko-artist';
+    tag.textContent = String(neko.artist);
+    card.appendChild(tag);
+  }
+
+  if (host.parentNode) host.parentNode.insertBefore(card, host.nextSibling);
+  else host.appendChild(card);
+}
+
 PD.workbench = workbench;
 })();

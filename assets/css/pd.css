@@ -399,3 +399,28 @@ img.stmt-shot {
   -webkit-user-drag: auto;
   cursor: default;
 }
+
+/* neko 彩蛋卡片 —— 提交成功且开了开关时挂在题面下方 */
+.neko-card {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 12px 0 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--card-bg);
+  width: fit-content;
+  max-width: 100%;
+}
+.neko-card img {
+  display: block;
+  max-width: 220px;
+  max-height: 220px;
+  border-radius: 6px;
+}
+.neko-artist {
+  font-size: .72rem;
+  color: var(--text-secondary);
+}
+
