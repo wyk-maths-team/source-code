@@ -764,7 +764,10 @@
    * @returns {{ clean: string, scripts: Array<{src: string, code: string}> }}
    */
   function split(html) {
-    var raw = String(html || '');
+    // iframe 的 srcdoc 里也可能藏着 <script>，正则照样能匹配到它。
+    // 那样这段代码会被抽进面板，管理员一按 Execute 就在**主页面**执行了 ——
+    // 权限比它原本的沙箱大得多。先把 iframe 整块吃掉。
+    var raw = String(html || '').replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi, '');
     var scripts = [];
     var clean = raw.replace(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi, function (_, attrs, body) {
       var srcMatch = /\bsrc\s*=\s*["']([^"']+)["']/i.exec(attrs || '');
