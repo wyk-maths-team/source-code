@@ -1,5 +1,6 @@
-    const params = new URLSearchParams(location.search);
-    const token = params.get('token');
+    // 走 readUrlToken 而不是 URLSearchParams：后者会把 '+' 吃成空格
+    const token = window.readUrlToken ? window.readUrlToken()
+      : new URLSearchParams(location.search).get('token');
     if (!token) { alert('Invalid link'); location.href='/'; }
 
     // s22r42 → WYK22R42（和库里一致）

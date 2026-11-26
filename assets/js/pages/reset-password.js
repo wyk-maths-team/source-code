@@ -1,5 +1,5 @@
-    const params = new URLSearchParams(location.search);
-    const token = params.get('token');
+    const token = window.readUrlToken ? window.readUrlToken()
+      : new URLSearchParams(location.search).get('token');
     const msg = document.getElementById('msg');
     const subtitle = document.getElementById('rpSubtitle');
     const form = document.getElementById('rpForm');
