@@ -38,9 +38,27 @@ function decodeJwtPayload(token) {
   return b64urlToJson(String(token || '').split('.')[1]);
 }
 window.decodeJwtPayload = decodeJwtPayload;
+/**
+ * 从地址栏读 token。
+ *
+ * 不用 URLSearchParams.get()：它把未编码的 '+' 解码成空格。JWT 本身是
+ * base64url（不含 '+'），但复制粘贴、某些客户端/中间层重写 URL 时会把
+ * '-' '_' 换回 '+' '/'，那一步之后 token 就会被拆成「含空格的一串」，
+ * 存进 localStorage 后每个请求都带着坏 token —— 服务端只会回
+ * "invalid token"（jsonwebtoken 的默认文案），前端再一匹配就 logout。
+ * 这里把空格换回 '+'，至少让这一路还能救回来。
+ */
+function readUrlToken() {
+  var m = /[?&]token=([^&]*)/.exec(window.location.search);
+  if (!m) return null;
+  var raw = m[1];
+  try { raw = decodeURIComponent(raw); } catch (e) { /* 编码本身就是坏的，按原样用 */ }
+  if (raw.indexOf(' ') >= 0) raw = raw.replace(/ /g, '+');
+  return raw || null;
+}
+window.readUrlToken = readUrlToken;
 (function() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const token = urlParams.get('token');
+  const token = readUrlToken();
   if (!token) return;
   // ⭐ 解析 payload，判断是不是真正的登录 token
   let payload;
