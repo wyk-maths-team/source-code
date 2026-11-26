@@ -4,7 +4,7 @@ import { verifyToken } from '../lib/auth.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';
 import { askDeepSeekAPI } from '../lib/deepseek-api.js';
-import { askClaude } from '../lib/temp/claude-api.js';
+//import { askClaude } from '../lib/temp/claude-api.js';
 import { buildStepsPrompt, buildM0Prompt, snapM0Score } from '../lib/grade-prompt.js';
 import { getModelChain, getModelInfo, pickThinkingEffort, pickEffortForProblem } from '../lib/model-router.js';
 import { effortForDifficulty, effortForLegacyDifficulty } from '../lib/thinking.js';
