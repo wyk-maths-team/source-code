@@ -30,11 +30,14 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
-  // 极简 markdown：粗体、行内代码。数学交给 KaTeX auto-render。
+  // 极简 markdown：粗体、斜体、行内代码。数学交给 KaTeX auto-render。
   function rich(text) {
     var html = esc(text);
     html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    // 单个星号的斜体。跳过含 $ 的内容 —— 数学里 a*b 很常见，
+    // 一旦被当成斜体就会把公式拆开。
+    html = html.replace(/(^|[^*])\*([^*$\n]{1,120})\*(?!\*)/g, '$1<em>$2</em>');
     return html;
   }
 
@@ -149,7 +152,9 @@
 
     // ── AI 用 ⟦def⟧…⟦/def⟧ 包住的定义，渲染成卡片并给一个「有用吗」 ──
     // 点赞才入库：学生认可的定义才有价值，模型自己写的先当草稿。
-    var DEF_RE = /⟦def⟧([\s\S]*?)⟦\/def⟧/g;
+    // 用 ASCII 方括号而不是 U+27E6/U+27E7：那两个字符在粘贴、日志、代理层
+    // 里都可能被规范化掉，模型输出的又不可控，一旦变形就再也匹配不上。
+    var DEF_RE = /\[def\]([\s\S]*?)\[\/def\]/g;
 
     function buildDefCard(bodyText) {
       var card = document.createElement('div');
@@ -200,7 +205,7 @@
       var targets = [];
       var n;
       while ((n = walker.nextNode())) {
-        if (n.nodeValue && n.nodeValue.indexOf('⟦def⟧') >= 0) targets.push(n);
+        if (n.nodeValue && n.nodeValue.indexOf('[def]') >= 0) targets.push(n);
       }
       targets.forEach(function (textNode) {
         var text = textNode.nodeValue;
