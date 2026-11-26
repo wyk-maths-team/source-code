@@ -3,9 +3,9 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='87099ab7';</script>
+<script>window.__BUILD_V='ee8c619f';</script>
 
-<script src="/assets/js/arch-render.js?v=87099ab7"></script>
+<script src="/assets/js/arch-render.js?v=ee8c619f"></script>
 <!-- <script>
 (function(){
   try {
@@ -37,7 +37,7 @@
   <link rel="preconnect" href="https://cdn.amcharts.com" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.amcharts.com">
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=87099ab7" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=ee8c619f" />
   <!-- KaTeX -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" />
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
@@ -50,6 +50,25 @@
     .puzzle-input { padding: 0.4rem 0.7rem; border: 1px solid var(--border-color); border-radius: 4px; width: 200px; font-size: 0.95rem; }
     .puzzle-btn { padding: 0.4rem 1.2rem; margin-left: 0.5rem; }
     .puzzle-feedback { margin-top: 0.5rem; font-size: 0.9rem; }
+    .puzzle-question { font-size: 1.05rem; font-weight: 500; margin: 0 0 .7rem; }
+    .puzzle-hint { font-size: .86rem; color: var(--text-secondary); margin: 0 0 .7rem; }
+    .puzzle-row { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+    .puzzle-grid { display: grid; grid-template-columns: repeat(3, 64px); gap: 8px; margin-top: .4rem; }
+    .puzzle-cell {
+      width: 64px; height: 64px; font-size: 1.6rem; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid var(--border-color); border-radius: 8px;
+      background: var(--content-bg); cursor: pointer;
+      transition: transform .12s ease, border-color .12s ease;
+    }
+    .puzzle-cell:hover { transform: translateY(-1px); border-color: var(--accent); }
+    .puzzle-cell.ok { border-color: #2e7d32; box-shadow: 0 0 0 2px rgba(46,125,50,.25); }
+    .puzzle-cell.bad { opacity: .45; }
+    .extra-toggle {
+      display: flex; align-items: center; gap: .55rem;
+      margin: .8rem 0 .3rem; font-size: .95rem; cursor: pointer;
+    }
+    .extra-toggle input { width: 16px; height: 16px; }
     .puzzle-feedback.success { color: #2e7d32; }
     .puzzle-feedback.error { color: #c62828; }
     .progress-bar { width: 100%; height: 8px; background: var(--border-color); border-radius: 4px; margin: 1rem 0 0.5rem 0; overflow: hidden; }
@@ -64,7 +83,7 @@
   </style>
   <!-- ⭐ PWA（必須靜態寫入 <head>
 
-<script src="/assets/js/arch-render.js?v=87099ab7"></script>，不能靠 JS 動態注入） -->
+<script src="/assets/js/arch-render.js?v=ee8c619f"></script>，不能靠 JS 動態注入） -->
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#1a1a2e">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
@@ -73,22 +92,22 @@
   <meta name="apple-mobile-web-app-title" content="WYK Maths">
   <meta name="mobile-web-app-capable" content="yes">
 
-<script src="/assets/js/core/ui.js?v=87099ab7"></script>
-<script src="/assets/js/core/net.js?v=87099ab7"></script>
-<script src="/assets/js/core/ban-guard.js?v=87099ab7"></script>
-<script src="/assets/js/core/latex-doc.js?v=87099ab7"></script>
-<script src="/assets/js/core/status-badge.js?v=87099ab7"></script>
-  <link rel="stylesheet" href="/assets/css/script-panel.css?v=87099ab7">
-  <script src="/assets/js/core/script-panel.js?v=87099ab7"></script>
-<script src="/assets/js/core/api.js?v=87099ab7"></script>
-  <script src="/assets/js/core/padstore.js?v=87099ab7"></script>
-  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=87099ab7">
-  <script src="/assets/js/core/radial-menu.js?v=87099ab7"></script>
-  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=87099ab7">
-  <script src="/assets/js/core/ban-screen.js?v=87099ab7"></script>
-  <link rel="stylesheet" href="/assets/css/ban-index.css?v=87099ab7">
-  <script src="/assets/js/core/ban-index.js?v=87099ab7"></script>
-<script src="/assets/js/core/page.js?v=87099ab7"></script>
+<script src="/assets/js/core/ui.js?v=ee8c619f"></script>
+<script src="/assets/js/core/net.js?v=ee8c619f"></script>
+<script src="/assets/js/core/ban-guard.js?v=ee8c619f"></script>
+<script src="/assets/js/core/latex-doc.js?v=ee8c619f"></script>
+<script src="/assets/js/core/status-badge.js?v=ee8c619f"></script>
+  <link rel="stylesheet" href="/assets/css/script-panel.css?v=ee8c619f">
+  <script src="/assets/js/core/script-panel.js?v=ee8c619f"></script>
+<script src="/assets/js/core/api.js?v=ee8c619f"></script>
+  <script src="/assets/js/core/padstore.js?v=ee8c619f"></script>
+  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=ee8c619f">
+  <script src="/assets/js/core/radial-menu.js?v=ee8c619f"></script>
+  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=ee8c619f">
+  <script src="/assets/js/core/ban-screen.js?v=ee8c619f"></script>
+  <link rel="stylesheet" href="/assets/css/ban-index.css?v=ee8c619f">
+  <script src="/assets/js/core/ban-index.js?v=ee8c619f"></script>
+<script src="/assets/js/core/page.js?v=ee8c619f"></script>
 </head>
 <body class="index-body">
   <div id="appContainer">
@@ -113,9 +132,9 @@
   </div>
 
   <!-- moj-core-body:start -->
-  <script src="/assets/js/bundle-loader.js?v=87099ab7" data-part="body"></script>
+  <script src="/assets/js/bundle-loader.js?v=ee8c619f" data-part="body"></script>
 <!-- moj-core-body:end -->      
 
-  <script src="/assets/js/pages/extra.js?v=87099ab7"></script>
+  <script src="/assets/js/pages/extra.js?v=ee8c619f"></script>
 </body>
 </html>

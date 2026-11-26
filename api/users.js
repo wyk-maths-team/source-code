@@ -943,6 +943,39 @@ if (isPeriodMode) {
       return res.status(200).json(payload);
     }
 
+    // ── 小群体的额外偏好（目前只有 nekos）──
+    // 只有 smallGroup 成员能开；不在圈内的人连这个接口都拿不到 true。
+    if (action === 'prefs') {
+      const me = decoded.username;
+      if (req.method === 'GET') {
+        const [u, d] = await Promise.all([
+          db.collection('users').findOne({ username: me }, { projection: { smallGroup: 1, _id: 0 } }),
+          db.collection('userdata').findOne({ username: me }, { projection: { nekos: 1, _id: 0 } }),
+        ]);
+        const inner = !!(u && u.smallGroup === true);
+        return res.status(200).json({
+          success: true,
+          smallGroup: inner,
+          nekos: inner && !!(d && d.nekos === true),
+        });
+      }
+      if (req.method === 'POST') {
+        const body = (req.body && typeof req.body === 'object') ? req.body : {};
+        const u = await db.collection('users').findOne({ username: me }, { projection: { smallGroup: 1, _id: 0 } });
+        if (!u || u.smallGroup !== true) {
+          return res.status(403).json({ success: false, message: 'Not available' });
+        }
+        const on = body.nekos === true;
+        await db.collection('userdata').updateOne(
+          { username: me },
+          { $set: { nekos: on } },
+          { upsert: true }
+        );
+        return res.status(200).json({ success: true, nekos: on });
+      }
+      return res.status(405).json({ success: false, message: 'Method not allowed' });
+    }
+
     if (action === 'profile') {
       const { username } = req.query;
       if (!username) return res.status(400).json({ success: false, message: 'Missing username' });

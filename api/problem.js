@@ -10,6 +10,7 @@ import { wrapHandler } from '../lib/errors.js';
 import { findUserActiveContests } from '../lib/submission.js';
 import { guestBlockedFromProblem } from '../lib/guestGuard.js';
 import { excludeFromBank } from '../lib/bankFilter.js';
+import { isSmallGroup, filterInnerImages } from '../lib/inner-images.js';
 //説明：所有的題目相關的操作都在這裏。
 // ============== 輔助函數 ==============
 // ============== 輔助函數 ==============
@@ -978,6 +979,17 @@ async function handler(req, res) {
 
       // 剝離 ans + logic
       const { ans, logic, _id, ...safeProblem } = problem;
+
+      // 小群体图片：不在圈内的人拿到的 HTML 里连 URL 都没有。
+      // 管理员同样受此约束 —— 编辑页走的是 adminEditProblem，那条路径不过闸。
+      try {
+        const canSeeInner = await isSmallGroup(db, req.user && req.user.username);
+        if (typeof safeProblem.statement === 'string') {
+          safeProblem.statement = filterInnerImages(safeProblem.statement, canSeeInner);
+        }
+      } catch (e) {
+        console.error('[problem] inner image filter failed:', e && e.message);
+      }
 
       // 比賽期間：題目要按競賽設定的作答方式（admin/newcontest 裡 id 末尾加 ; = 圖片題）
       // 這裡「暫時性」地把圖片題視為 FS=true，避免學生用文字交

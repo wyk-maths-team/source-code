@@ -84,6 +84,11 @@
       else if (u.role === 'admin') roleBadge = '<span style="background:#2980b9; color:#fff; padding:2px 6px; border-radius:4px; font-size:12px; font-weight:bold;">ADMIN</span>';
       else roleBadge = '<span style="background:#7f8c8d; color:#fff; padding:2px 6px; border-radius:4px; font-size:12px;">STUDENT</span>';
 
+      // 小群体：只有 root 能设；这一列只是让 root 一眼看到谁在圈里
+      const innerBadge = u.smallGroup === true
+        ? ' <span style="background:#b8860b; color:#fff; padding:2px 6px; border-radius:4px; font-size:11px;" title="Small group">INNER</span>'
+        : '';
+
       let statusBadge = u.banned
         ? '<span style="color:#d93025; font-weight:bold;"><i class="fas fa-ban"></i> Banned</span>'
         : '<span style="color:#2e7d32;"><i class="fas fa-check-circle"></i> Active</span>';
@@ -101,6 +106,10 @@
       const delBtn = canDelete
         ? '<button class="btn btn-danger" style="padding: 4px 10px;" onclick="deleteUser(\'' + escapeHtml(u.username) + '\')" title="Delete"><i class="fas fa-trash"></i></button>'
         : '';
+      // 小群体开关：只有 root 看得到、只有 root 点得动
+      const innerBtn = editorUser.role === 'root'
+        ? '<button class="btn btn-secondary" style="padding: 4px 10px;" onclick="toggleSmallGroup(\'' + escapeHtml(u.username) + '\', ' + (u.smallGroup === true ? 'true' : 'false') + ')" title="' + (u.smallGroup === true ? 'Remove from small group' : 'Add to small group') + '"><i class="fas fa-user-shield"></i></button>'
+        : '';
 
       return (
         '<tr style="border-bottom: 1px solid var(--border-color);">' +
@@ -112,10 +121,10 @@
             '<div style="font-size: 12px; color:var(--text-secondary);">@' + escapeHtml(u.username) + '</div>' +
           '</td>' +
           '<td style="padding: 10px; font-size: 14px;">' + escapeHtml(u.realName || '-') + '</td>' +
-          '<td style="padding: 10px;">' + roleBadge + '</td>' +
+          '<td style="padding: 10px;">' + roleBadge + innerBadge + '</td>' +
           '<td style="padding: 10px;">' + statusBadge + '</td>' +
           '<td style="padding: 10px; text-align: right;"><div style="display: flex; gap: 6px; justify-content: flex-end;">' +
-            editBtn + banBtn + delBtn +
+            editBtn + innerBtn + banBtn + delBtn +
           '</div></td>' +
         '</tr>'
       );
@@ -148,6 +157,23 @@
     }
   }
 
+  // 小群体：只有 root 能改。加进去的人才能看到带 data-inner 的题图，
+  // 也才能在 /settings/extra 打开 nekos。
+  async function toggleSmallGroup(username, currentlyIn) {
+    const action = currentlyIn ? 'remove from' : 'add to';
+    if (!confirm('Are you sure you want to ' + action + ' the small group: "' + username + '"?')) return;
+    try {
+      const result = await apiCall('/api/admin?action=setSmallGroup', 'POST', {
+        username,
+        enabled: !currentlyIn,
+      });
+      showMessage(result.message || (result.success ? 'Updated' : 'Failed'), result.success ? 'success' : 'error');
+      if (result.success) loadUsers();
+    } catch (err) {
+      showMessage('Error', 'error');
+    }
+  }
+
   async function deleteUser(username) {
     if (!confirm('Delete user "' + username + '"? This cannot be undone.')) return;
     try {
@@ -161,6 +187,7 @@
 
   // 表格裡的 inline onclick 需要這兩個在全域
   window.toggleBan = toggleBan;
+  window.toggleSmallGroup = toggleSmallGroup;
   window.deleteUser = deleteUser;
 
   document.getElementById('addUserForm').addEventListener('submit', async (e) => {

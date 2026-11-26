@@ -1,257 +1,211 @@
-    if (!isLoggedIn()) window.location.href = '/index.html';
+// assets/js/pages/extra.js —— /settings/extra
+//
+// 原来的三步是行列式、洛伦兹力叉积、综合题 —— 对「点进来看看」的人来说太难，
+// 大部分人在第一步就走了。现在换成三关小游戏：心算、猜数字、找不同。
+// 通关之后（也只有通关之后）才出现小群体专属的那一项。
 
-    // ============================================================
-    // 工具函数
-    // ============================================================
-    function shuffleArray(arr) {
-      for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
+(function () {
+  'use strict';
+
+  if (!isLoggedIn()) { window.location.href = '/index.html'; return; }
+
+  var stepIndicator = document.getElementById('stepIndicator');
+  var progressFill = document.getElementById('progressFill');
+  var puzzleContent = document.getElementById('puzzleContent');
+  var TOTAL = 3;
+  var currentStep = 0;
+
+  function fb(text, ok) {
+    var el = document.createElement('div');
+    el.className = 'puzzle-feedback ' + (ok ? 'success' : 'error');
+    el.textContent = text;
+    puzzleContent.appendChild(el);
+    return el;
+  }
+
+  function next() {
+    currentStep += 1;
+    if (currentStep < TOTAL) renderStep(currentStep);
+    else renderDone();
+  }
+
+  function renderStep(step) {
+    stepIndicator.textContent = 'Step ' + (step + 1) + ' of ' + TOTAL;
+    progressFill.style.width = ((step / TOTAL) * 100) + '%';
+    puzzleContent.innerHTML = '';
+    if (step === 0) renderArithmetic();
+    else if (step === 1) renderGuess();
+    else renderOddOneOut();
+  }
+
+  // ── 第 1 关：心算 ──
+  function renderArithmetic() {
+    var a = 6 + Math.floor(Math.random() * 10);
+    var b = 6 + Math.floor(Math.random() * 10);
+    var answer = a * b;
+
+    puzzleContent.innerHTML =
+      '<p class="puzzle-question">' + a + ' × ' + b + ' = ?</p>' +
+      '<div class="puzzle-row">' +
+        '<input type="number" id="arithInput" class="puzzle-input" autocomplete="off" />' +
+        '<button type="button" id="arithBtn" class="puzzle-btn">Check</button>' +
+      '</div>';
+
+    var input = document.getElementById('arithInput');
+    var btn = document.getElementById('arithBtn');
+    input.focus();
+
+    function check() {
+      var v = Number(input.value);
+      if (v === answer) {
+        input.disabled = true; btn.disabled = true;
+        fb('Nice.', true);
+        setTimeout(next, 450);
+      } else {
+        input.value = '';
+        input.focus();
+        fb('Not quite — try again.', false);
       }
-      return arr;
+    }
+    btn.addEventListener('click', check);
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') check(); });
+  }
+
+  // ── 第 2 关：猜数字（4 次机会，每次提示大小）──
+  function renderGuess() {
+    var target = 1 + Math.floor(Math.random() * 20);
+    var left = 4;
+
+    puzzleContent.innerHTML =
+      '<p class="puzzle-question">I am thinking of a number from 1 to 20.</p>' +
+      '<p class="puzzle-hint" id="guessHint">You have 4 guesses.</p>' +
+      '<div class="puzzle-row">' +
+        '<input type="number" id="guessInput" class="puzzle-input" min="1" max="20" autocomplete="off" />' +
+        '<button type="button" id="guessBtn" class="puzzle-btn">Guess</button>' +
+      '</div>';
+
+    var input = document.getElementById('guessInput');
+    var btn = document.getElementById('guessBtn');
+    var hint = document.getElementById('guessHint');
+    input.focus();
+
+    function submit() {
+      var v = Number(input.value);
+      if (!v || v < 1 || v > 20) { hint.textContent = 'Between 1 and 20.'; return; }
+      if (v === target) {
+        input.disabled = true; btn.disabled = true;
+        hint.textContent = 'Got it.';
+        fb('Correct!', true);
+        setTimeout(next, 450);
+        return;
+      }
+      left -= 1;
+      if (left <= 0) {
+        input.disabled = true; btn.disabled = true;
+        hint.textContent = 'It was ' + target + '.';
+        // 失败不卡人：告诉他答案，然后放行 —— 这是个彩蛋页，不是考试
+        fb('Out of guesses — moving on.', false);
+        setTimeout(next, 900);
+        return;
+      }
+      hint.textContent = (v < target ? 'Higher' : 'Lower') + ' · ' + left + ' left';
+      input.value = '';
+      input.focus();
+    }
+    btn.addEventListener('click', submit);
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') submit(); });
+  }
+
+  // ── 第 3 关：找不同 ──
+  function renderOddOneOut() {
+    var pool = ['🐱', '🐶', '🐼', '🐸', '🦊', '🐧'];
+    var common = pool[Math.floor(Math.random() * pool.length)];
+    var odd = pool.filter(function (x) { return x !== common; })[0];
+    var oddIndex = Math.floor(Math.random() * 9);
+
+    var cells = '';
+    for (var i = 0; i < 9; i++) {
+      cells += '<button type="button" class="puzzle-cell" data-i="' + i + '">'
+        + (i === oddIndex ? odd : common) + '</button>';
     }
 
-    // ============================================================
-    // 第一题：二阶行列式（随机整数，-10~10，自动刷新）
-    // ============================================================
-    function generateDeterminantProblem() {
-      const mat = [];
-      for (let i = 0; i < 2; i++) {
-        const row = [];
-        for (let j = 0; j < 2; j++) {
-          row.push(Math.floor(Math.random() * 21) - 10);
+    puzzleContent.innerHTML =
+      '<p class="puzzle-question">One of these is not like the others.</p>' +
+      '<div class="puzzle-grid">' + cells + '</div>';
+
+    var told = false;
+    puzzleContent.querySelectorAll('.puzzle-cell').forEach(function (cell) {
+      cell.addEventListener('click', function () {
+        if (Number(cell.dataset.i) === oddIndex) {
+          cell.classList.add('ok');
+          fb('Found it.', true);
+          setTimeout(next, 450);
+          return;
         }
-        mat.push(row);
-      }
-      const det = mat[0][0] * mat[1][1] - mat[0][1] * mat[1][0];
-      const latex = `\\begin{vmatrix} ${mat[0][0]} & ${mat[0][1]} \\\\ ${mat[1][0]} & ${mat[1][1]} \\end{vmatrix}`;
-      return { latex, det };
-    }
+        cell.classList.add('bad');
+        if (!told) { told = true; fb('Look again.', false); }
+      });
+    });
+  }
 
-    // ============================================================
-    // 第二题：洛伦兹力 F = q (v × B)（随机整数，-5~5，自动刷新）
-    // ============================================================
-    function generateMagneticForceProblem() {
-      let q;
-      do { q = Math.floor(Math.random() * 11) - 5; } while (q === 0); // 非零
-      const v = [];
-      const B = [];
-      for (let i = 0; i < 3; i++) {
-        v.push(Math.floor(Math.random() * 11) - 5);
-        B.push(Math.floor(Math.random() * 11) - 5);
-      }
-      // 叉积 v × B
-      const cross = [
-        v[1] * B[2] - v[2] * B[1],
-        v[2] * B[0] - v[0] * B[2],
-        v[0] * B[1] - v[1] * B[0]
-      ];
-      const F = cross.map(c => q * c);
-      const vStr = `(${v.join(', ')})`;
-      const BStr = `(${B.join(', ')})`;
-      const FStr = `(${F.join(', ')})`;
-      return { q, v, B, F, vStr, BStr, FStr };
-    }
+  // ── 通关：这里才有小群体的东西 ──
+  function renderDone() {
+    stepIndicator.textContent = 'Done';
+    progressFill.style.width = '100%';
+    puzzleContent.innerHTML = '<p class="puzzle-question">All three cleared.</p><div id="extraUnlock"></div>';
+    loadUnlock();
+  }
 
-    // ============================================================
-    // 第三题：有机合成步骤排序（固定，刷新不变）
-    // ============================================================
-    function generateSynthesisProblem() {
-      const question = `
-        <strong>Synthesis Problem</strong><br>
-        Starting from <strong>toluene (methylbenzene)</strong>, synthesize <strong>ethyl 4-aminobenzoate</strong> (benzocaine).
-        <br><br>
-        <em>What is the correct order of reagents to be added?</em>
-        <br>
-        Choose from the following reagents (each used once):
-        <ul style="list-style: none; padding-left: 0; text-align: left; display: inline-block; margin: 0.5rem auto;">
-          <li>① HNO₃ / H₂SO₄</li>
-          <li>② KMnO₄ (aq, heat)</li>
-          <li>③ C₂H₅OH / H⁺ (cat.)</li>
-          <li>④ Sn / HCl (or H₂ / Pd)</li>
-        </ul>
-        <br>
-        Enter the <strong>numbers</strong> in order, separated by commas.<br>
-        Example: <code>①,②,③,④</code> → <code>1,2,3,4</code>.
-      `;
-      const answer = "1,2,4,3";
-      return { question, answer };
-    }
+  async function loadUnlock() {
+    var box = document.getElementById('extraUnlock');
+    if (!box) return;
+    box.innerHTML = '<p class="puzzle-hint">Checking…</p>';
 
-    // ============================================================
-    // 主控制逻辑
-    // ============================================================
-    let currentStep = 0;
-    const totalSteps = 3;
-    let detData = null;
-    let magneticData = null;
-    let synthesisData = generateSynthesisProblem(); // 固定，只生成一次
+    try {
+      var res = await fetch('/api/users?action=prefs', {
+        headers: { Authorization: 'Bearer ' + getToken() },
+      });
+      if (!res.ok) throw new Error('http ' + res.status);
+      var data = await res.json();
 
-    const puzzleArea = document.getElementById('puzzleArea');
-    const stepIndicator = document.getElementById('stepIndicator');
-    const progressFill = document.getElementById('progressFill');
-    const puzzleContent = document.getElementById('puzzleContent');
-
-    function renderStep(step) {
-      stepIndicator.textContent = `Step ${step + 1} of ${totalSteps}`;
-      progressFill.style.width = ((step / totalSteps) * 100) + '%';
-      if (step === 0) renderDeterminant();
-      else if (step === 1) renderMagneticForce();
-      else if (step === 2) renderSynthesis();
-    }
-
-    // ---------- 第一题：二阶行列式 ----------
-    function renderDeterminant() {
-      detData = generateDeterminantProblem();
-      let detHtml;
-      try {
-        detHtml = katex.renderToString(detData.latex, {
-          throwOnError: false,
-          displayMode: true
-        });
-      } catch (e) {
-        detHtml = detData.latex;
-      }
-      puzzleContent.innerHTML = `
-        <div class="puzzle-prompt">Compute the determinant of the following 2×2 matrix (integer answer):</div>
-        <div class="math-display">${detHtml}</div>
-        <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-top:0.5rem;">
-          <input type="number" id="detInput" class="puzzle-input" placeholder="Enter integer" autocomplete="off" />
-          <button class="btn btn-primary" id="detSubmitBtn">Submit</button>
-        </div>
-        <div id="detFeedback" class="puzzle-feedback"></div>
-      `;
-      document.getElementById('detSubmitBtn').addEventListener('click', () => checkDet());
-      document.getElementById('detInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') checkDet(); });
-      document.getElementById('detInput').focus();
-    }
-
-    function checkDet() {
-      const input = document.getElementById('detInput');
-      const val = parseInt(input.value.trim());
-      const fb = document.getElementById('detFeedback');
-      if (isNaN(val)) {
-        fb.textContent = 'Please enter a valid integer.';
-        fb.className = 'puzzle-feedback error';
+      if (!data || data.smallGroup !== true) {
+        // 不在圈内：不解释、不引导，就当这里到底了
+        box.innerHTML = '<p class="puzzle-hint">Nothing else here. Thanks for playing.</p>';
         return;
       }
-      if (val === detData.det) {
-        fb.textContent = '✅ Correct!';
-        fb.className = 'puzzle-feedback success';
-        setTimeout(() => { currentStep = 1; renderStep(1); }, 500);
-      } else {
-        fb.textContent = '❌ Wrong. Try again.';
-        fb.className = 'puzzle-feedback error';
-        input.value = '';
-        input.focus();
-      }
-    }
 
-    // ---------- 第二题：洛伦兹力 ----------
-    function renderMagneticForce() {
-      magneticData = generateMagneticForceProblem();
-      puzzleContent.innerHTML = `
-        <div class="puzzle-prompt">Compute the Lorentz force vector \\( \\mathbf{F} = q (\\mathbf{v} \\times \\mathbf{B}) \\).</div>
-        <div class="math-display">
-          \\( q = ${magneticData.q} \\) &nbsp;&nbsp;
-          \\( \\mathbf{v} = ${magneticData.vStr} \\) &nbsp;&nbsp;
-          \\( \\mathbf{B} = ${magneticData.BStr} \\)
-        </div>
-        <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-top:0.5rem;">
-          <input type="text" id="forceInput" class="puzzle-input" placeholder="e.g. 1,-2,3" autocomplete="off" />
-          <button class="btn btn-primary" id="forceSubmitBtn">Submit</button>
-        </div>
-        <div id="forceFeedback" class="puzzle-feedback"></div>
-      `;
-      document.getElementById('forceSubmitBtn').addEventListener('click', () => checkForce());
-      document.getElementById('forceInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') checkForce(); });
-      document.getElementById('forceInput').focus();
-    }
+      box.innerHTML =
+        '<label class="extra-toggle">' +
+          '<input type="checkbox" id="nekosToggle"' + (data.nekos ? ' checked' : '') + ' />' +
+          '<span>A neko with every submission</span>' +
+        '</label>' +
+        '<p class="puzzle-hint" id="nekosState"></p>';
 
-    function checkForce() {
-      const input = document.getElementById('forceInput');
-      const raw = input.value.trim();
-      const fb = document.getElementById('forceFeedback');
-      if (!raw) {
-        fb.textContent = 'Please enter three numbers separated by commas.';
-        fb.className = 'puzzle-feedback error';
-        return;
-      }
-      const parts = raw.split(',').map(s => s.trim());
-      if (parts.length !== 3) {
-        fb.textContent = 'Please enter exactly three numbers.';
-        fb.className = 'puzzle-feedback error';
-        return;
-      }
-      const nums = parts.map(Number);
-      if (nums.some(isNaN)) {
-        fb.textContent = 'Please enter valid integers.';
-        fb.className = 'puzzle-feedback error';
-        return;
-      }
-      const expected = magneticData.F;
-      if (nums[0] === expected[0] && nums[1] === expected[1] && nums[2] === expected[2]) {
-        fb.textContent = '✅ Correct!';
-        fb.className = 'puzzle-feedback success';
-        setTimeout(() => { currentStep = 2; renderStep(2); }, 500);
-      } else {
-        fb.textContent = '❌ Wrong. Try again.';
-        fb.className = 'puzzle-feedback error';
-        input.value = '';
-        input.focus();
-      }
-    }
+      var cb = document.getElementById('nekosToggle');
+      var state = document.getElementById('nekosState');
+      state.textContent = data.nekos ? 'On. Your next submission brings one.' : 'Off.';
 
-    // ---------- 第三题：合成排序 ----------
-    function renderSynthesis() {
-      const data = synthesisData;
-      puzzleContent.innerHTML = `
-        <div class="puzzle-prompt">${data.question}</div>
-        <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-top:0.5rem;">
-          <input type="text" id="synthInput" class="puzzle-input" placeholder="e.g. 1,2,4,3" autocomplete="off" />
-          <button class="btn btn-primary" id="synthSubmitBtn">Submit</button>
-        </div>
-        <div id="synthFeedback" class="puzzle-feedback"></div>
-      `;
-      document.getElementById('synthSubmitBtn').addEventListener('click', () => checkSynthesis());
-      document.getElementById('synthInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') checkSynthesis(); });
-      document.getElementById('synthInput').focus();
+      cb.addEventListener('change', async function () {
+        var on = cb.checked;
+        state.textContent = 'Saving…';
+        try {
+          var r = await fetch('/api/users?action=prefs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + getToken() },
+            body: JSON.stringify({ nekos: on }),
+          });
+          var d = await r.json();
+          if (!r.ok || !d.success) throw new Error(d.message || 'failed');
+          state.textContent = d.nekos ? 'On. Your next submission brings one.' : 'Off.';
+        } catch (e) {
+          cb.checked = !on;
+          state.textContent = 'Could not save: ' + (e.message || 'unknown');
+        }
+      });
+    } catch (e) {
+      box.innerHTML = '<p class="puzzle-hint">Nothing else here.</p>';
     }
+  }
 
-    function checkSynthesis() {
-      const input = document.getElementById('synthInput');
-      const raw = input.value.trim();
-      const fb = document.getElementById('synthFeedback');
-      // 去除所有空格，转小写
-      const normalized = raw.replace(/\s/g, '').toLowerCase();
-      const expected = synthesisData.answer.replace(/\s/g, '').toLowerCase();
-      if (normalized === expected) {
-        fb.textContent = '✅ Correct! All challenges completed!';
-        fb.className = 'puzzle-feedback success';
-        setTimeout(() => completeAllChallenges(), 600);
-      } else {
-        fb.textContent = '❌ Wrong order. Try again. Hint: Think about the functional group transformations.';
-        fb.className = 'puzzle-feedback error';
-        input.value = '';
-        input.focus();
-      }
-    }
-
-    // ============================================================
-    // 全部完成：跳转长路径
-    // ============================================================
-    function completeAllChallenges() {
-      const longPath = atob('L3phOTg0aHA5Z3VvcTJwOTQ4dGhxcDkzMjg0dXQtcTlwODN1NGd0cjlpM3doNHA5cm9xZ2gzd3A5bzRpcmhnOWFvd3VpcmhxZzlwb3VpdzM0aC1yOXBndHEzd3A5NHVvcmloOW93dWg0MHE4MjR1eXEtMDI4NWd1bnEwMjM1OWc4NWhyYjBuOWU0dWdoMDN1d2dhaW9nOWFlcmgwZzl1YXdoZTA5cnVpaDA5d2FldWlycWc5dW93ZXJnb2V3NHJocWc5aXUzd2dyOTBxdWlhd2U0aGdxdTlpMGVyZ3VhZXc0aGdyOTBhd3VocjA4Z3FlcjlnZXJ1aWdoMDllaW91cmdoOWVhb2l1cg==');
-      window.location.href = longPath;
-    }
-
-    // ============================================================
-    // 初始化
-    // ============================================================
-    function init() {
-      currentStep = 0;
-      puzzleArea.style.display = 'block';
-      renderStep(0);
-    }
-    init();
-  
+  renderStep(0);
+})();

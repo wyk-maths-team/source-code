@@ -905,6 +905,25 @@ async function handleCmd(req, res, db, decoded) {
 // [6] 主 handler
 // ═══════════════════════════════════════════════════════════════════
 
+async function handleSetSmallGroup(req, res, db, decoded) {
+  if (decoded.role !== 'root') {
+    return fail(res, 403, 'Only root can manage the small group');
+  }
+  const body = (req.body && typeof req.body === 'object') ? req.body : {};
+  const username = String(body.username || '').trim();
+  if (!username) return fail(res, 400, 'Missing username');
+  const enabled = body.enabled === true;
+
+  const r = await db.collection('users').updateOne(
+    { username },
+    { $set: { smallGroup: enabled } }
+  );
+  if (!r.matchedCount) return fail(res, 404, 'User not found');
+
+  await auditLog(db, 'small_group_set', { username, enabled }, decoded.username, 'warn').catch(() => {});
+  return res.status(200).json({ success: true, username, smallGroup: enabled });
+}
+
 async function handler(req, res) {
   // Rate limit
   try {
@@ -955,6 +974,7 @@ async function handler(req, res) {
       case 'sendMessage':     return await handleSendMessage(req, res, db, decoded);
       case 'listSystemMessages': return await handleListSystemMessages(req, res, db, decoded);
       case 'flagUser':        return await handleFlagUser(req, res, db, decoded);
+      case 'setSmallGroup':   return await handleSetSmallGroup(req, res, db, decoded);
       default:
         return fail(res, 400, 'Invalid action');
     }

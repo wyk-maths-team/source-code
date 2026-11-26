@@ -17,6 +17,7 @@ import { wrapHandler } from '../lib/errors.js';
 import { isRetryableDBError } from '../lib/mongo.js';
 import { encodeStatus } from '../lib/submission-status.js';
 import { guestBlockedFromProblem } from '../lib/guestGuard.js';
+import { maybeNeko } from '../lib/neko.js';
 import {
   generateSubid,
   judge,
@@ -167,6 +168,17 @@ async function sendSuccess(db, username, res, result, context = {}) {
     }
   } catch (e) {
     console.error('[submit] token meter failed:', e);
+  }
+
+  // 小群体的彩蛋：开了 nekos 的人，提交成功时顺手带一张猫娘图。
+  // 只有 smallGroup 成员能开这个开关；任何异常都静默，绝不影响提交结果。
+  try {
+    if (result && result.success !== false) {
+      const neko = await maybeNeko(db, username);
+      if (neko) result.neko = neko;
+    }
+  } catch (e) {
+    console.error('[submit] neko failed:', e && e.message);
   }
 
   res.status(200).json(result);
