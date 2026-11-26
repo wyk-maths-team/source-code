@@ -443,6 +443,14 @@
                 </button>
                 <span id="autoDifficultyNote" style="font-size:.76rem;color:var(--text-secondary);"></span>
               </div>
+              <div class="dt-wrap" id="dtWrap" hidden>
+                <div class="dt-head" id="dtHead">
+                  <i class="fas fa-chevron-right dt-arrow"></i>
+                  <span class="dt-title">Thinking</span>
+                  <div class="dt-peek" id="dtPeek"></div>
+                </div>
+                <div class="dt-body" id="dtBody" hidden></div>
+              </div>
             </div>
             <div class="form-group">
             <div class="form-group"><label>Tags (comma-separated): <input type="text" id="editTags" value="${(problem.tags || []).join(', ')}" /></label></div>
@@ -1106,6 +1114,22 @@
     // ── Auto：让模型给这道题重新定难度 ──
     // 只回填输入框，不直接保存 —— 管理员看过理由再按保存，
     // 免得模型一次误判把线上难度改掉。
+    // 思维链手风琴：收起时只留一行，内部自动滚到最新
+    document.addEventListener('click', function (e) {
+      const head = e.target && e.target.closest ? e.target.closest('#dtHead') : null;
+      if (!head) return;
+      const wrap = document.getElementById('dtWrap');
+      const bodyEl = document.getElementById('dtBody');
+      const peek = document.getElementById('dtPeek');
+      const open = !wrap.classList.contains('open');
+      wrap.classList.toggle('open', open);
+      if (bodyEl) {
+        bodyEl.hidden = !open;
+        if (open) bodyEl.scrollTop = bodyEl.scrollHeight;
+      }
+      if (peek) peek.style.display = open ? 'none' : '';
+    });
+
     document.addEventListener('click', async function (e) {
       const btn = e.target && e.target.closest ? e.target.closest('#autoDifficultyBtn') : null;
       if (!btn) return;
@@ -1120,21 +1144,90 @@
       btn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Estimating…';
       if (note) { note.textContent = ''; note.style.color = 'var(--text-secondary)'; }
 
+      // ── 流式：思维链实时显示，结果在 done 帧里 ──
+      const wrap = document.getElementById('dtWrap');
+      const peek = document.getElementById('dtPeek');
+      const bodyEl = document.getElementById('dtBody');
+      let reasoningText = '';
+
+      function scrollLatest(el) {
+        if (!el) return;
+        el.scrollTop = el.scrollHeight;
+      }
+
+      if (wrap) { wrap.hidden = false; wrap.classList.remove('open'); }
+      if (peek) peek.textContent = '';
+      if (bodyEl) { bodyEl.textContent = ''; bodyEl.hidden = true; }
+
       try {
-        const res = await apiCall('/api/admin-difficulty', 'POST', { problemId });
-        if (!res || !res.success) throw new Error((res && res.message) || 'Estimation failed');
-        if (input) input.value = Number(res.difficulty).toFixed(2);
+        const resp = await fetch('/api/admin-difficulty', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + getToken() },
+          body: JSON.stringify({ problemId }),
+        });
+
+        const ctype = resp.headers.get('content-type') || '';
+        if (!resp.ok || ctype.indexOf('text/event-stream') < 0) {
+          const data = await resp.json().catch(function () { return {}; });
+          throw new Error(data.message || ('Estimation failed (' + resp.status + ')'));
+        }
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        let result = null;
+        let failure = null;
+
+        while (true) {
+          const step = await reader.read();
+          if (step.done) break;
+          buf += decoder.decode(step.value, { stream: true });
+
+          let cut;
+          while ((cut = buf.indexOf('\n\n')) >= 0) {
+            const chunk = buf.slice(0, cut);
+            buf = buf.slice(cut + 2);
+
+            let evName = 'message';
+            const dataLines = [];
+            chunk.split('\n').forEach(function (line) {
+              if (line.indexOf('event:') === 0) evName = line.slice(6).trim();
+              else if (line.indexOf('data:') === 0) dataLines.push(line.slice(5).trim());
+            });
+            if (!dataLines.length) continue;
+
+            let payload;
+            try { payload = JSON.parse(dataLines.join('\n')); } catch (e) { continue; }
+
+            if (evName === 'reasoning') {
+              reasoningText += payload.text || '';
+              if (bodyEl) { bodyEl.textContent = reasoningText; scrollLatest(bodyEl); }
+              if (peek) { peek.textContent = reasoningText; scrollLatest(peek); }
+            } else if (evName === 'done') {
+              result = payload;
+            } else if (evName === 'error') {
+              failure = payload;
+            }
+          }
+        }
+
+        if (failure) throw new Error(failure.message || 'Estimation failed');
+        if (!result) throw new Error('Stream ended without a result');
+        if (!result.success) throw new Error(result.message || 'Estimation failed');
+
+        if (input && result.difficulty !== null) input.value = Number(result.difficulty).toFixed(2);
         if (note) {
           note.style.color = 'var(--text-secondary)';
-          const band = res.band ? '[' + res.band + '] ' : '';
-          const dims = res.dimensions
-            ? '  (' + res.dimensions.steps + ' steps · ' + res.dimensions.insights + ' insights'
-              + (res.dimensions.cases ? ' · ' + res.dimensions.cases + ' cases' : '')
-              + (res.dimensions.proof ? ' · proof' : '') + ')'
+          const band = result.band ? '[' + result.band + '] ' : '';
+          const dims = result.dimensions
+            ? '  (' + result.dimensions.steps + ' steps · ' + result.dimensions.insights + ' insights'
+              + (result.dimensions.cases ? ' · ' + result.dimensions.cases + ' cases' : '')
+              + (result.dimensions.proof ? ' · proof' : '') + ')'
             : '';
-          note.textContent = band + (res.rationale || '') + dims
-            + (res.charged ? '  ·  −' + res.charged + ' tokens' : '');
+          note.textContent = band + (result.rationale || '') + dims
+            + (result.charged ? '  ·  −' + result.charged + ' tokens' : '');
         }
+        if (!reasoningText && wrap) wrap.hidden = true;
       } catch (err) {
         if (note) { note.style.color = 'var(--danger)'; note.textContent = err.message || 'Estimation failed'; }
       } finally {

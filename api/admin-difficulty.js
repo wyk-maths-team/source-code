@@ -13,7 +13,7 @@ import { connectToDatabase } from './_db.js';
 import { verifyToken } from '../lib/auth.js';
 import { wrapHandler, sendError } from '../lib/errors.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
-import { askDeepSeekAPI } from '../lib/deepseek-api.js';
+import { askDeepSeekStream } from '../lib/deepseek-api.js';
 import { computeAiCharge } from '../lib/submission.js';
 import { consumeTokens, getTokenBalance } from '../lib/token.js';
 import { addAiUsage } from '../lib/aiQuota.js';
@@ -188,19 +188,53 @@ async function handler(req, res) {
   const tpl = await loadTemplate(db);
   const prompt = fillTemplate(tpl.text, problem);
 
+  // ── 从这里开始走 SSE ──
+  // 一次评估经常要 1–3 分钟，Cloudflare 对空闲连接大约 100 秒就断，普通
+  // 请求会被砍在半路。改成边算边推：模型每吐一块 reasoning/content 就写
+  // 一帧，另外每 15 秒补一个注释帧，连接始终有数据流过。
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  if (typeof res.flushHeaders === 'function') res.flushHeaders();
+
+  let closed = false;
+  req.on('close', function () { closed = true; });
+
+  function send(event, data) {
+    if (closed) return;
+    try {
+      res.write('event: ' + event + '\n');
+      res.write('data: ' + JSON.stringify(data) + '\n\n');
+    } catch (e) {
+      closed = true;
+    }
+  }
+
+  const beat = setInterval(function () {
+    if (closed) return;
+    try { res.write(': ping\n\n'); } catch (e) { closed = true; }
+  }, 15000);
+
   let out;
   try {
-    out = await askDeepSeekAPI(prompt, { effort: 'high', timeoutMs: 280_000 });
+    out = await askDeepSeekStream(prompt, {
+      effort: 'high',
+      timeoutMs: 280_000,
+      onDelta: function (d) { send(d.type, { text: d.text }); },
+    });
   } catch (err) {
+    clearInterval(beat);
     console.error('[auto-difficulty] model failed:', err && err.message);
-    return sendError(req, res, 'UPSTREAM', 'The estimator is busy right now, please retry', err);
+    send('error', { code: 'UPSTREAM', message: 'The estimator is busy right now, please retry' });
+    try { res.end(); } catch (e) {}
+    return;
   }
 
   const parsed = parseReply(out.content);
-  if (!parsed) return sendError(req, res, 'GRADE_ERROR', 'The estimator returned an unreadable value');
 
-  const band = String(parsed.band || '').toUpperCase();
-  const evidence = String(parsed.evidence || parsed.rationale || '').slice(0, 400);
+  const band = String((parsed && parsed.band) || '').toUpperCase();
+  const evidence = String((parsed && (parsed.evidence || parsed.rationale)) || '').slice(0, 400);
 
   let charged = 0;
   let tokens = { daily: balance.daily, global: balance.global };
@@ -215,8 +249,19 @@ async function handler(req, res) {
     console.error('[auto-difficulty] billing failed:', e && e.message);
   }
 
+  clearInterval(beat);
+
+  const finish = (payload) => {
+    send('done', payload);
+    try { res.end(); } catch (e) {}
+  };
+
+  if (!parsed) {
+    return finish({ success: false, code: 'GRADE_ERROR', message: 'The estimator returned an unreadable value', charged, tokens });
+  }
+
   if (parsed.difficulty === null || band === 'R5') {
-    return res.status(200).json({
+    return finish({
       success: true, problemId, difficulty: null, band: band || 'R5',
       rationale: evidence || 'Not a problem statement (handout or meta page).',
       promptSource: tpl.source, charged, tokens,
@@ -225,7 +270,7 @@ async function handler(req, res) {
 
   let value = Number(parsed.difficulty);
   if (!Number.isFinite(value)) {
-    return sendError(req, res, 'GRADE_ERROR', 'The estimator returned an unreadable value');
+    return finish({ success: false, code: 'GRADE_ERROR', message: 'The estimator returned an unreadable value', charged, tokens });
   }
 
   const range = bandRange(band);
@@ -234,7 +279,7 @@ async function handler(req, res) {
 
   const difficulty = Math.round(Math.min(MAX_DIFFICULTY, Math.max(MIN_DIFFICULTY, value)) * 100) / 100;
 
-  return res.status(200).json({
+  finish({
     success: true,
     problemId,
     difficulty,
