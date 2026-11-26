@@ -66,7 +66,7 @@
     var raw = String(html || '');
     if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
       return window.DOMPurify.sanitize(raw, {
-        FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button'],
+        FORBID_TAGS: ['iframe', 'object', 'embed', 'form', 'input', 'button'],
         FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onbegin', 'onend'],
         ALLOW_DATA_ATTR: true,
       });
