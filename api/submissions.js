@@ -457,7 +457,7 @@ async function handler(req, res) {
     const { buildStepsPrompt, buildM0Prompt, snapM0Score } = await import('../lib/grade-prompt.js');
     const { getModelChain, getModelInfo, pickEffortForProblem } = await import('../lib/model-router.js');
     const { askDeepSeekAPI } = await import('../lib/deepseek-api.js');
-    const { askClaude } = await import('../lib/temp/claude-api.js');
+    //const { askClaude } = await import('../lib/temp/claude-api.js');
 
     function parseReply(raw) {
       const s = String(raw || '');
