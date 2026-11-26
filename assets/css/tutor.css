@@ -283,3 +283,4 @@
 .moj-def-yes:disabled { opacity: .55; cursor: default; }
 .moj-def-card.saved { border-left-color: #2e7d32; }
 
+.moj-def-title {\n  font-size: .82rem;\n  font-weight: 600;\n  color: var(--text-primary);\n  margin-bottom: 5px;\n}\n

@@ -67,6 +67,7 @@ async function handler(req, res) {
 
   await db.collection('definitions').insertOne({
     key,
+    term,
     body: text,
     problemId,
     by: decoded.username,

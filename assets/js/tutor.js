@@ -154,11 +154,19 @@
     // 点赞才入库：学生认可的定义才有价值，模型自己写的先当草稿。
     // 用 ASCII 方括号而不是 U+27E6/U+27E7：那两个字符在粘贴、日志、代理层
     // 里都可能被规范化掉，模型输出的又不可控，一旦变形就再也匹配不上。
-    var DEF_RE = /\[def\]([\s\S]*?)\[\/def\]/g;
+    // 标题可选：[def=Name]...[/def] 或退化成旧的 [def]...[/def]。
+    var DEF_RE = /\[def(?:=([^\]]*))?\]([\s\S]*?)\[\/def\]/g;
 
-    function buildDefCard(bodyText) {
+    function buildDefCard(term, bodyText) {
       var card = document.createElement('div');
       card.className = 'moj-def-card';
+
+      if (term) {
+        var title = document.createElement('div');
+        title.className = 'moj-def-title';
+        title.textContent = term;
+        card.appendChild(title);
+      }
 
       var text = document.createElement('div');
       text.className = 'moj-def-body';
@@ -182,7 +190,7 @@
         if (yes.disabled) return;
         yes.disabled = true;
         label.textContent = 'Saving…';
-        apiCall('/api/definitions', 'POST', { body: bodyText.trim(), problemId: problemId })
+        apiCall('/api/definitions', 'POST', { term: term || '', body: bodyText.trim(), problemId: problemId })
           .then(function () {
             label.textContent = 'Saved — thanks!';
             card.classList.add('saved');
@@ -205,7 +213,7 @@
       var targets = [];
       var n;
       while ((n = walker.nextNode())) {
-        if (n.nodeValue && n.nodeValue.indexOf('[def]') >= 0) targets.push(n);
+        if (n.nodeValue && n.nodeValue.indexOf('[def') >= 0) targets.push(n);
       }
       targets.forEach(function (textNode) {
         var text = textNode.nodeValue;
@@ -215,7 +223,7 @@
         DEF_RE.lastIndex = 0;
         while ((m = DEF_RE.exec(text)) !== null) {
           if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
-          frag.appendChild(buildDefCard(m[1]));
+          frag.appendChild(buildDefCard((m[1] || '').trim(), m[2]));
           last = m.index + m[0].length;
         }
         if (last === 0) return;                    // 没匹配到，别动它
