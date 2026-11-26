@@ -50,7 +50,64 @@ function setCookie(res, name, value, opts = {}) {
 function getCookie(req, name) {
   const cookies = req.headers.cookie || '';
   const match = cookies.match(new RegExp(`(?:^|; )${name}=([^;]+)`));
-  return match ? decodeURIComponent(match[1]) : null;
+  if (!match) return null;
+  // decodeURIComponent 遇到孤立的 '%' 会直接抛异常，把整个回调打成 500。
+  // cookie 只用来存 hex 的 state，解不开就按原样返回，让上层去比较。
+  try {
+    return decodeURIComponent(match[1]);
+  } catch (e) {
+    return match[1];
+  }
+}
+
+/**
+ * 把 jwt.verify 的失败翻译成「用户照着做就能过」的一句话。
+ *
+ * 两个坑叠在一起才会出现「Microsoft 登录后提示 invalid token」：
+ *   1. jsonwebtoken 的 JsonWebTokenError.message 恰好就是 "invalid token"；
+ *   2. 前端 auth.js 一看到 401 里含这句话就 logout()。
+ * 所以这里既不回传原文，也不把四种完全不同的失败混成一句。
+ */
+function rejectToken(err, token, kind) {
+  const raw = String(token || '');
+  const len = raw.length;
+  const hasSpace = raw.indexOf(' ') >= 0;
+  const looksCut = len < 60 || hasSpace;
+  const name = (err && err.name) || 'unknown';
+
+  // 只记足以定位、又不泄漏凭据的信息
+  console.warn('[auth] ' + kind + ' token rejected:', name, 'len=' + len, 'space=' + hasSpace);
+
+  const what = kind === 'reset' ? 'reset link' : 'setup link';
+
+  if (name === 'TokenExpiredError') {
+    return {
+      success: false,
+      code: 'TOKEN_EXPIRED',
+      message: 'That ' + what + ' has expired (links last 15 minutes). Start again from the sign-in page.',
+    };
+  }
+  if (name === 'WrongTokenKindError') {
+    return {
+      success: false,
+      code: 'TOKEN_WRONG_KIND',
+      message: 'That link belongs to a different step. Start again from the sign-in page.',
+    };
+  }
+  if (name === 'JsonWebTokenError' || name === 'NotBeforeError') {
+    return {
+      success: false,
+      code: 'TOKEN_MALFORMED',
+      message: looksCut
+        ? 'That ' + what + ' is incomplete — open it from the sign-in page instead of pasting it.'
+        : 'That ' + what + ' was not issued by this site. Start again from the sign-in page.',
+    };
+  }
+  return {
+    success: false,
+    code: 'TOKEN_REJECTED',
+    message: 'That link could not be used. Start again from the sign-in page.',
+  };
 }
 
 function getBaseUrl(req) {
@@ -160,7 +217,7 @@ async function handler(req, res) {
           process.env.JWT_SECRET,
           { expiresIn: '15m' }
         );
-        return res.redirect(`/auth/reset-password?token=${resetToken}`);
+        return res.redirect(`/auth/reset-password?token=${encodeURIComponent(resetToken)}`);
       }
       
       if (!existingUser) {
@@ -176,7 +233,7 @@ async function handler(req, res) {
           process.env.JWT_SECRET,
           { expiresIn: '15m' }
         );
-        return res.redirect(`/auth/setup?token=${setupToken}`);
+        return res.redirect(`/auth/setup?token=${encodeURIComponent(setupToken)}`);
       } else {
         const updateFields = {};
         if (realName && existingUser.realName !== realName) {
@@ -193,7 +250,7 @@ async function handler(req, res) {
           pfp: existingUser.pfp || '',
           tv: Number(existingUser.tokenVersion) || 0,
         }, process.env.JWT_SECRET, { expiresIn: '7d' });
-        return res.redirect(`/?token=${loginToken}`);
+        return res.redirect(`/?token=${encodeURIComponent(loginToken)}`);
       }
     } catch (err) {
       console.error('Callback error:', err);
@@ -217,7 +274,13 @@ async function handler(req, res) {
 
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      if (decoded.action !== 'setup') throw new Error('Invalid token');
+      if (decoded.action !== 'setup') {
+        // 用独立的名字，别和 jsonwebtoken 自己的 "invalid token" 混在一起：
+        // 两者的处理方式完全不同（一个是链接类型不对，一个是签名/格式坏）。
+        const wrong = new Error('not a setup token');
+        wrong.name = 'WrongTokenKindError';
+        throw wrong;
+      }
       const { email, displayName, realName } = decoded;
       const username = toWyk(decoded.username);     // 老链接也能落地成新格式
 
@@ -255,10 +318,11 @@ async function handler(req, res) {
 
       res.json({ success: true, username, token: loginToken });
     } catch (err) {
-      if (err.name === 'TokenExpiredError') {
-        return res.status(401).json({ success: false, message: 'Setup link expired' });
-      }
-      res.status(401).json({ success: false, message: 'Invalid token' });
+      // 以前这里所有失败都回同一句 "Invalid token"，而 jsonwebtoken 的
+      // JsonWebTokenError.message 恰好就是 "invalid token" —— 前端 auth.js
+      // 一看到这句就 logout，用户从 Microsoft 回来只落得「被登出」，
+      // 完全看不出是过期、截断、还是走的不是这条链接。现在按原因分开报。
+      return res.status(401).json(rejectToken(err, token, 'setup'));
     }
     return;
   }
@@ -280,7 +344,11 @@ async function handler(req, res) {
 
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      if (decoded.action !== 'reset') throw new Error('Invalid token');
+      if (decoded.action !== 'reset') {
+        const wrong = new Error('not a reset token');
+        wrong.name = 'WrongTokenKindError';
+        throw wrong;
+      }
 
       const db = await connectToDatabase();
       const user = await db.collection('users').findOne({ username: toWyk(decoded.username) });
@@ -312,10 +380,7 @@ async function handler(req, res) {
 
       return res.json({ success: true });
     } catch (err) {
-      if (err.name === 'TokenExpiredError') {
-        return res.status(401).json({ success: false, message: 'Reset link expired. Try again.' });
-      }
-      return res.status(401).json({ success: false, message: 'Invalid token' });
+      return res.status(401).json(rejectToken(err, token, 'reset'));
     }
   }
 
