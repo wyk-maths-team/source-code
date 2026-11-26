@@ -177,7 +177,7 @@ async function handler(req, res) {
       }
 
       if (req.method === 'POST') {
-        const { id, name, statement, ans, difficulty, tags, public: isPublic, logic, FS, hints, allowScript } = req.body || {};
+        const { id, name, statement, ans, exact, difficulty, tags, public: isPublic, logic, FS, hints, allowScript } = req.body || {};
         if (!id || !name || !statement || ans === undefined) {
           return res.status(400).json({ success: false, message: 'Missing fields' });
         }
@@ -199,6 +199,9 @@ async function handler(req, res) {
           // 默认 false：只有确实要靠脚本改提交逻辑的题才打开，
           // 历史遗留的 44 道带脚本题保持「抽取但不执行」。
           allowScript: allowScript === true,
+          // 精确答案（mathjs 语法，如 24*sqrt(3)、1/128）。判题仍然用 ans，
+          // exact 只是把「最简形式」也存下来，给编辑页和 AI 参考。
+          exact: typeof exact === 'string' ? exact.trim() : '',
           hints: normalizeHints(hints),
         };
         await db.collection('problems').insertOne(newProblem);
@@ -213,7 +216,7 @@ async function handler(req, res) {
       }
 
       if (req.method === 'PUT') {
-        const { id, ids, name, statement, ans, difficulty, tags, public: isPublic, logic, FS, hints, allowScript } = req.body || {};
+        const { id, ids, name, statement, ans, exact, difficulty, tags, public: isPublic, logic, FS, hints, allowScript } = req.body || {};
 
         // 批量更新 public
         if (Array.isArray(ids) && ids.length && isPublic !== undefined) {
@@ -247,6 +250,7 @@ async function handler(req, res) {
         if (logic !== undefined) upd.logic = logic;
         if (FS !== undefined) upd.FS = FS === true;
         if (allowScript !== undefined) upd.allowScript = allowScript === true;
+        if (exact !== undefined) upd.exact = typeof exact === 'string' ? exact.trim() : '';
         if (hints !== undefined) upd.hints = normalizeHints(hints);
 
         if (Object.keys(upd).length === 0) {

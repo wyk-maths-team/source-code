@@ -3,10 +3,10 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='580c068b';</script>
+<script>window.__BUILD_V='87099ab7';</script>
 
 <!-- moj-core-head:start -->
-  <script src="/assets/js/bundle-loader.js?v=580c068b" data-part="head"></script>
+  <script src="/assets/js/bundle-loader.js?v=87099ab7" data-part="head"></script>
 <!-- moj-core-head:end -->  
 <meta charset="UTF-8" />
 <script>(function(){try{
@@ -22,7 +22,7 @@
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
   <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
 
-<link rel="stylesheet" href="/assets/css/styles.css?v=580c068b" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=87099ab7" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
   <style>
     /* ── 中性色变量（由 tools/extract-colors.mjs 生成）──────────────
@@ -174,6 +174,10 @@
       white-space: pre-wrap;
       word-break: break-word;
     }
+    #editExact.exact-bad {
+      border-color: var(--danger) !important;
+      background: rgba(220, 53, 69, .06);
+    }
     .dc-hint { font-size: 0.75rem; color: var(--text-secondary); font-style: italic; }
     .dc-result { margin-top: 0.8rem; padding: 0.85rem 1rem; background: rgba(74,144,217,.08); border: 1px solid rgba(74,144,217,.3); border-radius: 6px; display: flex; flex-direction: column; gap: 0.45rem; }
     .dc-result-row { display: flex; justify-content: space-between; align-items: center; }
@@ -263,10 +267,10 @@
       color: var(--text-primary);
     }
   </style>
-  <link rel="stylesheet" href="/assets/css/script-panel.css?v=580c068b">
-      <link rel="stylesheet" href="/assets/css/radial-menu.css?v=580c068b">
-    <link rel="stylesheet" href="/assets/css/ban-screen.css?v=580c068b">
-    <link rel="stylesheet" href="/assets/css/ban-index.css?v=580c068b">
+  <link rel="stylesheet" href="/assets/css/script-panel.css?v=87099ab7">
+      <link rel="stylesheet" href="/assets/css/radial-menu.css?v=87099ab7">
+    <link rel="stylesheet" href="/assets/css/ban-screen.css?v=87099ab7">
+    <link rel="stylesheet" href="/assets/css/ban-index.css?v=87099ab7">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" />
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
@@ -280,10 +284,12 @@
     </main>
   </div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.7/purify.min.js"></script>
+  <!-- mathjs：编辑页把 exact 实时算成数值答案，避免每敲一个字符发一次请求 -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjs@13.2.0/lib/browser/math.js" defer></script>
   <!-- moj-core-body:start -->
-  <script src="/assets/js/bundle-loader.js?v=580c068b" data-part="body"></script>
+  <script src="/assets/js/bundle-loader.js?v=87099ab7" data-part="body"></script>
 <!-- moj-core-body:end -->      
 
-  <script src="/assets/js/pages/admin-editproblem.js?v=580c068b"></script>
+  <script src="/assets/js/pages/admin-editproblem.js?v=87099ab7"></script>
 </body>
 </html>

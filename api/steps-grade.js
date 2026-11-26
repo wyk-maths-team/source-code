@@ -5,7 +5,7 @@ import { applyRateLimit } from '../lib/rateLimit.js';
 import { auditLog } from '../lib/audit.js';
 import { askDeepSeekAPI } from '../lib/deepseek-api.js';
 //import { askClaude } from '../lib/temp/claude-api.js';
-import { buildStepsPrompt, buildM0Prompt, snapM0Score } from '../lib/grade-prompt.js';
+import { buildStepsPrompt, buildM0Prompt, snapM0Score, formatReferenceAnswer } from '../lib/grade-prompt.js';
 import { getModelChain, getModelInfo, pickThinkingEffort, pickEffortForProblem } from '../lib/model-router.js';
 import { effortForDifficulty, effortForLegacyDifficulty } from '../lib/thinking.js';
 import { consumeTokens } from '../lib/token.js';
@@ -300,11 +300,14 @@ async function handleCreate(req, res, db, decoded) {
   const statement = cleanStatementForAI(problem.statement);
   // M0 题库：走轻量 prompt，省 token，只给三档分
   const isM0 = Array.isArray(problem.tags) && problem.tags.includes('M0');
+  // 有 exact 就把精确式一起给模型：库里 ans 是 "%.6f" 的产物，
+  // 只给 3.464102 的话，学生写 2√3 可能被判成不同答案。
+  const refAnswer = formatReferenceAnswer(problem);
   const prompt = isM0
-    ? buildM0Prompt({ statement, reference_answer: String(problem.ans ?? ''), student_steps: steps.trim() })
+    ? buildM0Prompt({ statement, reference_answer: refAnswer, student_steps: steps.trim() })
     : buildStepsPrompt({
         statement,
-        reference_answer: String(problem.ans ?? ''),
+        reference_answer: refAnswer,
         student_steps: steps.trim(),
         difficulty: problem.difficulty,        // 评分尺度按难度分档
       });

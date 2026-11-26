@@ -454,7 +454,7 @@ async function handler(req, res) {
     const problem = await db.collection('problems').findOne({ id: sub.problemId });
     if (!problem) return res.status(404).json({ success: false, message: 'Problem not found' });
 
-    const { buildStepsPrompt, buildM0Prompt, snapM0Score } = await import('../lib/grade-prompt.js');
+    const { buildStepsPrompt, buildM0Prompt, snapM0Score, formatReferenceAnswer } = await import('../lib/grade-prompt.js');
     const { getModelChain, getModelInfo, pickEffortForProblem } = await import('../lib/model-router.js');
     const { askDeepSeekAPI } = await import('../lib/deepseek-api.js');
     //const { askClaude } = await import('../lib/temp/claude-api.js');
@@ -472,15 +472,16 @@ async function handler(req, res) {
 
     // M0 题库走轻量 prompt（与 steps-grade 一致）
     const isM0 = Array.isArray(problem.tags) && problem.tags.includes('M0');
+    const refAnswer = formatReferenceAnswer(problem);
     const prompt = isM0
       ? buildM0Prompt({
           statement: String(problem.statement || ''),
-          reference_answer: String(problem.ans ?? ''),
+          reference_answer: refAnswer,
           student_steps: steps,
         })
       : buildStepsPrompt({
           statement: String(problem.statement || ''),
-          reference_answer: String(problem.ans ?? ''),
+          reference_answer: refAnswer,
           student_steps: steps,
           difficulty: problem.difficulty,      // 与 steps-grade 共用同一套分档
         });

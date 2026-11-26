@@ -431,6 +431,15 @@
             </div>
             <div class="form-group"><label>Answer: <input type="text" id="editAns" value="${escapeHtml(problem.ans)}" required /></label></div>
             <div class="form-group">
+              <label>Exact answer (optional):
+                <input type="text" id="editExact" value="${escapeHtml(problem.exact || '')}" placeholder="24*sqrt(3) · 1/128 · 5" autocomplete="off" />
+              </label>
+              <small style="color:#666;display:block;margin-top:.3rem;">
+                最简形式（mathjs 语法）。填了之后上面的 Answer 会随输入实时算出来；留空则继续用手填的数值。
+                <span id="editExactNote"></span>
+              </small>
+            </div>
+            <div class="form-group">
               <label>Logic (JavaScript function body, returns {score, comment}):</label>
               <textarea id="editLogic" rows="4" style="width:100%; padding:0.5rem; border:1px solid var(--border-color); border-radius:4px; font-family:monospace;"></textarea>
               <small style="color:#666;">Example: <code>(ans, uans) => { let score = (uans === ans) ? 100 : 0; return { score, comment: uans === ans ? 'Correct' : 'Wrong' }; }</code></small>
@@ -845,6 +854,7 @@
         const name = document.getElementById('editName').value.trim();
         const statement = document.getElementById('editStatement').value.trim();
         const ans = document.getElementById('editAns').value.trim();
+        const exact = document.getElementById('editExact').value.trim();
         const difficulty = parseFloat(document.getElementById('editDifficulty').value) || 0;
         const tags = document.getElementById('editTags').value.split(',').map(t => t.trim()).filter(t => t);
         const isPublic = document.getElementById('editPublic').checked;
@@ -860,7 +870,7 @@
           .filter((h) => h.content);
         try {
           const result = await apiCall('/api/problem?action=adminProblems', 'PUT', {
-            id: problemId, name, statement, ans, difficulty, tags, public: isPublic, logic, FS, hints, allowScript
+            id: problemId, name, statement, ans, exact, difficulty, tags, public: isPublic, logic, FS, hints, allowScript
           });
           const msgEl = document.getElementById('message');
           msgEl.textContent = result.message;
@@ -1114,6 +1124,59 @@
     // ── Auto：让模型给这道题重新定难度 ──
     // 只回填输入框，不直接保存 —— 管理员看过理由再按保存，
     // 免得模型一次误判把线上难度改掉。
+    // ── Exact answer：填了就把 Answer 实时算出来 ──
+    // 用 mathjs 在前端求值，避免每敲一个字符就发一次请求。CDN 是 defer，
+    // 所以首次加载时轮询等它就绪；算不出来就把输入框标红，不动 Answer。
+    (function setupExact() {
+      // 表单是 renderForm() 之后才注入的，而这个 IIFE 在 init() 的 await 之后
+      // 立刻执行 —— 此刻 #editExact 还不存在。所以用事件委托 + 轮询等待，
+      // 不依赖元素已经就位。
+      var timer = null;
+
+      function compute() {
+        var exactEl = document.getElementById('editExact');
+        var ansEl = document.getElementById('editAns');
+        var noteEl = document.getElementById('editExactNote');
+        if (!exactEl || !ansEl) return;
+
+        var raw = String(exactEl.value || '').trim();
+        exactEl.classList.remove('exact-bad');
+        if (noteEl) noteEl.textContent = '';
+        if (!raw) return;
+        if (!window.math || typeof window.math.evaluate !== 'function') return;
+
+        try {
+          var v = window.math.evaluate(raw);
+          var n = Number(v);
+          if (!Number.isFinite(n)) throw new Error('not a finite number');
+          ansEl.value = String(n);
+          ansEl.dataset.fromExact = '1';
+          if (noteEl) noteEl.textContent = '  →  ' + n;
+        } catch (e) {
+          exactEl.classList.add('exact-bad');
+          if (noteEl) noteEl.textContent = '  cannot evaluate: ' + (e && e.message ? e.message.slice(0, 60) : 'parse error');
+        }
+      }
+
+      document.addEventListener('input', function (e) {
+        if (!e.target || e.target.id !== 'editExact') return;
+        clearTimeout(timer);
+        timer = setTimeout(compute, 250);
+      });
+
+      // 初次加载：等表单出现 + mathjs 就绪，然后用已有的 exact 重算一次
+      var tries = 0;
+      var wait = setInterval(function () {
+        var el = document.getElementById('editExact');
+        if (el && String(el.value || '').trim() && window.math) {
+          clearInterval(wait);
+          compute();
+          return;
+        }
+        if (++tries > 40) clearInterval(wait);
+      }, 250);
+    })();
+
     // 思维链手风琴：收起时只留一行，内部自动滚到最新
     document.addEventListener('click', function (e) {
       const head = e.target && e.target.closest ? e.target.closest('#dtHead') : null;

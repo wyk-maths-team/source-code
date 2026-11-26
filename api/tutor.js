@@ -54,6 +54,9 @@ async function isInActiveContest(db, username, problemId) {
 export function buildTutorPrompt({ problem, history, question, profile }) {
   const statement = String(problem.statement || '').slice(0, 6000);
   const answer = String(problem.ans ?? '').slice(0, 400);
+  // exact 是「最简形式」（如 24*sqrt(3)），ans 是当年截断出来的小数。
+  // 两个都给模型：它自己校验数值时用得上，但同样不许说出口。
+  const exact = String(problem.exact ?? '').trim().slice(0, 200);
   const turns = (Array.isArray(history) ? history : []).slice(-MAX_TURNS);
   const convo = turns.map((m) => {
     const who = (m && m.role === 'tutor') ? 'TUTOR' : 'STUDENT';
@@ -92,7 +95,9 @@ export function buildTutorPrompt({ problem, history, question, profile }) {
     statement || '(no statement available)',
     '',
     '【REFERENCE ANSWER — internal, never quote, never paraphrase, never compute towards it】',
-    answer || '(none)',
+    exact
+      ? ('exact form: ' + exact + '\nnumeric: ' + (answer || '(none)'))
+      : (answer || '(none)'),
     '',
     // 学生画像放在对话之前、问题之后：模型先读题，再读「这个人会什么」，
     // 最后才看到提问 —— 顺序与它组织回答的顺序一致。
