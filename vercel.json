@@ -526,6 +526,10 @@
       "destination": "/skills-graph.html"
     },
     {
+      "source": "/skills",
+      "destination": "/skills.html"
+    },
+    {
       "source": "/resources",
       "destination": "/resources.html"
     },
