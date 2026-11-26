@@ -147,6 +147,78 @@
       return node;
     }
 
+    // ── AI 用 ⟦def⟧…⟦/def⟧ 包住的定义，渲染成卡片并给一个「有用吗」 ──
+    // 点赞才入库：学生认可的定义才有价值，模型自己写的先当草稿。
+    var DEF_RE = /⟦def⟧([\s\S]*?)⟦\/def⟧/g;
+
+    function buildDefCard(bodyText) {
+      var card = document.createElement('div');
+      card.className = 'moj-def-card';
+
+      var text = document.createElement('div');
+      text.className = 'moj-def-body';
+      text.innerHTML = rich(bodyText);
+      card.appendChild(text);
+      typeset(text);
+
+      var row = document.createElement('div');
+      row.className = 'moj-def-actions';
+
+      var label = document.createElement('span');
+      label.className = 'moj-def-label';
+      label.textContent = 'Is this helpful?';
+
+      var yes = document.createElement('button');
+      yes.type = 'button';
+      yes.className = 'moj-def-yes';
+      yes.setAttribute('aria-label', 'This definition is helpful');
+      yes.textContent = '👍';
+      yes.addEventListener('click', function () {
+        if (yes.disabled) return;
+        yes.disabled = true;
+        label.textContent = 'Saving…';
+        apiCall('/api/definitions', 'POST', { body: bodyText.trim(), problemId: problemId })
+          .then(function () {
+            label.textContent = 'Saved — thanks!';
+            card.classList.add('saved');
+          })
+          .catch(function (err) {
+            yes.disabled = false;
+            label.textContent = 'Could not save: ' + ((err && err.message) || 'unknown');
+          });
+      });
+
+      row.appendChild(label);
+      row.appendChild(yes);
+      card.appendChild(row);
+      return card;
+    }
+
+    function renderDefinitions(host) {
+      if (!host) return;
+      var walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT, null);
+      var targets = [];
+      var n;
+      while ((n = walker.nextNode())) {
+        if (n.nodeValue && n.nodeValue.indexOf('⟦def⟧') >= 0) targets.push(n);
+      }
+      targets.forEach(function (textNode) {
+        var text = textNode.nodeValue;
+        var frag = document.createDocumentFragment();
+        var last = 0;
+        var m;
+        DEF_RE.lastIndex = 0;
+        while ((m = DEF_RE.exec(text)) !== null) {
+          if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+          frag.appendChild(buildDefCard(m[1]));
+          last = m.index + m[0].length;
+        }
+        if (last === 0) return;                    // 没匹配到，别动它
+        if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+        if (textNode.parentNode) textNode.parentNode.replaceChild(frag, textNode);
+      });
+    }
+
     function showTyping() {
       var node = el('div', 'moj-tutor-typing', '<span></span><span></span><span></span>');
       body.appendChild(node);
@@ -178,6 +250,7 @@
       var reply = '';
       var failed = false;
       var nextTokens = null;
+      var streamNode = null;
 
       try {
         var res = await fetch('/api/tutor', {
@@ -185,31 +258,91 @@
           headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + getToken() },
           body: JSON.stringify({ problemId: problemId, question: q, history: history }),
         });
-        var data = {};
-        try { data = await res.json(); } catch (e) { data = {}; }
-        if (!res.ok || !data.success) {
-          failed = true;
-          reply = data.message || 'The tutor is unavailable right now.';
-        } else {
-          reply = data.reply || '';
-          nextTokens = data.tokens || null;
+
+        var ctype = res.headers.get('content-type') || '';
+        if (!res.ok || ctype.indexOf('text/event-stream') < 0) {
+          var data = {};
+          try { data = await res.json(); } catch (e) { data = {}; }
+          throw new Error(data.message || 'The tutor is unavailable right now.');
         }
+
+        // 开流：先建一个空气泡，逐块往里长
+        typing.remove();
+        streamNode = addMessage('tutor', '');
+        streamNode._raw = '';
+
+        var reader = res.body.getReader();
+        var decoder = new TextDecoder();
+        var buf = '';
+
+        while (true) {
+          var step = await reader.read();
+          if (step.done) break;
+          buf += decoder.decode(step.value, { stream: true });
+
+          var cut;
+          while ((cut = buf.indexOf('\n\n')) >= 0) {
+            var chunk = buf.slice(0, cut);
+            buf = buf.slice(cut + 2);
+
+            var ev = 'message';
+            var lines = [];
+            chunk.split('\n').forEach(function (line) {
+              if (line.indexOf('event:') === 0) ev = line.slice(6).trim();
+              else if (line.indexOf('data:') === 0) lines.push(line.slice(5).trim());
+            });
+            if (!lines.length) continue;
+
+            var payload;
+            try { payload = JSON.parse(lines.join('\n')); } catch (e) { continue; }
+
+            if (ev === 'meta') {
+              paintHint(payload.profile ? {
+                gap: payload.profile.gap,
+                fresh: payload.profile.fresh,
+                focus: payload.profile.focus,
+              } : null);
+            } else if (ev === 'delta' && payload.text) {
+              streamNode._raw += payload.text;
+              // 流式期间只更新纯文本，结束后再整体排版 —— 每个 token 都跑一次
+              // KaTeX + markdown 会把面板卡死
+              streamNode.textContent = streamNode._raw;
+              if (typeof scrollLatest === 'function') scrollLatest(body);
+              else body.scrollTop = body.scrollHeight;
+            } else if (ev === 'done') {
+              reply = payload.reply || streamNode._raw;
+              nextTokens = payload.tokens || null;
+            } else if (ev === 'error') {
+              throw new Error(payload.message || 'The tutor is unavailable right now.');
+            }
+          }
+        }
+
+        if (!reply) reply = streamNode._raw || '';
       } catch (e) {
         failed = true;
-        reply = 'Network error — please try again.';
+        reply = e.message || 'Network error — please try again.';
       } finally {
-        typing.remove();
+        if (typing.parentNode) typing.remove();
         setBusy(false);
-        // 每问一次就扣一次费，顶栏余额要当场跟着变
         if (nextTokens && typeof window.updateTopbarTokens === 'function') {
           window.updateTopbarTokens(nextTokens.daily, nextTokens.global);
         }
       }
 
+      if (streamNode) {
+        // 收尾：把累积的原文一次性排版（markdown + KaTeX + 定义卡片）
+        streamNode.innerHTML = rich(reply);
+        // 顺序很重要：KaTeX 会把文本节点拆开（公式前后的文字变成独立节点），
+        // 先排数学的话 ⟦def⟧…⟦/def⟧ 就被切碎，TreeWalker 再也找不到完整的一对。
+        renderDefinitions(streamNode);
+        typeset(streamNode);
+      }
+
       if (failed) {
-        addMessage('error', reply);
-      } else {
-        addMessage('tutor', reply);
+        if (!streamNode) addMessage('error', reply);
+        else streamNode.textContent = reply;
+      } else if (reply) {
         state.messages.push({ role: 'tutor', content: reply });
       }
     }
