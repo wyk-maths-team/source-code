@@ -174,11 +174,15 @@ async function sendSuccess(db, username, res, result, context = {}) {
   // 只有 smallGroup 成员能开这个开关；任何异常都静默，绝不影响提交结果。
   try {
     if (result && result.success !== false) {
-      const neko = await maybeNeko(db, username);
-      if (neko) result.neko = neko;
+      const out = await maybeNeko(db, username);
+      if (out && out.neko) result.neko = out.neko;
+      // 开了 nekos 却没拿到图时，把每个源的失败原因带回去 —— 线上排查
+      // 只能靠这个，光看「没返回」什么也判断不出来。
+      else if (out && out.debug) result.nekoDebug = out.debug;
     }
   } catch (e) {
     console.error('[submit] neko failed:', e && e.message);
+    result.nekoDebug = { error: String((e && e.message) || 'exception').slice(0, 120) };
   }
 
   res.status(200).json(result);
