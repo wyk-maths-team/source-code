@@ -207,6 +207,10 @@ function renderVercelSection(container, data) {
 
   // 汇总：所有 metric 的 cost 之和
   const totalCost = metrics.reduce((s, m) => s + (m.cost || 0), 0);
+  // Vercel 每条 charge 带 PricingCategory：Committed 吃套餐额度，Other 是额外席位与超额。
+  // 只显示合计会让人以为这些钱全都要额外掏。
+  const includedCost = Number(data.includedCost) || 0;
+  const onDemandCost = Number(data.onDemandCost) || 0;
 
   let html = `
     <h3>
@@ -225,6 +229,18 @@ function renderVercelSection(container, data) {
         </div>
       </div>
       <div class="vc-summary-value">$${totalCost.toFixed(2)}</div>
+    </div>
+    <div class="vc-split">
+      <div class="vc-split-item">
+        <span class="vc-split-dot included"></span>
+        <span class="vc-split-label">套餐内含</span>
+        <b>$${includedCost.toFixed(2)}</b>
+      </div>
+      <div class="vc-split-item">
+        <span class="vc-split-dot ondemand"></span>
+        <span class="vc-split-label">超额 / 额外席位</span>
+        <b>$${onDemandCost.toFixed(2)}</b>
+      </div>
     </div>
   `;
 
@@ -245,6 +261,7 @@ function renderVercelSection(container, data) {
           <div class="vc-card-head">
             <span class="vc-card-label">
               <i class="fas ${icon}"></i>${m.label}
+              ${m.pricing === 'Committed' ? '<em class="vc-tag included">included</em>' : '<em class="vc-tag ondemand">on-demand</em>'}
             </span>
             ${m.cost != null ? `<span class="vc-card-cost">$${m.cost.toFixed(2)}</span>` : ''}
           </div>

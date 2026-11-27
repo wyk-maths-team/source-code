@@ -163,12 +163,33 @@ async function systemStatus(req, res) {
 const _ioCache = { data: null, expireAt: 0 };
 const IO_CACHE_TTL = 10 * 60_000;
 
+/**
+ * 从 SRV 记录里挑一个节点名。取优先级最高的那台，Admin API 的 measurements
+ * 对副本集里任意一台都能查到集群级指标。
+ */
+async function resolveMongoHost() {
+  const uri = process.env.MONGODB_URI || '';
+  const m = /@([^/?]+)/.exec(uri);
+  const domain = m ? m[1] : '';
+  if (!domain) throw new Error('cannot derive domain from MONGODB_URI');
+  const dns = await import('node:dns/promises');
+  const recs = await dns.resolveSrv('_mongodb._tcp.' + domain);
+  if (!recs.length) throw new Error('no SRV records');
+  recs.sort((a, b) => (a.priority || 0) - (b.priority || 0));
+  return recs[0].name;
+}
 async function mongoIO(req, res) {
   const pub = process.env.MONGODB_ATLAS_PUBLIC_KEY;
   const prv = process.env.MONGODB_ATLAS_PRIVATE_KEY;
   const pid = process.env.MONGODB_ATLAS_PROJECT_ID;
-  const host = process.env.MONGODB_ATLAS_HOST;
-  if (!pub || !prv || !pid || !host) {
+  let host = process.env.MONGODB_ATLAS_HOST;
+  // Atlas 控制台只给 SRV 连接串（csli.x78ref9.mongodb.net），不给具体节点名。
+  // Admin API 要的是 ac-yqjfzo0-shard-00-00.x78ref9.mongodb.net 这种，
+  // 所以没配 HOST 时自己查一次 SRV 记录。
+  if (!host) {
+    try { host = await resolveMongoHost(); } catch (e) { host = ''; }
+  }
+  if (!pub || !prv || !pid) {
     return res.status(200).json({
       success: false,
       message: 'MongoDB Atlas API keys not configured',
@@ -176,7 +197,6 @@ async function mongoIO(req, res) {
         MONGODB_ATLAS_PUBLIC_KEY: !pub,
         MONGODB_ATLAS_PRIVATE_KEY: !prv,
         MONGODB_ATLAS_PROJECT_ID: !pid,
-        MONGODB_ATLAS_HOST: !host,
       },
     });
   }
