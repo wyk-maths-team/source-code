@@ -78,6 +78,66 @@
     draw(graph, status, names);
   }
 
+
+  // ── 点击节点：角落弹出详情卡（描述 + 一道典题）──
+  var detailCard = null;
+
+  function closeDetail() {
+    if (detailCard && detailCard.parentNode) detailCard.parentNode.removeChild(detailCard);
+    detailCard = null;
+  }
+
+  async function showDetail(node) {
+    closeDetail();
+    detailCard = document.createElement('div');
+    detailCard.className = 'ms-detail';
+    detailCard.innerHTML = '<div class="ms-detail-loading">Loading…</div>';
+    canvas.appendChild(detailCard);
+
+    var close = document.createElement('button');
+    close.className = 'ms-detail-close';
+    close.setAttribute('aria-label', 'Close');
+    close.textContent = '×';
+    close.addEventListener('click', closeDetail);
+
+    try {
+      var d = await apiCall('/api/skills?action=detail&id=' + encodeURIComponent(node.id));
+      var name = (d.skill && d.skill.name) || {};
+      var title = name.zh || name.en || node.id;
+      var parts = [];
+      parts.push('<div class="ms-detail-head"><b>' + esc(title) + '</b>');
+      if (d.parent && d.parent.name) {
+        var pn = d.parent.name.zh || d.parent.name.en || d.parent.id;
+        parts.push('<span class="ms-detail-parent">' + esc(pn) + '</span>');
+      }
+      parts.push('</div>');
+      if (d.skill && d.skill.description) {
+        parts.push('<p class="ms-detail-desc">' + esc(d.skill.description) + '</p>');
+      }
+      parts.push('<div class="ms-detail-stat">' + (d.problemCount || 0) + ' problems use this</div>');
+      if (d.example) {
+        parts.push('<a class="ms-detail-example" href="/problems/' + encodeURIComponent(d.example.problemId) + '">');
+        parts.push('<span class="ms-detail-exlabel">Try this one</span>');
+        parts.push('<span class="ms-detail-exid">' + esc(d.example.problemId) + '</span>');
+        parts.push('<span class="ms-detail-exdepth">depth ' + d.example.depth + ' · Lv ' + (d.example.difficulty || '?') + '</span>');
+        parts.push('</a>');
+      }
+      if (d.children && d.children.length) {
+        parts.push('<div class="ms-detail-kids">');
+        d.children.slice(0, 8).forEach(function (c) {
+          var cn = (c.name && (c.name.zh || c.name.en)) || c.id;
+          parts.push('<span class="ms-detail-kid">' + esc(cn) + '</span>');
+        });
+        parts.push('</div>');
+      }
+      detailCard.innerHTML = parts.join('');
+      detailCard.appendChild(close);
+    } catch (e) {
+      detailCard.innerHTML = '<div class="ms-detail-loading">Could not load this skill.</div>';
+      detailCard.appendChild(close);
+    }
+  }
+
   function draw(graph, status, names) {
     empty.style.display = 'none';
 
@@ -131,6 +191,7 @@
         nodeSel.classed('dim', function (n) { return !mates.has(n.id); });
         showTip(ev, d);
       })
+      .on('click', function (ev, d) { ev.stopPropagation(); showDetail(d); })
       .on('mouseleave', function () {
         nodeSel.classed('dim', false);
         hideTip();
@@ -177,6 +238,8 @@
     }
     setTimeout(fit, 1800);
     sim.on('end', fit);
+
+    svg.on('click', function () { closeDetail(); });
 
     var tip = document.createElement('div');
     tip.className = 'ms-tip';

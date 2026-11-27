@@ -61,3 +61,39 @@
   color: var(--text-primary); box-shadow: 0 4px 14px rgba(0,0,0,.12);
   display: none;
 }
+
+/* ── 点击技能节点弹出的详情卡 ── */
+.ms-detail {
+  position: absolute; right: 14px; bottom: 14px; width: 300px; max-width: calc(100% - 28px);
+  background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.14); padding: 14px 16px 12px; z-index: 8;
+  font-size: .82rem; color: var(--text-primary);
+}
+.ms-detail-loading { color: var(--text-secondary); font-size: .8rem; }
+.ms-detail-close {
+  position: absolute; top: 6px; right: 8px; border: none; background: transparent;
+  font-size: 1.1rem; line-height: 1; cursor: pointer; color: var(--text-secondary); padding: 2px 6px;
+}
+.ms-detail-close:hover { color: var(--text-primary); }
+.ms-detail-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; padding-right: 18px; }
+.ms-detail-head b { font-size: .92rem; }
+.ms-detail-parent { font-size: .72rem; color: var(--text-secondary); }
+.ms-detail-desc { margin: 0 0 8px; line-height: 1.55; color: var(--text-secondary); }
+.ms-detail-stat { font-size: .72rem; color: var(--text-secondary); margin-bottom: 8px; }
+.ms-detail-example {
+  display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; margin-bottom: 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 8px; background: color-mix(in srgb, var(--accent) 7%, transparent);
+  text-decoration: none; color: inherit;
+}
+.ms-detail-example:hover { border-color: var(--accent); }
+.ms-detail-exlabel { font-size: .72rem; color: var(--text-secondary); }
+.ms-detail-exid { font-weight: 600; font-size: .86rem; }
+.ms-detail-exdepth { font-size: .7rem; color: var(--text-secondary); }
+.ms-detail-kids { display: flex; flex-wrap: wrap; gap: 4px; }
+.ms-detail-kid {
+  font-size: .7rem; padding: 2px 7px; border-radius: 999px;
+  background: color-mix(in srgb, var(--border-color) 45%, transparent);
+  color: var(--text-secondary);
+}
+

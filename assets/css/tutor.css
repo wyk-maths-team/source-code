@@ -283,4 +283,25 @@
 .moj-def-yes:disabled { opacity: .55; cursor: default; }
 .moj-def-card.saved { border-left-color: #2e7d32; }
 
-.moj-def-title {\n  font-size: .82rem;\n  font-weight: 600;\n  color: var(--text-primary);\n  margin-bottom: 5px;\n}\n
+.moj-def-title {
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 5px;
+}
+
+
+/* ── 八向拖拽把手：四条边 + 三个角（右上角留给关闭按钮）── */
+.moj-tutor-grip { position: absolute; z-index: 6; touch-action: none; }
+.moj-tutor-grip-n { top: -3px; left: 14px; right: 44px; height: 8px; cursor: ns-resize; }
+.moj-tutor-grip-s { bottom: -3px; left: 14px; right: 14px; height: 8px; cursor: ns-resize; }
+.moj-tutor-grip-e { right: -3px; top: 44px; bottom: 14px; width: 8px; cursor: ew-resize; }
+.moj-tutor-grip-w { left: -3px; top: 14px; bottom: 14px; width: 8px; cursor: ew-resize; }
+.moj-tutor-grip-nw { top: -4px; left: -4px; width: 16px; height: 16px; cursor: nwse-resize; }
+.moj-tutor-grip-se { bottom: -4px; right: -4px; width: 16px; height: 16px; cursor: nwse-resize; }
+.moj-tutor-grip-sw { bottom: -4px; left: -4px; width: 16px; height: 16px; cursor: nesw-resize; }
+
+/* 拖拽时别让面板里的文字被选中，也别触发悬浮动画 */
+.moj-tutor-panel.is-resizing { transition: none; }
+.moj-tutor-panel.is-resizing * { pointer-events: none; }
+

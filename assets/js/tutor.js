@@ -370,65 +370,138 @@
     fab.addEventListener('click', function () { loadHistory(); });
   }
 
-  /** 拖拽调整大小，且不越过 topbar / sidebar */
+  /**
+   * 八向拖拽：四条边 + 四个角都能拉。
+   *
+   * 面板原本用 right/bottom 定位，只能往左上长。要支持四条边，
+   * 先把它换成 left/top + width/height，之后拖哪条边就改对应的量。
+   *
+   * 同时绑 mouse 与 touch —— 手机上没有鼠标事件，之前那块完全拖不动。
+   */
   function initResize(panel) {
-    var handle = document.createElement('div');
-    handle.className = 'moj-tutor-resizer';
-    handle.setAttribute('aria-hidden', 'true');
-    panel.appendChild(handle);
+    var MIN_W = 300, MIN_H = 320;
 
-    handle.addEventListener('mousedown', function (e) {
-      e.preventDefault();
-      var rect = panel.getBoundingClientRect();
-      var startX = e.clientX;
-      var startY = e.clientY;
-      var startW = rect.width;
-      var startH = rect.height;
+    // 转成 left/top 定位（一次性）
+    var r0 = panel.getBoundingClientRect();
+    panel.style.left = r0.left + 'px';
+    panel.style.top = r0.top + 'px';
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+    panel.style.width = r0.width + 'px';
+    panel.style.height = r0.height + 'px';
 
-      function limits() {
-        var topbar = document.querySelector('.topbar');
-        var sidebar = document.querySelector('.sidebar');
-        var topbarH = topbar ? topbar.getBoundingClientRect().height : 60;
-        // 移动端侧栏是抽屉（position:static 或隐藏），宽度按 0 算
-        var sideW = 0;
-        if (sidebar) {
-          var sb = sidebar.getBoundingClientRect();
-          var sbStyle = getComputedStyle(sidebar);
-          if (sbStyle.position !== 'static' && sb.width > 0 && sb.right > 0) sideW = sb.right;
-        }
-        return {
-          maxW: Math.max(300, window.innerWidth - sideW - 24 - 16),
-          maxH: Math.max(320, window.innerHeight - topbarH - 84 - 16),
-        };
+    function bounds() {
+      var topbar = document.querySelector('.topbar');
+      var sidebar = document.querySelector('.sidebar');
+      var topbarH = topbar ? topbar.getBoundingClientRect().height : 60;
+      var sideW = 0;
+      if (sidebar) {
+        var sb = sidebar.getBoundingClientRect();
+        var st = getComputedStyle(sidebar);
+        if (st.position !== 'static' && sb.width > 0 && sb.right > 0) sideW = sb.right;
       }
+      return {
+        minLeft: sideW + 8,
+        minTop: topbarH + 8,
+        maxRight: window.innerWidth - 8,
+        maxBottom: window.innerHeight - 8,
+      };
+    }
 
-      function onMove(ev) {
-        var lim = limits();
-        // 面板贴在右下角：向左拖 = 变宽，向上拖 = 变高
-        var w = Math.min(lim.maxW, Math.max(300, startW + (startX - ev.clientX)));
-        var h = Math.min(lim.maxH, Math.max(320, startH + (startY - ev.clientY)));
-        panel.style.width = w + 'px';
-        panel.style.height = h + 'px';
-      }
-
-      function onUp() {
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
-        document.body.style.userSelect = '';
-      }
-
-      document.body.style.userSelect = 'none';
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
+    var EDGES = ['n', 's', 'e', 'w', 'nw', 'se', 'sw'];
+    EDGES.forEach(function (edge) {
+      var h = document.createElement('div');
+      h.className = 'moj-tutor-grip moj-tutor-grip-' + edge;
+      h.setAttribute('data-edge', edge);
+      h.setAttribute('aria-hidden', 'true');
+      panel.appendChild(h);
+      attachDrag(h, edge);
     });
+
+    function attachDrag(handle, edge) {
+      var active = false;
+      var start = null;
+
+      function begin(x, y) {
+        var r = panel.getBoundingClientRect();
+        start = { x: x, y: y, left: r.left, top: r.top, w: r.width, h: r.height };
+        active = true;
+        panel.classList.add('is-resizing');
+        document.body.style.userSelect = 'none';
+      }
+
+      function move(x, y) {
+        if (!active || !start) return;
+        var b = bounds();
+        var dx = x - start.x, dy = y - start.y;
+        var left = start.left, top = start.top, w = start.w, h = start.h;
+
+        if (edge.indexOf('e') >= 0) w = Math.max(MIN_W, start.w + dx);
+        if (edge.indexOf('w') >= 0) {
+          var nw = Math.max(MIN_W, start.w - dx);
+          left = start.left + (start.w - nw);
+          w = nw;
+          if (left < b.minLeft) { w -= (b.minLeft - left); left = b.minLeft; }
+        }
+        if (edge.indexOf('s') >= 0) h = Math.max(MIN_H, start.h + dy);
+        if (edge.indexOf('n') >= 0) {
+          var nh = Math.max(MIN_H, start.h - dy);
+          top = start.top + (start.h - nh);
+          h = nh;
+          if (top < b.minTop) { h -= (b.minTop - top); top = b.minTop; }
+        }
+
+        // 不许越过右/下边界
+        if (left + w > b.maxRight) w = b.maxRight - left;
+        if (top + h > b.maxBottom) h = b.maxBottom - top;
+
+        panel.style.left = left + 'px';
+        panel.style.top = top + 'px';
+        panel.style.width = Math.max(MIN_W, w) + 'px';
+        panel.style.height = Math.max(MIN_H, h) + 'px';
+      }
+
+      function end() {
+        active = false;
+        start = null;
+        panel.classList.remove('is-resizing');
+        document.body.style.userSelect = '';
+        document.removeEventListener('mousemove', onMouse);
+        document.removeEventListener('mouseup', onMouseUp);
+        document.removeEventListener('touchmove', onTouch);
+        document.removeEventListener('touchend', onTouchEnd);
+        document.removeEventListener('touchcancel', onTouchEnd);
+      }
+
+      function onMouse(e) { e.preventDefault(); move(e.clientX, e.clientY); }
+      function onMouseUp() { end(); }
+      function onTouch(e) { if (!e.touches || !e.touches[0]) return; e.preventDefault(); move(e.touches[0].clientX, e.touches[0].clientY); }
+      function onTouchEnd() { end(); }
+
+      handle.addEventListener('mousedown', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        begin(e.clientX, e.clientY);
+        document.addEventListener('mousemove', onMouse);
+        document.addEventListener('mouseup', onMouseUp);
+      });
+      handle.addEventListener('touchstart', function (e) {
+        if (!e.touches || !e.touches[0]) return;
+        e.preventDefault(); e.stopPropagation();
+        begin(e.touches[0].clientX, e.touches[0].clientY);
+        document.addEventListener('touchmove', onTouch, { passive: false });
+        document.addEventListener('touchend', onTouchEnd);
+        document.addEventListener('touchcancel', onTouchEnd);
+      }, { passive: false });
+    }
 
     // 视口变化时把面板收回边界内
     window.addEventListener('resize', function () {
-      var rect = panel.getBoundingClientRect();
-      var topbar = document.querySelector('.topbar');
-      var topbarH = topbar ? topbar.getBoundingClientRect().height : 60;
-      var maxH = Math.max(320, window.innerHeight - topbarH - 100);
-      if (rect.height > maxH) panel.style.height = maxH + 'px';
+      var b = bounds();
+      var r = panel.getBoundingClientRect();
+      if (r.right > b.maxRight) panel.style.left = Math.max(b.minLeft, b.maxRight - r.width) + 'px';
+      if (r.bottom > b.maxBottom) panel.style.top = Math.max(b.minTop, b.maxBottom - r.height) + 'px';
+      if (r.left < b.minLeft) panel.style.left = b.minLeft + 'px';
+      if (r.top < b.minTop) panel.style.top = b.minTop + 'px';
     });
   }
 
