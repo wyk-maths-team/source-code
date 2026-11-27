@@ -1455,7 +1455,7 @@ window.apiCall = apiCall;
         <!-- Messages 放在 Settings 下面：原来埋在底部的 EXTRA_NAV 里没人点，
              393 条系统通知积到没人看。红点由 heartbeat 按未读数点亮。 -->
         <li><a href="/messages" class="sidebar-link require-login" data-page="messages"><i class="fa-solid fa-envelope fa-fw"></i> Messages<span class="nav-dot" id="navMsgDot" hidden></span></a></li>
-        <li><a href="/tokens" class="sidebar-link require-login" data-page="tokens"><i class="fa-solid fa-coins fa-fw"></i></i> Tokens</a></li>
+        <li><a href="/tokens" class="sidebar-link require-login" data-page="tokens"><i class="fa-solid fa-coins fa-fw"></i> Tokens<span class="nav-dot" id="navQuestDot" hidden></span></a></li>
         <li><a href="/credits" class="sidebar-link" data-page="credits"><i class="fa-solid fa-heart fa-fw"></i> Credits</a></li>
         <li><a href="/guide" class="sidebar-link" data-page="guide"><i class="fa-solid fa-book-open fa-fw"></i> Guides</a></li>
         ${renderExtraNav()}
@@ -1776,6 +1776,7 @@ window.apiCall = apiCall;
       });
       const data = await res.json();
       updateMessageDot(Number(data.unreadMessages) || 0);
+      updateQuestDot(Number(data.questsPending) || 0);
     } catch (e) { /* 静默 */ }
   }
   // 未读数点亮侧栏 Messages 的红点。
@@ -1788,6 +1789,19 @@ window.apiCall = apiCall;
     if (!el) return;
     if (count > 0) {
       el.textContent = count > 99 ? '99+' : String(count);
+      el.hidden = false;
+    } else {
+      el.hidden = true;
+      el.textContent = '';
+    }
+  }
+  // Token Hub 那个红点：今天还有没领的任务。只反映登录奖励，够当入口提示，
+  // 不值得为它每 30 秒跑一次完整的 computeQuests。
+  function updateQuestDot(count) {
+    var el = document.getElementById('navQuestDot');
+    if (!el) return;
+    if (count > 0) {
+      el.textContent = String(count);
       el.hidden = false;
     } else {
       el.hidden = true;

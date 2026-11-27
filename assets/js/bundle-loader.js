@@ -19,7 +19,7 @@
 
 (function () {
   var BUNDLE_HEAD = 'bundle.head.f7df80d290.js';   // 由构建脚本改写
-  var BUNDLE_BODY = 'bundle.body.59d2d67e37.js';   // 由构建脚本改写
+  var BUNDLE_BODY = 'bundle.body.511de0fd5c.js';   // 由构建脚本改写
 
   var self = document.currentScript;
   var part = (self && self.getAttribute('data-part')) || 'body';

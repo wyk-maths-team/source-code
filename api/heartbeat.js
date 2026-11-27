@@ -36,7 +36,20 @@ async function handler(req, res) {
       read: false 
     });
     
-    return res.status(200).json({ success: true, unreadMessages: unreadCount });
+    // 侧栏那个小红点：今天还有没有没领的任务。只查登录奖励，够用且便宜。
+    let questsPending = 0;
+    try {
+      const today = new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10);
+      const u = await db.collection("users").findOne(
+        { username: decoded.username },
+        { projection: { dailyQuests: 1, _id: 0 } }
+      );
+      const dq = u && u.dailyQuests;
+      const claimed = dq && dq.date === today && Array.isArray(dq.claimed) ? dq.claimed : [];
+      if (!claimed.includes("login")) questsPending = 1;
+    } catch (e) { /* 查不到就当没有，别让心跳失败 */ }
+
+    return res.status(200).json({ success: true, unreadMessages: unreadCount, questsPending });
   } catch (err) {
     console.error('[heartbeat] failed:', err);
     return res.status(500).json({ success: false });

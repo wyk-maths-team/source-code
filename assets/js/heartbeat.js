@@ -56,6 +56,7 @@
       });
       const data = await res.json();
       updateMessageDot(Number(data.unreadMessages) || 0);
+      updateQuestDot(Number(data.questsPending) || 0);
     } catch (e) { /* 静默 */ }
   }
 
@@ -69,6 +70,20 @@
     if (!el) return;
     if (count > 0) {
       el.textContent = count > 99 ? '99+' : String(count);
+      el.hidden = false;
+    } else {
+      el.hidden = true;
+      el.textContent = '';
+    }
+  }
+
+  // Token Hub 那个红点：今天还有没领的任务。只反映登录奖励，够当入口提示，
+  // 不值得为它每 30 秒跑一次完整的 computeQuests。
+  function updateQuestDot(count) {
+    var el = document.getElementById('navQuestDot');
+    if (!el) return;
+    if (count > 0) {
+      el.textContent = String(count);
       el.hidden = false;
     } else {
       el.hidden = true;

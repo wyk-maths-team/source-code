@@ -91,7 +91,7 @@
         <!-- Messages 放在 Settings 下面：原来埋在底部的 EXTRA_NAV 里没人点，
              393 条系统通知积到没人看。红点由 heartbeat 按未读数点亮。 -->
         <li><a href="/messages" class="sidebar-link require-login" data-page="messages"><i class="fa-solid fa-envelope fa-fw"></i> Messages<span class="nav-dot" id="navMsgDot" hidden></span></a></li>
-        <li><a href="/tokens" class="sidebar-link require-login" data-page="tokens"><i class="fa-solid fa-coins fa-fw"></i></i> Tokens</a></li>
+        <li><a href="/tokens" class="sidebar-link require-login" data-page="tokens"><i class="fa-solid fa-coins fa-fw"></i> Tokens<span class="nav-dot" id="navQuestDot" hidden></span></a></li>
         <li><a href="/credits" class="sidebar-link" data-page="credits"><i class="fa-solid fa-heart fa-fw"></i> Credits</a></li>
         <li><a href="/guide" class="sidebar-link" data-page="guide"><i class="fa-solid fa-book-open fa-fw"></i> Guides</a></li>
         ${renderExtraNav()}
