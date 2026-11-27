@@ -16,7 +16,7 @@ const action = req.query.action || (req.body && req.body.action);
   // system 暴露数据库集合大小/文档数，vercel 暴露团队账单用量，
   // 这两类都不该给普通学生看。handleOsAction 是用户自己的数据，不受此限制。
   const isAdminUser = decoded.role === 'admin' || decoded.role === 'root';
-  const isOpsAction = !action || action === 'system' || action === 'vercel';
+  const isOpsAction = !action || action === 'system' || action === 'vercel' || action === 'mongoio';
   if (isOpsAction && !isAdminUser) {
     return res.status(403).json({
       success: false,
@@ -32,6 +32,12 @@ if (!action || action === 'system') {
 }
 
 // ⭐ Vercel 用量
+// MongoDB 七天 IO（Atlas Admin API）
+if (action === 'mongoio') {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  return mongoIO(req, res);
+}
+
 if (action === 'vercel') {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   return vercelUsage(req, res);
@@ -79,8 +85,11 @@ async function systemStatus(req, res) {
     const dbSizeMB    = (stats.storageSize / 1024 / 1024).toFixed(2);
     const dataSizeMB  = (stats.dataSize    / 1024 / 1024).toFixed(2);
     const indexSizeMB = (stats.indexSize   / 1024 / 1024).toFixed(2);
+    // Atlas 免费档 512MB 的口径是 storageSize + indexSize；dataSize 是逻辑大小，不算配额
+    const usedMB      = ((stats.storageSize + stats.indexSize) / 1024 / 1024).toFixed(2);
     const quotaMB     = 512;
-    const freeMB      = (quotaMB - parseFloat(dbSizeMB)).toFixed(2);
+    const freeMB      = Math.max(0, quotaMB - parseFloat(usedMB)).toFixed(2);
+    const usedPercent = Math.min(100, parseFloat(usedMB) / quotaMB * 100).toFixed(1);
 
     let cloudinary = null;
     try {
@@ -99,13 +108,27 @@ async function systemStatus(req, res) {
           cloudinary = { error: true, message: `HTTP ${response.status}: ${errText}` };
         } else {
           const usageData = await response.json();
-          const toMB = v => { const n = Number(v); return isNaN(n) ? 0 : n; };
+          // Cloudinary 的 /usage 返回的是分组对象，不是裸数字：
+          //   bandwidth: { usage: 1747755665, credits_usage: 1.63 }   ← usage 单位是字节
+          //   credits:   { usage: 2.34, limit: 25, used_percent: 9.36 }
+          // 旧代码 toMB(usageData.bandwidth) 对对象取 Number 得 NaN，所以流量永远显示 0。
+          const grp = o => (o && typeof o === 'object') ? o : { usage: Number(o) || 0 };
+          const bw = grp(usageData.bandwidth), st = grp(usageData.storage), cr = grp(usageData.credits), tx = grp(usageData.transformations);
+          const toMB = b => (Number(b) || 0) / 1024 / 1024;
           cloudinary = {
-            plan: usageData.plan,
-            usedMB: toMB(usageData.credits_usage).toFixed(2),
-            limitMB: toMB(usageData.credits_limit).toFixed(2),
-            storageUsedMB: toMB(usageData.resources).toFixed(2),
-            bandwidthUsedMB: toMB(usageData.bandwidth).toFixed(2)
+            plan: usageData.plan || '?',
+            bandwidthUsedMB: toMB(bw.usage).toFixed(2),
+            bandwidthCredits: Number(bw.credits_usage) || 0,
+            storageUsedMB: toMB(st.usage).toFixed(2),
+            storageCredits: Number(st.credits_usage) || 0,
+            transformations: Number(tx.usage) || 0,
+            transformationCredits: Number(tx.credits_usage) || 0,
+            creditsUsed: Number(cr.usage) || 0,
+            creditsLimit: Number(cr.limit) || 0,
+            creditsPercent: Number(cr.used_percent) || 0,
+            resources: Number(usageData.resources) || 0,
+            requests: Number(usageData.requests) || 0,
+            lastUpdated: usageData.last_updated || '',
           };
         }
       } else {
@@ -117,7 +140,7 @@ async function systemStatus(req, res) {
 
     return res.status(200).json({
       success: true,
-      dbSizeMB, dataSizeMB, indexSizeMB, freeMB,
+      dbSizeMB, dataSizeMB, indexSizeMB, freeMB, usedMB, usedPercent, quotaMB,
       collections: collectionStats,
       serverTime: new Date().toISOString(),
       cloudinary,
@@ -128,6 +151,79 @@ async function systemStatus(req, res) {
     return res.status(500).json({ success: false, message: err.message });
   }
 }
+/* ============================================================
+ * MongoDB 七天 IO
+ *
+ * Atlas 的时序指标只能从 Admin API 取；普通连接的 serverStatus 只有累计值，
+ * 没有历史。所以需要 Atlas 服务账号密钥：
+ *   MONGODB_ATLAS_PUBLIC_KEY / MONGODB_ATLAS_PRIVATE_KEY
+ *   MONGODB_ATLAS_PROJECT_ID / MONGODB_ATLAS_HOST
+ * 缺任何一个都返回说得清的提示，而不是空数据。
+ * ============================================================ */
+const _ioCache = { data: null, expireAt: 0 };
+const IO_CACHE_TTL = 10 * 60_000;
+
+async function mongoIO(req, res) {
+  const pub = process.env.MONGODB_ATLAS_PUBLIC_KEY;
+  const prv = process.env.MONGODB_ATLAS_PRIVATE_KEY;
+  const pid = process.env.MONGODB_ATLAS_PROJECT_ID;
+  const host = process.env.MONGODB_ATLAS_HOST;
+  if (!pub || !prv || !pid || !host) {
+    return res.status(200).json({
+      success: false,
+      message: 'MongoDB Atlas API keys not configured',
+      missing: {
+        MONGODB_ATLAS_PUBLIC_KEY: !pub,
+        MONGODB_ATLAS_PRIVATE_KEY: !prv,
+        MONGODB_ATLAS_PROJECT_ID: !pid,
+        MONGODB_ATLAS_HOST: !host,
+      },
+    });
+  }
+
+  if (_ioCache.data && _ioCache.expireAt > Date.now()) {
+    return res.status(200).json({ success: true, ..._ioCache.data, cached: true });
+  }
+
+  try {
+    const auth = Buffer.from(pub + ':' + prv).toString('base64');
+    const end = new Date();
+    const start = new Date(Date.now() - 7 * 86400_000);
+    const metrics = [
+      'DISK_PARTITION_IOPS_READ',
+      'DISK_PARTITION_IOPS_WRITE',
+      'OPCOUNTER_QUERY',
+      'OPCOUNTER_INSERT',
+      'OPCOUNTER_UPDATE',
+      'OPCOUNTER_DELETE',
+    ].join(',');
+    const qs = 'granularity=PT6H&periodStart=' + encodeURIComponent(start.toISOString()) +
+      '&periodEnd=' + encodeURIComponent(end.toISOString()) + '&m=' + encodeURIComponent(metrics);
+    const url = 'https://cloud.mongodb.com/api/atlas/v1.0/groups/' + encodeURIComponent(pid) +
+      '/processes/' + encodeURIComponent(host) + '/measurements?' + qs;
+
+    const r = await fetch(url, {
+      headers: { Authorization: 'Basic ' + auth, Accept: 'application/json' },
+    });
+    if (!r.ok) {
+      const text = await r.text().catch(() => '');
+      return res.status(200).json({ success: false, message: 'Atlas API ' + r.status + ': ' + text.slice(0, 300) });
+    }
+    const json = await r.json();
+    const series = (json.measurements || []).map((m) => ({
+      name: m.name,
+      unit: m.units,
+      points: (m.dataPoints || []).map((d) => ({ t: d.timestamp, v: d.value })),
+    }));
+    const payload = { from: start.toISOString(), to: end.toISOString(), series };
+    _ioCache.data = payload;
+    _ioCache.expireAt = Date.now() + IO_CACHE_TTL;
+    return res.status(200).json({ success: true, ...payload });
+  } catch (err) {
+    return res.status(200).json({ success: false, message: String((err && err.message) || err) });
+  }
+}
+
 /* ============================================================
  * Vercel Usage（Pro 用量）
  * ============================================================ */
@@ -193,14 +289,15 @@ const url = `https://api.vercel.com/v1/billing/charges` +
     for (const e of entries) {
       const serviceName = e.ServiceName || 'Unknown';
       const category    = e.ServiceCategory || '';
-      const key = `${serviceName}::${category}`;
+      const pricing  = e.PricingCategory || 'Other';   // Committed = 套餐内含额度，Other = 超额按需
+      const key = `${serviceName}::${category}::${pricing}`;
 
       const cost  = Number(e.EffectiveCost ?? e.BilledCost ?? 0) || 0;
       const usage = Number(e.ConsumedQuantity ?? e.PricingQuantity ?? 0) || 0;
       const unit  = e.ConsumedUnit || e.PricingUnit || '';
 
       if (!grouped.has(key)) {
-        grouped.set(key, { serviceName, category, cost: 0, usage: 0, unit });
+        grouped.set(key, { serviceName, category, pricing, cost: 0, usage: 0, unit });
       }
       const g = grouped.get(key);
       g.cost  += cost;
@@ -214,6 +311,7 @@ const url = `https://api.vercel.com/v1/billing/charges` +
       .map(g => ({
         key: g.serviceName,
         label: g.serviceName,
+        pricing: g.pricing,
         category: g.category,
         unit: mapVercelUnit(g.unit),
         rawUnit: g.unit,
@@ -225,7 +323,10 @@ const url = `https://api.vercel.com/v1/billing/charges` +
 
     // ⭐ 汇总
     const totalCost = metrics.reduce((s, m) => s + (m.cost || 0), 0);
-
+    // Vercel 每条 charge 标 PricingCategory：Committed 吃套餐额度，Other 是超额按需。
+    // 只看合计会误判 —— Pro 月费一部分算 included，额外席位与超额都算 on-demand。
+    const includedCost = metrics.filter((m) => m.pricing === 'Committed').reduce((s, m) => s + (m.cost || 0), 0);
+    const onDemandCost = metrics.filter((m) => m.pricing !== 'Committed').reduce((s, m) => s + (m.cost || 0), 0);
     // 调试用：全部聚合后的 key 列表（包括零值）
     const allServiceNames = [...grouped.values()]
       .map(g => `${g.serviceName} [${g.category}] = ${g.usage} ${g.unit} / $${g.cost.toFixed(4)}`)
@@ -235,6 +336,8 @@ const url = `https://api.vercel.com/v1/billing/charges` +
       to:   toIso,
       metrics,
       totalCost,
+      includedCost,
+      onDemandCost,
       entryCount: entries.length,
       allServiceNames,   // ⭐ 完整列表，不管有没有值
     };
