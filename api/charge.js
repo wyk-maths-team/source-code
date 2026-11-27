@@ -84,7 +84,7 @@ async function handler(req, res) {
         { username, 'token.global': balance.global },
         {
           $inc: { 'token.global': -tokens },
-          $set: { 'charge.seconds': nextSeconds, 'charge.count': c.count + 1 },
+          $set: { 'charge.seconds': nextSeconds, 'charge.count': c.count },
         }
       );
       if (!upd || upd.modifiedCount === 0) {
