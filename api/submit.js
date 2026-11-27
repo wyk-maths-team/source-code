@@ -170,10 +170,12 @@ async function sendSuccess(db, username, res, result, context = {}) {
     console.error('[submit] token meter failed:', e);
   }
 
-  // 小群体的彩蛋：开了 nekos 的人，提交成功时顺手带一张猫娘图。
+  // 小群体的彩蛋：开了 nekos 的人，**AC 时**才带一张猫娘图。
+  // 图由服务端下载好、以 data URL 回传，客户端直接渲染，不再依赖第三方 CDN。
   // 只有 smallGroup 成员能开这个开关；任何异常都静默，绝不影响提交结果。
   try {
-    if (result && result.success !== false) {
+    const isAC = result && result.status === 'AC';
+    if (isAC) {
       const out = await maybeNeko(db, username);
       if (out && out.neko) result.neko = out.neko;
       // 开了 nekos 却没拿到图时，把每个源的失败原因带回去 —— 线上排查
@@ -182,7 +184,9 @@ async function sendSuccess(db, username, res, result, context = {}) {
     }
   } catch (e) {
     console.error('[submit] neko failed:', e && e.message);
-    result.nekoDebug = { error: String((e && e.message) || 'exception').slice(0, 120) };
+    if (result && result.status === 'AC') {
+      result.nekoDebug = { error: String((e && e.message) || 'exception').slice(0, 120) };
+    }
   }
 
   res.status(200).json(result);

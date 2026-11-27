@@ -1173,7 +1173,7 @@ window.__PD_EXTRAS__ = {
  * URL 来自外部 API —— 全程用 DOM 构造，不拼 innerHTML。
  */
 function renderNekoCard(neko) {
-  if (!neko || !neko.url) return;
+  if (!neko || (!neko.proxyUrl && !neko.dataUrl && !neko.url)) return;
   var host = document.getElementById('statementContent');
   if (!host) return;
 
@@ -1184,8 +1184,9 @@ function renderNekoCard(neko) {
   card.id = 'nekoCard';
   card.className = 'neko-card';
 
+  // 走服务端代理：图由 /api/neko-image 取回来，浏览器不直接连第三方 CDN
   var img = document.createElement('img');
-  img.src = String(neko.url);
+  img.src = String(neko.proxyUrl || neko.dataUrl || neko.url || '');
   img.alt = '';
   img.loading = 'lazy';
   img.referrerPolicy = 'no-referrer';
