@@ -314,6 +314,10 @@
   ],
   "rewrites": [
     {
+      "source": "/classification",
+      "destination": "/classification.html"
+    },
+    {
       "source": "/admin/grading",
       "destination": "/admin/grading.html"
     },

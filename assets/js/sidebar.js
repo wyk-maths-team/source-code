@@ -78,6 +78,7 @@
         <li><a href="/submissions" class="sidebar-link require-login" data-page="all-submissions"><i class="fa-solid fa-pen-to-square fa-fw"></i> All Submissions</a></li>
         <li><a href="/leaderboard" class="sidebar-link require-login" data-page="ranklist"><i class="fa-solid fa-ranking-star fa-fw"></i> Leaderboard</a></li>
         <li><a href="/skills" class="sidebar-link require-login" data-page="my-skills"><i class="fa-solid fa-sitemap fa-fw"></i> My Skills</a></li>
+        <li class="admin-only"><a href="/classification" class="sidebar-link require-login" data-page="classification"><i class="fa-solid fa-tags fa-fw"></i> Classification</a></li>
         <li><a href="/course" class="sidebar-link require-login fx-course" data-page="course"><i class="fa-solid fa-graduation-cap fa-fw"></i> Course</a></li>
         <li><a href="/resources" class="sidebar-link require-login" data-page="resources"><i class="fa-solid fa-folder-open fa-fw"></i> Resources</a></li>
         <li><a href="/contest" class="sidebar-link require-login" data-page="contest"><i class="fa-solid fa-trophy fa-fw"></i> Contests</a></li>

@@ -62,6 +62,13 @@ async function handler(req, res) {
     .sort({ id: 1 }).toArray();
   const pool = mode === 'missing' ? candidates.filter((p) => !classified.has(String(p.id))) : candidates;
 
+  // 页面打开时先问一下规模，不真的跑分类
+  if (body.dryRun) {
+    const classified = new Set(vectors.map((v) => String(v.problemId)));
+    const pending = mode === 'missing' ? pool.length : pool.filter((p) => !classified.has(String(p.id))).length;
+    return res.status(200).json({ success: true, dryRun: true, mode, total: pool.length, pending });
+  }
+
   const cursor = String(body.cursor || '');
   const startAt = cursor ? pool.findIndex((p) => String(p.id) > cursor) : 0;
   const from = startAt < 0 ? pool.length : startAt;

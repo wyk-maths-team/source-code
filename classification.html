@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>window.__BUILD_V='8bcb1e8d';</script>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta name="robots" content="noindex, nofollow" />
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Classification - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=8bcb1e8d" />
+<link rel="stylesheet" href="/assets/css/classification.css?v=8bcb1e8d" />
+<script src="/assets/js/bundle-loader.js?v=8bcb1e8d" data-part="head"></script>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="clf-wrap">
+        <div class="clf-head">
+          <h1><i class="fas fa-tags"></i> Classification</h1>
+          <p class="clf-sub">Tag problems with skill ids using the LLM. Cost goes to the global token counter, not to anyone's quota.</p>
+        </div>
+
+        <div class="clf-stats">
+          <div class="clf-stat"><b id="clf-total">–</b><span>problems in scope</span></div>
+          <div class="clf-stat"><b id="clf-done">–</b><span>already classified</span></div>
+          <div class="clf-stat"><b id="clf-spent">0</b><span>tokens this session</span></div>
+          <div class="clf-stat"><b id="clf-cost">$0.000</b><span>estimated cost</span></div>
+        </div>
+
+        <section class="clf-card">
+          <h2>Mode</h2>
+          <div class="clf-modes">
+            <label class="clf-mode">
+              <input type="radio" name="mode" value="missing" checked />
+              <span class="clf-mode-body">
+                <b>Only unclassified</b>
+                <small>Skip anything that already has a skill vector. Cheapest way to close gaps.</small>
+              </span>
+            </label>
+            <label class="clf-mode">
+              <input type="radio" name="mode" value="all" />
+              <span class="clf-mode-body">
+                <b>Everything</b>
+                <small>Re-tag every problem. Use after the taxonomy changes.</small>
+              </span>
+            </label>
+            <label class="clf-mode">
+              <input type="radio" name="mode" value="regex" />
+              <span class="clf-mode-body">
+                <b>By pattern</b>
+                <small>Only ids matching a regular expression, e.g. <code>^IP</code> or <code>^MO(19|2[01])</code>.</small>
+              </span>
+            </label>
+          </div>
+          <div class="clf-regex" id="clf-regex-row" hidden>
+            <label for="clf-regex">Problem id pattern</label>
+            <input id="clf-regex" type="text" placeholder="^IP" spellcheck="false" />
+          </div>
+          <div class="clf-batch">
+            <label for="clf-limit">Problems per request</label>
+            <input id="clf-limit" type="number" min="1" max="50" value="20" />
+            <small>Each request is one server call; the page loops until finished.</small>
+          </div>
+        </section>
+
+        <section class="clf-card">
+          <div class="clf-run">
+            <button id="clf-start" class="clf-btn clf-btn-primary">Start</button>
+            <button id="clf-stop" class="clf-btn" disabled>Stop</button>
+            <span id="clf-status" class="clf-status"></span>
+          </div>
+          <div class="clf-bar"><div id="clf-bar-fill"></div></div>
+          <div id="clf-log" class="clf-log" aria-live="polite"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="/assets/js/bundle-loader.js?v=8bcb1e8d" data-part="body"></script>
+  <script src="/assets/js/pages/classification.js?v=8bcb1e8d"></script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+/* assets/css/classification.css */
+
+.clf-wrap { max-width: 940px; margin: 0 auto; padding: 28px 24px 64px; }
+.clf-head h1 { font-size: 1.5rem; margin: 0 0 6px; }
+.clf-sub { color: var(--text-secondary); font-size: .86rem; margin: 0 0 24px; max-width: 62ch; }
+
+.clf-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.clf-stat { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px 16px; }
+.clf-stat b { display: block; font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.clf-stat span { font-size: .74rem; color: var(--text-secondary); }
+
+.clf-card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; }
+.clf-card h2 { font-size: .92rem; margin: 0 0 12px; }
+
+.clf-modes { display: flex; flex-direction: column; gap: 8px; }
+.clf-mode { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; }
+.clf-mode:hover { border-color: var(--accent); }
+.clf-mode input { margin-top: 3px; }
+.clf-mode-body b { display: block; font-size: .86rem; margin-bottom: 2px; }
+.clf-mode-body small { color: var(--text-secondary); font-size: .75rem; line-height: 1.5; }
+.clf-mode-body code { font-size: .72rem; padding: 1px 5px; border-radius: 4px; background: color-mix(in srgb, var(--border-color) 50%, transparent); }
+
+.clf-regex, .clf-batch { margin-top: 14px; display: flex; flex-direction: column; gap: 5px; }
+.clf-regex label, .clf-batch label { font-size: .78rem; color: var(--text-secondary); }
+.clf-regex input, .clf-batch input { padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 7px; background: var(--input-bg, transparent); color: var(--text-primary); font-size: .86rem; font-family: inherit; }
+.clf-batch input { max-width: 120px; }
+.clf-batch small { color: var(--text-secondary); font-size: .72rem; }
+
+.clf-run { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.clf-btn { padding: 8px 18px; border: 1px solid var(--border-color); border-radius: 7px; background: transparent; color: var(--text-primary); font-size: .86rem; cursor: pointer; font-family: inherit; }
+.clf-btn:hover:not(:disabled) { border-color: var(--accent); }
+.clf-btn:disabled { opacity: .45; cursor: default; }
+.clf-btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.clf-status { font-size: .78rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+.clf-bar { height: 5px; border-radius: 999px; background: color-mix(in srgb, var(--border-color) 60%, transparent); overflow: hidden; margin-bottom: 14px; }
+.clf-bar > div { height: 100%; width: 0; background: var(--accent); transition: width .25s ease; }
+
+.clf-log { max-height: 340px; overflow-y: auto; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .74rem; line-height: 1.6; }
+.clf-log-line { white-space: pre-wrap; word-break: break-word; color: var(--text-secondary); }
+.clf-log-line.good { color: #2e9e6b; }
+.clf-log-line.bad { color: #d9534f; }
+.clf-log-line.warn { color: #c8860d; }
+
+@media (max-width: 720px) {
+  .clf-stats { grid-template-columns: repeat(2, 1fr); }
+  .clf-wrap { padding: 20px 16px 48px; }
+}
