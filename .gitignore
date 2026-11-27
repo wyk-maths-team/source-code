@@ -115,3 +115,4 @@ docs/hkmo/
 /r112_*.png
 /z[0-9]_*.png
 /dotcheck*.py
+tmp2/
