@@ -141,6 +141,66 @@ burst, and asserts `clientsCreated === 1`, zero 5xx, and that the gate never exc
 
 ---
 
+## Asset versioning
+
+Every stylesheet and script is served with a content hash in the query string:
+
+```html
+<script src="/assets/js/pages/my-skills.js?v=81c19169"></script>
+```
+
+`/assets/**` is cached as immutable, so that hash is the only thing that makes a
+browser fetch a changed file. Edit a script without bumping its hash and every
+returning visitor keeps the old copy — the change looks like it never shipped.
+
+That failure mode has been hit three times: the skill detail card, the Vercel
+cost split, and the tutor panel opening at 0×0. Each time the code was correct
+in the repository and stale in the browser.
+
+### Automatic re-stamping
+
+A pre-commit hook now handles it:
+
+```sh
+node tools/install-hooks.mjs        # once per clone
+```
+
+This sets `core.hooksPath` to `tools/hooks`. From then on, any commit whose
+staged set touches `assets/` or `*.html` runs `tools/version-assets.mjs`,
+re-stages the rewritten files, and proceeds. Commits that touch neither are
+unaffected.
+
+If `tools/version-assets.mjs` is missing — it is an operator script, not part of
+the distributed source — the hook exits quietly and nothing breaks.
+
+### What still needs a manual build
+
+Stamping is not bundling. Thirteen head scripts and eight body scripts are
+concatenated into `bundle.head.<sha>.js` and `bundle.body.<sha>.js`, and
+`bundle-loader.js` points at them:
+
+```sh
+node tools/build-bundle.mjs
+```
+
+The hook does **not** run this. If you edited a bundled file — anything under
+`assets/js/` outside `assets/js/pages/`, plus `auth.js`, `sidebar.js`,
+`pd-script.js`, `script-panel.js` — run the build yourself before committing.
+
+These are **not** bundled and only need the version bump, which the hook does
+for you:
+
+```
+assets/js/pages/*.js
+assets/js/tutor.js
+assets/js/heartbeat.js
+```
+
+### Adding a new page
+
+A new HTML page must carry `?v=` on every asset reference, otherwise the hook
+has no pattern to rewrite. Copy the `<head>` of an existing page.
+
 ## Design Constraints
 
 The architecture reflects a small set of deliberate constraints rather than convention.
