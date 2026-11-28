@@ -213,7 +213,41 @@ The architecture reflects a small set of deliberate constraints rather than conv
 
 **Uniform error contract.** All endpoints return a structured payload containing a status flag, a machine-readable code, a human-readable message, and a request identifier. Server-side diagnostic detail is restricted by caller privilege.
 
+
 ---
+
+## Recurring Failure Modes
+
+Three things have broken production more than once. They are recorded here because each one looked correct in the file that was edited.
+
+### The script list exists twice
+
+`bundle-loader.js` decides what to load based on `localStorage['moj:perf:bundle']`. **That flag is off by default**, so the normal path is the hand-written `LISTS.head.files` array inside the loader — not `bundle.head.<sha>.js`.
+
+`tools/build-bundle.mjs` keeps a second copy of the same list in `PARTS` to produce the bundle those few users get.
+
+Adding `core/img.js` to `PARTS` alone meant the bundle contained `window.imgUrl` while every ordinary visitor loaded thirteen separate files without it. Leaderboard, submission list and profile page all threw `ReferenceError: imgUrl is not defined` — and it reproduced in incognito, because nothing was cached wrongly.
+
+`tools/check-bundle-lists.mjs` now compares the two arrays and `build-bundle.mjs` exits non-zero when they drift.
+
+**When adding a shared script: change both lists, then run `node tools/build-bundle.mjs` and confirm it passes the check.**
+
+### Cloudinary signatures cover every parameter
+
+Uploads are signed by concatenating **all parameters except `file`, `api_key` and `signature`**, sorted alphabetically, then appending the API secret.
+
+`overwrite=true` was passed in the form but left out of the string being signed, so every upload returned `401 Invalid Signature`. The error message names the exact string Cloudinary built — read it rather than guessing.
+
+```js
+const signed = { overwrite: 'true', public_id, timestamp };
+const toSign = Object.keys(signed).sort().map(k => k + '=' + signed[k]).join('&') + secret;
+```
+
+### `Add-Content -Encoding utf8` silently truncates files
+
+Appending CSS in three passes with `Add-Content -Encoding utf8` produced a 3.6 KB file whose tail was cut mid-declaration, with Chinese comments mangled into mojibake. The rules simply were not there — and because the file still loaded with 200, it looked like a caching problem for three rounds of debugging.
+
+**Write whole files with the file tools. Do not append to source files from PowerShell.**
 
 ## Status
 
