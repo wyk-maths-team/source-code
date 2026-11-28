@@ -63,12 +63,14 @@ const PITFALLS = [
   'M2 "Longer or with a figure" is not "harder": length rho=0.15. A figure with no construction stays at B2/B3.',
   'M3 A contest brand is not difficulty - see R1. Skill node names are not difficulty either: grouping by top-level skill explains 3% of the variance.',
   'M4 Do not use submission counts to infer difficulty: only 18.7% of problems have any submission, and the 5-point band has a HIGHER solve rate (33%) than the 3-point band (15%).',
+  'M5 A problem may seems very trivial by using cheeky methods, but would be hard to fully prove. You need to consider the difficulty with its difficulty of proofing.'
 ].join('\n');
 
 export const DEFAULT_TEMPLATE = [
   '<<<SYSTEM INSTRUCTION',
   'You calibrate the difficulty of an olympiad mathematics problem on the 0-9 scale used by this platform.',
   'You judge the problem, not the batch it came from. You do not solve it fully.',
+  'The difficulty for proofing should also be considered.',
   '>>>',
   '',
   '【MEASURE THESE FIVE THINGS FIRST】',
