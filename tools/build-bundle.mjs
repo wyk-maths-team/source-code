@@ -26,6 +26,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { checkBundleLists } from './check-bundle-lists.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CHECK_ONLY = process.argv.includes('--check');
@@ -55,6 +56,15 @@ function tidy(src) {
 // 不做去注释。试过：topbar.js 的模板字符串里嵌着 HTML，手写状态机跟不了
 // 嵌套的 ${...}，生成的包直接语法错误。而 brotli 本来就会吃掉注释，
 // 合并的价值是「减少请求数」，不是「减少字节」。
+// bundle-loader.js 里有第二份文件列表（useBundle=false 时走它）。
+// 加文件只改一边，默认用户就会 ReferenceError —— core/img.js 就这么炸过。
+const listProblems = checkBundleLists();
+if (listProblems.length) {
+  console.error('[bundle] bundle-loader.js 和 PARTS 对不上：');
+  listProblems.forEach((x) => console.error('  - ' + x));
+  process.exit(1);
+}
+
 const outputs = {};
 for (const [part, files] of Object.entries(PARTS)) {
   const chunks = [];
