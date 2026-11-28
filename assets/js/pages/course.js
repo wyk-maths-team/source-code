@@ -462,8 +462,8 @@
       </div>
       <div class="ip-input-row">
         <textarea placeholder="Write your steps here — the AI grades the reasoning, not just the answer."></textarea>
+        <div class="ip-board paper-pad paper-pad-locked" hidden></div>
       </div>
-      <div class="ip-board paper-pad paper-pad-locked" hidden></div>
       <div class="ip-draft-note" style="display:none;padding:0 16px 8px;font-size:.74rem;color:var(--text-secondary);">
         <i class="fas fa-floppy-disk"></i> Draft restored
       </div>
@@ -535,7 +535,9 @@
         mode = b.dataset.mode;
         modeBtns.forEach((o) => o.classList.toggle('on', o === b));
         const isDraw = mode === 'draw';
-        inputRow.hidden = isDraw;
+        // 只藏 textarea，不藏整个 ip-input-row —— 画板就在这个容器里，
+        // 藏了父节点画板也会跟着消失。
+        textarea.hidden = isDraw;
         boardEl.hidden = !isDraw;
         if (isDraw) ensureIpPad();
         btn.textContent = isDraw ? 'Submit drawing' : 'Submit to AI';

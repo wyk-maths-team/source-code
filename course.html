@@ -3,7 +3,7 @@
 <head>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
-<script>window.__BUILD_V='a24d59a9';</script>
+<script>window.__BUILD_V='1f524e73';</script>
 <meta charset="UTF-8" />
 <script>(function(){try{
   var t = localStorage.getItem('theme') || 'light';
@@ -12,27 +12,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Course - WYK Maths Team</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="/assets/css/styles.css?v=a24d59a9" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=1f524e73" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" />
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
-<script src="/assets/js/core/ui.js?v=a24d59a9"></script>
-<script src="/assets/js/core/net.js?v=a24d59a9"></script>
-<script src="/assets/js/core/ban-guard.js?v=a24d59a9"></script>
-<script src="/assets/js/core/latex-doc.js?v=a24d59a9"></script>
-<script src="/assets/js/core/status-badge.js?v=a24d59a9"></script>
-  <link rel="stylesheet" href="/assets/css/script-panel.css?v=a24d59a9">
-  <script src="/assets/js/core/script-panel.js?v=a24d59a9"></script>
-<script src="/assets/js/core/api.js?v=a24d59a9"></script>
-  <script src="/assets/js/core/padstore.js?v=a24d59a9"></script>
-  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=a24d59a9">
-  <script src="/assets/js/core/radial-menu.js?v=a24d59a9"></script>
-  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=a24d59a9">
-  <script src="/assets/js/core/ban-screen.js?v=a24d59a9"></script>
-  <link rel="stylesheet" href="/assets/css/ban-index.css?v=a24d59a9">
-  <script src="/assets/js/core/ban-index.js?v=a24d59a9"></script>
-<script src="/assets/js/core/page.js?v=a24d59a9"></script>
+<script src="/assets/js/core/ui.js?v=1f524e73"></script>
+<script src="/assets/js/core/net.js?v=1f524e73"></script>
+<script src="/assets/js/core/ban-guard.js?v=1f524e73"></script>
+<script src="/assets/js/core/latex-doc.js?v=1f524e73"></script>
+<script src="/assets/js/core/status-badge.js?v=1f524e73"></script>
+  <link rel="stylesheet" href="/assets/css/script-panel.css?v=1f524e73">
+  <script src="/assets/js/core/script-panel.js?v=1f524e73"></script>
+<script src="/assets/js/core/api.js?v=1f524e73"></script>
+  <script src="/assets/js/core/padstore.js?v=1f524e73"></script>
+  <link rel="stylesheet" href="/assets/css/radial-menu.css?v=1f524e73">
+  <script src="/assets/js/core/radial-menu.js?v=1f524e73"></script>
+  <link rel="stylesheet" href="/assets/css/ban-screen.css?v=1f524e73">
+  <script src="/assets/js/core/ban-screen.js?v=1f524e73"></script>
+  <link rel="stylesheet" href="/assets/css/ban-index.css?v=1f524e73">
+  <script src="/assets/js/core/ban-index.js?v=1f524e73"></script>
+<script src="/assets/js/core/page.js?v=1f524e73"></script>
 <style>
   :root {
     --course-bg: var(--content-bg, #f8f9fa);
@@ -145,10 +145,20 @@
 
   .ip-statement { padding: 20px; line-height: 1.8; }
   
-  /* 修复输入框与按钮 */
-  .ip-input-row { padding: 0 20px 16px; }
+  /* 输入框与画板共用一块地方：textarea 和 .ip-board 叠在同一个盒子里，
+     切换时高度不变，页面不会跟着跳。box-sizing 统一 border-box，
+     两边的 border 宽度才能对齐。 */
+  .ip-input-row {
+    position: relative;
+    margin: 0 20px 16px;
+    min-height: 240px;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+  }
   .ip-input-row textarea { 
-    width: 100%; min-height: 120px; resize: vertical; padding: 14px; 
+    flex: 1 1 auto;
+    width: 100%; min-height: 240px; resize: vertical; padding: 14px; 
     border: 1px solid var(--course-border); border-radius: 8px; 
     background: var(--course-bg); color: var(--text-primary); 
     font-family: inherit; font-size: .95rem; line-height: 1.6; 
@@ -511,9 +521,20 @@
     font-family: inherit; font-size: .78rem; font-weight: 700; color: var(--text-secondary);
   }
   .ip-modes button.on { background: #4a90d9; color: #fff; }
-  .ip-input-row[hidden] { display: none !important; }
-  .ip-board { height: 300px; margin: 0 16px 12px; border-radius: 8px; border: 1px solid var(--border-color); }
+  /* 画板盖在 textarea 上面，尺寸由父容器决定 —— 不再自己定 300px，
+     否则切到 Draw 时整张题卡会突然长高一大截。 */
+  .ip-board {
+    position: absolute;
+    inset: 0;
+    height: auto;
+    margin: 0;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    box-sizing: border-box;
+  }
   .ip-board[hidden] { display: none !important; }
+  /* 画板里的纸横线要贴合圆角，免得露出直角 */
+  .ip-board.paper-pad { border-radius: 8px; }
 
   /* 导入图片的裁剪编辑器 */
   .crop-mask {
@@ -614,7 +635,7 @@
   </div>
 
   <!-- moj-core-body:start -->
-  <script src="/assets/js/bundle-loader.js?v=a24d59a9" data-part="body"></script>
-<!-- moj-core-body:end -->              <script src="/assets/js/pages/course.js?v=a24d59a9"></script>
+  <script src="/assets/js/bundle-loader.js?v=1f524e73" data-part="body"></script>
+<!-- moj-core-body:end -->              <script src="/assets/js/pages/course.js?v=1f524e73"></script>
   </body>
 </html>
