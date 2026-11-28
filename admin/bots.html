@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>window.__BUILD_V='e04e5e78';</script>
+<script>window.__BUILD_V='d492ccef';</script>
 <script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
 <meta name="robots" content="noindex, nofollow" />
 <meta charset="UTF-8" />
@@ -13,9 +13,9 @@
 <title>Bots - WYK Maths Team</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
-<link rel="stylesheet" href="/assets/css/styles.css?v=e04e5e78" />
-<link rel="stylesheet" href="/assets/css/admin-bots.css?v=e04e5e78" />
-<script src="/assets/js/bundle-loader.js?v=e04e5e78" data-part="head"></script>
+<link rel="stylesheet" href="/assets/css/styles.css?v=d492ccef" />
+<link rel="stylesheet" href="/assets/css/admin-bots.css?v=d492ccef" />
+<script src="/assets/js/bundle-loader.js?v=d492ccef" data-part="head"></script>
 </head>
 <body class="index-body">
   <div id="appContainer">
@@ -24,21 +24,17 @@
     <main class="main-content" id="mainContent">
       <div class="bot-wrap">
         <div class="bot-head">
-          <h1><i class="fas fa-robot"></i> PyBot</h1>
-          <p class="bot-sub">
-            A chatbot written entirely in Python rules by 1,000+ agents &mdash; no model, no weights.
-            Each turn is independent: it does not remember the previous one.
-          </p>
+          <h1><i class="fas fa-robot"></i> Bot Bench</h1>
+          <p class="bot-sub">Pick a bot, ask it anything. Each message starts fresh &mdash; nothing carries over.</p>
         </div>
 
-        <div class="bot-warn">
+        <div class="bot-warn" id="botWarn">
           <i class="fas fa-clock"></i>
-          Every message takes <b>20&ndash;40 seconds</b>. It is not slow because it is thinking &mdash;
-          it is slow because 528 modules each get a turn at matching your text.
+          <span id="botWarnText"><b>PyBot</b> answers from 528 hand-written Python modules. First reply after a cold start can take 20&ndash;40&nbsp;s; warm ones take 1&ndash;3&nbsp;s.</span>
         </div>
 
         <div class="bot-log" id="botLog">
-          <div class="bot-empty" id="botEmpty">Ask it something. Try <code>what is 17 times 23</code> or <code>is 1000003 a prime number</code>.</div>
+          <div class="bot-empty" id="botEmpty">Try <code>what is 17 times 23</code>, <code>is 1000003 a prime number</code>, or <code>why do onions make you cry</code>.</div>
         </div>
 
         <div class="bot-input-row">
@@ -54,7 +50,9 @@
     </main>
   </div>
 
-  <script src="/assets/js/bundle-loader.js?v=e04e5e78" data-part="body"></script>
-  <script src="/assets/js/pages/admin-bots.js?v=e04e5e78"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.7/purify.min.js"></script>
+  <script src="/assets/js/bundle-loader.js?v=d492ccef" data-part="body"></script>
+  <script src="/assets/js/pages/admin-bots.js?v=d492ccef"></script>
 </body>
 </html>

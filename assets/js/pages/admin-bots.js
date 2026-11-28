@@ -29,11 +29,37 @@
     emptyEl = null;
   }
 
+  // 模型回的东西一多半带 markdown：列表、代码块、**加粗**、LaTeX 片段。
+  // 用 marked 渲染再用 DOMPurify 洗一遍 —— 模型输出不能直接塞 innerHTML。
+  // 用户自己的消息永远走 textContent，不给它任何被解释的机会。
+  function renderMarkdown(text) {
+    var raw = String(text || '');
+    if (!window.marked || !window.DOMPurify) return null;
+    try {
+      var html = window.marked.parse(raw, { breaks: true, gfm: true });
+      return window.DOMPurify.sanitize(html, {
+        FORBID_TAGS: ['style', 'form', 'input', 'button', 'iframe', 'object', 'embed'],
+        FORBID_ATTR: ['style', 'onerror', 'onload', 'onclick'],
+      });
+    } catch (e) {
+      return null;
+    }
+  }
+
   function add(role, text, extra) {
     clearEmpty();
     var node = document.createElement('div');
     node.className = 'bot-msg ' + role;
-    node.textContent = text;
+
+    var html = role === 'bot' ? renderMarkdown(text) : null;
+    if (html) {
+      var bodyNode = document.createElement('div');
+      bodyNode.className = 'bot-md';
+      bodyNode.innerHTML = html;
+      node.appendChild(bodyNode);
+    } else {
+      node.textContent = text;
+    }
     if (extra) {
       var tag = document.createElement('span');
       tag.className = 'bot-tag';
@@ -110,6 +136,24 @@
       setBusy(false);
       inputEl.focus();
     }
+  }
+
+  // 换模型时提示条也跟着换：两个东西慢的原因完全不一样
+  function paintModelHint() {
+    var warnText = document.getElementById('botWarnText');
+    if (!warnText || !modelEl) return;
+    if (modelEl.value === 'deepseek-flash') {
+      warnText.innerHTML = '<b>deepseek-flash</b> is a language model: no system prompt, no history. Usually 2&ndash;6&nbsp;s.';
+    } else {
+      warnText.innerHTML = '<b>PyBot</b> answers from 528 hand-written Python modules. First reply after a cold start can take 20&ndash;40&nbsp;s; warm ones take 1&ndash;3&nbsp;s.';
+    }
+  }
+  if (modelEl) {
+    modelEl.addEventListener('change', function () {
+      paintModelHint();
+      inputEl.focus();
+    });
+    paintModelHint();
   }
 
   sendBtn.addEventListener('click', function () {
