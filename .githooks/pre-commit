@@ -1,0 +1,30 @@
+#!/bin/sh
+#
+# 提交前自动更新前端资源的 ?v= 指纹。
+#
+# 为什么必须有这个：assets/js/pages/*.js、assets/js/tutor.js 这些是
+# <script src> 直接引用的，不在 bundle 里。改了文件却没重打版本号，
+# 浏览器会继续用缓存里的旧副本，线上表现就是「改了没生效」。
+# 这个坑踩过三次：技能详情卡、Vercel 费用拆分、tutor 面板 0x0。
+#
+# 只在暂存区出现 assets/ 或 *.html 时才跑，其余提交零开销。
+
+changed=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$changed" ] && exit 0
+
+need=0
+echo "$changed" | grep -qE '^assets/' && need=1
+echo "$changed" | grep -qE '\.html$' && need=1
+[ "$need" = "0" ] && exit 0
+
+# tools/ 是本机的运维脚本，别人 clone 下来可能没有
+[ -f tools/version-assets.mjs ] || exit 0
+
+if node tools/version-assets.mjs >/dev/null 2>&1; then
+  git add -u -- '*.html'
+  git add -- assets/
+else
+  echo "[pre-commit] version-assets.mjs 执行失败，本次提交不更新版本号" >&2
+fi
+
+exit 0
