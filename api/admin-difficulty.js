@@ -24,95 +24,21 @@ export const config = { maxDuration: 300 };
 
 const MAX_STATEMENT = 8000;
 const MIN_DIFFICULTY = 0;
-const MAX_DIFFICULTY = 9.5;
+// 评分上限 10.00：新量尺到 B10，不再是原来那条封在 9.30 的老曲线。
+const MAX_DIFFICULTY = 10;
 export const PROMPT_DOC_ID = 'prompt:difficulty';
 
-// 判定项
-const DIMENSIONS = [
-  'steps    = how many non-trivial steps must be written down (substituting into a given formula does not count)',
-  'insights = how many key moves a student must INVENT rather than recognise from a textbook (applying a standard formula counts as 0)',
-  'cases    = how many mutually exclusive case splits the solution needs',
-  'proof    = true when a full argument is required (no numeric answer, or the statement says prove/show that)',
-  'estimate = true when the answer needs an inequality estimate rather than an exact computation',
-].join('\n');
-
-const BANDS = [
-  'B0  0.00-0.99 | steps<=1, insights=0, cases=0, statement < 120 chars, no max/min asked. Practically only unlabelled records or handout pages.',
-  'B1  1.00-1.99 | steps<=2, insights=0, cases=0, and the ENTIRE solution is one substitution into a formula printed in the statement. If you had to decide WHICH substitution to use, it is not B1.',
-  'B2  2.00-2.99 | steps 3-5, insights<=1 and that insight is a textbook standard (telescoping, completing the square, binomial term, solve for a parameter), cases=0.',
-  'B3  3.00-3.99 | steps 4-8, exactly ONE non-trivial move (unify exponents, substitute, complete a figure, coordinate-ise); once seen, the rest is mechanical. cases=0.',
-  'B4  4.00-4.99 | insights 1-2 with at least one NOT being a textbook routine (pairing symmetry, complement, parity/prime structure); steps 4-8; proof=false.',
-  'B5  5.00-5.99 | insights>=2, OR insights=1 with steps>=9, OR cases>=2 with insights>=1. The starting tool has to be chosen, not given.',
-  'B6  6.00-6.99 | needs construction / contradiction / invariant (any one), OR insights>=3, OR cases>=3; steps>=10 with guess-then-verify.',
-  'B7  7.00-7.99 | needs a deep tool: p-adic valuation, double counting, recurrence modulo analysis, or a global estimate; OR (proof AND insights>=3). Expect 15+ minutes.',
-  'B8  8.00-9.30 | a full proof with insights>=4, or a non-standard global estimate (error terms, Vandermonde, complex analysis).',
-].join('\n');
-
-const RULES = [
-  'R1 Strip the source. The tags may say HKMO / HKMHASC / IMO Prelim / CHSML / HXB / M0 / M2 / CTST / wyk-hw - ignore them entirely while judging. Statistics: HKMO alone contains 28 problems below 2.0 and 23 above 7.0.',
-  'R2 The current value is often meaningless. CTST (24 problems inside 8.88-9.11), M0 (97 problems, 6 distinct values) and HXB are batch-assigned and carry no per-problem information. Recompute from the statement.',
-  'R3 A stored difficulty of 0 means UNLABELLED, not easiest. Never treat 0 as a floor.',
-  'R4 Proof lift: if proof=true, the final value is max(band value, 6.00). Corpus evidence: problems with no numeric answer have median 6.50, with answer 3.92. Do not dump every proof at 9 - still split B6-B8 by insight count.',
-  'R5 Not a problem: if the content is a handout / lecture note / meta page, return difficulty null instead of a number.',
-  'R6 Graduate tools: if the statement genuinely uses complex analysis, measure theory, or similar, output 9.00-9.30.',
-  'R7 Calibration for this platform: the stored values were produced by a DIFFERENT model in a single bulk pass, not by human markers. They carry that model habits rather than ground truth, so treat them as a weak prior, not as the answer key. Empirically they run slightly higher than a strict reading: between two bands take the upper one, never output the band edge itself (.00), and start at .05 or above. If you disagree strongly, say so in evidence rather than bending toward the stored value.',
-].join('\n');
-
-const PITFALLS = [
-  'M1 "More computation" is not "harder": marks correlate with difficulty at only rho=0.25. If steps is large but insights=0, cap at B3 (3.99).',
-  'M2 "Longer or with a figure" is not "harder": length rho=0.15. A figure with no construction stays at B2/B3.',
-  'M3 A contest brand is not difficulty - see R1. Skill node names are not difficulty either: grouping by top-level skill explains 3% of the variance.',
-  'M4 Do not use submission counts to infer difficulty: only 18.7% of problems have any submission, and the 5-point band has a HIGHER solve rate (33%) than the 3-point band (15%).',
-  'M5 A problem may seems very trivial by using cheeky methods, but would be hard to fully prove. You need to consider the difficulty with its difficulty of proofing.'
-].join('\n');
-
-export const DEFAULT_TEMPLATE = [
-  '<<<SYSTEM INSTRUCTION',
-  'You calibrate the difficulty of an olympiad mathematics problem on the 0-9 scale used by this platform.',
-  'You judge the problem, not the batch it came from. You do not solve it fully.',
-  'The difficulty for proofing should also be considered.',
-  '>>>',
-  '',
-  '【MEASURE THESE FIVE THINGS FIRST】',
-  DIMENSIONS,
-  '',
-  '【BANDS - take the FIRST band whose conditions are all satisfied】',
-  BANDS,
-  '',
-  '【RULES THAT OVERRIDE THE BANDS】',
-  RULES,
-  '',
-  '【COMMON MISJUDGEMENTS TO AVOID】',
-  PITFALLS,
-  '',
-  '【OUTPUT】',
-  'Output ONLY this JSON, no prose, no code fences:',
-  '{"difficulty": 4.25, "band": "B4", "steps": 6, "insights": 2, "cases": 0, "proof": false, "evidence": "..."}',
-  '',
-  'Hard requirements:',
-  '- difficulty MUST fall inside the band you report (B4 => 4.00-4.99).',
-  '- Give TWO MEANINGFUL decimals, not a padded number. 5.35 is right; 5.30 and 5.00 are not acceptable unless you genuinely mean the exact tenth.',
-  '  Use the hundredths to say WHERE inside the band the problem sits:',
-  '    .05-.20 = just barely clears the lower band edge',
-  '    .35-.50 = solidly in the middle',
-  '    .70-.95 = almost hard enough for the next band up',
-  '- If your assessment lands on a round number, move it to the nearer meaningful hundredth (5.00 -> 5.05 or 4.95) rather than emitting 5.00.',
-  '- evidence is ONE sentence naming concrete objects from the statement plus which insight makes it that band. Never write "hard" / "comprehensive" as the reason.',
-  '- If R5 applies, output {"difficulty": null, "band": "R5", "evidence": "..."} instead.',
-  '',
-  '【PROBLEM】',
-  'id: {{ID}}',
-  'current difficulty (may be unreliable, see R2/R3): {{CURRENT}}',
-  'numeric answer present: {{HAS_ANSWER}}',
-  'statement:',
-  '{{STATEMENT}}',
-].join('\n');
+// 模板搬到了 lib/difficulty-prompt.js —— 那里分成 SYSTEM 和 USER 两段，
+// 评分规则不再和题面混在同一个 message 里。
+import { DEFAULT_TEMPLATE, splitTemplate } from '../lib/difficulty-prompt.js';
+export { DEFAULT_TEMPLATE };
 
 function bandRange(band) {
   const b = String(band || '').toUpperCase();
   const map = {
     B0: [0, 0.99], B1: [1, 1.99], B2: [2, 2.99], B3: [3, 3.99], B4: [4, 4.99],
-    B5: [5, 5.99], B6: [6, 6.99], B7: [7, 7.99], B8: [8, 9.3],
+    B5: [5, 5.99], B6: [6, 6.99], B7: [7, 7.99],
+    B8: [8, 8.99], B9: [9, 9.49], B10: [9.5, 10],
   };
   return map[b] || null;
 }
@@ -188,7 +114,10 @@ async function handler(req, res) {
   if (!problem) return sendError(req, res, 'NOT_FOUND', 'Problem not found');
 
   const tpl = await loadTemplate(db);
-  const prompt = fillTemplate(tpl.text, problem);
+  // 模板分两段：评分规则进 system，题目进 user。
+  // 老模板没有分隔符，splitTemplate 会整份当 user，行为不变。
+  const filled = fillTemplate(tpl.text, problem);
+  const split = splitTemplate(filled);
 
   // ── 从这里开始走 SSE ──
   // 一次评估经常要 1–3 分钟，Cloudflare 对空闲连接大约 100 秒就断，普通
@@ -220,9 +149,15 @@ async function handler(req, res) {
 
   let out;
   try {
-    out = await askDeepSeekStream(prompt, {
+    out = await askDeepSeekStream(split.prompt, {
       effort: 'high',
       timeoutMs: 280_000,
+      // 只有这里开 JSON Output：整站共用的 askDeepSeek 默认仍是普通文本，
+      // tutor、hint、批改那些地方一个字都不会变成 json。
+      jsonMode: true,
+      system: split.system,
+      // JSON 被截断就等于白跑一次评估，留足余量
+      maxTokens: 2000,
       onDelta: function (d) { send(d.type, { text: d.text }); },
     });
   } catch (err) {
