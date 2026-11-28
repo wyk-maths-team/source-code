@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>window.__BUILD_V='23f09e20';</script>
+<script id="auth-gate">(function(){try{if(!localStorage.getItem("auth_token")){document.documentElement.style.display="none";location.replace("/index.html");}}catch(e){document.documentElement.style.display="none";location.replace("/index.html");}})();</script>
+<meta name="robots" content="noindex, nofollow" />
+<meta charset="UTF-8" />
+<script>(function(){try{
+  var t = localStorage.getItem('theme') || 'light';
+  if (t === 'dark' || t === 'scifi') document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bots - WYK Maths Team</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+<link rel="stylesheet" href="/assets/css/styles.css?v=23f09e20" />
+<link rel="stylesheet" href="/assets/css/admin-bots.css?v=23f09e20" />
+<script src="/assets/js/bundle-loader.js?v=23f09e20" data-part="head"></script>
+</head>
+<body class="index-body">
+  <div id="appContainer">
+    <header class="topbar" id="topbarContainer"></header>
+    <aside class="sidebar" id="sidebarContainer"></aside>
+    <main class="main-content" id="mainContent">
+      <div class="bot-wrap">
+        <div class="bot-head">
+          <h1><i class="fas fa-robot"></i> PyBot</h1>
+          <p class="bot-sub">
+            A chatbot written entirely in Python rules by 1,000+ agents &mdash; no model, no weights.
+            Each turn is independent: it does not remember the previous one.
+          </p>
+        </div>
+
+        <div class="bot-warn">
+          <i class="fas fa-clock"></i>
+          Every message takes <b>20&ndash;40 seconds</b>. It is not slow because it is thinking &mdash;
+          it is slow because 528 modules each get a turn at matching your text.
+        </div>
+
+        <div class="bot-log" id="botLog">
+          <div class="bot-empty" id="botEmpty">Ask it something. Try <code>what is 17 times 23</code> or <code>is 1000003 a prime number</code>.</div>
+        </div>
+
+        <div class="bot-input-row">
+          <textarea id="botInput" rows="1" placeholder="Type a message…" spellcheck="false"></textarea>
+          <button id="botSend" class="bot-send">Send</button>
+        </div>
+        <div class="bot-meta" id="botMeta"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/assets/js/bundle-loader.js?v=23f09e20" data-part="body"></script>
+  <script src="/assets/js/pages/admin-bots.js?v=23f09e20"></script>
+</body>
+</html>

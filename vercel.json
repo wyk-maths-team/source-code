@@ -314,6 +314,10 @@
   ],
   "rewrites": [
     {
+      "source": "/admin/bots",
+      "destination": "/admin/bots.html"
+    },
+    {
       "source": "/classification",
       "destination": "/classification.html"
     },
