@@ -29,21 +29,46 @@
     emptyEl = null;
   }
 
-  // 模型回的东西一多半带 markdown：列表、代码块、**加粗**、LaTeX 片段。
-  // 用 marked 渲染再用 DOMPurify 洗一遍 —— 模型输出不能直接塞 innerHTML。
-  // 用户自己的消息永远走 textContent，不给它任何被解释的机会。
+  // 模型回的是 markdown，数学式子用的是 \[ \] 和 \( \) 这两套 LaTeX 定界符。
+  // marked 会把 \[ 当成转义吃掉，剩下孤零零的方括号 —— 看起来就是两个黑方块。
+  // 所以先换成 $$ / $，交给 marked，最后由 KaTeX 的 auto-render 排版。
+  //
+  // 用函数形式做替换，不用字符串：替换串里的 $ 有特殊含义，
+  // 写 '$$$$' 到底会变成几个 $ 得靠脑子算，容易错。
+  function normaliseMath(text) {
+    return String(text || '')
+      .replace(/\\\[/g, function () { return '$$'; })
+      .replace(/\\\]/g, function () { return '$$'; })
+      .replace(/\\\(/g, function () { return '$'; })
+      .replace(/\\\)/g, function () { return '$'; });
+  }
+
   function renderMarkdown(text) {
-    var raw = String(text || '');
+    var raw = normaliseMath(text);
     if (!window.marked || !window.DOMPurify) return null;
     try {
       var html = window.marked.parse(raw, { breaks: true, gfm: true });
       return window.DOMPurify.sanitize(html, {
         FORBID_TAGS: ['style', 'form', 'input', 'button', 'iframe', 'object', 'embed'],
         FORBID_ATTR: ['style', 'onerror', 'onload', 'onclick'],
+        ADD_ATTR: ['class'],   // KaTeX 输出要它
       });
     } catch (e) {
       return null;
     }
+  }
+
+  function typesetMath(node) {
+    if (!window.renderMathInElement || !node) return;
+    try {
+      window.renderMathInElement(node, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$', right: '$', display: false },
+        ],
+        throwOnError: false,
+      });
+    } catch (e) { /* 公式排版失败不该把整条消息吞掉 */ }
   }
 
   function add(role, text, extra) {
@@ -57,6 +82,7 @@
       bodyNode.className = 'bot-md';
       bodyNode.innerHTML = html;
       node.appendChild(bodyNode);
+      typesetMath(bodyNode);
     } else {
       node.textContent = text;
     }
