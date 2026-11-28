@@ -162,10 +162,10 @@ in the repository and stale in the browser.
 A pre-commit hook now handles it:
 
 ```sh
-node tools/install-hooks.mjs        # once per clone
+node .githooks/install.mjs        # once per clone
 ```
 
-This sets `core.hooksPath` to `tools/hooks`. From then on, any commit whose
+This sets `core.hooksPath` to `.githooks`. From then on, any commit whose
 staged set touches `assets/` or `*.html` runs `tools/version-assets.mjs`,
 re-stages the rewritten files, and proceeds. Commits that touch neither are
 unaffected.

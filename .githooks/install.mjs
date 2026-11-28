@@ -11,7 +11,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const dir = 'tools/hooks';
+const dir = '.githooks';
 if (!fs.existsSync(path.join(dir, 'pre-commit'))) {
   console.error('找不到 ' + dir + '/pre-commit');
   process.exit(1);
