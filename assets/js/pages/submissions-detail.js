@@ -61,7 +61,7 @@ function renderDetail(sub, problemName, attempts) {
   const timeStr = diffSec < 60 ? `${diffSec} seconds` : `${Math.floor(diffSec / 60)} min ${diffSec % 60} sec`;
 
   let answerHtml;
-  if (sub.type === 'image' && sub.image) answerHtml = `<img src="${escapeHtml(sub.image)}" class="answer-image" alt="Submission image">`;
+  if (sub.type === 'image' && sub.image) answerHtml = `<img src="${escapeHtml(imgUrl(sub.image, 'view'))}" class="answer-image" alt="Submission image">`;
   else if (sub.answerHidden) answerHtml = `<div class="answer-text">${hiddenScrambleHtml('Answer hidden')}</div>`;
   else {
     // 学生常交整份 .tex 源文件，先剥掉 documentclass / begin{document} 这些壳，

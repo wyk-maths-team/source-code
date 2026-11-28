@@ -166,7 +166,7 @@
     }
     if (state.user) {
       const u = info.user || {}; const realName = u.realName || ''; const displayName = u.displayName || state.user; const title = realName || displayName; const pfp = u.pfp || '';
-      const avatarHtml = pfp ? `<img src="${escapeHtml(pfp)}" class="profile-40" alt="avatar">` : '';
+      const avatarHtml = pfp ? `<img src="${escapeHtml(imgUrl(pfp, 'thumb'))}" class="profile-40" alt="avatar">` : '';
       html += `<div class="filter-header"><h2><a href="/users/${encodeURIComponent(state.user)}">${avatarHtml} ${escapeHtml(title)}</a></h2><div class="filter-meta"><span class="meta-btn">Username: ${escapeHtml(state.user)}</span>${realName && displayName !== realName ? `<span class="meta-btn">Display: ${escapeHtml(displayName)}</span>` : ''}<a href="/submissions/user/${encodeURIComponent(state.user)}" class="meta-btn info">Submissions</a><a href="/users/${encodeURIComponent(state.user)}" class="meta-btn purple">Profile</a></div></div>`;
     }
     return html;

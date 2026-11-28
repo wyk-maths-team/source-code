@@ -9,6 +9,7 @@ import { effortForDifficulty } from '../lib/thinking.js';
 import crypto from 'crypto';
 import { wrapHandler } from '../lib/errors.js';
 import { encodeStatus } from '../lib/submission-status.js';
+import { cloudTier, TIERS } from '../lib/cloud-image.js';
 import {
   GIVE_UP_MESSAGE,
   AUTH_FAIL_MESSAGE,
@@ -150,7 +151,9 @@ async function handleCreate(req, res, db, decoded) {
       // 只计模型这一段 —— 和 steps 那边记 result.elapsed 的口径保持一致，
       // 否则「批改要多久」在两种题型之间没有可比性。
       const modelStart = Date.now();
-      const apiRes = await callDeepSeekVision(prompt, imageUrl, effortForDifficulty(problem.difficulty));
+      // 压到 1200px 宽再送给模型：原图平均 200 KB，压完 60–90 KB，
+      // 笔迹的清晰度肉眼无差，但上传给模型的 payload 小一半。
+      const apiRes = await callDeepSeekVision(prompt, cloudTier(imageUrl, TIERS.grade), effortForDifficulty(problem.difficulty));
       const judgingMs = Date.now() - modelStart;
 
       const parsed = parseJSONReply(apiRes.content);

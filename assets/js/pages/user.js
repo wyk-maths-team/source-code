@@ -239,7 +239,7 @@
         const fullIds = cachedIds || (Array.isArray(allProblemIds) ? allProblemIds : []);
 
         const avatarHtml = pfp
-          ? `<img src="${escapeHtml(pfp)}" alt="avatar">`
+          ? `<img src="${escapeHtml(imgUrl(pfp, 'avatar'))}" alt="avatar">`
           : `<div class="placeholder">👤</div>`;
 
         // ⭐ 增加权限判断：不能操作自己、不能操作同级/上级

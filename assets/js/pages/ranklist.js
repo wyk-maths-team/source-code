@@ -42,7 +42,7 @@
       const pfp = user.pfp;
       const online = user.online;
       const inner = pfp
-        ? `<img src="${escapeHtml(pfp)}" alt="" loading="lazy" decoding="async">`
+        ? `<img src="${escapeHtml(imgUrl(pfp, 'thumb'))}" alt="" loading="lazy" decoding="async">`
         : `<div class="avatar-placeholder"><i class="fas fa-user"></i></div>`;
       const dot = online ? '<span class="online-dot" title="Online"></span>' : '';
       return `<span class="user-avatar-wrap" style="width:${size}px;height:${size}px;">${inner}${dot}</span>`;
@@ -166,7 +166,7 @@
 
     function showTooltip(user) {
       const avatarInner = user.pfp
-        ? `<img class="tip-avatar" src="${escapeHtml(user.pfp)}" alt="">`
+        ? `<img class="tip-avatar" src="${escapeHtml(imgUrl(user.pfp, 'hover'))}" alt="">`
         : `<div class="tip-avatar placeholder"><i class="fas fa-user"></i></div>`;
       const avatar = `
         <div class="tip-avatar-wrap">
