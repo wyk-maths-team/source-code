@@ -40,14 +40,53 @@
       .replace(/\\\[/g, function () { return '$$'; })
       .replace(/\\\]/g, function () { return '$$'; })
       .replace(/\\\(/g, function () { return '$'; })
-      .replace(/\\\)/g, function () { return '$'; });
+      .replace(/\\\)/g, function () { return '$'; })
+      // 块级公式通常长这样：$$ 单独占一行，公式在中间，$$ 再另起一行。
+      // marked 会把三行拆成三个 <p>，KaTeX 的 auto-render 只在单个文本节点里
+      // 找 $$...$$，跨节点就找不到，于是原样显示出来。
+      // 把首尾那两个 $$ 周围的换行折掉，让整块落在同一个文本节点里。
+      .replace(/\$\$[ \t]*\r?\n/g, function () { return '$$'; })
+      .replace(/\r?\n[ \t]*\$\$/g, function () { return '$$'; });
+  }
+
+  // marked 开着 breaks:true，单个换行就会变成 <br>。块级公式几乎都是多行的，
+  // 于是 $$...$$ 被 <br> 拆成好几段，KaTeX 的 auto-render 只在单个文本节点里
+  // 找定界符，跨节点就放弃 —— 结果 $$ 原样留在屏幕上。
+  //
+  // 办法：渲染 markdown 之前先把公式整体抽出来换成占位符（单行、无特殊字符），
+  // 渲染完再换回去。这样公式原文对 marked 是完全透明的。
+  var MATH_PH = /\u0001M(\d+)\u0001/g;
+
+  function extractMath(text) {
+    var blocks = [];
+    var put = function (open, close) {
+      return function (whole, body) {
+        blocks.push(open + body + close);
+        return '\u0001M' + (blocks.length - 1) + '\u0001';
+      };
+    };
+    var out = String(text || '')
+      .replace(/\$\$([\s\S]*?)\$\$/g, put('$$', '$$'))
+      .replace(/\\\[([\s\S]*?)\\\]/g, put('$$', '$$'))
+      .replace(/\\\(([\s\S]*?)\\\)/g, put('$', '$'))
+      .replace(/\$([^$\n]+?)\$/g, put('$', '$'));
+    return { text: out, blocks: blocks };
+  }
+
+  function restoreMath(html, blocks) {
+    return String(html || '').replace(MATH_PH, function (whole, idx) {
+      var maths = blocks[Number(idx)];
+      return maths == null ? whole : maths;
+    });
   }
 
   function renderMarkdown(text) {
-    var raw = normaliseMath(text);
+    var extracted = extractMath(normaliseMath(text));
+    var raw = extracted.text;
     if (!window.marked || !window.DOMPurify) return null;
     try {
       var html = window.marked.parse(raw, { breaks: true, gfm: true });
+      html = restoreMath(html, extracted.blocks);
       return window.DOMPurify.sanitize(html, {
         FORBID_TAGS: ['style', 'form', 'input', 'button', 'iframe', 'object', 'embed'],
         FORBID_ATTR: ['style', 'onerror', 'onload', 'onclick'],
