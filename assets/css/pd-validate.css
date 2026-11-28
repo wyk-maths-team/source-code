@@ -1,0 +1,41 @@
+/* 题目校验按钮 —— 只有管理员看得到（脚本自己会因为拿不到身份而不挂载） */
+.pdv-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 14px 0;
+  font-size: .82rem;
+}
+.pdv-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: .82rem;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.pdv-btn:hover:not(:disabled) { border-color: var(--accent); }
+.pdv-btn:disabled { opacity: .5; cursor: default; }
+.pdv-btn i { color: var(--accent); }
+
+.pdv-out {
+  flex: 1 1 320px;
+  min-width: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--border-color);
+}
+.pdv-out.pdv-good { border-color: rgba(46,158,107,.45); background: rgba(46,158,107,.08); }
+.pdv-out.pdv-warn { border-color: rgba(200,134,13,.45); background: rgba(200,134,13,.08); }
+.pdv-out.pdv-bad  { border-color: rgba(217,83,79,.45);  background: rgba(217,83,79,.08); }
+.pdv-prev { font-size: .72rem; color: var(--text-secondary); margin-left: 6px; }
+.pdv-reason { margin-top: 4px; color: var(--text-primary); }

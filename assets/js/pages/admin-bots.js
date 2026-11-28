@@ -15,6 +15,7 @@
   var inputEl = document.getElementById('botInput');
   var sendBtn = document.getElementById('botSend');
   var metaEl = document.getElementById('botMeta');
+  var modelEl = document.getElementById('botModel');
 
   var busy = false;
   var ticker = null;
@@ -70,6 +71,7 @@
     inputEl.value = '';
     inputEl.style.height = 'auto';
 
+    var which = modelEl ? modelEl.value : 'pybot';
     var pending = document.createElement('div');
     pending.className = 'bot-msg bot thinking';
     logEl.appendChild(pending);
@@ -83,7 +85,7 @@
       var res = await fetch('/api/bot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token() },
-        body: JSON.stringify({ text: text }),
+        body: JSON.stringify({ text: text, model: modelEl ? modelEl.value : 'pybot' }),
       });
       var data = await res.json();
       stopTicker();
@@ -94,7 +96,7 @@
         if (data.module) tag.push('module: ' + data.module);
         if (data.seconds) tag.push('turn ' + data.seconds + 's');
         if (data.elapsedMs) tag.push('round trip ' + (data.elapsedMs / 1000).toFixed(1) + 's');
-        add('bot', data.reply, tag.join('  ·  '));
+        add('bot', data.reply, (which === 'pybot' ? '' : which + '  ·  ') + tag.join('  ·  '));
         metaEl.textContent = tag.join('  ·  ');
       } else {
         add('err', (data && data.message) || 'No reply.');

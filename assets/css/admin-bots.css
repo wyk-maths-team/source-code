@@ -54,3 +54,4 @@
 .bot-send:disabled { opacity: .45; cursor: default; }
 
 .bot-meta { font-size: .72rem; color: var(--text-secondary); margin-top: 8px; font-family: ui-monospace, Menlo, Consolas, monospace; min-height: 1em; }
+\n/* 模型选择：和输入框同一行，固定宽度，别跟着内容伸缩 */\n.bot-model {\n  flex: 0 0 auto;\n  align-self: flex-end;\n  padding: 10px 10px;\n  border: 1px solid var(--border-color);\n  border-radius: 9px;\n  background: var(--card-bg);\n  color: var(--text-primary);\n  font-family: inherit;\n  font-size: .8rem;\n  cursor: pointer;\n  max-width: 150px;\n}\n.bot-model:focus { outline: none; border-color: var(--accent); }\n@media (max-width: 560px) {\n  .bot-input-row { flex-wrap: wrap; }\n  .bot-model { max-width: none; width: 100%; order: -1; }\n}\n

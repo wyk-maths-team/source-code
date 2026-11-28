@@ -15,6 +15,7 @@
 import { verifyToken } from '../lib/auth.js';
 import { wrapHandler, sendError } from '../lib/errors.js';
 import { applyRateLimit } from '../lib/rateLimit.js';
+import { askDeepSeekAPI } from '../lib/deepseek-api.js';
 
 const TIMEOUT_MS = 70_000;
 
@@ -27,16 +28,41 @@ async function handler(req, res) {
 
   if (!(await applyRateLimit(req, res, { name: 'bot', key: 'u:' + user.username, max: 20, windowMs: 60_000, banMs: 60_000 }))) return;
 
-  const base = process.env.PYBOT_URL;
-  const token = process.env.PYBOT_TOKEN;
-  if (!base || !token) {
-    return sendError(req, res, 'NOT_CONFIGURED', 'PYBOT_URL / PYBOT_TOKEN are not set');
-  }
 
   const body = (req.body && typeof req.body === 'object') ? req.body : {};
   const text = String(body.text || '').trim();
   if (!text) return sendError(req, res, 'BAD_REQUEST', 'Missing text');
   if (text.length > 2000) return sendError(req, res, 'BAD_REQUEST', 'Keep it under 2000 characters');
+
+  const model = String(body.model || 'pybot');
+
+  // 直连 DeepSeek：没有上下文、没有系统提示词，就是这一句话进去、一段文字出来。
+  // 和 pybot 并列放，是为了对比「规则拼出来的回答」和「模型生成的回答」差在哪。
+  if (model === 'deepseek-flash') {
+    const t0 = Date.now();
+    try {
+      const out = await askDeepSeekAPI(text, { effort: 'none', timeoutMs: 60_000 });
+      return res.status(200).json({
+        success: true,
+        reply: String(out.content || '').trim(),
+        module: 'deepseek-flash',
+        seconds: Math.round((Date.now() - t0) / 100) / 10,
+        elapsedMs: Date.now() - t0,
+      });
+    } catch (e) {
+      return res.status(200).json({
+        success: false,
+        message: 'DeepSeek failed: ' + String((e && e.message) || e).slice(0, 200),
+        elapsedMs: Date.now() - t0,
+      });
+    }
+  }
+
+  const base = process.env.PYBOT_URL;
+  const token = process.env.PYBOT_TOKEN;
+  if (!base || !token) {
+    return sendError(req, res, 'NOT_CONFIGURED', 'PYBOT_URL / PYBOT_TOKEN are not set');
+  }
 
   const started = Date.now();
   let upstream;
