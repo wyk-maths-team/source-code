@@ -125,7 +125,11 @@
       state.open = !state.open;
       panel.classList.toggle('open', state.open);
       fab.setAttribute('aria-expanded', state.open ? 'true' : 'false');
-      if (state.open) setTimeout(function () { input.focus(); }, 30);
+      if (state.open) {
+        // 刚刚 display:flex，先让它量出真实尺寸，再把 right/bottom 换成 left/top
+        if (typeof adoptPanelPosition === 'function') adoptPanelPosition();
+        setTimeout(function () { input.focus(); }, 30);
+      }
     });
     closeBtn.addEventListener('click', function () {
       state.open = false;
@@ -360,7 +364,7 @@
       }
     }
 
-    initResize(panel);
+    var adoptPanelPosition = initResize(panel);
 
     document.body.appendChild(fab);
     document.body.appendChild(panel);
@@ -381,14 +385,23 @@
   function initResize(panel) {
     var MIN_W = 300, MIN_H = 320;
 
-    // 转成 left/top 定位（一次性）
-    var r0 = panel.getBoundingClientRect();
-    panel.style.left = r0.left + 'px';
-    panel.style.top = r0.top + 'px';
-    panel.style.right = 'auto';
-    panel.style.bottom = 'auto';
-    panel.style.width = r0.width + 'px';
-    panel.style.height = r0.height + 'px';
+    // 面板平时是 display:none，这时候 getBoundingClientRect() 全是 0。
+    // 早先在这里就直接把 right/bottom 换算成 left/top，结果写出
+    // left:0 top:0 width:0 height:0 —— 面板"打开"了但尺寸是 0×0，
+    // 钉在左上角看不见，看起来就是 FAB 点了没反应。
+    // 改成第一次真正显示出来之后再接管定位。
+    function adoptPosition() {
+      if (panel.dataset.posAdopted === '1') return;
+      var r0 = panel.getBoundingClientRect();
+      if (!r0.width || !r0.height) return;   // 还没布局，下次再说
+      panel.style.left = r0.left + 'px';
+      panel.style.top = r0.top + 'px';
+      panel.style.right = 'auto';
+      panel.style.bottom = 'auto';
+      panel.style.width = r0.width + 'px';
+      panel.style.height = r0.height + 'px';
+      panel.dataset.posAdopted = '1';
+    }
 
     function bounds() {
       var topbar = document.querySelector('.topbar');
@@ -503,6 +516,8 @@
       if (r.left < b.minLeft) panel.style.left = b.minLeft + 'px';
       if (r.top < b.minTop) panel.style.top = b.minTop + 'px';
     });
+
+    return adoptPosition;
   }
 
   /** 拉取这个（用户, 题目）的历史对话 */
