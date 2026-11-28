@@ -17,7 +17,78 @@
   }
 
   const main = document.getElementById('mainContent');
-  const state = { diffRunning: false, simRunning: false };
+  const state = { diffRunning: false, simRunning: false, diffInFlight: 0 };
+
+  /**
+   * 调 /api/admin-difficulty 并读 SSE。
+   *
+   * 不能用 apiCall：那个函数无条件 res.json()，而这个接口返回 text/event-stream，
+   * 于是它拿 "event: reasoning" 去 JSON.parse，报
+   * Unexpected token 'e', "event: rea"... is not valid JSON。
+   * 每题都抛错、触发下面的重试，最后看到的就是「N 题发了 2N 个请求」。
+   *
+   * onEvent(type, payload) 用来做实时反馈：reasoning 帧是思维链片段，
+   * done 帧是最终结果。
+   */
+  async function callDifficultySSE(problemId, onEvent) {
+    const token = (typeof getToken === 'function') ? getToken() : localStorage.getItem('auth_token');
+    const res = await fetch('/api/admin-difficulty', {
+      method: 'POST',
+      headers: Object.assign(
+        { 'Content-Type': 'application/json' },
+        token ? { Authorization: 'Bearer ' + token } : {}
+      ),
+      body: JSON.stringify({ problemId }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      let msg = 'HTTP ' + res.status;
+      try { msg = JSON.parse(text).message || msg; } catch (e) {}
+      throw new Error(msg);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let result = null;
+
+    while (true) {
+      const step = await reader.read();
+      if (step.done) break;
+      buffer += decoder.decode(step.value, { stream: true });
+
+      let cut;
+      while ((cut = buffer.indexOf('\n\n')) >= 0) {
+        const frame = buffer.slice(0, cut);
+        buffer = buffer.slice(cut + 2);
+
+        let name = 'message';
+        let data = '';
+        for (const line of frame.split('\n')) {
+          if (line.startsWith('event:')) name = line.slice(6).trim();
+          else if (line.startsWith('data:')) data += line.slice(5).trim();
+          // ':' 开头是注释帧（心跳），跳过
+        }
+        if (!data) continue;
+
+        let payload;
+        try { payload = JSON.parse(data); } catch (e) { continue; }
+
+        if (typeof onEvent === 'function') {
+          try { onEvent(name, payload); } catch (e) {}
+        }
+        if (name === 'done') result = payload;
+        if (name === 'error') throw new Error(payload.message || 'estimator failed');
+      }
+    }
+
+    if (!result) throw new Error('stream ended without a result');
+    if (!result.success) throw new Error(result.message || 'estimator failed');
+    return result;
+  }
+
+
 
   main.innerHTML = '<div class="lab-wrap">' + [
     '<div class="page-header">',
@@ -185,13 +256,24 @@
       const results = new Array(list.length);
       let cursor = 0;
       let done = 0;
+      state.diffInFlight = 0;
 
       const worker = async () => {
         while (state.diffRunning) {
           const i = cursor++;
           if (i >= list.length) return;
           const p = list[i];
-          const callOnce = () => apiCall('/api/admin-difficulty', 'POST', { problemId: p.id });
+
+          // 先把这一行画出来再发请求 —— 50 并发时头几秒没有任何输出，
+          // 看起来像卡死了。pending 行同时也是「已经打出去了」的证据。
+          results[i] = {
+            id: p.id, name: p.name, existing: p.difficulty,
+            ai: null, error: null, pending: true, retried: false, charged: 0,
+          };
+          paintRows(results.filter(Boolean));
+          state.diffInFlight++;
+
+          const callOnce = () => callDifficultySSE(p.id, null);
 
           let r = null;
           let lastErr = null;
@@ -217,18 +299,16 @@
               ai: (r.difficulty === null) ? null : r.difficulty,
               band: r.band, rationale: r.rationale, charged: r.charged || 0,
               error: (r.difficulty === null) ? 'not-a-problem (R5)' : null,
-              retried,
+              pending: false, retried,
             };
           }
           done++;
+          state.diffInFlight--;
           $('diffProgress').textContent = 'Scored ' + done + '/' + list.length
-            + ' · ' + Math.min(concurrency, list.length) + ' in flight';
-          // 节流：每两题重绘一次，N 大时不必每题重建表格与散点
-          if (done % 10 === 0 || done === list.length) {
-            rows.length = 0;
-            rows.push(...results.filter(Boolean));
-            renderDiff(rows, list.length);
-          }
+            + ' · ' + state.diffInFlight + ' in flight';
+          // 表格每题都更新（攒到下一帧），统计和图表只在整轮结束时算一次 ——
+          // 它们要遍历全量数据，每题跑一遍会拖慢界面。
+          paintRows(results.filter(Boolean));
         }
       };
 
@@ -249,6 +329,63 @@
       $('diffStop').disabled = true;
       renderDiff(rows, rows.length);
     }
+  }
+
+  // 每题完成都要刷一次行，但 requestAnimationFrame 会把同一帧内的多次调用
+  // 合并成一次 —— 50 并发同时回来时不至于连续重建 50 遍 DOM。
+  // rows 活在 runDifficulty 里，paintRows 在外层 —— 必须显式传进来，
+  // 直接引用会 ReferenceError（第一次跑就是这么炸的）。
+  let paintQueued = false;
+  let paintList = null;
+  function paintRows(list) {
+    paintList = list;
+    if (paintQueued) return;
+    paintQueued = true;
+    requestAnimationFrame(function () {
+      paintQueued = false;
+      renderDiffTable(paintList || []);
+    });
+  }
+
+  /** 只画表格。统计、散点、分布图都不碰 —— 那些要遍历全量数据。 */
+  function renderDiffTable(rows) {
+    const RENDER_ROWS = 300;
+    if (!rows.length) {
+      $('diffTable').innerHTML = '<div class="lab-empty">No run yet.</div>';
+      return;
+    }
+    const shown = rows.slice(0, RENDER_ROWS);
+    const body = shown.map((row) => {
+      if (row.pending) {
+        return '<tr class="lab-row-pending">'
+          + '<td class="mono">' + esc(row.id) + '</td>'
+          + '<td>' + esc(String(row.name || '').slice(0, 46)) + '</td>'
+          + '<td>' + fmt(row.existing) + '</td>'
+          + '<td colspan="4"><span class="lab-pending">running…</span></td>'
+          + '</tr>';
+      }
+      const delta = (row.ai === null) ? null : row.ai - row.existing;
+      const cls = delta === null ? '' : (delta >= 0 ? 'lab-delta-pos' : 'lab-delta-neg');
+      return '<tr>'
+        + '<td class="mono">' + esc(row.id) + '</td>'
+        + '<td>' + esc(String(row.name || '').slice(0, 46)) + '</td>'
+        + '<td>' + fmt(row.existing) + '</td>'
+        + '<td>' + (row.ai === null ? '<span style="color:var(--danger)">' + esc(row.error || 'failed') + '</span>' : fmt(row.ai)) + '</td>'
+        + '<td class="' + cls + '">' + (delta === null ? '—' : (delta >= 0 ? '+' : '') + fmt(delta)) + '</td>'
+        + '<td class="mono">' + esc(row.band || '') + (row.retried ? ' *' : '') + '</td>'
+        + '<td title="' + esc(row.rationale || '') + '">' + esc(String(row.rationale || '').slice(0, 70)) + '</td>'
+        + '</tr>';
+    }).join('');
+
+    const more = rows.length > RENDER_ROWS
+      ? '<div class="lab-empty">Showing the first ' + RENDER_ROWS + ' of ' + rows.length
+        + ' rows — the statistics above use all of them.</div>'
+      : '';
+
+    $('diffTable').innerHTML = '<div class="lab-table-scroll">'
+      + '<table class="lab-table"><thead><tr>'
+      + '<th>id</th><th>name</th><th>stored</th><th>AI</th><th>Δ</th><th>band</th><th>reason</th>'
+      + '</tr></thead><tbody>' + body + '</tbody></table></div>' + more;
   }
 
   function renderDiff(rows, total) {
@@ -283,36 +420,9 @@
     $('diffDist').innerHTML = distribution(pairs, spread);
     $('diffTop').innerHTML = divergenceTable(rows);
 
-    if (!rows.length) {
-      $('diffTable').innerHTML = '<div class="lab-empty">No run yet.</div>';
-      return;
-    }
-    // 1000 题时整表渲染会卡，只画前 300 行；统计始终用全量
-    const RENDER_ROWS = 300;
-    const shown = rows.slice(0, RENDER_ROWS);
-
-    const body = shown.map((row) => {
-      const delta = (row.ai === null) ? null : row.ai - row.existing;
-      const cls = delta === null ? '' : (delta >= 0 ? 'lab-delta-pos' : 'lab-delta-neg');
-      return '<tr>'
-        + '<td class="mono">' + esc(row.id) + '</td>'
-        + '<td>' + esc(String(row.name || '').slice(0, 46)) + '</td>'
-        + '<td>' + fmt(row.existing) + '</td>'
-        + '<td>' + (row.ai === null ? '<span style="color:var(--danger)">' + esc(row.error || 'failed') + '</span>' : fmt(row.ai)) + '</td>'
-        + '<td class="' + cls + '">' + (delta === null ? '—' : (delta >= 0 ? '+' : '') + fmt(delta)) + '</td>'
-        + '<td class="mono">' + esc(row.band || '') + (row.retried ? ' *' : '') + '</td>'
-        + '<td title="' + esc(row.rationale || '') + '">' + esc(String(row.rationale || '').slice(0, 70)) + '</td>'
-        + '</tr>';
-    }).join('');
-
-    const more = rows.length > RENDER_ROWS
-      ? '<div class="lab-empty">Showing the first ' + RENDER_ROWS + ' of ' + rows.length
-        + ' rows — the statistics above use all of them.</div>'
-      : '';
-
-    $('diffTable').innerHTML = '<table class="lab-table"><thead><tr>'
-      + '<th>id</th><th>name</th><th>stored</th><th>AI</th><th>Δ</th><th>band</th><th>reason</th>'
-      + '</tr></thead><tbody>' + body + '</tbody></table>' + more;
+    // 表格交给 renderDiffTable：它每完成一题就会被 paintRows 调一次，
+    // 这里只负责跑完整轮之后把统计一起刷新。
+    renderDiffTable(rows);
   }
 
   /** 分布对比：AI 与 stored 各画一条密度曲线，形状差异一眼可见 */

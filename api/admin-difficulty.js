@@ -19,6 +19,11 @@ import { consumeTokens, getTokenBalance } from '../lib/token.js';
 import { addAiUsage } from '../lib/aiQuota.js';
 import { addTokensUsed } from '../lib/token-meter.js';
 import { billingMultiplier } from '../lib/pricing.js';
+// 模板搬到了 lib/difficulty-prompt.js —— 那里分成 SYSTEM 和 USER 两段，
+// 评分规则不再和题面混在同一条 message 里。
+import { DEFAULT_TEMPLATE, splitTemplate } from '../lib/difficulty-prompt.js';
+
+export { DEFAULT_TEMPLATE };
 
 export const config = { maxDuration: 300 };
 
@@ -27,11 +32,6 @@ const MIN_DIFFICULTY = 0;
 // 评分上限 10.00：新量尺到 B10，不再是原来那条封在 9.30 的老曲线。
 const MAX_DIFFICULTY = 10;
 export const PROMPT_DOC_ID = 'prompt:difficulty';
-
-// 模板搬到了 lib/difficulty-prompt.js —— 那里分成 SYSTEM 和 USER 两段，
-// 评分规则不再和题面混在同一个 message 里。
-import { DEFAULT_TEMPLATE, splitTemplate } from '../lib/difficulty-prompt.js';
-export { DEFAULT_TEMPLATE };
 
 function bandRange(band) {
   const b = String(band || '').toUpperCase();

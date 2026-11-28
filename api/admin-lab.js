@@ -33,7 +33,12 @@ async function handler(req, res) {
   if (!adminOnly(req, res, decoded)) return;
 
   const db = await connectToDatabase();
-  const action = (req.query && req.query.action) || 'sample';
+  // action 可能在 query（GET）也可能在 body（POST）——只读 query 的话
+  // savePrompt / resetPrompt 这种 POST 动作永远走到 "Unknown action"。
+  const bodyAction = (req.body && typeof req.body === 'object' && !Array.isArray(req.body))
+    ? String(req.body.action || '')
+    : '';
+  const action = (req.query && req.query.action) || bodyAction || 'sample';
 
   // ── 随机抽样 ──
   if (action === 'sample' && req.method === 'GET') {
