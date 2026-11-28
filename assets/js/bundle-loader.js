@@ -34,6 +34,7 @@
         'arch-render.js',
         'core/ui.js', 'core/net.js', 'core/ban-guard.js', 'core/latex-doc.js',
         'core/status-badge.js', 'core/script-panel.js', 'core/api.js', 'core/padstore.js',
+        'core/img.js',
         'core/radial-menu.js', 'core/ban-screen.js', 'core/ban-index.js', 'core/page.js',
       ],
     },
