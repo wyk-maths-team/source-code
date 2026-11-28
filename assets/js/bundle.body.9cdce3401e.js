@@ -1418,6 +1418,16 @@ window.apiCall = apiCall;
         <i class="fa-solid fa-list-check fa-fw"></i> Grading Queue
       </a>
     </li>
+    <li>
+      <a href="/admin/classification" class="sidebar-link require-login sidebar-link-admin" data-page="admin-classification">
+        <i class="fa-solid fa-tags fa-fw"></i> Classification
+      </a>
+    </li>
+    <li>
+      <a href="/admin/bots" class="sidebar-link require-login sidebar-link-admin" data-page="admin-bots">
+        <i class="fa-solid fa-robot fa-fw"></i> Bots
+      </a>
+    </li>
   `;
   // ═══════════════ 扩展导航 ═══════════════
   // 新增页面时只改这里（或用 npm run new:page 自动追加），不要再手写 li。
@@ -1442,8 +1452,6 @@ window.apiCall = apiCall;
         <li><a href="/submissions" class="sidebar-link require-login" data-page="all-submissions"><i class="fa-solid fa-pen-to-square fa-fw"></i> All Submissions</a></li>
         <li><a href="/leaderboard" class="sidebar-link require-login" data-page="ranklist"><i class="fa-solid fa-ranking-star fa-fw"></i> Leaderboard</a></li>
         <li><a href="/skills" class="sidebar-link require-login" data-page="my-skills"><i class="fa-solid fa-sitemap fa-fw"></i> My Skills</a></li>
-        <li class="admin-only"><a href="/classification" class="sidebar-link require-login" data-page="classification"><i class="fa-solid fa-tags fa-fw"></i> Classification</a></li>
-        <li class="admin-only"><a href="/admin/bots" class="sidebar-link require-login" data-page="bots"><i class="fa-solid fa-robot fa-fw"></i> Bots</a></li>
         <li><a href="/course" class="sidebar-link require-login fx-course" data-page="course"><i class="fa-solid fa-graduation-cap fa-fw"></i> Course</a></li>
         <li><a href="/resources" class="sidebar-link require-login" data-page="resources"><i class="fa-solid fa-folder-open fa-fw"></i> Resources</a></li>
         <li><a href="/contest" class="sidebar-link require-login" data-page="contest"><i class="fa-solid fa-trophy fa-fw"></i> Contests</a></li>
@@ -1584,6 +1592,16 @@ window.apiCall = apiCall;
   const links = sidebar.querySelectorAll('.sidebar-link');
   links.forEach(link => {
     const page = link.getAttribute('data-page');
+    // /admin 下有几个独立页面，要排在 Dashboard 的兜底之前，
+    // 否则它们全都会点亮 Dashboard 那一行。
+    if (page === 'admin-classification' && path.startsWith('/admin/classification')) {
+      link.classList.add('active');
+      return;
+    }
+    if (page === 'admin-bots' && path.startsWith('/admin/bots')) {
+      link.classList.add('active');
+      return;
+    }
     // Admin Dashboard：只要路徑以 /admin 開頭就高亮
     if (page === 'admin' && path.startsWith('/admin')) {
       link.classList.add('active');

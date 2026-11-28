@@ -314,12 +314,12 @@
   ],
   "rewrites": [
     {
-      "source": "/admin/bots",
-      "destination": "/admin/bots.html"
+      "source": "/admin/classification",
+      "destination": "/admin/classification.html"
     },
     {
-      "source": "/classification",
-      "destination": "/classification.html"
+      "source": "/admin/bots",
+      "destination": "/admin/bots.html"
     },
     {
       "source": "/admin/grading",
